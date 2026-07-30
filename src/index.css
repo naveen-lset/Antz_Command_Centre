@@ -1,0 +1,163 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/space-grotesk';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk Variable', var(--font-sans);
+
+  /* MD3_Antz palette (Figma variables) */
+  --color-antz-primary: #37bd69; /* MD3_Antz/Primary */
+  --color-antz-secondary: #00d6c9; /* MD3_Antz/Secondary */
+  --color-antz-secondary-container: #afefeb; /* MD3_Antz/SecondaryContainer */
+  --color-antz-tertiary: #fa6140; /* MD3_Antz/Tertiary */
+  --color-antz-error: #e93353; /* MD3_Antz/Error */
+  --color-antz-deep: #1f515b; /* MD3_Antz/OnPrimaryContainer */
+  --color-antz-deep-blue: #1f415b; /* MD3_Antz/OnSecondaryContainer */
+  --color-antz-surface-variant: #dae7df; /* MD3_Antz/SurfaceVariant */
+  --color-antz-on-surface-variant: #44544a; /* MD3_Antz/OnSurfaceVariant */
+  --color-antz-on-surface: #006d35; /* MD3_Antz/OnSurface */
+  --color-antz-hero: #2f9e5b;
+
+  /* v2 Command Centre — calm neutral ink over white */
+  --color-ink: #17211b; /* primary text */
+  --color-ink-2: #5b6b62; /* secondary text */
+  --color-ink-3: #8a968e; /* muted text */
+  --color-line: #ececec; /* hairline divider */
+  --color-page: #f8f9fa;
+  --color-track: #eef1ef; /* unfilled meters, de-emphasis bars */
+  --color-spark-dim: #cbd4ce; /* sparkline de-emphasis stroke */
+
+  /* v2 module accents — validated with dataviz palette checks */
+  --color-acc-animals: #2f9e5b;
+  --color-acc-animals-deep: #1e7a44;
+  --color-acc-animals-soft: #7bcb9b;
+  --color-acc-medical: #e93353;
+  --color-acc-births: #e8590c;
+  --color-acc-eggs: #d97706;
+  --color-acc-transfers: #2563eb;
+  --color-acc-approvals: #7c3aed;
+  --color-acc-alerts: #dc2626;
+  --color-acc-weather: #0284c7;
+  --color-acc-attendance: #4f46e5;
+
+  /* status (reserved — never reused as series colors) */
+  --color-status-good: #1e7a44;
+  --color-status-warn: #b45309;
+  --color-status-critical: #dc2626;
+
+  --animate-rise: rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  /* Drill-down motion set — one easing family (0.22, 1, 0.36, 1), 500–1000ms,
+     every animation earns its keep by explaining where a value came from. */
+  --animate-hero-in: hero-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-draw: draw 1000ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-veil: veil 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-grow-x: grow-x 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-grow-y: grow-y 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop: pop 520ms cubic-bezier(0.34, 1.36, 0.64, 1) both;
+  --animate-drop-in: drop-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-sheet-in: sheet-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-swap-in: swap-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes rise {
+    from {
+      transform: scaleY(0);
+    }
+  }
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  @keyframes hero-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.96);
+    }
+  }
+  /* Paired with pathLength={1} + strokeDasharray={1} so length is irrelevant. */
+  @keyframes draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+  }
+  @keyframes veil {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes grow-x {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes grow-y {
+    from {
+      transform: scaleY(0);
+    }
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+  }
+  @keyframes drop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(26px);
+    }
+  }
+  /* Swapping modules inside the open sheet reads as moving forward. */
+  @keyframes swap-in {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+  }
+}
+
+/* SVG marks scale from their own box, not the viewBox origin. */
+@utility origin-fill-bottom {
+  transform-box: fill-box;
+  transform-origin: bottom;
+}
+
+@utility origin-fill-left {
+  transform-box: fill-box;
+  transform-origin: left;
+}
+
+@utility scrollbar-hidden {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Tap affordance shared by every card (250ms premium easing, no flashy motion) */
+@utility card-press {
+  transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
