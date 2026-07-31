@@ -1,10 +1,12 @@
+@import '@fontsource-variable/dm-sans';
 @import '@fontsource-variable/inter';
-@import '@fontsource-variable/space-grotesk';
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Space Grotesk Variable', var(--font-sans);
+  --font-sans: 'DM Sans Variable', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Numerals wear SF Pro Rounded — native on Apple platforms (ui-rounded /
+     local install), falling back to DM Sans elsewhere. Matches the Figma spec. */
+  --font-display: 'SF Pro Rounded', ui-rounded, var(--font-sans);
 
   /* MD3_Antz palette (Figma variables) */
   --color-antz-primary: #37bd69; /* MD3_Antz/Primary */

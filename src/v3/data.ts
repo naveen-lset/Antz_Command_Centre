@@ -23,7 +23,7 @@ export interface DailyCardData {
   delta: string
   value: string
   unit?: string
-  viz: 'dots' | 'pulse'
+  viz: 'dots' | 'pulse' | 'area' | 'cols'
   accent: string
   /** Drill-down route — every card on the home screen opens its detail page. */
   href: string
@@ -32,11 +32,11 @@ export interface DailyCardData {
 /** The two headline cards directly under the hero. */
 export const mainPair: DailyCardData[] = [
   { title: 'Natality', icon: Sparkles, delta: '+12%', value: '45', viz: 'dots', accent: '#e8590c', href: '#/births' },
-  { title: 'Mortality', icon: Activity, delta: '−18%', value: '23', viz: 'pulse', accent: '#9d174d', href: '#/mortality' },
+  { title: 'Mortality', icon: Activity, delta: '−18%', value: '23', viz: 'area', accent: '#9d174d', href: '#/mortality' },
 ]
 
 export const dailyUpdates: DailyCardData[] = [
-  { title: 'Eggs', icon: Egg, delta: '+4', value: '21', unit: 'incubating', viz: 'dots', accent: '#d97706', href: '#/eggs' },
+  { title: 'Eggs', icon: Egg, delta: '+4', value: '21', unit: 'incubating', viz: 'cols', accent: '#d97706', href: '#/eggs' },
   { title: 'Alerts', icon: BellRing, delta: '36 open', value: '6', unit: 'critical', viz: 'pulse', accent: '#dc2626', href: '#/alerts' },
 ]
 

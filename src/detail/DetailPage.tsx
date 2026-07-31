@@ -20,7 +20,6 @@ import { useCountUp } from '../hooks/useCountUp'
 import { useTween } from '../hooks/useTween'
 import { ArcGauge } from '../v3/viz'
 import { AreaTrend, BarRows, Columns, Meter, MiniArea, ShareBar, TONE_COLOR, fmt, signColor } from './charts'
-import { HeroIllustration } from './illustration'
 import { AnimatedValue, Reveal, usePlay, usePrefersReducedMotion, useScrollDriven } from './motion'
 import type { DetailPageData, NamedValue, Section, SummaryItem, Tone } from './model'
 
@@ -32,6 +31,59 @@ const tint = (accent: string, pct = 11) => `color-mix(in oklab, ${accent} ${pct}
 
 /** Sections that stagger their own children instead of fading in as one block. */
 const SELF_STAGGERED = new Set<Section['kind']>(['summary', 'compare', 'ranked'])
+
+/**
+ * The sheet reads as three chapters rather than one long stack of cards: what the
+ * number is, what it's made of, what just happened.
+ */
+const CHAPTERS = ['Overview', 'Breakdown', 'Activity'] as const
+
+/**
+ * Which chapter a section belongs to. The walk below only ever moves forward
+ * through these, so a stray `summary` or `stat` in the middle of a page joins the
+ * chapter it lands in instead of splitting it — three contiguous blocks, always,
+ * and section order on the page is never rearranged.
+ */
+const CHAPTER_OF: Record<Section['kind'], number> = {
+  trend: 0,
+  summary: 0,
+  share: 1,
+  breakdown: 1,
+  tabs: 1,
+  columns: 1,
+  gauges: 1,
+  ranked: 1,
+  compare: 1,
+  stat: 1,
+  rows: 2,
+  timeline: 2,
+  calendar: 2,
+}
+
+type Chapter = { name: string; items: { section: Section; index: number }[] }
+
+function chaptersOf(sections: Section[]): Chapter[] {
+  const blocks: Chapter[] = []
+  let at = -1
+
+  sections.forEach((section, index) => {
+    const next = Math.max(at, CHAPTER_OF[section.kind])
+    if (next !== at) {
+      at = next
+      blocks.push({ name: CHAPTERS[at], items: [] })
+    }
+    blocks[blocks.length - 1].items.push({ section, index })
+  })
+
+  return blocks
+}
+
+/** Chapter label — the quiet rule that breaks the scroll into readable stretches. */
+function ChapterHead({ name }: { name: string }) {
+  return (
+    <h2 className="px-1 pb-1 text-[11px] font-semibold tracking-[0.1em] text-[#5f6b62] uppercase">{name}</h2>
+  )
+}
 
 /** Card title row — 15px medium ink, optional muted meta on the right. */
 function CardHead({ title, meta, children }: { title: string; meta?: string; children?: ReactNode }) {
@@ -69,7 +121,7 @@ function SummaryTiles({ items }: { items: SummaryItem[] }) {
             </span>
             <AnimatedValue
               value={item.value}
-              className={`mt-2 block font-semibold text-[#1c1a16] tabular-nums ${three ? 'text-[26px] leading-8' : 'text-[30px] leading-9'}`}
+              className={`mt-2 block font-display font-bold text-[#2f2424] tabular-nums ${three ? 'text-[26px] leading-8' : 'text-[30px] leading-9'}`}
             />
             {item.note && (
               <span className="mt-1.5 flex items-center gap-1.5">
@@ -94,12 +146,15 @@ function Chips({
   active,
   onPick,
   small = false,
+  fill = false,
 }: {
   labels: string[]
   accent: string
   active: number
   onPick: (i: number) => void
   small?: boolean
+  /** Stretch the track and split it evenly — for the sheet's chapter nav. */
+  fill?: boolean
 }) {
   const track = useRef<HTMLDivElement>(null)
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
@@ -112,17 +167,24 @@ function Chips({
     setPill({ left: el.offsetLeft, width: el.offsetWidth })
   }, [active, labels])
 
+  /* A raised white segment on a grey track, the way iOS does it: the selection
+     carries three signals at once — elevation, a hairline edge and a heavier
+     label — so it never depends on a tint being noticed. The accent deliberately
+     stays out of it; it belongs to the data and to the depth line just below. */
   return (
     <div
       ref={track}
-      className={`relative flex shrink-0 gap-0 rounded-full bg-[#f4f3ef] p-0.5 ${
-        small ? '' : 'max-w-full overflow-x-auto scrollbar-hidden'
+      className={`relative flex gap-0 rounded-full p-[3px] select-none ${fill ? 'w-full' : 'shrink-0'} ${
+        small || fill ? '' : 'max-w-full overflow-x-auto scrollbar-hidden'
       }`}
+      /* The track keeps a whisper of the module hue so the control still belongs
+         to the page; all the contrast comes from the white segment on top. */
+      style={{ backgroundColor: `color-mix(in oklab, ${accent} 7%, #e8e6df)` }}
     >
       {pill && (
         <span
-          className="absolute inset-y-0.5 rounded-full transition-[transform,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-          style={{ transform: `translateX(${pill.left - 2}px)`, width: pill.width, backgroundColor: tint(accent, 22) }}
+          className="absolute inset-y-[3px] rounded-full bg-white shadow-[0_1px_2px_rgba(28,26,22,0.14)] ring-1 ring-[#1c1a16]/[0.04] transition-[transform,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{ transform: `translateX(${pill.left - 3}px)`, width: pill.width }}
           aria-hidden
         />
       )}
@@ -133,9 +195,11 @@ function Chips({
           data-chip={i}
           onClick={() => onPick(i)}
           aria-pressed={i === active}
-          className={`relative z-10 shrink-0 rounded-full font-medium transition-colors duration-300 active:scale-95 ${
-            small ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-[12px]'
-          } ${i === active ? 'text-[#1c1a16]' : 'text-[#6d6860]'}`}
+          className={`relative z-10 rounded-full transition-colors duration-300 active:scale-95 ${
+            fill ? 'flex-1 basis-0 py-[7px] text-[13px]' : 'shrink-0'
+          } ${fill ? '' : small ? 'px-3 py-1 text-[11px]' : 'px-3.5 py-1.5 text-[12px]'} ${
+            i === active ? 'font-semibold text-[#1c1a16]' : 'font-medium text-[#5f5a52]'
+          }`}
         >
           {label}
         </button>
@@ -277,7 +341,7 @@ function SectionView({ section, accent }: { section: Section; accent: string }) 
                 <span className="truncate text-[15px] font-medium text-[#1c1a16]">{card.label}</span>
                 <AnimatedValue
                   value={card.value}
-                  className="mt-2 block text-[30px] leading-9 font-semibold text-[#1c1a16] tabular-nums"
+                  className="mt-2 block font-display text-[30px] leading-9 font-bold text-[#2f2424] tabular-nums"
                 />
                 <span className="mt-1 text-[11px] font-medium" style={{ color: signColor(card.delta) ?? toneColor(card.tone) }}>
                   {card.delta}
@@ -324,7 +388,7 @@ function SectionView({ section, accent }: { section: Section; accent: string }) 
                   <p className="truncate text-[11px] text-[#9b958b]">{item.sub}</p>
                   <AnimatedValue
                     value={item.value}
-                    className="mt-3 block text-[26px] leading-8 font-semibold text-[#1c1a16] tabular-nums"
+                    className="mt-3 block font-display text-[26px] leading-8 font-bold text-[#2f2424] tabular-nums"
                   />
                   <div className="mt-2.5">
                     <Meter percent={item.percent} accent={accent} delay={i * 70} />
@@ -341,7 +405,7 @@ function SectionView({ section, accent }: { section: Section; accent: string }) 
         <section className={`${CARD} p-5`}>
           <div className="flex items-baseline justify-between gap-3">
             <p className="min-w-0 text-[15px] font-medium text-[#1c1a16]">{section.title}</p>
-            <p className="shrink-0 text-[30px] leading-9 font-semibold text-[#1c1a16] tabular-nums">
+            <p className="shrink-0 font-display text-[30px] leading-9 font-bold text-[#2f2424] tabular-nums">
               <AnimatedValue value={section.value} />
               {section.unit && <span className="ml-1 text-[13px] font-normal text-[#9b958b]">{section.unit}</span>}
             </p>
@@ -539,27 +603,29 @@ function Hero({ page }: { page: DetailPageData }) {
   const counted = useCountUp(page.hero.value, { format: (v) => fmt(Math.round(v)) })
   const value = page.hero.display ?? counted
 
-  // Fixed band whatever the module's captions add up to, so the illustration has a
-  // known height to sit in and every sheet's hero opens the same.
   return (
-    <section className="relative min-h-[212px] overflow-hidden px-5 pt-6 pb-4" aria-label={page.hero.label}>
-      {/* Module line-art fills the hero's margins — the number keeps the centre. */}
-      <HeroIllustration slug={page.slug} accent={page.accent} />
-      <p className="animate-hero-in relative text-center font-display text-[58px] leading-none font-bold tracking-[-0.02em] text-[#1c1a16]">
+    <section className="px-5 pt-6" aria-label={page.hero.label}>
+      <p className="animate-hero-in text-center font-display text-[58px] leading-none font-bold tracking-[-0.02em] text-[#2f2424]">
         {value}
       </p>
-      <p className="animate-fade-up relative mt-2 text-center text-[16px] text-[#6d6860]" style={{ animationDelay: '150ms' }}>
+      <p className="animate-fade-up mt-2 text-center text-[16px] text-[#6d6860]" style={{ animationDelay: '150ms' }}>
         {page.hero.label}
       </p>
-      <p className="animate-fade-up relative mt-1 text-center text-[12px] text-[#9b958b]" style={{ animationDelay: '230ms' }}>
+      <p className="animate-fade-up mt-1 text-center text-[12px] text-[#9b958b]" style={{ animationDelay: '230ms' }}>
         {page.hero.sub}
       </p>
       {page.hero.status && (
-        <p
-          className="animate-fade-up relative mt-2 text-center text-[12px] font-medium"
-          style={{ color: toneColor(page.hero.tone), animationDelay: '310ms' }}
-        >
-          {page.hero.status}
+        /* A badge rather than a floating sentence — it reads as the module's state. */
+        <p className="animate-fade-up mt-3 flex justify-center" style={{ animationDelay: '310ms' }}>
+          <span
+            className="rounded-full px-3 py-[5px] text-[12px] font-medium"
+            style={{
+              color: toneColor(page.hero.tone),
+              backgroundColor: `color-mix(in oklab, ${toneColor(page.hero.tone)} 10%, white)`,
+            }}
+          >
+            {page.hero.status}
+          </span>
         </p>
       )}
     </section>
@@ -587,6 +653,38 @@ function useScrolledPastIn(ref: RefObject<HTMLElement | null>, threshold: number
   }, [ref, threshold])
 
   return past
+}
+
+/** Which chapter block the reader is currently inside, by scroll position. */
+function useActiveChapter(scroller: RefObject<HTMLElement | null>, count: number): number {
+  const [active, setActive] = useState(0)
+
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    let raf = 0
+
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const line = el.getBoundingClientRect().top + 96
+        let current = 0
+        el.querySelectorAll<HTMLElement>('[data-chapter]').forEach((block, i) => {
+          if (block.getBoundingClientRect().top <= line) current = i
+        })
+        setActive(current)
+      })
+    }
+
+    onScroll()
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [scroller, count])
+
+  return active
 }
 
 /** How much of the home screen stays visible above the sheet. */
@@ -696,6 +794,17 @@ export default function DetailPage({
 
   const away = !entered || closing
   const heroValue = page.hero.display ?? fmt(page.hero.value)
+  const chapters = chaptersOf(page.sections)
+  const activeChapter = useActiveChapter(scroller, chapters.length)
+
+  /** Chapter chips jump the scroller to the block, measured live off the layout. */
+  const jumpToChapter = (i: number) => {
+    const el = scroller.current
+    const block = el?.querySelectorAll<HTMLElement>('[data-chapter]')[i]
+    if (!el || !block) return
+    const top = block.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12
+    el.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' })
+  }
   const accents = sectionAccents(page.sections, page.accent)
 
   return (
@@ -710,7 +819,7 @@ export default function DetailPage({
       />
 
       {/* Sheet lives inside the phone frame, so the 8px gap is off the frame edge. */}
-      <div className="pointer-events-none absolute inset-0 mx-auto max-w-[430px]">
+      <div className="pointer-events-none absolute inset-0 mx-auto max-w-[390px]">
         <section
           className="pointer-events-auto absolute inset-x-2 bottom-0 flex flex-col overflow-hidden rounded-t-[20px] bg-white shadow-[0_-12px_44px_rgba(16,26,21,0.26)]"
           style={{
@@ -731,6 +840,21 @@ export default function DetailPage({
               <span className="h-[5px] w-9 rounded-full bg-[#1c1a16]/12" />
             </div>
             <DetailHeader page={page} heroValue={heroValue} collapsed={collapsed} onClose={close} />
+
+            {/* Chapter chips: where you are in the sheet, and a way to skip ahead.
+                Same control as the trend ranges, so the sheet has one chip language. */}
+            {chapters.length > 1 && (
+              <nav className="px-5 pb-3" aria-label="Jump to section">
+                <Chips
+                  labels={chapters.map((c) => c.name)}
+                  accent={page.accent}
+                  active={activeChapter}
+                  onPick={jumpToChapter}
+                  fill
+                />
+              </nav>
+            )}
+
             {/* Reading depth — the only thing on the page that tracks the finger. */}
             <span
               ref={progress}
@@ -753,25 +877,39 @@ export default function DetailPage({
                 scroll length — deepest around the middle, pale green at the very end, so
                 no stretch of the sheet drops back to bare ground. */}
             <main
-              className="mt-7 flex min-h-[70dvh] flex-col gap-3 rounded-t-[20px] px-3.5 pt-6 pb-[max(40px,env(safe-area-inset-bottom))]"
+              className="mt-7 flex min-h-[70dvh] flex-col rounded-t-[20px] px-3.5 pt-5 pb-[max(40px,env(safe-area-inset-bottom))]"
               style={{
                 backgroundColor: '#f4f3f0',
                 backgroundImage:
                   'linear-gradient(180deg,#cde4d8 0%,#b4d3c4 30%,#a0c8b5 52%,#bfd9cb 76%,#dbe9e0 100%)',
               }}
             >
-            {page.sections.map((section, i) => {
-              return SELF_STAGGERED.has(section.kind) ? (
-                <SectionView key={`${section.kind}-${i}`} section={section} accent={accents[i]} />
-              ) : (
-                <Reveal key={`${section.kind}-${i}`}>
-                  <SectionView section={section} accent={accents[i]} />
+            {/* Cards sit close together inside a chapter and further apart between
+                chapters, so the grouping is legible before you read a single label. */}
+            {chapters.map((chapter, ci) => (
+              <section
+                key={chapter.name}
+                data-chapter={chapter.name}
+                className={`flex flex-col gap-2.5 ${ci ? 'mt-7' : ''}`}
+                aria-label={chapter.name}
+              >
+                <Reveal>
+                  <ChapterHead name={chapter.name} />
                 </Reveal>
-              )
-            })}
+                {chapter.items.map(({ section, index }) =>
+                  SELF_STAGGERED.has(section.kind) ? (
+                    <SectionView key={`${section.kind}-${index}`} section={section} accent={accents[index]} />
+                  ) : (
+                    <Reveal key={`${section.kind}-${index}`}>
+                      <SectionView section={section} accent={accents[index]} />
+                    </Reveal>
+                  ),
+                )}
+              </section>
+            ))}
 
-            <div className="pt-3">
-              <h2 className="px-1 text-[15px] font-medium text-[#1c1a16]">More Modules</h2>
+            <div className="mt-9">
+              <ChapterHead name="More Modules" />
               <div className="-mx-3.5 mt-3 flex gap-2.5 overflow-x-auto px-3.5 pb-1 scrollbar-hidden">
                 {others.map((o, i) => (
                   <Reveal key={o.slug} delay={i * 40}>

@@ -17,6 +17,58 @@ export function DotBars({ accent }: { accent: string }) {
   )
 }
 
+const AREA_VALUES = [30, 28, 28.5, 26, 24, 24.5, 22, 20, 20.5, 18, 16, 15]
+
+/** Smooth mini area line with a soft wash and an end dot. */
+export function AreaMini({ accent }: { accent: string }) {
+  const w = 132
+  const h = 44
+  const pad = 5
+  const min = Math.min(...AREA_VALUES)
+  const max = Math.max(...AREA_VALUES)
+  const span = max - min || 1
+  const step = (w - pad * 2) / (AREA_VALUES.length - 1)
+  const pts = AREA_VALUES.map((v, i) => [pad + i * step, pad + (1 - (v - min) / span) * (h - pad * 2)])
+  // Midpoint-quadratic smoothing: each point is a control, curve passes midway.
+  let d = `M ${pts[0][0]} ${pts[0][1]}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x, y] = pts[i]
+    const [nx, ny] = pts[i + 1]
+    d += ` Q ${x} ${y}, ${(x + nx) / 2} ${(y + ny) / 2}`
+  }
+  d += ` L ${pts[pts.length - 1][0]} ${pts[pts.length - 1][1]}`
+  const [lx, ly] = pts[pts.length - 1]
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-[44px] w-full overflow-visible" preserveAspectRatio="none">
+      <path d={`${d} L ${lx} ${h} L ${pts[0][0]} ${h} Z`} fill={accent} opacity={0.1} />
+      <path d={d} fill="none" stroke={accent} strokeWidth={2} strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r={3.5} fill={accent} stroke="white" strokeWidth={2} />
+    </svg>
+  )
+}
+
+const COLUMN_VALUES = [0.45, 0.7, 0.55, 0.8, 0.6, 0.9, 0.7, 1]
+
+/** Solid rounded mini columns, the latest period in full accent. */
+export function MiniColumns({ accent }: { accent: string }) {
+  return (
+    <div className="flex h-[52px] items-end gap-[7px]">
+      {COLUMN_VALUES.map((v, i) => (
+        <span
+          key={i}
+          className="w-[11px] rounded-[5px]"
+          style={{
+            height: `${Math.round(v * 100)}%`,
+            backgroundColor: accent,
+            opacity: i === COLUMN_VALUES.length - 1 ? 1 : 0.35,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
 /** Calm ECG-style line. */
 export function PulseLine({ accent }: { accent: string }) {
   return (

@@ -10,7 +10,7 @@ export default function TopBar() {
   const dayMonth = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
 
   return (
-    <header className="fixed top-0 left-1/2 z-20 flex w-full max-w-[430px] -translate-x-1/2 items-center justify-between bg-gradient-to-b from-black from-[53%] to-black/0 p-4">
+    <header className="fixed top-0 left-1/2 z-20 flex w-full max-w-[390px] -translate-x-1/2 items-center justify-between bg-gradient-to-b from-black from-[53%] to-black/0 p-4">
       <div className="relative h-10 w-[131px] overflow-hidden" aria-label="Vantara — Every Life Matters" role="img">
         <img
           alt=""

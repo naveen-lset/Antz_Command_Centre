@@ -59,7 +59,7 @@ export default function CommandCentre() {
 
   return (
     <div className="min-h-dvh bg-page font-sans">
-      <div className="mx-auto min-h-dvh w-full max-w-[430px] bg-white shadow-[0_0_40px_rgba(0,0,0,0.06)]">
+      <div className="mx-auto min-h-dvh w-full max-w-[390px] bg-white shadow-[0_0_40px_rgba(0,0,0,0.06)]">
         <HeroGreeting mountedAt={mountedAt} />
         <div ref={sentinelRef} aria-hidden />
         <StickyBar

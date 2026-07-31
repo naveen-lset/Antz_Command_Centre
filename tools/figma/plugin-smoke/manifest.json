@@ -1,0 +1,8 @@
+{
+  "name": "ANTZ Smoke Test",
+  "id": "antz-smoke-test",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"],
+  "networkAccess": { "allowedDomains": ["none"] }
+}

@@ -138,7 +138,7 @@ export function AreaTrend({
   return (
     <div ref={ref}>
       <div className="flex items-baseline gap-2">
-        <span className="text-[26px] leading-8 font-semibold text-[#1c1a16] tabular-nums">
+        <span className="font-display text-[26px] leading-8 font-bold text-[#2f2424] tabular-nums">
           {/* Counts only on the initial draw; scrubbing must track the finger exactly. */}
           {active === null ? (
             <CountUp value={values[shown]} animate={animate} duration={1000} format={fmt} />
