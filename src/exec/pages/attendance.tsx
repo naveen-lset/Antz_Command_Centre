@@ -1,10 +1,10 @@
 /** ATTENDANCE — a roster. The gap between rostered and present is the story. */
 import { Clock, Grid3x3, TriangleAlert, UserCheck, Users } from 'lucide-react'
-import { AccentProvider, Composition, Dumbbell, Hero, Matrix, Records, Section, Stack, StatusList } from '../system'
+import { Composition, Dumbbell, Hero, Matrix, Records, Section, Stack, StatusList } from '../system'
 
 export default function Attendance() {
   return (
-    <AccentProvider value="#4f46e5">
+    <>
       <Hero
         icon={Users}
         value="243"
@@ -77,6 +77,6 @@ export default function Attendance() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

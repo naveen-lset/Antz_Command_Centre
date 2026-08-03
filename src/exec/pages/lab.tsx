@@ -6,13 +6,12 @@
  */
 
 import { FlaskConical, Hourglass, ListChecks, Timer, TriangleAlert } from 'lucide-react'
-import { AccentProvider, Dumbbell, Funnel, Hero, Ledger, MetricGrid, Records, Section, Stack, StatusList } from '../system'
+import { Dumbbell, Funnel, Hero, Ledger, MetricGrid, Records, Section, Stack, StatusList } from '../system'
 
-const ACCENT = '#0284c7'
 
 export default function Lab() {
   return (
-    <AccentProvider value={ACCENT}>
+    <>
       <Hero
         icon={FlaskConical}
         value="31"
@@ -93,6 +92,6 @@ export default function Lab() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

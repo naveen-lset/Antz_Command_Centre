@@ -7,13 +7,12 @@
  */
 
 import { CalendarClock, ClipboardCheck, Gauge, Grid3x3, ShieldCheck, TriangleAlert } from 'lucide-react'
-import { AccentProvider, Events, Hero, Matrix, MeterGroup, Radar, Records, Section, Stack } from '../system'
+import { Events, Hero, Matrix, MeterGroup, Radar, Records, Section, Stack } from '../system'
 
-const ACCENT = '#db2777'
 
 export default function Welfare() {
   return (
-    <AccentProvider value={ACCENT}>
+    <>
       <Hero
         icon={ShieldCheck}
         align="center"
@@ -85,6 +84,6 @@ export default function Welfare() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

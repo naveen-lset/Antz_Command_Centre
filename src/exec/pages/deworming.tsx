@@ -1,10 +1,10 @@
 /** DEWORMING — a rotation schedule. Paddock grid + pre/post efficacy. */
 import { CalendarClock, Gauge, Grid3x3, Pill, TriangleAlert } from 'lucide-react'
-import { AccentProvider, Dumbbell, Events, Hero, MeterGroup, Records, Section, Stack, Tray } from '../system'
+import { Dumbbell, Events, Hero, MeterGroup, Records, Section, Stack, Tray } from '../system'
 
 export default function Deworming() {
   return (
-    <AccentProvider value="#0d9488">
+    <>
       <Hero
         icon={Pill}
         value="63"
@@ -76,6 +76,6 @@ export default function Deworming() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

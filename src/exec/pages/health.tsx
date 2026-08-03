@@ -7,13 +7,12 @@
  */
 
 import { Activity, ArrowLeftRight, HeartPulse, Pill, Stethoscope, Syringe, TriangleAlert } from 'lucide-react'
-import { AccentProvider, Composition, Dumbbell, Hero, MetricGrid, Records, Section, Stack, StatusList } from '../system'
+import { Composition, Dumbbell, Hero, MetricGrid, Records, Section, Stack, StatusList } from '../system'
 
-const ACCENT = '#e93353'
 
 export default function Health() {
   return (
-    <AccentProvider value={ACCENT}>
+    <>
       <Hero
         icon={HeartPulse}
         value="124"
@@ -97,6 +96,6 @@ export default function Health() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

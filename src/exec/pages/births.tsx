@@ -1,10 +1,10 @@
 /** BIRTHS — a nursery. Forward-looking: what's due before what happened. */
 import { Baby, CalendarClock, ClipboardCheck, Columns3, Sparkles, Users } from 'lucide-react'
-import { AccentProvider, Columns, Events, Hero, Ledger, MetricGrid, Section, Stack } from '../system'
+import { Columns, Events, Hero, Ledger, MetricGrid, Section, Stack } from '../system'
 
 export default function Births() {
   return (
-    <AccentProvider value="#e8590c">
+    <>
       <Hero
         icon={Sparkles}
         value="45"
@@ -65,6 +65,6 @@ export default function Births() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

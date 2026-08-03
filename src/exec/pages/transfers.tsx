@@ -1,10 +1,10 @@
 /** TRANSFERS — movement. Directional lanes are the signature. */
 import { ArrowLeftRight, CalendarClock, ClipboardCheck, Route, Truck } from 'lucide-react'
-import { AccentProvider, Dumbbell, Events, Hero, Lanes, Records, Section, Stack, StatusList } from '../system'
+import { Dumbbell, Events, Hero, Lanes, Records, Section, Stack, StatusList } from '../system'
 
 export default function Transfers() {
   return (
-    <AccentProvider value="#2563eb">
+    <>
       <Hero
         icon={ArrowLeftRight}
         value="28"
@@ -74,6 +74,6 @@ export default function Transfers() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

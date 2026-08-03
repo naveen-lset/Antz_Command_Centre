@@ -1,10 +1,10 @@
 /** EGGS — the incubator floor. Tray grid mirrors the physical thing. */
 import { Columns3, Egg, Gauge, Grid3x3, Thermometer } from 'lucide-react'
-import { AccentProvider, Columns, MeterGroup, Hero, Records, Section, Stack, StatusList, Tray } from '../system'
+import { Columns, MeterGroup, Hero, Records, Section, Stack, StatusList, Tray } from '../system'
 
 export default function Eggs() {
   return (
-    <AccentProvider value="#d97706">
+    <>
       <Hero
         icon={Egg}
         value="21"
@@ -67,6 +67,6 @@ export default function Eggs() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

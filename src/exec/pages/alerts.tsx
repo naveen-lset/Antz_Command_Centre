@@ -1,10 +1,10 @@
 /** ALERTS — a signal wall. Feed-led: the newest line matters most. */
 import { BellRing, Gauge, Grid3x3, Radio, TriangleAlert } from 'lucide-react'
-import { AccentProvider, Bars, Events, Hero, MeterGroup, Section, Stack, StatusList, Tray } from '../system'
+import { Bars, Events, Hero, MeterGroup, Section, Stack, StatusList, Tray } from '../system'
 
 export default function Alerts() {
   return (
-    <AccentProvider value="#dc2626">
+    <>
       <Hero
         icon={BellRing}
         value="6"
@@ -76,6 +76,6 @@ export default function Alerts() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

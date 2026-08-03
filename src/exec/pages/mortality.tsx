@@ -1,10 +1,10 @@
 /** MORTALITY — a causes review. Pareto-led, sober register. */
 import { Activity, ClipboardCheck, Columns3, Layers, ListChecks } from 'lucide-react'
-import { AccentProvider, Columns, Composition, Events, Hero, MetricGrid, Pareto, Records, Section, Stack } from '../system'
+import { Columns, Composition, Events, Hero, MetricGrid, Pareto, Records, Section, Stack } from '../system'
 
 export default function Mortality() {
   return (
-    <AccentProvider value="#9d174d">
+    <>
       <Hero
         icon={Activity}
         value="23"
@@ -75,6 +75,6 @@ export default function Mortality() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

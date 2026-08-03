@@ -1,10 +1,10 @@
 /** TASKS — a day board. Today first, then who is buried. */
 import { Columns3, Grid3x3, ListTodo, TriangleAlert, Users } from 'lucide-react'
-import { AccentProvider, Bars, Columns, Hero, Matrix, Records, Section, Stack, StatusList } from '../system'
+import { Bars, Columns, Hero, Matrix, Records, Section, Stack, StatusList } from '../system'
 
 export default function Tasks() {
   return (
-    <AccentProvider value="#ea580c">
+    <>
       <Hero
         icon={ListTodo}
         value="41"
@@ -67,6 +67,6 @@ export default function Tasks() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

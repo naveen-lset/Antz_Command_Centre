@@ -7,13 +7,12 @@
  */
 
 import { Building2, Compass, Grid3x3, Layers, PawPrint, ShieldAlert, Sparkles, TrendingUp } from 'lucide-react'
-import { AccentProvider, Bars, Composition, Events, Figure, Hero, Ledger, MetricGrid, Section, Spark, Stack, Tray } from '../system'
+import { Bars, Composition, Events, Figure, Hero, Ledger, MetricGrid, Section, Spark, Stack, Tray } from '../system'
 
-const ACCENT = '#2f9e5b'
 
 export default function Animals() {
   return (
-    <AccentProvider value={ACCENT}>
+    <>
       <Hero
         icon={PawPrint}
         value="215,432"
@@ -124,6 +123,6 @@ export default function Animals() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

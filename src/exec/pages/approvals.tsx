@@ -1,10 +1,10 @@
 /** APPROVALS — a queue. Aging-first: "stuck 5 days with the CFO" is the fact. */
 import { CheckCircle2, Columns3, Hourglass, IndianRupee, ListChecks } from 'lucide-react'
-import { AccentProvider, Columns, Funnel, Hero, Ledger, Records, Section, Stack, StatusList } from '../system'
+import { Columns, Funnel, Hero, Ledger, Records, Section, Stack, StatusList } from '../system'
 
 export default function Approvals() {
   return (
-    <AccentProvider value="#7c3aed">
+    <>
       <Hero
         icon={CheckCircle2}
         value="14"
@@ -64,6 +64,6 @@ export default function Approvals() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

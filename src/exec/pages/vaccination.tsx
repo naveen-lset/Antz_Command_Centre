@@ -1,10 +1,10 @@
 /** VACCINATION — a coverage drive. Waffle makes the uncovered countable. */
 import { CalendarClock, Grid2x2Check, Layers, Syringe, TriangleAlert } from 'lucide-react'
-import { AccentProvider, Bars, Events, Hero, Ledger, MetricGrid, Records, Section, Stack, Waffle } from '../system'
+import { Bars, Events, Hero, Ledger, MetricGrid, Records, Section, Stack, Waffle } from '../system'
 
 export default function Vaccination() {
   return (
-    <AccentProvider value="#6d28d9">
+    <>
       <Hero
         icon={Syringe}
         value="92"
@@ -77,6 +77,6 @@ export default function Vaccination() {
           />
         </Section>
       </Stack>
-    </AccentProvider>
+    </>
   )
 }

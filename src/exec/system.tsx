@@ -27,8 +27,14 @@ export const TRACK = '#f2f1ed'
 export const TONE = { good: '#1e7a44', warn: '#b45309', bad: '#dc2626', neutral: '#9b958b' } as const
 export type Tone = keyof typeof TONE
 
-/** The module hue. Icons and data marks wear it; text never does. */
-const AccentContext = createContext('#2f9e5b')
+/**
+ * ONE accent for every module — the home screen's hero green. Fourteen different
+ * module hues made the sheets busy and fought the sage ground, so colour identity
+ * now comes from the ground and the type, not from a per-module tint. Icons and
+ * data marks wear this; text never does.
+ */
+export const ACCENT = '#2f9e5b'
+const AccentContext = createContext(ACCENT)
 export const AccentProvider = AccentContext.Provider
 export const useAccent = () => useContext(AccentContext)
 
@@ -459,11 +465,9 @@ export function Tray({
     <div>
       <div className={`grid ${cols === 3 ? 'grid-cols-3' : 'grid-cols-4'} gap-2`}>
         {cells.map((c) => (
-          <div
-            key={c.label}
-            className="rounded-[12px] px-2.5 py-3"
-            style={{ backgroundColor: c.tone && c.tone !== 'neutral' ? mix(TONE[c.tone], 0.08) : mix(accent, 0.07) }}
-          >
+          /* One calm wash for every cell — a red or amber panel per cell turned the
+             grid into a heat map of alarm. The small dot carries state instead. */
+          <div key={c.label} className="rounded-[12px] px-2.5 py-3" style={{ backgroundColor: mix(accent, 0.07) }}>
             <div className="flex items-center gap-1.5">
               {c.tone && c.tone !== 'neutral' && (
                 <span className="size-[6px] shrink-0 rounded-full" style={{ backgroundColor: TONE[c.tone] }} aria-hidden />
