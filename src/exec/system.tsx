@@ -191,37 +191,44 @@ export function Hero({
   const accent = useAccent()
   const centred = align === 'center'
   return (
-    <div className={`px-5 pt-1 pb-7 ${centred ? 'text-center' : ''}`}>
-      <Figure value={value} unit={unit} size={58} />
-      <p
-        className={`mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34] ${centred ? 'justify-center' : ''}`}
+    /* The hero is a card like every other section — sitting bare on the sage
+       ground left it reading as page chrome rather than as the module's headline. */
+    <div className="px-5 pb-3">
+      <section
+        className={`animate-hero-in rounded-[16px] bg-white p-5 ${centred ? 'text-center' : ''}`}
+        aria-label={label}
       >
-        {Glyph && <Glyph size={15} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
-        {label}
-      </p>
-      {status && (
-        <p className={`mt-3 flex items-center gap-2 ${centred ? 'justify-center' : ''}`}>
-          <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone] }} aria-hidden />
-          <span className="text-[13px] font-medium" style={{ color: TONE[tone] }}>
-            {status}
-          </span>
+        <Figure value={value} unit={unit} size={58} />
+        <p
+          className={`mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34] ${centred ? 'justify-center' : ''}`}
+        >
+          {Glyph && <Glyph size={15} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
+          {label}
         </p>
-      )}
-      {stats && stats.length > 0 && (
-        <div className="mt-5 flex items-stretch border-t border-[#cfe0d6] pt-4">
-          {stats.map((s, i) => (
-            <span
-              key={`${s.label}-${i}`}
-              className={`min-w-0 flex-1 ${i ? 'border-l border-[#cfe0d6] pl-4' : ''} ${
-                i < stats.length - 1 ? 'pr-4' : ''
-              } ${centred ? 'text-center' : ''}`}
-            >
-              <Figure value={s.value} unit={s.unit} size={24} />
-              <span className="mt-0.5 block truncate text-[12px] text-[#6d6860]">{s.label}</span>
+        {status && (
+          <p className={`mt-3 flex items-center gap-2 ${centred ? 'justify-center' : ''}`}>
+            <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone] }} aria-hidden />
+            <span className="text-[13px] font-medium" style={{ color: TONE[tone] }}>
+              {status}
             </span>
-          ))}
-        </div>
-      )}
+          </p>
+        )}
+        {stats && stats.length > 0 && (
+          <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
+            {stats.map((s, i) => (
+              <span
+                key={`${s.label}-${i}`}
+                className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-4' : ''} ${
+                  i < stats.length - 1 ? 'pr-4' : ''
+                } ${centred ? 'text-center' : ''}`}
+              >
+                <Figure value={s.value} unit={s.unit} size={24} />
+                <span className="mt-0.5 block truncate text-[12px] text-[#6d6860]">{s.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

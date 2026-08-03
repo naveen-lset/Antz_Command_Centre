@@ -186,7 +186,7 @@ export default function Animals() {
               { tag: 'Concentration', value: '36%', label: 'Jamnagar Core' },
               { tag: 'Over capacity', value: '104%', label: 'Aquatic Hall 2', tone: 'bad' },
               { tag: 'Under used', value: '22%', label: 'Quarantine Ward C', tone: 'warn' },
-              { tag: 'Critically endangered', value: '388', label: 'Animals', tone: 'bad' },
+              { tag: 'Endangered', value: '388', label: 'Critically', tone: 'bad' },
             ]}
           />
         </Section>
