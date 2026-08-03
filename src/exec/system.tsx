@@ -14,6 +14,7 @@
  */
 
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
+import { AnimatedValue, Reveal, usePlay } from '../detail/motion'
 
 /* ── tokens (from the v3 home screen) ────────────────────────────────────── */
 export const GROUND = '#e7f0ea'
@@ -86,25 +87,29 @@ export function Section({
 }) {
   const accent = useAccent()
   return (
-    <section className={`rounded-[16px] bg-white ${tight ? 'p-4' : 'p-5'}`} aria-label={label}>
-      {label && (
-        <header className={`flex items-center justify-between gap-3 ${tight ? 'mb-3' : 'mb-4'}`}>
-          <span className="flex min-w-0 items-center gap-2">
-            {Glyph && <Glyph size={16} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
-            {/* Wraps rather than truncates — a clipped section title loses meaning. */}
-            <h2
-              className={`font-medium text-balance text-[#1c1a16] ${
-                tight ? 'text-[13px] leading-[17px]' : 'text-[15px] leading-[20px]'
-              }`}
-            >
-              {label}
-            </h2>
-          </span>
-          {aside && <span className="shrink-0 text-[12px] whitespace-nowrap text-[#9b958b]">{aside}</span>}
-        </header>
-      )}
-      {children}
-    </section>
+    /* Each card fades up as it scrolls in; the marks inside read the same signal
+       through their own observer, so a card and its data animate together. */
+    <Reveal>
+      <section className={`rounded-[16px] bg-white ${tight ? 'p-4' : 'p-5'}`} aria-label={label}>
+        {label && (
+          <header className={`flex items-center justify-between gap-3 ${tight ? 'mb-3' : 'mb-4'}`}>
+            <span className="flex min-w-0 items-center gap-2">
+              {Glyph && <Glyph size={16} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
+              {/* Wraps rather than truncates — a clipped section title loses meaning. */}
+              <h2
+                className={`font-medium text-balance text-[#1c1a16] ${
+                  tight ? 'text-[13px] leading-[17px]' : 'text-[15px] leading-[20px]'
+                }`}
+              >
+                {label}
+              </h2>
+            </span>
+            {aside && <span className="shrink-0 text-[12px] whitespace-nowrap text-[#9b958b]">{aside}</span>}
+          </header>
+        )}
+        {children}
+      </section>
+    </Reveal>
   )
 }
 
@@ -142,12 +147,11 @@ export function Figure({
 }) {
   return (
     <span className="inline-flex items-baseline gap-1">
-      <span
+      <AnimatedValue
+        value={value}
         className="font-display font-bold tabular-nums"
         style={{ fontSize: size, lineHeight: 1.05, letterSpacing: '-0.025em', color }}
-      >
-        {value}
-      </span>
+      />
       {unit && <span className="text-[13px] text-[#9b958b]">{unit}</span>}
     </span>
   )
@@ -156,59 +160,67 @@ export function Figure({
 /* ── hero ────────────────────────────────────────────────────────────────── */
 
 /**
- * The 3-second read, on the sage ground above the cards — same placement and
- * type as the home hero. `side` and `align` vary the silhouette per module.
+ * The 3-second read, on the sage ground above the cards.
+ *
+ * Strict order: number, then the word that names it, then supporting numbers.
+ * There is no prose slot by design — a sentence here would be the first thing
+ * read on the page and the number would come second.
  */
 export function Hero({
   icon: Glyph,
   value,
   unit,
   label,
-  context,
+  stats,
   status,
   tone = 'neutral',
-  side,
   align = 'left',
 }: {
   icon?: Icon
   value: string
   unit?: string
+  /** One or two words. Names the number, never explains it. */
   label: string
-  context?: string
+  /** Up to three supporting figures, hairline-separated. */
+  stats?: { value: string; unit?: string; label: string }[]
+  /** Short token — "+324 Month", "3 past SLA". Never a sentence. */
   status?: string
   tone?: Tone
-  side?: { value: string; label: string }
   align?: 'left' | 'center'
 }) {
   const accent = useAccent()
   const centred = align === 'center'
   return (
     <div className={`px-5 pt-1 pb-7 ${centred ? 'text-center' : ''}`}>
-      <p className={`flex items-center gap-2 text-[13px] text-[#6d6860] ${centred ? 'justify-center' : ''}`}>
+      <Figure value={value} unit={unit} size={58} />
+      <p
+        className={`mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34] ${centred ? 'justify-center' : ''}`}
+      >
         {Glyph && <Glyph size={15} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
         {label}
       </p>
-      <div className={`mt-2 flex items-end gap-5 ${centred ? 'justify-center' : ''}`}>
-        <Figure value={value} unit={unit} size={58} />
-        {side && (
-          <span className="mb-1.5 border-l border-[#cfe0d6] pl-5">
-            <Figure value={side.value} size={26} />
-            <span className="mt-0.5 block text-[12px] text-[#6d6860]">{side.label}</span>
-          </span>
-        )}
-      </div>
-      {context && (
-        <p className={`mt-3 text-[14px] leading-[21px] text-[#3d3a34] ${centred ? 'mx-auto max-w-[42ch]' : 'max-w-[44ch]'}`}>
-          {context}
-        </p>
-      )}
       {status && (
-        <p className={`mt-3 inline-flex items-center gap-2 ${centred ? '' : ''}`}>
+        <p className={`mt-3 flex items-center gap-2 ${centred ? 'justify-center' : ''}`}>
           <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone] }} aria-hidden />
           <span className="text-[13px] font-medium" style={{ color: TONE[tone] }}>
             {status}
           </span>
         </p>
+      )}
+      {stats && stats.length > 0 && (
+        <div className="mt-5 flex items-stretch border-t border-[#cfe0d6] pt-4">
+          {stats.map((s, i) => (
+            <span
+              key={`${s.label}-${i}`}
+              className={`min-w-0 flex-1 ${i ? 'border-l border-[#cfe0d6] pl-4' : ''} ${
+                i < stats.length - 1 ? 'pr-4' : ''
+              } ${centred ? 'text-center' : ''}`}
+            >
+              <Figure value={s.value} unit={s.unit} size={24} />
+              <span className="mt-0.5 block truncate text-[12px] text-[#6d6860]">{s.label}</span>
+            </span>
+          ))}
+        </div>
       )}
     </div>
   )
@@ -277,10 +289,11 @@ export function Bars({
   showShare?: boolean
 }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay<HTMLUListElement>()
   const max = Math.max(...items.map((i) => i.value), 1)
   const total = items.reduce((s, i) => s + i.value, 0) || 1
   return (
-    <ul className="flex flex-col gap-3.5">
+    <ul ref={ref} className="flex flex-col gap-3.5">
       {items.map((it, i) => (
         <li key={it.label}>
           <div className="flex items-baseline gap-3">
@@ -298,8 +311,12 @@ export function Bars({
           </div>
           <div className="mt-1.5 h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
             <div
-              className="h-full rounded-full"
-              style={{ width: `${Math.max(2, (it.value / max) * 100)}%`, backgroundColor: mix(accent, step(i)) }}
+              className={`h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
+              style={{
+                width: `${Math.max(2, (it.value / max) * 100)}%`,
+                backgroundColor: mix(accent, step(i)),
+                animationDelay: animate ? `${i * 60}ms` : undefined,
+              }}
             />
           </div>
         </li>
@@ -311,15 +328,20 @@ export function Bars({
 /** One stacked bar + legend — composition at a glance. */
 export function Composition({ items, unit }: { items: { label: string; value: number }[]; unit?: string }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   const total = items.reduce((s, i) => s + i.value, 0) || 1
   return (
-    <div>
+    <div ref={ref}>
       <div className="flex h-[11px] w-full gap-[2px]">
         {items.map((it, i) => (
           <div
             key={it.label}
-            className="h-full first:rounded-l-full last:rounded-r-full"
-            style={{ width: `${(it.value / total) * 100}%`, backgroundColor: mix(accent, step(i)) }}
+            className={`h-full origin-left first:rounded-l-full last:rounded-r-full ${animate ? 'animate-grow-x' : ''}`}
+            style={{
+              width: `${(it.value / total) * 100}%`,
+              backgroundColor: mix(accent, step(i)),
+              animationDelay: animate ? `${i * 70}ms` : undefined,
+            }}
           />
         ))}
       </div>
@@ -346,6 +368,7 @@ export function Composition({ items, unit }: { items: { label: string; value: nu
 /** Thin sparkline with a soft wash and an emphasized endpoint. */
 export function Spark({ values, h = 40, w = 120 }: { values: number[]; h?: number; w?: number }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   const min = Math.min(...values)
   const max = Math.max(...values)
   const span = max - min || 1
@@ -354,11 +377,36 @@ export function Spark({ values, h = 40, w = 120 }: { values: number[]; h?: numbe
   const d = pts.map((p, i) => `${i ? 'L' : 'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')
   const last = pts[pts.length - 1]
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-[40px] w-full overflow-visible" preserveAspectRatio="none" aria-hidden>
-      <path d={`${d} L ${w} ${h} L 0 ${h} Z`} fill={accent} opacity={0.1} />
-      <path d={d} fill="none" stroke={accent} strokeWidth={1.75} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={last[0]} cy={last[1]} r={2.75} fill={accent} />
-    </svg>
+    <div ref={ref}>
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-[40px] w-full overflow-visible" preserveAspectRatio="none" aria-hidden>
+        <path
+          d={`${d} L ${w} ${h} L 0 ${h} Z`}
+          fill={accent}
+          opacity={0.1}
+          className={animate ? 'animate-veil' : undefined}
+          style={animate ? { animationDelay: '200ms' } : undefined}
+        />
+        <path
+          d={d}
+          fill="none"
+          stroke={accent}
+          strokeWidth={1.75}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+          pathLength={1}
+          strokeDasharray={animate ? 1 : undefined}
+          className={animate ? 'animate-draw' : undefined}
+        />
+        <circle
+          cx={last[0]}
+          cy={last[1]}
+          r={2.75}
+          fill={accent}
+          className={animate ? 'animate-pop' : undefined}
+          style={animate ? { animationDelay: '760ms' } : undefined}
+        />
+      </svg>
+    </div>
   )
 }
 
@@ -373,9 +421,10 @@ export function Dumbbell({
   unit?: string
 }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   const max = Math.max(...items.flatMap((i) => [i.a, i.b]), 1)
   return (
-    <div>
+    <div ref={ref}>
       <div className="mb-4 flex items-center gap-4 text-[11px] text-[#9b958b]">
         <span className="flex items-center gap-1.5">
           <span className="size-[8px] rounded-full border-[1.5px] bg-white" style={{ borderColor: accent }} aria-hidden />
@@ -387,9 +436,10 @@ export function Dumbbell({
         </span>
       </div>
       <ul className="flex flex-col gap-4">
-        {items.map((it) => {
+        {items.map((it, i) => {
           const lo = Math.min(it.a, it.b) / max
           const hi = Math.max(it.a, it.b) / max
+          const delay = animate ? i * 70 : undefined
           return (
             <li key={it.label}>
               <div className="flex items-baseline justify-between gap-3">
@@ -402,16 +452,31 @@ export function Dumbbell({
               <div className="relative mt-2 h-[10px]">
                 <div className="absolute inset-x-0 top-[4.5px] h-px" style={{ backgroundColor: TRACK }} />
                 <div
-                  className="absolute top-[4.5px] h-px"
-                  style={{ left: `${lo * 100}%`, width: `${(hi - lo) * 100}%`, backgroundColor: mix(accent, 0.45) }}
+                  className={`absolute top-[4.5px] h-px origin-left ${animate ? 'animate-grow-x' : ''}`}
+                  style={{
+                    left: `${lo * 100}%`,
+                    width: `${(hi - lo) * 100}%`,
+                    backgroundColor: mix(accent, 0.45),
+                    animationDelay: delay !== undefined ? `${delay}ms` : undefined,
+                  }}
                 />
                 <span
-                  className="absolute top-0 size-[10px] -translate-x-1/2 rounded-full border-[1.5px] bg-white"
-                  style={{ left: `${(it.a / max) * 100}%`, borderColor: accent }}
+                  className={`absolute top-0 size-[10px] -translate-x-1/2 rounded-full border-[1.5px] bg-white ${
+                    animate ? 'animate-pop' : ''
+                  }`}
+                  style={{
+                    left: `${(it.a / max) * 100}%`,
+                    borderColor: accent,
+                    animationDelay: delay !== undefined ? `${delay}ms` : undefined,
+                  }}
                 />
                 <span
-                  className="absolute top-0 size-[10px] -translate-x-1/2 rounded-full"
-                  style={{ left: `${(it.b / max) * 100}%`, backgroundColor: accent }}
+                  className={`absolute top-0 size-[10px] -translate-x-1/2 rounded-full ${animate ? 'animate-pop' : ''}`}
+                  style={{
+                    left: `${(it.b / max) * 100}%`,
+                    backgroundColor: accent,
+                    animationDelay: delay !== undefined ? `${delay + 110}ms` : undefined,
+                  }}
                 />
               </div>
             </li>
@@ -433,12 +498,13 @@ export function Matrix({
   values: number[][]
 }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   const flat = values.flat()
   const lo = Math.min(...flat)
   const hi = Math.max(...flat)
   const span = hi - lo || 1
   return (
-    <div>
+    <div ref={ref}>
       <div className="overflow-x-auto">
         <table className="w-full border-separate border-spacing-[3px]">
           <thead>
@@ -460,8 +526,11 @@ export function Matrix({
                   return (
                     <td key={c} className="p-0">
                       <span
-                        className="block h-[26px] rounded-[5px]"
-                        style={{ backgroundColor: mix(accent, 0.1 + ((v - lo) / span) * 0.8) }}
+                        className={`block h-[26px] rounded-[5px] ${animate ? 'animate-veil' : ''}`}
+                        style={{
+                          backgroundColor: mix(accent, 0.1 + ((v - lo) / span) * 0.8),
+                          animationDelay: animate ? `${(ri + ci) * 45}ms` : undefined,
+                        }}
                         title={`${r} · ${c}: ${v}`}
                       />
                     </td>
@@ -485,20 +554,27 @@ export function Tray({
   cols?: 3 | 4
 }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   return (
-    <div>
+    <div ref={ref}>
       <div className={`grid ${cols === 3 ? 'grid-cols-3' : 'grid-cols-4'} gap-2`}>
-        {cells.map((c) => (
+        {cells.map((c, i) => (
           /* One calm wash for every cell — a red or amber panel per cell turned the
              grid into a heat map of alarm. The small dot carries state instead. */
-          <div key={c.label} className="rounded-[12px] px-2.5 py-3" style={{ backgroundColor: mix(accent, 0.07) }}>
+          <div
+            key={c.label}
+            className={`rounded-[12px] px-2.5 py-3 ${animate ? 'animate-fade-up' : ''}`}
+            style={{ backgroundColor: mix(accent, 0.07), animationDelay: animate ? `${i * 45}ms` : undefined }}
+          >
             <div className="flex items-center gap-1.5">
               {c.tone && c.tone !== 'neutral' && (
                 <span className="size-[6px] shrink-0 rounded-full" style={{ backgroundColor: TONE[c.tone] }} aria-hidden />
               )}
               <Figure value={c.value} size={18} />
             </div>
-            <p className="mt-1 truncate text-[11px] text-[#6d6860]">{c.label}</p>
+            {/* Wraps to a second line rather than clipping — "Savanna 1" and
+                "Savanna 3" both truncate to "Savanna…" at four columns. */}
+            <p className="mt-1 text-[10.5px] leading-[14px] text-[#6d6860]">{c.label}</p>
           </div>
         ))}
       </div>
@@ -509,9 +585,10 @@ export function Tray({
 /** Stage flow — counts sit outside the bar so they're readable at any fill. */
 export function Funnel({ stages, unit }: { stages: { label: string; value: number; sub?: string }[]; unit?: string }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay<HTMLUListElement>()
   const max = Math.max(...stages.map((s) => s.value), 1)
   return (
-    <ul className="flex flex-col gap-3">
+    <ul ref={ref} className="flex flex-col gap-3">
       {stages.map((s, i) => (
         <li key={s.label}>
           <div className="flex items-baseline gap-3">
@@ -524,8 +601,12 @@ export function Funnel({ stages, unit }: { stages: { label: string; value: numbe
           </div>
           <div className="mt-1.5 h-[8px] w-full overflow-hidden rounded-[4px]" style={{ backgroundColor: TRACK }}>
             <div
-              className="h-full rounded-[4px]"
-              style={{ width: `${Math.max(2, (s.value / max) * 100)}%`, backgroundColor: mix(accent, 0.3 + step(i) * 0.55) }}
+              className={`h-full origin-left rounded-[4px] ${animate ? 'animate-grow-x' : ''}`}
+              style={{
+                width: `${Math.max(2, (s.value / max) * 100)}%`,
+                backgroundColor: mix(accent, 0.3 + step(i) * 0.55),
+                animationDelay: animate ? `${i * 70}ms` : undefined,
+              }}
             />
           </div>
         </li>
@@ -543,9 +624,10 @@ export function Lanes({
   unit?: string
 }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay<HTMLUListElement>()
   const max = Math.max(...routes.map((r) => r.value), 1)
   return (
-    <ul className="flex flex-col gap-3.5">
+    <ul ref={ref} className="flex flex-col gap-3.5">
       {routes.map((r, i) => (
         <li key={`${r.from}-${r.to}`}>
           <div className="flex items-baseline gap-2 text-[14px]">
@@ -560,8 +642,12 @@ export function Lanes({
           <div className="mt-1.5 flex items-center gap-2">
             <span className="h-[5px] flex-1 overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
               <span
-                className="block h-full rounded-full"
-                style={{ width: `${(r.value / max) * 100}%`, backgroundColor: mix(accent, step(i)) }}
+                className={`block h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
+                style={{
+                  width: `${(r.value / max) * 100}%`,
+                  backgroundColor: mix(accent, step(i)),
+                  animationDelay: animate ? `${i * 60}ms` : undefined,
+                }}
               />
             </span>
             {r.sub && <span className="shrink-0 text-[11px] text-[#9b958b]">{r.sub}</span>}
@@ -590,7 +676,7 @@ export function Ledger({
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[14px] text-[#1c1a16]">{it.label}</span>
-            {it.sub && <span className="mt-0.5 block truncate text-[11px] text-[#9b958b]">{it.sub}</span>}
+            {it.sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>}
           </span>
           {it.share !== undefined && (
             <span className="h-[5px] w-[44px] shrink-0 overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
@@ -620,19 +706,21 @@ export function Columns({
   unit?: string
 }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   const max = Math.max(...values, 1)
   const hi = highlight ?? values.length - 1
   return (
-    <div>
+    <div ref={ref}>
       <div className="flex h-[92px] items-end gap-1.5">
         {values.map((v, i) => (
           <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1.5">
             {i === hi && <span className="text-[11px] font-semibold tabular-nums text-[#1c1a16]">{compact(v)}</span>}
             <span
-              className="w-full rounded-[4px]"
+              className={`w-full origin-bottom rounded-[4px] ${animate ? 'animate-grow-y' : ''}`}
               style={{
                 height: `${Math.max(4, (v / max) * 68)}px`,
                 backgroundColor: i === hi ? accent : mix(accent, 0.28),
+                animationDelay: animate ? `${i * 55}ms` : undefined,
               }}
             />
           </div>
@@ -656,18 +744,23 @@ export function Columns({
 /** Causes + cumulative share — the 80/20 read. */
 export function Pareto({ items }: { items: { label: string; value: number }[] }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   const total = items.reduce((s, i) => s + i.value, 0) || 1
   const max = Math.max(...items.map((i) => i.value), 1)
   let run = 0
   const cum = items.map((i) => ((run += i.value) / total) * 100)
   return (
-    <div>
+    <div ref={ref}>
       <div className="relative flex h-[104px] items-end gap-2">
         {items.map((it, i) => (
           <div key={it.label} className="flex flex-1 flex-col items-center justify-end">
             <span
-              className="w-full rounded-t-[4px]"
-              style={{ height: `${Math.max(5, (it.value / max) * 84)}px`, backgroundColor: mix(accent, step(i)) }}
+              className={`w-full origin-bottom rounded-t-[4px] ${animate ? 'animate-grow-y' : ''}`}
+              style={{
+                height: `${Math.max(5, (it.value / max) * 84)}px`,
+                backgroundColor: mix(accent, step(i)),
+                animationDelay: animate ? `${i * 60}ms` : undefined,
+              }}
             />
           </div>
         ))}
@@ -723,6 +816,7 @@ export function Pareto({ items }: { items: { label: string; value: number }[] })
 /** Five-axis scorecard for genuinely multi-dimensional frameworks. */
 export function Radar({ axes, max = 100 }: { axes: { label: string; score: number }[]; max?: number }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   const size = 200
   const c = size / 2
   const r = 72
@@ -733,7 +827,7 @@ export function Radar({ axes, max = 100 }: { axes: { label: string; score: numbe
   const ring = (frac: number) => axes.map((_, i) => pt(i, frac).map((n) => n.toFixed(1)).join(',')).join(' ')
   const shape = axes.map((ax, i) => pt(i, ax.score / max).map((n) => n.toFixed(1)).join(',')).join(' ')
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div ref={ref} className="flex flex-col items-center gap-5">
       <svg viewBox={`0 0 ${size} ${size}`} className="w-[196px]" aria-hidden>
         {[0.25, 0.5, 0.75, 1].map((f) => (
           <polygon key={f} points={ring(f)} fill="none" stroke={HAIR} strokeWidth={1} />
@@ -742,10 +836,27 @@ export function Radar({ axes, max = 100 }: { axes: { label: string; score: numbe
           const [x, y] = pt(i, 1)
           return <line key={i} x1={c} y1={c} x2={x} y2={y} stroke={HAIR} strokeWidth={1} />
         })}
-        <polygon points={shape} fill={accent} fillOpacity={0.14} stroke={accent} strokeWidth={1.75} />
+        <polygon
+          points={shape}
+          fill={accent}
+          fillOpacity={0.14}
+          stroke={accent}
+          strokeWidth={1.75}
+          className={animate ? 'animate-veil' : undefined}
+        />
         {axes.map((ax, i) => {
           const [x, y] = pt(i, ax.score / max)
-          return <circle key={ax.label} cx={x} cy={y} r={3.25} fill={accent} />
+          return (
+            <circle
+              key={ax.label}
+              cx={x}
+              cy={y}
+              r={3.25}
+              fill={accent}
+              className={animate ? 'animate-pop' : undefined}
+              style={animate ? { animationDelay: `${260 + i * 70}ms` } : undefined}
+            />
+          )
         })}
       </svg>
       <ul className="grid w-full grid-cols-2 gap-x-4 gap-y-2">
@@ -763,15 +874,20 @@ export function Radar({ axes, max = 100 }: { axes: { label: string; score: numbe
 /** Coverage as countable squares — “8 uncovered” beats “92%”. */
 export function Waffle({ percent }: { percent: number }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   const filled = Math.round(percent)
   return (
-    <div>
+    <div ref={ref}>
       <div className="grid grid-cols-10 gap-[3px]">
         {Array.from({ length: 100 }, (_, i) => (
           <span
             key={i}
-            className="aspect-square rounded-[3px]"
-            style={{ backgroundColor: i < filled ? accent : TRACK }}
+            className={`aspect-square rounded-[3px] ${animate ? 'animate-veil' : ''}`}
+            style={{
+              backgroundColor: i < filled ? accent : TRACK,
+              // Cascade across the grid so the filled block reads as it lands.
+              animationDelay: animate ? `${i * 7}ms` : undefined,
+            }}
           />
         ))}
       </div>
@@ -781,15 +897,16 @@ export function Waffle({ percent }: { percent: number }) {
 
 export function Meter({ percent, label, value }: { percent: number; label: string; value: string }) {
   const accent = useAccent()
+  const { ref, animate } = usePlay()
   return (
-    <div>
+    <div ref={ref}>
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[14px] text-[#1c1a16]">{label}</span>
         <span className="text-[14px] font-medium tabular-nums text-[#1c1a16]">{value}</span>
       </div>
       <div className="mt-2 h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
         <div
-          className="h-full rounded-full"
+          className={`h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
           style={{ width: `${Math.max(2, Math.min(percent, 100))}%`, backgroundColor: accent }}
         />
       </div>
@@ -820,9 +937,11 @@ export function Records({ items }: { items: { label: string; sub: string; value:
           />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[14px] text-[#1c1a16]">{it.label}</span>
-            <span className="mt-0.5 block truncate text-[11px] text-[#9b958b]">{it.sub}</span>
+            {/* Wraps: the label is an identifier and can be clipped, but the sub
+                carries the reason and a clipped reason is worth nothing. */}
+            <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>
           </span>
-          <span className="shrink-0 text-[11px] tabular-nums text-[#9b958b]">{it.value}</span>
+          <span className="shrink-0 pt-[1px] text-[11px] tabular-nums whitespace-nowrap text-[#9b958b]">{it.value}</span>
         </li>
       ))}
     </ul>
@@ -875,30 +994,32 @@ export function Facts({
   )
 }
 
-/** Terminal readout — micro caption above the number, no boxes, high density. */
+/**
+ * Terminal readout — number, then its word, then one supporting figure. Multi-row
+ * grid, no boxes; `Scoreboard` is the single-row, hairline-ruled variant.
+ */
 export function Snapshot({
   items,
   cols = 2,
 }: {
+  /** `note` is a supporting figure — "of 71", "Target 90%" — never a phrase. */
   items: { label: string; value: string; unit?: string; note?: string; tone?: Tone }[]
   cols?: 2 | 3 | 4
 }) {
   const grid = cols === 4 ? 'grid-cols-4' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2'
-  const size = cols === 4 ? 20 : cols === 3 ? 23 : 26
+  const size = cols === 4 ? 22 : cols === 3 ? 25 : 28
   return (
     <div className={`grid ${grid} gap-x-3 gap-y-4`}>
       {items.map((m, i) => (
         <div key={m.label} className={i >= cols ? 'border-t border-[#f0efec] pt-4' : ''}>
-          <p className="text-[9.5px] font-medium tracking-[0.09em] text-[#9b958b] uppercase">{m.label}</p>
-          <div className="mt-1">
-            <Figure
-              value={m.value}
-              unit={m.unit}
-              size={size}
-              color={m.tone && m.tone !== 'neutral' ? TONE[m.tone] : VALUE}
-            />
-          </div>
-          {m.note && <p className="mt-0.5 text-[11px] leading-[14px] text-[#9b958b]">{m.note}</p>}
+          <Figure
+            value={m.value}
+            unit={m.unit}
+            size={size}
+            color={m.tone && m.tone !== 'neutral' ? TONE[m.tone] : VALUE}
+          />
+          <p className="mt-0.5 truncate text-[12px] text-[#3d3a34]">{m.label}</p>
+          {m.note && <p className="mt-0.5 truncate text-[11px] text-[#9b958b]">{m.note}</p>}
         </div>
       ))}
     </div>
@@ -962,7 +1083,7 @@ export function Poles({
           <Figure value={high.value} size={24} />
         </div>
         <p className="mt-1.5 truncate text-[13px] text-[#1c1a16]">{high.label}</p>
-        {high.sub && <p className="mt-0.5 truncate text-[11px] text-[#9b958b]">{high.sub}</p>}
+        {high.sub && <p className="mt-0.5 text-[11px] leading-[15px] text-[#9b958b]">{high.sub}</p>}
       </div>
       <span className="w-px shrink-0" style={{ backgroundColor: HAIR }} aria-hidden />
       <div className="min-w-0 flex-1">
@@ -976,7 +1097,7 @@ export function Poles({
           <Figure value={low.value} size={24} color={lowTone && lowTone !== 'neutral' ? TONE[lowTone] : INK2} />
         </div>
         <p className="mt-1.5 truncate text-[13px] text-[#1c1a16]">{low.label}</p>
-        {low.sub && <p className="mt-0.5 truncate text-[11px] text-[#9b958b]">{low.sub}</p>}
+        {low.sub && <p className="mt-0.5 text-[11px] leading-[15px] text-[#9b958b]">{low.sub}</p>}
       </div>
     </div>
   )
@@ -1038,6 +1159,7 @@ export function Bullet({
   value: string
   percent: number
   target?: number
+  /** Short token only — "Target 90%", "63 of 71". */
   note?: string
   tone?: Tone
 }) {
@@ -1090,13 +1212,12 @@ export function Utilization({
   total,
   label,
   free,
-  note,
 }: {
   used: number
   total: number
+  /** One or two words — "Beds", "Cots in use". */
   label: string
   free?: string
-  note?: string
 }) {
   const accent = useAccent()
   const dense = total > 32
@@ -1131,7 +1252,6 @@ export function Utilization({
           ))}
         </div>
       )}
-      {note && <p className="mt-2.5 text-[11px] text-[#9b958b]">{note}</p>}
     </div>
   )
 }
@@ -1194,11 +1314,9 @@ export function Table({
 export function Ladder({
   leader,
   rest,
-  caption,
 }: {
   leader: { label: string; sub?: string; value: string }
   rest: { label: string; sub?: string; value: string }[]
-  caption?: string
 }) {
   const accent = useAccent()
   return (
@@ -1225,7 +1343,6 @@ export function Ladder({
           </li>
         ))}
       </ol>
-      {caption && <p className="mt-2 px-3.5 text-[11px] text-[#9b958b]">{caption}</p>}
     </div>
   )
 }
@@ -1256,10 +1373,12 @@ export function Band({
         >
           {label}
         </span>
-        <span className="mt-1 block truncate text-[14px] text-[#1c1a16]">{title}</span>
-        {sub && <span className="mt-0.5 block truncate text-[11px] text-[#6d6860]">{sub}</span>}
+        <span className="mt-1 block text-[14px] leading-[19px] text-[#1c1a16]">{title}</span>
+        {sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#6d6860]">{sub}</span>}
       </span>
-      <Figure value={value} unit={unit} size={24} color={tone && tone !== 'neutral' ? TONE[tone] : VALUE} />
+      <span className="shrink-0 whitespace-nowrap">
+        <Figure value={value} unit={unit} size={24} color={tone && tone !== 'neutral' ? TONE[tone] : VALUE} />
+      </span>
     </div>
   )
 }
@@ -1269,13 +1388,12 @@ export function Pair({
   a,
   b,
   relation,
-  note,
   tone,
 }: {
   a: { value: string; label: string }
   b: { value: string; label: string }
+  /** A delta token — "net −3" — not a phrase. */
   relation?: string
-  note?: string
   tone?: Tone
 }) {
   return (
@@ -1298,7 +1416,6 @@ export function Pair({
           <span className="mt-1 block truncate text-[12px] text-[#6d6860]">{b.label}</span>
         </span>
       </div>
-      {note && <p className="mt-3.5 border-t border-[#f0efec] pt-2.5 text-[12px] text-[#6d6860]">{note}</p>}
     </div>
   )
 }
@@ -1434,21 +1551,29 @@ export function Calendar({
 }
 
 /**
- * The executive brief. Tagged statements, no timestamps — this is the block a
- * director reads if they read nothing else, so it states conclusions, not data.
+ * The executive brief, as figures. Each item is a tag, a number and the word
+ * that names it — the same hierarchy as every other block on the page, so the
+ * closing card can be scanned rather than read.
  */
-export function Highlights({ items }: { items: { tag: string; text: string; tone?: Tone }[] }) {
+export function Highlights({
+  items,
+}: {
+  items: { tag: string; value: string; unit?: string; label: string; tone?: Tone }[]
+}) {
   const accent = useAccent()
   return (
-    <ul className="flex flex-col gap-4">
-      {items.map((it) => {
+    <ul className="grid grid-cols-2 gap-x-4 gap-y-5">
+      {items.map((it, i) => {
         const c = it.tone && it.tone !== 'neutral' ? TONE[it.tone] : accent
         return (
-          <li key={it.tag + it.text} className="border-l-2 pl-3.5" style={{ borderColor: mix(c, 0.55) }}>
-            <p className="text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: c }}>
+          <li key={`${it.tag}-${i}`} className="border-l-2 pl-3" style={{ borderColor: mix(c, 0.55) }}>
+            <p className="truncate text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: c }}>
               {it.tag}
             </p>
-            <p className="mt-1 text-[13.5px] leading-[19px] text-[#3d3a34]">{it.text}</p>
+            <div className="mt-1">
+              <Figure value={it.value} unit={it.unit} size={24} color={it.tone && it.tone !== 'neutral' ? c : VALUE} />
+            </div>
+            <p className="mt-0.5 text-[12px] leading-[16px] text-[#6d6860]">{it.label}</p>
           </li>
         )
       })}
@@ -1456,28 +1581,21 @@ export function Highlights({ items }: { items: { tag: string; text: string; tone
   )
 }
 
-/** One sentence management must not miss. Used at most once per page. */
-export function Callout({ label, text, tone }: { label: string; text: string; tone?: Tone }) {
-  const accent = useAccent()
-  const c = tone && tone !== 'neutral' ? TONE[tone] : accent
-  return (
-    <div className="rounded-[12px] px-4 py-3.5" style={{ backgroundColor: mix(c, 0.09) }}>
-      <p className="text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: c }}>
-        {label}
-      </p>
-      <p className="mt-1.5 text-[14px] leading-[20px] text-[#1c1a16]">{text}</p>
-    </div>
-  )
-}
-
-/** Dated highlights — the rail dot carries status. */
-export function Events({ items }: { items: { when: string; text: string; tone?: Tone }[] }) {
+/**
+ * Dated rail. The text slot is a name, not a sentence — the number sits on the
+ * right where every other value on the page sits.
+ */
+export function Events({
+  items,
+}: {
+  items: { when: string; label: string; sub?: string; value?: string; tone?: Tone }[]
+}) {
   const accent = useAccent()
   return (
     <ul className="flex flex-col">
       {items.map((it, i) => (
         <li key={`${it.when}-${i}`} className="flex gap-3">
-          <span className="w-[48px] shrink-0 pt-[1px] text-right text-[11px] tabular-nums text-[#9b958b]">
+          <span className="w-[44px] shrink-0 pt-[1px] text-right text-[11px] tabular-nums text-[#9b958b]">
             {it.when}
           </span>
           <span className="relative flex w-[9px] shrink-0 justify-center" aria-hidden>
@@ -1487,12 +1605,19 @@ export function Events({ items }: { items: { when: string; text: string; tone?: 
             />
             {i < items.length - 1 && <span className="absolute top-[17px] bottom-0 w-px bg-[#f0efec]" />}
           </span>
-          <span
-            className={`min-w-0 flex-1 text-[13px] leading-[19px] text-[#3d3a34] ${
-              i < items.length - 1 ? 'pb-4' : ''
-            }`}
-          >
-            {it.text}
+          <span className={`flex min-w-0 flex-1 items-baseline gap-3 ${i < items.length - 1 ? 'pb-4' : ''}`}>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] leading-[18px] text-[#1c1a16]">{it.label}</span>
+              {it.sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>}
+            </span>
+            {it.value && (
+              <span
+                className="shrink-0 text-[14px] font-medium tabular-nums"
+                style={{ color: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : INK2 }}
+              >
+                {it.value}
+              </span>
+            )}
           </span>
         </li>
       ))}

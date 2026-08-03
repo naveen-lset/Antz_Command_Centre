@@ -1,6 +1,26 @@
-/** MORTALITY — a causes review. Pareto-led, sober register. */
-import { Activity, ClipboardCheck, Columns3, Layers, ListChecks } from 'lucide-react'
-import { Columns, Composition, Events, Hero, MetricGrid, Pareto, Records, Section, Stack } from '../system'
+/**
+ * MORTALITY — the review.
+ *
+ * Deliberately sober: no leaderboards, no praise language. Four numbers, the
+ * causes, where it concentrated, the trend, the open necropsies and what was
+ * done. The Pareto is the only chart — two causes carry 65% of the month.
+ */
+
+import { Activity, ClipboardCheck, ListChecks, MapPin, ShieldCheck, TrendingDown } from 'lucide-react'
+import {
+  Band,
+  Columns,
+  Events,
+  Facts,
+  Highlights,
+  Hero,
+  Pareto,
+  Records,
+  Rule,
+  Section,
+  Snapshot,
+  Stack,
+} from '../system'
 
 export default function Mortality() {
   return (
@@ -8,69 +28,110 @@ export default function Mortality() {
       <Hero
         icon={Activity}
         value="23"
-        label="Deaths this month"
-        side={{ value: '0.011%', label: 'of collection' }}
-        context="Benchmark for comparable collections is 0.018%. Seven-day average 9.4, down from 11.2."
-        status="−18% vs June"
+        label="Deaths"
+        status="−18% Month"
         tone="good"
+        stats={[
+          { value: '0.011', unit: '%', label: 'Rate' },
+          { value: '0.018', unit: '%', label: 'Benchmark' },
+          { value: '6', label: 'Months falling' },
+        ]}
       />
       <Stack>
-        <Section icon={ListChecks} label="Causes of death" aside="cumulative">
+        <Section icon={Activity} label="Month" aside="July">
+          <Snapshot
+            cols={4}
+            items={[
+              { label: 'Deaths', value: '23', note: '−5 June' },
+              { label: 'Rate', value: '0.011', unit: '%', note: 'Benchmark 0.018' },
+              { label: '7-day', value: '5', note: 'Prior 6' },
+              { label: 'Avg age', value: '6.2', unit: 'y', note: '78% lifespan' },
+            ]}
+          />
+        </Section>
+
+        {/* The accident split rides under the Pareto rather than taking its own
+            card — three deaths don't earn a section, but the breakdown is data. */}
+        <Section icon={ListChecks} label="Causes" aside="65% top two">
           <Pareto
             items={[
-              { label: 'Natural', value: 9 },
+              { label: 'Natural causes', value: 9 },
               { label: 'Old age', value: 6 },
               { label: 'Disease', value: 5 },
               { label: 'Accident', value: 3 },
             ]}
           />
-        </Section>
-
-        <Section icon={Layers} label="By taxon">
-          <Composition
+          <Rule label="Accidents" />
+          <Facts
             items={[
-              { label: 'Fish', value: 8 },
-              { label: 'Invertebrates', value: 6 },
-              { label: 'Birds', value: 4 },
-              { label: 'Mammals', value: 3 },
-              { label: 'Reptiles', value: 2 },
+              { label: 'Enclosure falls', sub: 'Savanna', value: '2' },
+              { label: 'Fence injury', sub: 'Savanna', value: '1' },
             ]}
           />
         </Section>
 
-        <Section icon={Columns3} label="Monthly trend" aside="6 months">
-          <Columns values={[30, 27, 26, 29, 25, 23]} labels={['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']} unit="deaths" />
+        <Section icon={MapPin} label="Concentration" aside="6 sites">
+          <Band label="Highest species" title="Giant Prawn" sub="AQ-204 · 26 Jul" value="6" unit="deaths" tone="bad" />
+          {/* Stacked, not a Duo — half-width bands would shrink the two figures
+              that the section exists to compare. */}
+          <div className="mt-2.5">
+            <Band
+              label="Highest site"
+              title="Aquatic Halls"
+              sub="11 of 23 · 6 AQ-204"
+              value="48"
+              unit="%"
+              tone="warn"
+            />
+          </div>
+          <Rule label="Ex event" />
+          <Facts
+            items={[
+              { label: 'Aquatic Halls', sub: 'Ex AQ-204', value: '5' },
+              { label: 'Site maximum', sub: 'Five other sites', value: '5' },
+            ]}
+          />
         </Section>
 
-        <Section icon={ClipboardCheck} label="Necropsy queue" aside="4 pending">
+        <Section icon={TrendingDown} label="Trend" aside="6 months">
+          <Columns
+            values={[30, 27, 26, 29, 25, 23]}
+            labels={['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']}
+            unit="Deaths, month"
+          />
+        </Section>
+
+        <Section icon={ClipboardCheck} label="Necropsy" aside="4 open">
           <Records
             items={[
-              { label: 'Giant Prawn batch · AQ-204', sub: 'Water panel pending — day 3', value: '3 d', tone: 'bad' },
-              { label: 'Zebra Finch · ANM-33810', sub: 'Sample at lab — day 2', value: '2 d', tone: 'warn' },
-              { label: 'Chital · ANM-19042', sub: 'Awaiting Dr. Mehta', value: '1 d', tone: 'warn' },
+              { label: 'Giant Prawn · AQ-204', sub: 'Water panel · Partner lab', value: '3 d', tone: 'bad' },
+              { label: 'Zebra Finch · ANM-33810', sub: 'Histopathology · Partner lab', value: '2 d', tone: 'warn' },
+              { label: 'Chital · ANM-19042', sub: 'Fence injury · Dr. Mehta', value: '1 d', tone: 'warn' },
               { label: 'Mallard · ANM-30119', sub: 'Report drafting', value: '1 d' },
             ]}
           />
         </Section>
 
-        <Section icon={Activity} label="Rate against benchmark">
-          <MetricGrid
-            cols={3}
+        <Section icon={ShieldCheck} label="Actions" aside="July">
+          <Events
             items={[
-              { label: 'This month', value: '23', note: '−18% vs June' },
-              { label: '7-day average', value: '9.4', note: 'was 11.2' },
-              { label: 'Benchmark', value: '0.018', unit: '%', note: 'we are 0.011%' },
+              { when: '28 Jul', label: 'Filtration service · Tank 9', sub: 'High priority', tone: 'good' },
+              { when: '27 Jul', label: 'Fence inspection · Zone A', sub: 'Chital', tone: 'warn' },
+              { when: '25 Jul', label: 'Respiratory screening · Aviary 4', sub: 'Birds', value: '340' },
+              { when: '22 Jul', label: 'Cohort review · Aquatic Halls', sub: 'Past lifespan', value: '41' },
             ]}
           />
         </Section>
 
-        <Section icon={ListChecks} label="Corrective actions">
-          <Events
+        <Section icon={Activity} label="Highlights">
+          <Highlights
             items={[
-              { when: '28 Jul', text: 'Tank 9 water quality corrected after prawn losses', tone: 'good' },
-              { when: '27 Jul', text: 'Zone A perimeter fence flagged after Chital fence injury', tone: 'warn' },
-              { when: '25 Jul', text: 'Aviary 4 respiratory screening extended to all 340 birds' },
-              { when: '22 Jul', text: 'Senior cohort review scheduled for Aquatic Halls' },
+              { tag: 'Single event', value: '6', label: 'AQ-204', tone: 'warn' },
+              { tag: 'Ex event', value: '17', label: 'Record low', tone: 'good' },
+              { tag: 'Rate', value: '0.011', unit: '%', label: 'Sector 0.018%' },
+              { tag: 'Streak', value: '6', label: 'Months falling', tone: 'good' },
+              { tag: 'Backlog', value: '4', label: 'Necropsies open', tone: 'bad' },
+              { tag: 'Ageing', value: '78', unit: '%', label: 'Lifespan · 71% prior' },
             ]}
           />
         </Section>

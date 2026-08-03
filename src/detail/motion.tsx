@@ -8,7 +8,7 @@
  * media query, the JS ones via the guards below).
  */
 
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { useInView } from '../hooks/useInView'
 import { useTween } from '../hooks/useTween'
 
@@ -74,7 +74,16 @@ const NUMERIC = /^([^\d-]*)(-?[\d,]+(?:\.\d+)?)(.*)$/s
  * whatever prefix/suffix it carries — "1.4 d", "0.011%", "243 / 312", "₹18.4L".
  * Strings without a number render as-is.
  */
-export function AnimatedValue({ value, className }: { value: string; className?: string }) {
+export function AnimatedValue({
+  value,
+  className,
+  style,
+}: {
+  value: string
+  className?: string
+  /** `Figure` sets its own size, tracking and colour here — pass them through. */
+  style?: CSSProperties
+}) {
   const { ref, inView } = useInView<HTMLSpanElement>('0px 0px -4% 0px')
   const reduce = usePrefersReducedMotion()
   const match = NUMERIC.exec(value)
@@ -97,7 +106,7 @@ export function AnimatedValue({ value, className }: { value: string; className?:
   }
 
   return (
-    <span ref={ref} className={className}>
+    <span ref={ref} className={className} style={style}>
       {text}
     </span>
   )

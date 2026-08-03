@@ -1,14 +1,26 @@
 /**
- * ANIMAL WELFARE — an audit scorecard.
+ * WELFARE — the assessment.
  *
- * Assessment-shaped: the framework score first (radar over the Five Domains),
- * then where it dips (zone × domain matrix), then the enclosures accountable.
- * Centred hero, because this page is a verdict.
+ * The one centred hero in the set: a verdict reads from the middle. Radar opens
+ * with the five domains, Poles give the zone spread, the matrix locates the dip,
+ * then completion, findings and the audit rail. Numbers only — no prose.
  */
 
-import { CalendarClock, ClipboardCheck, Gauge, Grid3x3, ShieldCheck, TriangleAlert } from 'lucide-react'
-import { Events, Hero, Matrix, MeterGroup, Radar, Records, Section, Stack } from '../system'
-
+import { CalendarClock, ClipboardCheck, Gauge, Grid3x3, Scale, ShieldCheck, TriangleAlert } from 'lucide-react'
+import {
+  Events,
+  Highlights,
+  Hero,
+  Matrix,
+  MeterGroup,
+  Poles,
+  Radar,
+  Records,
+  Rule,
+  Section,
+  Snapshot,
+  Stack,
+} from '../system'
 
 export default function Welfare() {
   return (
@@ -18,13 +30,16 @@ export default function Welfare() {
         align="center"
         value="4.6"
         unit="/ 5"
-        label="Welfare score, quarter to date"
-        context="128 assessments across 84 of 96 enclosures. Benchmark for accredited Indian zoos is 4.2."
-        status="Above benchmark · 12 audits due"
+        label="Welfare"
+        status="Above benchmark"
         tone="good"
+        stats={[
+          { value: '4.4', label: 'Last quarter' },
+          { value: '4.2', label: 'Benchmark' },
+        ]}
       />
       <Stack>
-        <Section icon={ClipboardCheck} label="Five Domains assessment">
+        <Section icon={ClipboardCheck} label="Domains" aside="of 100">
           <Radar
             axes={[
               { label: 'Nutrition', score: 96 },
@@ -36,7 +51,16 @@ export default function Welfare() {
           />
         </Section>
 
-        <Section icon={Grid3x3} label="Where the score dips" aside="zone × domain">
+        <Section icon={Scale} label="Zones" aside="6 zones">
+          <Poles
+            caption={['Best', 'Lowest']}
+            high={{ value: '4.9', label: 'Savanna Paddocks', sub: '96 mean' }}
+            low={{ value: '3.7', label: 'Quarantine', sub: '79 mean · Mental state 68' }}
+            lowTone="bad"
+          />
+        </Section>
+
+        <Section icon={Grid3x3} label="Grid" aside="6 × 5">
           <Matrix
             rows={['Savanna', 'Aviaries', 'Aquatic', 'Herpetarium', 'Insectarium', 'Quarantine']}
             cols={['Nutr', 'Envt', 'Hlth', 'Behv', 'Mind']}
@@ -49,37 +73,62 @@ export default function Welfare() {
               [92, 72, 90, 74, 68],
             ]}
           />
+          {/* The heat grid shows where the dip is but never states it — these are the
+              column minima, all three from the same row. */}
+          <Rule label="Floors" />
+          <Snapshot
+            cols={3}
+            items={[
+              { value: '92', label: 'Nutrition', note: 'Quarantine' },
+              { value: '72', label: 'Environment', note: 'Quarantine', tone: 'bad' },
+              { value: '68', label: 'Mental state', note: 'Quarantine', tone: 'bad' },
+            ]}
+          />
         </Section>
 
-        <Section icon={Gauge} label="Operational health">
+        <Section icon={Gauge} label="Completion" aside="quarter">
           <MeterGroup
             items={[
-              { label: 'Enclosures audited', value: '84 of 96', percent: 88 },
-              { label: 'Enrichment rota delivered', value: '88%', percent: 88 },
-              { label: 'Findings closed within SLA', value: '91%', percent: 91 },
+              { label: 'Audits', value: '84 of 96', percent: 88 },
+              { label: 'Enrichment', value: '88%', percent: 88 },
+              { label: 'SLA closure', value: '91%', percent: 91 },
             ]}
           />
         </Section>
 
-        <Section icon={TriangleAlert} label="Enclosures needing attention" aside="7 open">
+        <Section icon={TriangleAlert} label="Findings" aside="7 open">
           <Records
             items={[
-              { label: 'Quarantine Ward B', sub: 'Space per animal · mental state 68', value: '3 d', tone: 'bad' },
-              { label: 'Aquatic Hall 2', sub: 'Water clarity · environment 78', value: '1 d', tone: 'bad' },
-              { label: 'Open Aviary 7', sub: 'Perch variety · behaviour 86', value: '6 d', tone: 'warn' },
-              { label: 'Insectarium', sub: 'Humidity drift · environment 86', value: '8 d', tone: 'warn' },
-              { label: 'Savanna Paddock 6', sub: 'Shade cover · environment 92', value: '12 d' },
+              { label: 'Quarantine Ward B', sub: 'Mental state 68 · Space per animal', value: '3 d', tone: 'bad' },
+              { label: 'Aquatic Hall 2', sub: 'Environment 78 · Ammonia', value: '1 d', tone: 'bad' },
+              { label: 'Open Aviary 7', sub: 'Behaviour 86 · Perch variety', value: '6 d', tone: 'warn' },
+              { label: 'Insectarium', sub: 'Environment 86 · Humidity', value: '8 d', tone: 'warn' },
+              { label: 'Savanna Paddock 6', sub: 'Environment 92 · Shade cover', value: '12 d' },
             ]}
           />
         </Section>
 
-        <Section icon={CalendarClock} label="Audits due">
+        <Section icon={CalendarClock} label="Audits" aside="12 due">
           <Events
             items={[
-              { when: '01 Aug', text: 'Quarantine Ward B — re-audit after intake redistribution', tone: 'bad' },
-              { when: '02 Aug', text: 'Aquatic Hall 2 — water quality re-check' },
-              { when: '05 Aug', text: 'Open Aviary 7 — perch variety follow-up', tone: 'warn' },
-              { when: '10 Aug', text: 'Quarterly enrichment review, all 96 enclosures' },
+              { when: '05 Aug', label: 'Quarantine Ward B', sub: 'Mental state', value: '68', tone: 'bad' },
+              { when: '06 Aug', label: 'Aquatic Hall 2', sub: 'Environment', value: '78' },
+              { when: '09 Aug', label: 'Open Aviary 7', sub: 'Behaviour', value: '86', tone: 'warn' },
+              { when: '14 Aug', label: 'Enrichment review', sub: 'Enclosures', value: '96' },
+              { when: '28 Aug', label: 'Unaudited block', sub: 'Enclosures · 3 d', value: '12' },
+            ]}
+          />
+        </Section>
+
+        <Section icon={ShieldCheck} label="Highlights">
+          <Highlights
+            items={[
+              { tag: 'Verdict', value: '4.6', unit: '/ 5', label: 'Above 4.2' },
+              { tag: 'Nutrition', value: '96', label: 'Highest domain' },
+              { tag: 'Weak zone', value: '3.7', label: 'Quarantine', tone: 'bad' },
+              { tag: 'Mental state', value: '68', label: 'Quarantine floor', tone: 'bad' },
+              { tag: 'Blind spot', value: '12', label: 'Unaudited enclosures', tone: 'warn' },
+              { tag: 'Enrichment', value: '88', unit: '%', label: 'Rota delivered', tone: 'warn' },
             ]}
           />
         </Section>

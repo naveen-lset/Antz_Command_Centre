@@ -1,6 +1,26 @@
-/** TRANSFERS — movement. Directional lanes are the signature. */
-import { ArrowLeftRight, CalendarClock, ClipboardCheck, Route, Truck } from 'lucide-react'
-import { Dumbbell, Events, Hero, Lanes, Records, Section, Stack, StatusList } from '../system'
+/**
+ * TRANSFERS — the dispatch board.
+ *
+ * Opens on what is moving right now: live counts, then the two named consignments
+ * on the road. Lanes are the signature mark and appear nowhere else in the set.
+ * Numbers only — every word here names a figure, none explains one.
+ */
+
+import { ArrowLeftRight, Gauge, MapPin, Route, Sparkles, TriangleAlert, Truck } from 'lucide-react'
+import {
+  Band,
+  Bullet,
+  Facts,
+  Highlights,
+  Hero,
+  Lanes,
+  Records,
+  Rule,
+  Section,
+  Snapshot,
+  Stack,
+  StatusList,
+} from '../system'
 
 export default function Transfers() {
   return (
@@ -8,68 +28,123 @@ export default function Transfers() {
       <Hero
         icon={ArrowLeftRight}
         value="28"
-        label="Transfers this month"
-        side={{ value: '2', label: 'in transit' }}
-        context="12 inbound · 9 outbound · 7 internal. Both vehicles on schedule."
-        status="98% completion rate"
+        label="Transfers"
+        status="96% On schedule"
         tone="good"
+        stats={[
+          { value: '2', label: 'In transit' },
+          { value: '25', label: 'Completed' },
+          { value: '1', label: 'Pending' },
+        ]}
       />
       <Stack>
-        <Section icon={Route} label="Movement lanes" aside="head-count">
-          <Lanes
-            unit=""
-            routes={[
-              { from: 'Jamnagar Core', to: 'Wetland Reserve', value: 9, sub: '4 in transit' },
-              { from: 'Sasan Rescue', to: 'Quarantine', value: 6, sub: 'received' },
-              { from: 'Aviary Complex', to: 'Open Aviary 7', value: 6, sub: 'complete' },
-              { from: 'Jamnagar Core', to: 'Junagadh Zoo', value: 4, sub: 'complete' },
-              { from: 'Marine Zone', to: 'Aquatic Halls', value: 3, sub: 'complete' },
+        {/* Counts first, then the two consignments they describe — a dispatch board
+            is read for the live state before it is read for the month. */}
+        <Section icon={MapPin} label="Now" aside="2 in transit">
+          <Snapshot
+            cols={4}
+            items={[
+              { label: 'In transit', value: '2', tone: 'warn' },
+              { label: 'Pending', value: '1', tone: 'bad' },
+              { label: 'Today', value: '3', tone: 'good' },
+              { label: 'Delayed', value: '2', tone: 'warn' },
             ]}
           />
-        </Section>
-
-        <Section icon={Truck} label="In transit now">
+          <Rule label="On road" />
           <StatusList
             items={[
-              { label: 'Vehicles on the road', value: '2', tone: 'warn' },
-              { label: 'Next arrival · Wetland Reserve', value: '16:40', tone: 'warn' },
-              { label: 'Awaiting CZA clearance', value: '1', tone: 'bad' },
-              { label: 'Completed this month', value: '25', tone: 'good' },
+              { label: 'VH-01 · 4 Blackbuck → Wetland Reserve', value: '40 min', tone: 'warn' },
+              { label: 'TRF-1180 · 2 Bengal Fox · CZA', value: 'Day 4', tone: 'bad' },
             ]}
           />
         </Section>
 
-        <Section icon={ArrowLeftRight} label="Inbound against outbound" aside="6 months">
-          <Dumbbell
-            legend={['Inbound', 'Outbound']}
+        <Section icon={ArrowLeftRight} label="Movements" aside="July">
+          <Snapshot
+            cols={2}
             items={[
-              { label: 'July', a: 12, b: 16 },
-              { label: 'June', a: 10, b: 13 },
-              { label: 'May', a: 14, b: 11 },
-              { label: 'April', a: 9, b: 12 },
-              { label: 'March', a: 11, b: 8 },
+              { label: 'Internal', value: '7', note: '6 sites' },
+              { label: 'External', value: '21', note: 'Partners' },
+              { label: 'Incoming', value: '12', note: '6 rescue' },
+              { label: 'Outgoing', value: '9', note: '4 breeding loan' },
             ]}
           />
         </Section>
 
-        <Section icon={CalendarClock} label="Scheduled arrivals">
-          <Events
+        <Section icon={Route} label="Lanes" aside="5">
+          <Lanes
+            routes={[
+              { from: 'Jamnagar Core', to: 'Wetland Reserve', value: 9, sub: '4 runs' },
+              { from: 'Sasan Rescue', to: 'Quarantine', value: 6, sub: 'Intake' },
+              { from: 'Aviary Complex', to: 'Open Aviary 7', value: 6, sub: 'Internal' },
+              { from: 'Jamnagar Core', to: 'Junagadh Zoo', value: 4, sub: 'Breeding loan' },
+              { from: 'Marine Zone', to: 'Aquatic Halls', value: 3, sub: 'Internal' },
+            ]}
+          />
+          <div className="mt-4">
+            <Band
+              label="Longest"
+              title="Jamnagar Core → Junagadh Zoo"
+              sub="5 h 40 m · 2 stops"
+              value="214"
+              unit="km"
+            />
+          </div>
+        </Section>
+
+        <Section icon={Truck} label="Fleet" aside="4 vehicles">
+          <StatusList
             items={[
-              { when: 'Today', text: '4 Blackbuck arriving Wetland Reserve, ETA 16:40', tone: 'warn' },
-              { when: '02 Aug', text: '3 Star Tortoise from Sasan Rescue Centre' },
-              { when: '06 Aug', text: '8 Zebra Finch outbound to Junagadh Zoo' },
-              { when: '12 Aug', text: '2 Bengal Fox — held pending CZA clearance', tone: 'bad' },
+              { label: 'VH-01 · Wetland Reserve', value: 'ETA 16:40', tone: 'warn' },
+              { label: 'VH-02 · Junagadh · empty', value: 'ETA 19:10', tone: 'warn' },
+              { label: 'VH-03 · Jamnagar Core', value: 'Ready', tone: 'good' },
+              { label: 'VH-04 · brake inspection', value: 'Day 2', tone: 'bad' },
             ]}
           />
         </Section>
 
-        <Section icon={ClipboardCheck} label="Manifests" aside="last 7 days">
+        <Section icon={Gauge} label="Performance">
+          <Bullet label="Success" value="96%" percent={96} target={95} note="24 of 25 · Target 95%" />
+          <Rule label="Operating" />
+          <Facts
+            items={[
+              { label: 'Average time', sub: 'Door to door', value: '6.4 h' },
+              { label: 'Completed today', sub: 'Internal 2 · Intake 1', value: '3' },
+              { label: 'Completed month', sub: 'Of 28', value: '25' },
+              { label: 'Pending clearance', sub: 'CZA · Day 4', value: '1', tone: 'bad' },
+              { label: 'Delayed', sub: 'Regulatory 1 · Welfare 1', value: '2', tone: 'warn' },
+            ]}
+          />
+        </Section>
+
+        <Section icon={TriangleAlert} label="Delayed" aside="2 open">
           <Records
             items={[
-              { label: 'TRF-1184 · 6 Indian Peafowl', sub: 'Aviary Complex → Open Aviary 7', value: 'Complete', tone: 'good' },
-              { label: 'TRF-1183 · 3 Star Tortoise', sub: 'Sasan Rescue → Quarantine', value: 'Complete', tone: 'good' },
-              { label: 'TRF-1182 · 4 Blackbuck', sub: 'Jamnagar Core → Wetland Reserve', value: 'In transit', tone: 'warn' },
-              { label: 'TRF-1180 · 2 Bengal Fox', sub: 'Awaiting CZA clearance — 4 days', value: 'Pending', tone: 'bad' },
+              {
+                label: 'TRF-1180 · 2 Bengal Fox',
+                sub: 'Jamnagar Core → Junagadh Zoo · CZA · 30 Jul',
+                value: '4 d',
+                tone: 'bad',
+              },
+              {
+                label: 'TRF-1176 · 5 Silver Barb',
+                sub: 'Wetland Reserve → Aquatic Hall 3 · tank temperature',
+                value: '1 d',
+                tone: 'warn',
+              },
+            ]}
+          />
+        </Section>
+
+        <Section icon={Sparkles} label="Highlights">
+          <Highlights
+            items={[
+              { tag: 'Blocked', value: '4', unit: 'd', label: 'TRF-1180 · CZA', tone: 'bad' },
+              { tag: 'Throughput', value: '28', label: 'High since March' },
+              { tag: 'On schedule', value: '96%', label: '24 of 25', tone: 'good' },
+              { tag: 'Fleet', value: '1', label: 'Brake inspection', tone: 'warn' },
+              { tag: 'Top lane', value: '9', label: 'Jamnagar → Wetland' },
+              { tag: 'Longest', value: '214', unit: 'km', label: 'Junagadh Zoo' },
             ]}
           />
         </Section>
