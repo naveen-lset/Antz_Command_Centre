@@ -346,7 +346,9 @@ export default function CommandCentreV3() {
       <ForestBand />
 
       <div className="mx-auto w-full max-w-[390px]">
-        <main className="flex flex-col gap-3 px-5 pt-3 pb-[max(40px,env(safe-area-inset-bottom))]">
+        {/* 16px gutters on the card stack — tighter than the header's 20px, so the
+            cards sit slightly wider than the greeting and hero above them. */}
+        <main className="flex flex-col gap-3 px-4 pt-3 pb-[max(40px,env(safe-area-inset-bottom))]">
           <h2 className="pt-1 text-[20px] font-semibold text-[#1c1a16]">Overview</h2>
           {/* Natality & Mortality — the headline pair */}
           <div className="grid grid-cols-2 gap-3">

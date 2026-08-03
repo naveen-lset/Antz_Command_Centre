@@ -282,8 +282,10 @@ function statTile(m) {
 }
 
 /* ── home page assembler ─────────────────────────────────────────────────── */
+/** Card stack sits on 16px gutters; header and hero keep the wider 20px. */
+const MAIN_PAD = 16
 function buildHome(H, x, y, greeting) {
-  const half = (HOME_CONTENT_W - 12) / 2   // 169
+  const half = (PHONE_W - MAIN_PAD * 2 - 12) / 2   // 173
 
   const frame = figma.createFrame()
   frame.name = 'Home — ANTZ Command Centre'
@@ -340,7 +342,7 @@ function buildHome(H, x, y, greeting) {
   band.layoutSizingHorizontal = 'FIXED'
 
   /* main */
-  const main = AL('v', { gap: 12, pad: [12, HOME_PAD, 40, HOME_PAD], name: 'Main' })
+  const main = AL('v', { gap: 12, pad: [12, MAIN_PAD, 40, MAIN_PAD], name: 'Main' })
   fill(col, main)
 
   const ovr = AL('h', { pad: [8, 0, 0, 0] })

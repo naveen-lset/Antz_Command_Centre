@@ -1,14 +1,39 @@
 /**
- * ANIMALS — a census.
+ * ANIMALS — the register.
  *
- * What we hold → what it's made of → where it sits → who dominates. Opens on
- * composition, not time: a director asks "what have we got" before "how has it
- * changed". The 12-month trend appears once, small, near the end.
+ * Personality: an institutional inventory read out loud. Scale first, then the
+ * two ends of every distribution (a director asks "biggest and smallest" before
+ * "distribution"), then the named holdings, then what moved. One chart shape in
+ * the whole page — the composition bar — plus a single dial for the verdict.
  */
 
-import { Building2, Compass, Grid3x3, Layers, PawPrint, ShieldAlert, Sparkles, TrendingUp } from 'lucide-react'
-import { Bars, Composition, Events, Figure, Hero, Ledger, MetricGrid, Section, Spark, Stack, Tray } from '../system'
-
+import {
+  Building2,
+  HeartPulse,
+  Layers,
+  ListOrdered,
+  PawPrint,
+  Scale,
+  ShieldAlert,
+  Sparkles,
+  TrendingUp,
+} from 'lucide-react'
+import {
+  Bars,
+  Composition,
+  Dial,
+  Facts,
+  Highlights,
+  Hero,
+  Movers,
+  Poles,
+  Rule,
+  Scoreboard,
+  Section,
+  Snapshot,
+  Stack,
+  Table,
+} from '../system'
 
 export default function Animals() {
   return (
@@ -17,12 +42,47 @@ export default function Animals() {
         icon={PawPrint}
         value="215,432"
         label="Total animals under management"
-        context="Across 6 sites and 428 species. Population has grown every month for a year."
-        status="+324 this month"
+        side={{ value: '428', label: 'species' }}
+        context="Six sites, 96 enclosures. Twelve consecutive months of net growth."
+        status="+324 this month · +3,452 this year"
         tone="good"
       />
       <Stack>
-        <Section icon={Layers} label="Population composition" aside="by class">
+        <Section icon={Building2} label="Scale of the collection">
+          <Scoreboard
+            items={[
+              { value: '6', label: 'Sites, all reporting' },
+              { value: '96', label: 'Enclosures, 92 occupied' },
+              { value: '428', label: 'Species, +6 this quarter' },
+              { value: '1.6', unit: '%', label: 'Growth, 12 months' },
+            ]}
+          />
+        </Section>
+
+        {/* Three extremes in one card. Separate cards for each would have made the
+            page read as a list of widgets rather than a single executive fact. */}
+        <Section icon={Scale} label="The two ends of the collection">
+          <Poles
+            caption={['Largest holding', 'Smallest holding']}
+            high={{ value: '12,400', label: 'Common Carp', sub: 'Fish · Aquatic Halls' }}
+            low={{ value: '4', label: 'Sangai Deer', sub: 'Critically Endangered · Zone A' }}
+          />
+          <Rule label="Sites" />
+          <Poles
+            caption={['Most populated', 'Least populated']}
+            high={{ value: '78,420', label: 'Jamnagar Core', sub: '36% of collection · 28 enclosures' }}
+            low={{ value: '11,822', label: 'Quarantine & Rescue', sub: '5% · 6 enclosures' }}
+          />
+          <Rule label="Enclosures" />
+          <Poles
+            caption={['Fullest', 'Emptiest']}
+            high={{ value: '104%', label: 'Aquatic Hall 2', sub: '2,480 against 2,400 design capacity' }}
+            low={{ value: '22%', label: 'Quarantine Ward C', sub: '18 of 80 places used' }}
+            lowTone="warn"
+          />
+        </Section>
+
+        <Section icon={Layers} label="Taxonomic distribution" aside="6 classes">
           <Composition
             unit="animals"
             items={[
@@ -36,89 +96,107 @@ export default function Animals() {
           />
         </Section>
 
-        <Section icon={Compass} label="Scale">
-          <MetricGrid
-            items={[
-              { label: 'Sites', value: '6', note: 'All reporting' },
-              { label: 'Species', value: '428', note: '+6 this quarter' },
-              { label: 'Enclosures', value: '96', note: '92 occupied' },
-              { label: 'Annual growth', value: '1.6', unit: '%', note: 'Trailing 12 months' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Building2} label="Where they are" aside="6 sites">
-          <Bars
-            showShare
-            items={[
-              { label: 'Jamnagar Core', value: 78420, sub: '28 units' },
-              { label: 'Wetland Reserve', value: 46900, sub: '19' },
-              { label: 'Aviary Complex', value: 31250, sub: '17' },
-              { label: 'Marine Zone', value: 24860, sub: '14' },
-              { label: 'Reptile House', value: 22180, sub: '12' },
-              { label: 'Quarantine & Rescue', value: 11822, sub: '6' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Grid3x3} label="Enclosure occupancy" aside="92 of 96">
-          <Tray
-            cols={3}
-            cells={[
-              { value: '28/28', label: 'Jamnagar Core' },
-              { value: '19/19', label: 'Wetland' },
-              { value: '17/17', label: 'Aviary' },
-              { value: '14/14', label: 'Marine' },
-              { value: '12/12', label: 'Reptile House' },
-              { value: '2/6', label: 'Quarantine', tone: 'warn' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Sparkles} label="Largest holdings">
-          <Ledger
-            items={[
-              { label: 'Common Carp', sub: 'Fish · Aquatic Halls', value: '12,400', share: 100 },
-              { label: 'Zebra Finch', sub: 'Bird · Open Aviaries', value: '6,820', share: 55 },
-              { label: 'Nile Tilapia', sub: 'Fish · Aquatic Halls', value: '5,940', share: 48 },
-              { label: 'Indian Peafowl', sub: 'Bird · Aviary Complex', value: '4,310', share: 35 },
-              { label: 'Bengal Fox', sub: 'Mammal · Savanna', value: '1,280', share: 10 },
-            ]}
-          />
-        </Section>
-
-        <Section icon={ShieldAlert} label="Conservation status" aside="IUCN">
+        <Section icon={ShieldAlert} label="IUCN status" aside="13,012 threatened">
           <Bars
             showShare
             items={[
               { label: 'Least Concern', value: 178240 },
-              { label: 'Vulnerable', value: 24180 },
-              { label: 'Endangered', value: 9640 },
-              { label: 'Critically Endangered', value: 3372 },
+              { label: 'Near Threatened', value: 24180 },
+              { label: 'Vulnerable', value: 9640 },
+              { label: 'Endangered', value: 2984 },
+              { label: 'Critically Endangered', value: 388 },
             ]}
           />
         </Section>
 
-        <Section icon={TrendingUp} label="Twelve-month trend" aside="+3,452 net">
-          <div className="flex items-end gap-4">
-            <span className="shrink-0">
-              <Figure value="215,432" size={24} />
-              <span className="mt-0.5 block text-[11px] text-[#9b958b]">today</span>
-            </span>
-            <span className="min-w-0 flex-1">
-              <Spark values={[211980, 212410, 212790, 213120, 213460, 213820, 214150, 214420, 214690, 214930, 215108, 215432]} />
-            </span>
-          </div>
+        <Section icon={ListOrdered} label="Top 10 species" aside="by head-count">
+          <Table
+            head={['Species', 'Count', '30 d']}
+            rows={[
+              { label: 'Common Carp', sub: 'Fish · Aquatic Halls', cells: ['12,400', '+180'] },
+              { label: 'Zebra Finch', sub: 'Bird · Open Aviaries', cells: ['6,820', '+182'] },
+              { label: 'Nile Tilapia', sub: 'Fish · Aquatic Halls', cells: ['5,940', '+96'] },
+              { label: 'Indian Peafowl', sub: 'Bird · Aviary Complex', cells: ['4,310', '+22'] },
+              { label: 'Rose Shrimp', sub: 'Invertebrate · Marine Zone', cells: ['3,880', '+74'] },
+              { label: 'Silver Barb', sub: 'Fish · Wetland Reserve', cells: ['2,940', '+12'] },
+              { label: 'Rock Pigeon', sub: 'Bird · Aviary Complex', cells: ['2,210', '−6'] },
+              { label: 'Grey Francolin', sub: 'Bird · Open Aviaries', cells: ['1,640', '−18'] },
+              { label: 'Bengal Fox', sub: 'Mammal · Savanna', cells: ['1,280', '+4'] },
+              { label: 'Flapshell Turtle', sub: 'Reptile · Wetland Reserve', cells: ['1,090', '+8'] },
+            ]}
+          />
         </Section>
 
-        <Section icon={PawPrint} label="Notable this week">
-          <Events
+        <Section icon={TrendingUp} label="Growing and declining" aside="30-day change">
+          <Movers
             items={[
-              { when: '13:40', text: '2 Blackbuck calves born at Savanna Paddock 3, both healthy', tone: 'good' },
-              { when: '12:05', text: '6 Indian Peafowl moved to Open Aviary 7' },
-              { when: '09:15', text: '1 senior Nile Tilapia died of natural causes, Aquatic Hall 2', tone: 'bad' },
-              { when: '08:04', text: '3 Star Tortoise received from Sasan Rescue Centre' },
-              { when: '28 Jul', text: '18 Zebra Finch hatchlings added to the registry' },
+              { label: 'Zebra Finch', sub: 'Hatchings plus rescue intake', delta: 182 },
+              { label: 'Common Carp', sub: 'Spawning season in Aquatic Halls', delta: 180 },
+              { label: 'Nile Tilapia', sub: 'Batch recruitment, Hall 2', delta: 96 },
+              { label: 'Rose Shrimp', sub: 'Marine Zone breeding tanks', delta: 74 },
+              { label: 'Chital', sub: 'Two transfers out, one fence injury', delta: -9 },
+              { label: 'Grey Francolin', sub: 'Respiratory losses in Aviary 4', delta: -18 },
+              { label: 'Mallard', sub: 'Outbound to Junagadh Zoo', delta: -24 },
+            ]}
+          />
+        </Section>
+
+        <Section icon={Sparkles} label="This month">
+          <Snapshot
+            cols={4}
+            items={[
+              { label: 'Births', value: '45', note: '+12% vs June' },
+              { label: 'Deaths', value: '23', note: '−18% vs June' },
+              { label: 'Transfers', value: '28', note: '12 in · 9 out' },
+              { label: 'Net', value: '+324', note: 'Head-count', tone: 'good' },
+            ]}
+          />
+        </Section>
+
+        <Section icon={PawPrint} label="Newly added species" aside="6 this quarter">
+          <Facts
+            items={[
+              { label: 'Sangai Deer', sub: 'Zone A · from Keibul Lamjao · 12 Jun', value: '4' },
+              { label: 'Indian Skimmer', sub: 'Wetland Reserve · rescue intake · 28 May', value: '6' },
+              { label: 'Fishing Cat', sub: 'Wetland Reserve · breeding loan · 19 May', value: '2' },
+              { label: 'Malabar Pit Viper', sub: 'Herpetarium · 04 May', value: '3' },
+              { label: 'Painted Stork · Indian Skimmer', sub: 'Two further species registered in April', value: '11' },
+            ]}
+          />
+        </Section>
+
+        <Section icon={HeartPulse} label="Collection health">
+          <Dial
+            percent={97.4}
+            value="97.4"
+            unit="%"
+            label="No open medical, welfare or nutrition flag"
+            benchmark={95}
+            benchmarkLabel="Internal target 95% · 5,601 animals carry an open flag"
+          />
+        </Section>
+
+        <Section icon={Sparkles} label="Collection highlights">
+          <Highlights
+            items={[
+              {
+                tag: 'Growth',
+                text: 'Twelfth consecutive month of net growth. The year added 3,452 animals, and births plus hatchings outpaced deaths four to one.',
+              },
+              {
+                tag: 'Concentration',
+                text: 'Jamnagar Core holds 36% of everything we have. Aquatic Hall 2 is 4% over design capacity and should be relieved before the monsoon intake.',
+                tone: 'warn',
+              },
+              {
+                tag: 'Conservation',
+                text: '13,012 animals — 6% of the collection — are Near Threatened or worse. The four Sangai Deer are the only Critically Endangered mammals on site.',
+              },
+              {
+                tag: 'Attention',
+                text: 'Quarantine & Rescue sits at 22% occupancy while two sites are full. Intake routing is not using the space that already exists.',
+                tone: 'bad',
+              },
             ]}
           />
         </Section>

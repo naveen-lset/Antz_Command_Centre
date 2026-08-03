@@ -1,14 +1,26 @@
 /**
- * HEALTH & MEDICAL — a live clinical board.
+ * HEALTH & MEDICAL — the ward board.
  *
- * Inverts Animals: operational status comes FIRST, before any analysis, because
- * this page is read when something is wrong. The signature is a flow comparison
- * — "are we keeping up" rather than "how many are sick".
+ * Inverts Animals completely: today's movement opens the page, because this is
+ * read when a radio call comes in. Nothing here is a trend — every block is a
+ * live state, and the only ranked mark is the disease ledger.
  */
 
-import { Activity, ArrowLeftRight, HeartPulse, Pill, Stethoscope, Syringe, TriangleAlert } from 'lucide-react'
-import { Composition, Dumbbell, Hero, MetricGrid, Records, Section, Stack, StatusList } from '../system'
-
+import { Activity, ArrowLeftRight, BedDouble, HeartPulse, Pill, Stethoscope, TriangleAlert, Users } from 'lucide-react'
+import {
+  Band,
+  Facts,
+  Highlights,
+  Hero,
+  Ledger,
+  Pair,
+  Records,
+  Section,
+  Snapshot,
+  Stack,
+  StatusList,
+  Utilization,
+} from '../system'
 
 export default function Health() {
   return (
@@ -17,81 +29,142 @@ export default function Health() {
         icon={HeartPulse}
         value="124"
         label="Animals under veterinary care"
-        side={{ value: '9', label: 'critical' }}
-        context="Case load is falling — discharges have outpaced admissions six of the last seven days."
-        status="Herd status: healthy"
+        side={{ value: '11', label: 'critical' }}
+        context="0.06% of the collection. Nine of the eleven critical cases are on four-hourly checks."
+        status="Case load falling · herd status healthy"
         tone="good"
       />
       <Stack>
-        {/* Status before analysis: this is the page you open when a radio call comes in. */}
-        <Section icon={TriangleAlert} label="Right now">
+        <Section icon={ArrowLeftRight} label="Movement today">
+          <Pair
+            a={{ value: '14', label: 'Admitted today' }}
+            b={{ value: '17', label: 'Discharged today' }}
+            relation="net −3"
+            tone="good"
+            note="Discharges have outpaced admissions on six of the last seven days. Case load is down 11% in a fortnight."
+          />
+        </Section>
+
+        <Section icon={Users} label="On duty right now">
           <StatusList
             items={[
-              { label: 'Critical watch, 4-hourly checks', value: '9', tone: 'bad' },
-              { label: 'Isolation wards occupied', value: '19 of 24', tone: 'warn' },
-              { label: 'Vets on duty', value: '6', tone: 'good' },
-              { label: 'Doses due before 18:00', value: '42', tone: 'warn' },
-              { label: 'Lab results pending', value: '7' },
+              { label: 'Veterinarians on duty', value: '6 of 11', tone: 'good' },
+              { label: 'Medicine doses due today', value: '42', tone: 'warn' },
+              { label: 'Doses still outstanding', value: '14', tone: 'warn' },
+              { label: 'Lab reports pending', value: '7' },
+              { label: 'Critical cases on 4-hourly checks', value: '9', tone: 'bad' },
             ]}
           />
         </Section>
 
-        <Section icon={ArrowLeftRight} label="Admissions vs discharges" aside="5 weeks">
-          <Dumbbell
-            legend={['Admitted', 'Discharged']}
+        <Section icon={BedDouble} label="Ward occupancy" aside="hospital wing">
+          <Utilization
+            used={68}
+            total={84}
+            label="Beds occupied across 6 wards"
+            free="16 beds available"
+            note="Isolation is the constraint — 19 of 24 isolation wards are in use. The remaining 56 animals under care are treated in-enclosure."
+          />
+        </Section>
+
+        <Section icon={Stethoscope} label="Where the 124 sit">
+          <Snapshot
+            cols={4}
             items={[
-              { label: 'Week of 30 Jul', a: 41, b: 55 },
-              { label: 'Week of 23 Jul', a: 47, b: 52 },
-              { label: 'Week of 16 Jul', a: 52, b: 49 },
-              { label: 'Week of 09 Jul', a: 44, b: 46 },
-              { label: 'Week of 02 Jul', a: 39, b: 38 },
+              { label: 'Recovery', value: '48' },
+              { label: 'Observation', value: '46' },
+              { label: 'Isolation', value: '19' },
+              { label: 'Critical', value: '11', tone: 'bad' },
             ]}
           />
         </Section>
 
-        <Section icon={Stethoscope} label="Case mix" aside="of 124">
-          <Composition
-            unit="animals"
+        <Section icon={Activity} label="Clinical performance" aside="year to date">
+          <Facts
+            size="lg"
             items={[
-              { label: 'Recovery', value: 48 },
-              { label: 'Observation', value: 46 },
-              { label: 'Isolation', value: 19 },
-              { label: 'Critical', value: 11 },
+              { label: 'Treatment success rate', sub: '1,284 cases closed this year', value: '94%', tone: 'good' },
+              { label: 'Average recovery time', sub: 'Admission to clinically clear', value: '8.4 d' },
+              { label: 'Average hospital stay', sub: 'Was 6.1 days in June', value: '5.2 d' },
+              { label: 'Discharged within 7 days', sub: '+5 points against June', value: '78%' },
             ]}
           />
         </Section>
 
-        <Section icon={Syringe} label="Operational health">
-          <MetricGrid
-            cols={3}
+        <Section icon={Pill} label="Top diseases" aside="presenting condition">
+          <Ledger
             items={[
-              { label: 'Treatment success', value: '94', unit: '%', note: '1,284 closed YTD' },
-              { label: 'Discharge under 7 d', value: '78', unit: '%', note: '+5 pts vs June' },
-              { label: 'Avg stay', value: '5.2', unit: 'd', note: 'was 6.1' },
+              { label: 'Respiratory', sub: 'Concentrated in Aviary 4 and Isolation 2', value: '31', share: 100 },
+              { label: 'Gastrointestinal', sub: 'Mostly Savanna herds, feed-linked', value: '26', share: 84 },
+              { label: 'Parasitic', sub: 'Falling as rotation C completes', value: '22', share: 71 },
+              { label: 'Dermatological', sub: 'Reptile shell and scale lesions', value: '18', share: 58 },
+              { label: 'Trauma', sub: 'Fence and enclosure injuries', value: '15', share: 48 },
             ]}
           />
         </Section>
 
-        <Section icon={Activity} label="Presenting conditions">
-          <Composition
-            items={[
-              { label: 'Respiratory', value: 31 },
-              { label: 'Gastrointestinal', value: 26 },
-              { label: 'Parasitic', value: 22 },
-              { label: 'Dermatological', value: 18 },
-              { label: 'Trauma', value: 15 },
-              { label: 'Other', value: 12 },
-            ]}
+        <Section icon={TriangleAlert} label="Critical patient list" aside="11 cases">
+          <Band
+            label="Longest admitted"
+            title="Star Tortoise · ANM-50133"
+            sub="Shell lesion, third culture pending · Herpetarium · Dr. Mehta"
+            value="38"
+            unit="days"
+            tone="warn"
           />
+          <div className="mt-4">
+            <Records
+              items={[
+                {
+                  label: 'Bengal Fox · ANM-40218',
+                  sub: 'Respiratory distress, deteriorated overnight · Isolation 2 · Dr. Mehta',
+                  value: 'day 3',
+                  tone: 'bad',
+                },
+                {
+                  label: 'Nile Tilapia batch · AQ-118',
+                  sub: 'Tank-wide fungal treatment, 240 fish · Dr. Shah',
+                  value: 'day 4',
+                  tone: 'bad',
+                },
+                {
+                  label: 'Sambar Deer · ANM-22904',
+                  sub: 'Post-surgical watch, stable · Ward B · Dr. Iyer',
+                  value: 'day 2',
+                  tone: 'warn',
+                },
+                {
+                  label: 'Blackbuck · ANM-11726',
+                  sub: 'Dystocia recovery, feeding resumed · Ward A · Dr. Iyer',
+                  value: 'day 2',
+                  tone: 'warn',
+                },
+              ]}
+            />
+          </div>
         </Section>
 
-        <Section icon={Pill} label="Critical cases" aside="4 on watch">
-          <Records
+        <Section icon={HeartPulse} label="Medical highlights">
+          <Highlights
             items={[
-              { label: 'Bengal Fox · ANM-40218', sub: 'Respiratory distress · Isolation 2 · Dr. Mehta', value: 'day 3', tone: 'bad' },
-              { label: 'Sambar Deer · ANM-22904', sub: 'Post-surgical watch · Ward B · Dr. Iyer', value: 'day 2', tone: 'warn' },
-              { label: 'Star Tortoise · ANM-50133', sub: 'Shell lesion, culture pending · Dr. Mehta', value: 'day 6', tone: 'warn' },
-              { label: 'Nile Tilapia batch · AQ-118', sub: 'Fungal treatment, tank-wide · Dr. Shah', value: 'day 4', tone: 'warn' },
+              {
+                tag: 'Flow',
+                text: 'Discharges beat admissions six days in seven. If it holds, case load falls below 100 within a fortnight — the first time this year.',
+              },
+              {
+                tag: 'Risk',
+                text: 'Bengal Fox ANM-40218 is on day three of respiratory distress and worsening. The swab culture is with the partner lab and is 14 hours old.',
+                tone: 'bad',
+              },
+              {
+                tag: 'Capacity',
+                text: 'Isolation runs at 79%. A second respiratory cluster in Aviary 4 would exhaust it — the contingency ward has not been commissioned.',
+                tone: 'warn',
+              },
+              {
+                tag: 'Performance',
+                text: 'Treatment success holds at 94% across 1,284 closed cases, and average stay is down from 6.1 to 5.2 days since the triage protocol changed.',
+              },
             ]}
           />
         </Section>

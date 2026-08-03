@@ -74,22 +74,31 @@ export function Section({
   icon: Glyph,
   label,
   aside,
+  tight = false,
   children,
 }: {
   icon?: Icon
   label?: string
   aside?: ReactNode
+  /** Half-width cards inside a `Duo` — 20px of padding would eat the number. */
+  tight?: boolean
   children: ReactNode
 }) {
   const accent = useAccent()
   return (
-    <section className="rounded-[16px] bg-white p-5" aria-label={label}>
+    <section className={`rounded-[16px] bg-white ${tight ? 'p-4' : 'p-5'}`} aria-label={label}>
       {label && (
-        <header className="mb-4 flex items-center justify-between gap-3">
+        <header className={`flex items-center justify-between gap-3 ${tight ? 'mb-3' : 'mb-4'}`}>
           <span className="flex min-w-0 items-center gap-2">
             {Glyph && <Glyph size={16} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
             {/* Wraps rather than truncates — a clipped section title loses meaning. */}
-            <h2 className="text-[15px] leading-[20px] font-medium text-balance text-[#1c1a16]">{label}</h2>
+            <h2
+              className={`font-medium text-balance text-[#1c1a16] ${
+                tight ? 'text-[13px] leading-[17px]' : 'text-[15px] leading-[20px]'
+              }`}
+            >
+              {label}
+            </h2>
           </span>
           {aside && <span className="shrink-0 text-[12px] whitespace-nowrap text-[#9b958b]">{aside}</span>}
         </header>
@@ -102,6 +111,21 @@ export function Section({
 /** The card stack — sage ground and 12px gaps, same rhythm as the home main. */
 export function Stack({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-3 px-5 pb-2">{children}</div>
+}
+
+/** Two half-width cards on one line — breaks the single-column drumbeat. */
+export function Duo({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-2 items-start gap-3">{children}</div>
+}
+
+/** Subhead inside a card, so one card can carry two grouped fact sets. */
+export function Rule({ label }: { label: string }) {
+  return (
+    <div className="mt-5 mb-3 flex items-center gap-3">
+      <span className="text-[10px] font-medium tracking-[0.09em] text-[#9b958b] uppercase">{label}</span>
+      <span className="h-px flex-1" style={{ backgroundColor: HAIR }} />
+    </div>
+  )
 }
 
 /** Big number, rounded numerals — the page's typographic anchor. */
@@ -802,6 +826,647 @@ export function Records({ items }: { items: { label: string; sub: string; value:
         </li>
       ))}
     </ul>
+  )
+}
+
+/* ── executive fact blocks ───────────────────────────────────────────────── */
+/*
+ * Most of what a director needs is a stated fact, not a plotted one. These
+ * blocks carry the majority of every page; the marks above are reserved for the
+ * few places where shape genuinely beats a number.
+ */
+
+const clamp = (n: number) => Math.max(0, Math.min(100, n))
+
+/** Label → value rows. "Average recovery 8.4 days" needs no chart. */
+export function Facts({
+  items,
+  size = 'md',
+}: {
+  items: { label: string; value: string; sub?: string; delta?: string; tone?: Tone }[]
+  size?: 'md' | 'lg'
+}) {
+  const lg = size === 'lg'
+  return (
+    <ul className="divide-y divide-[#f0efec]">
+      {items.map((it) => (
+        <li key={it.label} className={`flex items-baseline gap-3 ${lg ? 'py-3.5' : 'py-2.5'} first:pt-0 last:pb-0`}>
+          <span className="min-w-0 flex-1">
+            <span className={`block ${lg ? 'text-[14px]' : 'text-[13.5px]'} text-[#1c1a16]`}>{it.label}</span>
+            {it.sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>}
+          </span>
+          {it.delta && (
+            <span
+              className="shrink-0 text-[11px] font-medium tabular-nums"
+              style={{ color: signTone(it.delta) ?? FAINT }}
+            >
+              {it.delta}
+            </span>
+          )}
+          <span
+            className={`shrink-0 font-medium tabular-nums ${lg ? 'text-[18px]' : 'text-[14px]'}`}
+            style={{ color: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : VALUE }}
+          >
+            {it.value}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Terminal readout — micro caption above the number, no boxes, high density. */
+export function Snapshot({
+  items,
+  cols = 2,
+}: {
+  items: { label: string; value: string; unit?: string; note?: string; tone?: Tone }[]
+  cols?: 2 | 3 | 4
+}) {
+  const grid = cols === 4 ? 'grid-cols-4' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2'
+  const size = cols === 4 ? 20 : cols === 3 ? 23 : 26
+  return (
+    <div className={`grid ${grid} gap-x-3 gap-y-4`}>
+      {items.map((m, i) => (
+        <div key={m.label} className={i >= cols ? 'border-t border-[#f0efec] pt-4' : ''}>
+          <p className="text-[9.5px] font-medium tracking-[0.09em] text-[#9b958b] uppercase">{m.label}</p>
+          <div className="mt-1">
+            <Figure
+              value={m.value}
+              unit={m.unit}
+              size={size}
+              color={m.tone && m.tone !== 'neutral' ? TONE[m.tone] : VALUE}
+            />
+          </div>
+          {m.note && <p className="mt-0.5 text-[11px] leading-[14px] text-[#9b958b]">{m.note}</p>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** One line of headline numbers, hairline-ruled. The 3-second scan. */
+export function Scoreboard({
+  items,
+}: {
+  items: { value: string; unit?: string; label: string; tone?: Tone }[]
+}) {
+  const size = items.length > 3 ? 23 : 28
+  return (
+    <div className="flex items-stretch">
+      {items.map((it, i) => (
+        <div
+          key={it.label}
+          className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-3' : ''} ${
+            i < items.length - 1 ? 'pr-3' : ''
+          }`}
+        >
+          <Figure
+            value={it.value}
+            unit={it.unit}
+            size={size}
+            color={it.tone && it.tone !== 'neutral' ? TONE[it.tone] : VALUE}
+          />
+          <p className="mt-1 text-[11px] leading-[14px] text-[#6d6860]">{it.label}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The two ends of a distribution. Executives ask "what's the biggest and what's
+ * the worst" far more often than they ask for the whole ranking — the accent on
+ * the leading side and the faint treatment on the trailing side carry which is
+ * which without a label being read.
+ */
+export function Poles({
+  caption = ['Highest', 'Lowest'],
+  high,
+  low,
+  lowTone,
+}: {
+  caption?: [string, string]
+  high: { label: string; sub?: string; value: string }
+  low: { label: string; sub?: string; value: string }
+  lowTone?: Tone
+}) {
+  const accent = useAccent()
+  return (
+    <div className="flex gap-4">
+      <div className="min-w-0 flex-1">
+        <p className="text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: accent }}>
+          {caption[0]}
+        </p>
+        <div className="mt-1.5">
+          <Figure value={high.value} size={24} />
+        </div>
+        <p className="mt-1.5 truncate text-[13px] text-[#1c1a16]">{high.label}</p>
+        {high.sub && <p className="mt-0.5 truncate text-[11px] text-[#9b958b]">{high.sub}</p>}
+      </div>
+      <span className="w-px shrink-0" style={{ backgroundColor: HAIR }} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p
+          className="text-[9.5px] font-medium tracking-[0.09em] uppercase"
+          style={{ color: lowTone && lowTone !== 'neutral' ? TONE[lowTone] : FAINT }}
+        >
+          {caption[1]}
+        </p>
+        <div className="mt-1.5">
+          <Figure value={low.value} size={24} color={lowTone && lowTone !== 'neutral' ? TONE[lowTone] : INK2} />
+        </div>
+        <p className="mt-1.5 truncate text-[13px] text-[#1c1a16]">{low.label}</p>
+        {low.sub && <p className="mt-0.5 truncate text-[11px] text-[#9b958b]">{low.sub}</p>}
+      </div>
+    </div>
+  )
+}
+
+/** Signed change around a centre line — growth right, decline left. */
+export function Movers({ items, unit }: { items: { label: string; sub?: string; delta: number }[]; unit?: string }) {
+  const accent = useAccent()
+  const max = Math.max(...items.map((i) => Math.abs(i.delta)), 1)
+  return (
+    <ul className="flex flex-col gap-3">
+      {items.map((it) => {
+        const up = it.delta >= 0
+        const w = (Math.abs(it.delta) / max) * 50
+        return (
+          <li key={it.label} className="flex items-center gap-3">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] text-[#1c1a16]">{it.label}</span>
+              {it.sub && <span className="mt-0.5 block truncate text-[11px] text-[#9b958b]">{it.sub}</span>}
+            </span>
+            <span className="relative h-[8px] w-[76px] shrink-0" aria-hidden>
+              <span className="absolute inset-y-0 left-1/2 w-px" style={{ backgroundColor: '#e3e1dc' }} />
+              <span
+                className="absolute top-[1px] h-[6px]"
+                style={{
+                  left: up ? '50%' : undefined,
+                  right: up ? undefined : '50%',
+                  width: `${Math.max(2, w)}%`,
+                  borderRadius: up ? '0 3px 3px 0' : '3px 0 0 3px',
+                  backgroundColor: up ? accent : mix(TONE.bad, 0.5),
+                }}
+              />
+            </span>
+            <span
+              className="w-[46px] shrink-0 text-right text-[13px] font-medium tabular-nums"
+              style={{ color: up ? TONE.good : TONE.bad }}
+            >
+              {up ? '+' : '−'}
+              {Math.abs(it.delta)}
+              {unit}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** Actual against a target tick — the benchmark read, one line per measure. */
+export function Bullet({
+  label,
+  value,
+  percent,
+  target,
+  note,
+  tone,
+}: {
+  label: string
+  value: string
+  percent: number
+  target?: number
+  note?: string
+  tone?: Tone
+}) {
+  const accent = useAccent()
+  const fill = tone && tone !== 'neutral' ? TONE[tone] : accent
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[13.5px] text-[#1c1a16]">{label}</span>
+        <Figure value={value} size={19} color={fill} />
+      </div>
+      <div className="relative mt-2.5 h-[10px] w-full rounded-full" style={{ backgroundColor: TRACK }}>
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${Math.max(2, clamp(percent))}%`, backgroundColor: fill }}
+        />
+        {target !== undefined && (
+          <span
+            className="absolute inset-y-[-2px] w-[2px] rounded-full bg-[#1c1a16]/50"
+            style={{ left: `calc(${clamp(target)}% - 1px)` }}
+            aria-hidden
+          />
+        )}
+      </div>
+      {note && <p className="mt-1.5 text-[11px] text-[#9b958b]">{note}</p>}
+    </div>
+  )
+}
+
+export function BulletGroup({
+  items,
+}: {
+  items: { label: string; value: string; percent: number; target?: number; note?: string; tone?: Tone }[]
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      {items.map((b) => (
+        <Bullet key={b.label} {...b} />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Capacity as countable units. "16 beds free" is an operational instruction;
+ * "81% occupancy" is a statistic — the squares give both.
+ */
+export function Utilization({
+  used,
+  total,
+  label,
+  free,
+  note,
+}: {
+  used: number
+  total: number
+  label: string
+  free?: string
+  note?: string
+}) {
+  const accent = useAccent()
+  const dense = total > 32
+  return (
+    <div>
+      <div className="flex items-end justify-between gap-3">
+        <span>
+          <Figure value={`${fmt(used)}`} size={30} />
+          <span className="ml-1.5 text-[14px] text-[#9b958b]">of {fmt(total)}</span>
+          <p className="mt-1 text-[12px] text-[#6d6860]">{label}</p>
+        </span>
+        <span className="pb-[3px] text-right">
+          <Figure value={`${Math.round((used / (total || 1)) * 100)}`} unit="%" size={19} color={INK2} />
+          {free && <p className="mt-0.5 text-[11px] text-[#9b958b]">{free}</p>}
+        </span>
+      </div>
+      {dense ? (
+        <div className="mt-4 h-[10px] w-full rounded-full" style={{ backgroundColor: TRACK }}>
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${clamp((used / (total || 1)) * 100)}%`, backgroundColor: accent }}
+          />
+        </div>
+      ) : (
+        <div className="mt-4 flex gap-[3px]">
+          {Array.from({ length: total }, (_, i) => (
+            <span
+              key={i}
+              className="h-[24px] flex-1 rounded-[3px]"
+              style={{ backgroundColor: i < used ? accent : TRACK }}
+            />
+          ))}
+        </div>
+      )}
+      {note && <p className="mt-2.5 text-[11px] text-[#9b958b]">{note}</p>}
+    </div>
+  )
+}
+
+/** Columnar facts — Bloomberg density where three numbers per row all matter. */
+export function Table({
+  head,
+  rows,
+}: {
+  head: string[]
+  rows: { label: string; sub?: string; cells: string[]; tone?: Tone }[]
+}) {
+  return (
+    <div className="-mx-1 overflow-x-auto px-1">
+      <table className="w-full">
+        <thead>
+          <tr>
+            {head.map((h, i) => (
+              <th
+                key={h}
+                className={`pb-2 text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap text-[#9b958b] uppercase ${
+                  i === 0 ? 'text-left' : 'pl-3 text-right'
+                }`}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label} className="border-t border-[#f0efec]">
+              <td className="py-2.5 pr-2">
+                <span className="block text-[13.5px] leading-[17px] text-[#1c1a16]">{r.label}</span>
+                {r.sub && <span className="mt-0.5 block text-[11px] leading-[14px] text-[#9b958b]">{r.sub}</span>}
+              </td>
+              {r.cells.map((c, ci) => (
+                <td
+                  key={ci}
+                  className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums whitespace-nowrap"
+                  style={{
+                    color:
+                      ci === r.cells.length - 1 && r.tone && r.tone !== 'neutral'
+                        ? TONE[r.tone]
+                        : signTone(c) ?? INK2,
+                  }}
+                >
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Leaderboard — the leader gets the platform, the chasing pack gets a line. */
+export function Ladder({
+  leader,
+  rest,
+  caption,
+}: {
+  leader: { label: string; sub?: string; value: string }
+  rest: { label: string; sub?: string; value: string }[]
+  caption?: string
+}) {
+  const accent = useAccent()
+  return (
+    <div>
+      <div className="flex items-center gap-3 rounded-[12px] px-3.5 py-3" style={{ backgroundColor: mix(accent, 0.08) }}>
+        <span className="font-display text-[13px] font-bold tabular-nums" style={{ color: accent }}>
+          1
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] font-medium text-[#1c1a16]">{leader.label}</span>
+          {leader.sub && <span className="mt-0.5 block truncate text-[11px] text-[#6d6860]">{leader.sub}</span>}
+        </span>
+        <Figure value={leader.value} size={22} />
+      </div>
+      <ol className="mt-1 divide-y divide-[#f0efec]">
+        {rest.map((it, i) => (
+          <li key={it.label} className="flex items-center gap-3 px-3.5 py-2.5">
+            <span className="text-[12px] tabular-nums text-[#9b958b]">{i + 2}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] text-[#1c1a16]">{it.label}</span>
+              {it.sub && <span className="mt-0.5 block truncate text-[11px] text-[#9b958b]">{it.sub}</span>}
+            </span>
+            <span className="shrink-0 text-[14px] font-medium tabular-nums text-[#3d3a34]">{it.value}</span>
+          </li>
+        ))}
+      </ol>
+      {caption && <p className="mt-2 px-3.5 text-[11px] text-[#9b958b]">{caption}</p>}
+    </div>
+  )
+}
+
+/** A single fact that deserves its own strip — the outlier, the record, the risk. */
+export function Band({
+  label,
+  title,
+  sub,
+  value,
+  unit,
+  tone,
+}: {
+  label: string
+  title: string
+  sub?: string
+  value: string
+  unit?: string
+  tone?: Tone
+}) {
+  const accent = useAccent()
+  return (
+    <div className="flex items-center gap-4 rounded-[12px] px-4 py-3.5" style={{ backgroundColor: mix(accent, 0.07) }}>
+      <span className="min-w-0 flex-1">
+        <span
+          className="block text-[9.5px] font-medium tracking-[0.09em] uppercase"
+          style={{ color: tone && tone !== 'neutral' ? TONE[tone] : accent }}
+        >
+          {label}
+        </span>
+        <span className="mt-1 block truncate text-[14px] text-[#1c1a16]">{title}</span>
+        {sub && <span className="mt-0.5 block truncate text-[11px] text-[#6d6860]">{sub}</span>}
+      </span>
+      <Figure value={value} unit={unit} size={24} color={tone && tone !== 'neutral' ? TONE[tone] : VALUE} />
+    </div>
+  )
+}
+
+/** Two quantities and the relation between them. */
+export function Pair({
+  a,
+  b,
+  relation,
+  note,
+  tone,
+}: {
+  a: { value: string; label: string }
+  b: { value: string; label: string }
+  relation?: string
+  note?: string
+  tone?: Tone
+}) {
+  return (
+    <div>
+      <div className="flex items-end gap-3">
+        <span className="min-w-0 flex-1">
+          <Figure value={a.value} size={34} />
+          <span className="mt-1 block truncate text-[12px] text-[#6d6860]">{a.label}</span>
+        </span>
+        {relation && (
+          <span
+            className="mb-2 shrink-0 text-[12px] font-medium"
+            style={{ color: tone && tone !== 'neutral' ? TONE[tone] : FAINT }}
+          >
+            {relation}
+          </span>
+        )}
+        <span className="min-w-0 flex-1 text-right">
+          <Figure value={b.value} size={34} />
+          <span className="mt-1 block truncate text-[12px] text-[#6d6860]">{b.label}</span>
+        </span>
+      </div>
+      {note && <p className="mt-3.5 border-t border-[#f0efec] pt-2.5 text-[12px] text-[#6d6860]">{note}</p>}
+    </div>
+  )
+}
+
+/** Half-dial for a single composite score, with an optional benchmark tick. */
+export function Dial({
+  percent,
+  value,
+  unit,
+  label,
+  benchmark,
+  benchmarkLabel,
+}: {
+  percent: number
+  value: string
+  unit?: string
+  label: string
+  benchmark?: number
+  benchmarkLabel?: string
+}) {
+  const accent = useAccent()
+  const p = clamp(percent)
+  const tick = (b: number) => {
+    const a = Math.PI - (clamp(b) / 100) * Math.PI
+    return [100 + Math.cos(a) * 70, 100 - Math.sin(a) * 70, 100 + Math.cos(a) * 94, 100 - Math.sin(a) * 94] as const
+  }
+  const t = benchmark !== undefined ? tick(benchmark) : null
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-[212px]">
+        <svg viewBox="0 0 200 112" className="w-full" aria-hidden>
+          <path
+            d="M 18 100 A 82 82 0 0 1 182 100"
+            fill="none"
+            stroke={TRACK}
+            strokeWidth={13}
+            strokeLinecap="round"
+          />
+          <path
+            d="M 18 100 A 82 82 0 0 1 182 100"
+            fill="none"
+            stroke={accent}
+            strokeWidth={13}
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray={`${p} ${100 - p}`}
+          />
+          {t && <line x1={t[0]} y1={t[1]} x2={t[2]} y2={t[3]} stroke={INK} strokeWidth={1.5} opacity={0.45} />}
+        </svg>
+        <div className="absolute inset-x-0 bottom-[6px] text-center">
+          <Figure value={value} unit={unit} size={38} />
+        </div>
+      </div>
+      <p className="mt-1 text-center text-[13px] text-[#3d3a34]">{label}</p>
+      {benchmarkLabel && <p className="mt-1 text-center text-[11px] text-[#9b958b]">{benchmarkLabel}</p>}
+    </div>
+  )
+}
+
+/** Month grid with marked days — a calendar is the only honest shape for a calendar. */
+export function Calendar({
+  days,
+  offset = 0,
+  marks,
+  weekLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+}: {
+  days: number
+  /** Weekday index the 1st falls on, 0 = Monday. */
+  offset?: number
+  marks: { day: number; count: number; note?: string; tone?: Tone }[]
+  weekLabels?: string[]
+}) {
+  const accent = useAccent()
+  const byDay = new Map(marks.map((m) => [m.day, m]))
+  const max = Math.max(...marks.map((m) => m.count), 1)
+  return (
+    <div>
+      <div className="grid grid-cols-7 gap-[3px]">
+        {weekLabels.map((w, i) => (
+          <span key={i} className="pb-1 text-center text-[9.5px] text-[#9b958b]">
+            {w}
+          </span>
+        ))}
+        {Array.from({ length: offset }, (_, i) => (
+          <span key={`pad-${i}`} />
+        ))}
+        {Array.from({ length: days }, (_, i) => {
+          const d = i + 1
+          const m = byDay.get(d)
+          return (
+            <span
+              key={d}
+              className="flex aspect-square flex-col items-center justify-center rounded-[6px]"
+              style={{ backgroundColor: m ? mix(accent, 0.22 + (m.count / max) * 0.68) : TRACK }}
+              title={m?.note}
+            >
+              <span
+                className="text-[10px] tabular-nums"
+                style={{ color: m ? (m.count / max > 0.55 ? '#ffffff' : INK) : FAINT }}
+              >
+                {d}
+              </span>
+              {m && (
+                <span
+                  className="font-display text-[11px] font-bold tabular-nums"
+                  style={{ color: m.count / max > 0.55 ? '#ffffff' : INK }}
+                >
+                  {m.count}
+                </span>
+              )}
+            </span>
+          )
+        })}
+      </div>
+      <ul className="mt-4 divide-y divide-[#f0efec]">
+        {marks
+          .filter((m) => m.note)
+          .map((m) => (
+            <li key={m.day} className="flex items-baseline gap-3 py-2 first:pt-0 last:pb-0">
+              <span className="w-[22px] shrink-0 text-[12px] font-medium tabular-nums text-[#1c1a16]">{m.day}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] text-[#3d3a34]">{m.note}</span>
+              <span
+                className="shrink-0 text-[13px] font-medium tabular-nums"
+                style={{ color: m.tone && m.tone !== 'neutral' ? TONE[m.tone] : VALUE }}
+              >
+                {m.count}
+              </span>
+            </li>
+          ))}
+      </ul>
+    </div>
+  )
+}
+
+/**
+ * The executive brief. Tagged statements, no timestamps — this is the block a
+ * director reads if they read nothing else, so it states conclusions, not data.
+ */
+export function Highlights({ items }: { items: { tag: string; text: string; tone?: Tone }[] }) {
+  const accent = useAccent()
+  return (
+    <ul className="flex flex-col gap-4">
+      {items.map((it) => {
+        const c = it.tone && it.tone !== 'neutral' ? TONE[it.tone] : accent
+        return (
+          <li key={it.tag + it.text} className="border-l-2 pl-3.5" style={{ borderColor: mix(c, 0.55) }}>
+            <p className="text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: c }}>
+              {it.tag}
+            </p>
+            <p className="mt-1 text-[13.5px] leading-[19px] text-[#3d3a34]">{it.text}</p>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** One sentence management must not miss. Used at most once per page. */
+export function Callout({ label, text, tone }: { label: string; text: string; tone?: Tone }) {
+  const accent = useAccent()
+  const c = tone && tone !== 'neutral' ? TONE[tone] : accent
+  return (
+    <div className="rounded-[12px] px-4 py-3.5" style={{ backgroundColor: mix(c, 0.09) }}>
+      <p className="text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: c }}>
+        {label}
+      </p>
+      <p className="mt-1.5 text-[14px] leading-[20px] text-[#1c1a16]">{text}</p>
+    </div>
   )
 }
 
