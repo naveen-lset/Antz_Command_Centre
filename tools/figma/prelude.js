@@ -78,8 +78,8 @@ const SHARE_STEPS = [1, 0.62, 0.4, 0.26, 0.17]
 const PHONE_W = 390
 /** Viewport frame height — iPhone 14/15. Content taller than this is clipped. */
 const PHONE_H = 844
-const SHEET_INSET = 8
-const SHEET_W = PHONE_W - SHEET_INSET * 2      // 374
+const SHEET_INSET = 0                          // full-bleed sheet (was 8)
+const SHEET_W = PHONE_W - SHEET_INSET * 2      // 390
 const MAIN_PAD = 14                            // px-3.5
 const CARD_PAD = 20                            // p-5
 const CARD_W = SHEET_W - MAIN_PAD * 2          // 346

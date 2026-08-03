@@ -4,6 +4,8 @@ import CommandCentreV3 from './v3/CommandCentreV3'
 import ClassicHome from './ClassicHome'
 import DetailPage from './detail/DetailPage'
 import { findDetailPage, otherPages } from './detail/pages'
+import Sheet from './exec/Sheet'
+import { findExecPage } from './exec/pages'
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(() => window.location.hash)
@@ -36,7 +38,12 @@ function HomeScreen({ route }: { route: string }) {
 
 export default function App() {
   const route = useHashRoute()
-  const detail = findDetailPage(route.replace(/^#\//, ''))
+  const slug = route.replace(/^#\//, '')
+  /* Executive pages take precedence; modules not yet rebuilt fall through to the
+     older generic renderer so the app stays whole during the rollout. */
+  const exec = findExecPage(slug)
+  const detail = exec ? undefined : findDetailPage(slug)
+  const open = Boolean(exec || detail)
 
   /* The home screen stays mounted under the sheet, so closing reveals the screen
      the user opened from — same scroll position, no remount, no replayed counters.
@@ -44,20 +51,20 @@ export default function App() {
      so opening #/classic or #/feed directly — or via the footer links — kept showing
      the previous home until some unrelated state change forced another render. */
   const home = useRef('#/')
-  if (!detail) home.current = route || '#/'
+  if (!open) home.current = route || '#/'
+  const back = () => {
+    window.location.hash = home.current
+  }
 
   return (
     <>
       <HomeScreen route={home.current} />
-      {detail && (
-        <DetailPage
-          page={detail}
-          others={otherPages(detail.slug)}
-          onClose={() => {
-            window.location.hash = home.current
-          }}
-        />
+      {exec && (
+        <Sheet title={exec.title} onClose={back}>
+          <exec.Page />
+        </Sheet>
       )}
+      {detail && <DetailPage page={detail} others={otherPages(detail.slug)} onClose={back} />}
     </>
   )
 }

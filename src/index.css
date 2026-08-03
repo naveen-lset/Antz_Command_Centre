@@ -1,12 +1,14 @@
 @import '@fontsource-variable/dm-sans';
+@import '@fontsource-variable/nunito';
 @import '@fontsource-variable/inter';
 @import 'tailwindcss';
 
 @theme {
   --font-sans: 'DM Sans Variable', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  /* Numerals wear SF Pro Rounded — native on Apple platforms (ui-rounded /
-     local install), falling back to DM Sans elsewhere. Matches the Figma spec. */
-  --font-display: 'SF Pro Rounded', ui-rounded, var(--font-sans);
+  /* Numerals: SF Pro Rounded where the OS has it (Apple license bars shipping
+     it as a webfont), otherwise Nunito — the bundled rounded equivalent that
+     renders identically for every visitor. Matches the Figma spec's intent. */
+  --font-display: 'SF Pro Rounded', ui-rounded, 'Nunito Variable', var(--font-sans);
 
   /* MD3_Antz palette (Figma variables) */
   --color-antz-primary: #37bd69; /* MD3_Antz/Primary */

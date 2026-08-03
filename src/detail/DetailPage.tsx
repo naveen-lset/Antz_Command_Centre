@@ -1,8 +1,8 @@
 /**
  * One renderer for all 14 ANTZ drill-down pages.
  *
- * Layout is a bottom sheet over the home screen — 20px top corners, 8px of home
- * showing down either side, dragged down or closed to dismiss. The close bar and
+ * Layout is a bottom sheet over the home screen — 20px top corners, full-bleed
+ * width, dragged down or closed to dismiss. The close bar and
  * the hero KPI sit on white chrome; the sections sit on the home screen's warm
  * ground below it, so colour comes only from the data.
  *
@@ -818,10 +818,10 @@ export default function DetailPage({
         style={{ opacity: away ? 0 : Math.max(0, 0.22 * (1 - dy / 420)) }}
       />
 
-      {/* Sheet lives inside the phone frame, so the 8px gap is off the frame edge. */}
+      {/* Sheet spans the full phone width — only the ~44px top peek shows home. */}
       <div className="pointer-events-none absolute inset-0 mx-auto max-w-[390px]">
         <section
-          className="pointer-events-auto absolute inset-x-2 bottom-0 flex flex-col overflow-hidden rounded-t-[20px] bg-white shadow-[0_-12px_44px_rgba(16,26,21,0.26)]"
+          className="pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-[20px] bg-white shadow-[0_-12px_44px_rgba(16,26,21,0.26)]"
           style={{
             top: PEEK,
             transform: away ? 'translateY(100%)' : `translateY(${dy}px)`,
