@@ -65,7 +65,6 @@ export default function Animals() {
         <Section icon={Grid3x3} label="Enclosure occupancy" aside="92 of 96">
           <Tray
             cols={3}
-            legend="Four vacant units, all in Quarantine & Rescue — capacity held deliberately for intake."
             cells={[
               { value: '28/28', label: 'Jamnagar Core' },
               { value: '19/19', label: 'Wetland' },
@@ -99,10 +98,6 @@ export default function Animals() {
               { label: 'Critically Endangered', value: 3372 },
             ]}
           />
-          <p className="mt-4 text-[13px] leading-[20px] text-[#3d3a34]">
-            <strong className="font-medium text-[#1c1a16]">13,012 animals</strong> are Endangered or
-            Critically Endangered — 6.1% of the collection, across 24 species.
-          </p>
         </Section>
 
         <Section icon={TrendingUp} label="Twelve-month trend" aside="+3,452 net">

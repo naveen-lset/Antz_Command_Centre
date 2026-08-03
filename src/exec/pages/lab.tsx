@@ -32,10 +32,6 @@ export default function Lab() {
               { label: 'Reporting', value: 10 },
             ]}
           />
-          <p className="mt-4 text-[13px] leading-[20px] text-[#3d3a34]">
-            A further <strong className="font-medium text-[#1c1a16]">19 requests</strong> were completed
-            and closed this month.
-          </p>
         </Section>
 
         <Section icon={Timer} label="Turnaround against target" aside="hours">
@@ -50,10 +46,6 @@ export default function Lab() {
               { label: 'Histopathology', a: 24, b: 31 },
             ]}
           />
-          <p className="mt-4 text-[13px] leading-[20px] text-[#3d3a34]">
-            Histopathology is the only test where actual exceeds target — and the only one sent to an
-            external partner lab.
-          </p>
         </Section>
 
         <Section icon={ListChecks} label="Throughput">

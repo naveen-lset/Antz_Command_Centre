@@ -397,12 +397,10 @@ export function Matrix({
   rows,
   cols,
   values,
-  legend,
 }: {
   rows: string[]
   cols: string[]
   values: number[][]
-  legend?: string
 }) {
   const accent = useAccent()
   const flat = values.flat()
@@ -444,7 +442,6 @@ export function Matrix({
           </tbody>
         </table>
       </div>
-      {legend && <p className="mt-3 text-[11px] leading-[16px] text-[#9b958b]">{legend}</p>}
     </div>
   )
 }
@@ -453,11 +450,9 @@ export function Matrix({
 export function Tray({
   cells,
   cols = 4,
-  legend,
 }: {
   cells: { value: string; label: string; tone?: Tone }[]
   cols?: 3 | 4
-  legend?: string
 }) {
   const accent = useAccent()
   return (
@@ -479,7 +474,6 @@ export function Tray({
           </div>
         ))}
       </div>
-      {legend && <p className="mt-3 text-[11px] leading-[16px] text-[#9b958b]">{legend}</p>}
     </div>
   )
 }
@@ -649,16 +643,33 @@ export function Pareto({ items }: { items: { label: string; value: number }[] })
             />
           </div>
         ))}
-        <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+        {/* polyline points are user units, NOT percentages — needs a viewBox. */}
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          aria-hidden
+        >
           <polyline
-            points={cum.map((c, i) => `${((i + 0.5) / items.length) * 100}%,${100 - c * 0.84}%`).join(' ')}
+            points={cum.map((c, i) => `${((i + 0.5) / items.length) * 100},${100 - c * 0.84}`).join(' ')}
             fill="none"
             stroke={INK}
             strokeWidth={1.25}
             strokeDasharray="3 3"
-            opacity={0.42}
+            opacity={0.4}
             vectorEffect="non-scaling-stroke"
           />
+          {cum.map((c, i) => (
+            <circle
+              key={i}
+              cx={((i + 0.5) / items.length) * 100}
+              cy={100 - c * 0.84}
+              r={1.6}
+              fill={INK}
+              opacity={0.4}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
         </svg>
       </div>
       <ul className="mt-3 divide-y divide-[#f0efec]">
@@ -722,7 +733,7 @@ export function Radar({ axes, max = 100 }: { axes: { label: string; score: numbe
 }
 
 /** Coverage as countable squares — “8 uncovered” beats “92%”. */
-export function Waffle({ percent, caption }: { percent: number; caption?: string }) {
+export function Waffle({ percent }: { percent: number }) {
   const accent = useAccent()
   const filled = Math.round(percent)
   return (
@@ -736,7 +747,6 @@ export function Waffle({ percent, caption }: { percent: number; caption?: string
           />
         ))}
       </div>
-      {caption && <p className="mt-3.5 text-[13px] leading-[20px] text-[#3d3a34]">{caption}</p>}
     </div>
   )
 }

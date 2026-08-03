@@ -49,7 +49,6 @@ export default function Welfare() {
               [95, 86, 93, 88, 85],
               [92, 72, 90, 74, 68],
             ]}
-            legend="Darker is better. Quarantine and Aquatic carry every low cell on the grid."
           />
         </Section>
 

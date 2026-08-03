@@ -48,9 +48,6 @@ export default function Health() {
               { label: 'Week of 02 Jul', a: 39, b: 38 },
             ]}
           />
-          <p className="mt-4 text-[13px] leading-[20px] text-[#3d3a34]">
-            The mid-July crossover is when the respiratory cluster in Aviary Complex closed out.
-          </p>
         </Section>
 
         <Section icon={Stethoscope} label="Case mix" aside="of 124">
