@@ -153,11 +153,12 @@ export default function Sheet({
             </header>
           </div>
 
+          {/* Sage ground with white cards floating on it — the home screen's surface. */}
           <div
             ref={scroller}
-            className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-hidden"
+            className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#e7f0ea] scrollbar-hidden"
           >
-            <div className="animate-swap-in pb-[max(48px,env(safe-area-inset-bottom))]">{children}</div>
+            <div className="animate-swap-in pt-4 pb-[max(48px,env(safe-area-inset-bottom))]">{children}</div>
           </div>
         </section>
       </div>
