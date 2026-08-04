@@ -14,6 +14,7 @@ import {
   Building2,
   Layers,
   ListOrdered,
+  MapPin,
   PawPrint,
   Scale,
   ShieldAlert,
@@ -26,22 +27,39 @@ import {
   Bars,
   Composition,
   Facts,
-  Hero,
+  Filter,
   Movers,
+  PeriodHero,
   Poles,
   Rule,
   Scoreboard,
   Section,
+  Sites,
   Snapshot,
   Stack,
   Stamp,
   Table,
 } from '../system'
 
+/** Lifted out of the JSX so the filter can measure it before rendering a subset. */
+const TOP_SPECIES = [
+  { label: 'Common Carp', sub: 'Actinopterygii', cells: ['12,400', '+180'] },
+  { label: 'Zebra Finch', sub: 'Aves', cells: ['6,820', '+182'] },
+  { label: 'Nile Tilapia', sub: 'Actinopterygii', cells: ['5,940', '+96'] },
+  { label: 'Indian Peafowl', sub: 'Aves', cells: ['4,310', '+22'] },
+  { label: 'Rose Shrimp', sub: 'Malacostraca', cells: ['3,880', '+74'] },
+  { label: 'Silver Barb', sub: 'Actinopterygii', cells: ['2,940', '+12'] },
+  { label: 'Rock Pigeon', sub: 'Aves', cells: ['2,210', '−6'] },
+  { label: 'Grey Francolin', sub: 'Aves', cells: ['1,640', '−18'] },
+  { label: 'Bengal Fox', sub: 'Mammalia', cells: ['1,280', '+4'] },
+  { label: 'Flapshell Turtle', sub: 'Reptilia', cells: ['1,090', '+8'] },
+]
+
 export default function Animals() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="animals"
         icon={PawPrint}
         value="215,432"
         label="Animals"
@@ -71,6 +89,11 @@ export default function Animals() {
               { label: 'Sex ratio', sub: 'Male to female', value: '1.08 : 1' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="animals" />
         </Section>
 
         <Section icon={Building2} label="Scale">
@@ -142,22 +165,18 @@ export default function Animals() {
           />
         </Section>
 
+        {/* Ten species across five classes, and the class is already printed under
+            every name — so it is the one axis the reader can see before they filter
+            on it. Sorted by count, which puts the four fish first; anyone asking
+            "what about the mammals" was previously scanning for them. */}
         <Section icon={ListOrdered} label="Top species" aside="10">
-          <Table
-            head={['Species', 'Count', '30 d']}
-            rows={[
-              { label: 'Common Carp', sub: 'Actinopterygii', cells: ['12,400', '+180'] },
-              { label: 'Zebra Finch', sub: 'Aves', cells: ['6,820', '+182'] },
-              { label: 'Nile Tilapia', sub: 'Actinopterygii', cells: ['5,940', '+96'] },
-              { label: 'Indian Peafowl', sub: 'Aves', cells: ['4,310', '+22'] },
-              { label: 'Rose Shrimp', sub: 'Malacostraca', cells: ['3,880', '+74'] },
-              { label: 'Silver Barb', sub: 'Actinopterygii', cells: ['2,940', '+12'] },
-              { label: 'Rock Pigeon', sub: 'Aves', cells: ['2,210', '−6'] },
-              { label: 'Grey Francolin', sub: 'Aves', cells: ['1,640', '−18'] },
-              { label: 'Bengal Fox', sub: 'Mammalia', cells: ['1,280', '+4'] },
-              { label: 'Flapshell Turtle', sub: 'Reptilia', cells: ['1,090', '+8'] },
-            ]}
-          />
+          <Filter
+            options={['All', 'Actinopterygii', 'Aves', 'Malacostraca', 'Mammalia', 'Reptilia']}
+            items={TOP_SPECIES}
+            match={(r, option) => r.sub === option}
+          >
+            {(rows) => <Table head={['Species', 'Count', '30 d']} rows={rows} />}
+          </Filter>
         </Section>
 
         <Section icon={TrendingUp} label="Movers" aside="30 d">

@@ -15,6 +15,29 @@
  * matters more today than last month's hatch rate; it just isn't a monthly figure.
  */
 import type { ComponentType } from 'react'
+import {
+  Activity,
+  ArrowLeftRight,
+  Baby,
+  BellRing,
+  Biohazard,
+  CheckCircle2,
+  Egg,
+  EggOff,
+  FlaskConical,
+  HeartPulse,
+  ListTodo,
+  PawPrint,
+  Pill,
+  Rabbit,
+  ShieldCheck,
+  ShieldPlus,
+  Sparkles,
+  Syringe,
+  TrendingUp,
+  Users,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import Animals from './animals'
 import Accession from './accession'
 import Health from './health'
@@ -45,32 +68,165 @@ export interface ExecPage {
    * list of tasks due today states the opposite of the truth.
    */
   ops?: true
+  /** Shown by global search. */
+  icon: LucideIcon
+  /**
+   * Extra terms global search matches on — the words someone would actually type.
+   * Nobody searches "Mortality" when an animal has died; they search "death". These
+   * are synonyms and near-misses, never a restatement of the title.
+   */
+  keywords?: string[]
+  /**
+   * Page offers the window switcher. Report pages do; operations pages don't, because
+   * a task list cut to "last 6 months" is not a thing anyone wants to read.
+   */
+  periods?: true
 }
 
 export const execPages: Record<string, ExecPage> = {
   /* report track */
-  animals: { title: 'Animal Population', Page: Animals },
-  accession: { title: 'Accession', Page: Accession },
-  births: { title: 'Birth Analytics', Page: Births },
-  eggs: { title: 'Eggs & Incubation', Page: Eggs },
-  discarded: { title: 'Eggs Discarded', Page: Discarded },
-  mortality: { title: 'Mortality', Page: Mortality },
-  fetal: { title: 'Fetal Death', Page: Fetal },
-  health: { title: 'Health & Medical', Page: Health },
-  disease: { title: 'Disease & Outbreak', Page: Disease },
-  preventive: { title: 'Preventive Care', Page: Preventive },
-  vaccination: { title: 'Vaccination', Page: Vaccination },
-  deworming: { title: 'Deworming', Page: Deworming },
-  transfers: { title: 'Animal Movement', Page: Transfers },
-  trends: { title: '30-Day Trends', Page: Trends },
+  animals: {
+    title: 'Animal Population',
+    Page: Animals,
+    icon: PawPrint,
+    periods: true,
+    keywords: ['inventory', 'headcount', 'census', 'stock', 'species', 'classes', 'collection'],
+  },
+  accession: {
+    title: 'Accession',
+    Page: Accession,
+    icon: Rabbit,
+    periods: true,
+    keywords: ['intake', 'arrivals', 'acquired', 'new animals', 'rescue', 'received'],
+  },
+  births: {
+    title: 'Birth Analytics',
+    Page: Births,
+    icon: Sparkles,
+    periods: true,
+    keywords: ['natality', 'newborn', 'breeding', 'calves', 'litters', 'birth rate'],
+  },
+  eggs: {
+    title: 'Eggs & Incubation',
+    Page: Eggs,
+    icon: Egg,
+    periods: true,
+    keywords: ['hatch', 'hatchery', 'clutch', 'incubator', 'fertile'],
+  },
+  discarded: {
+    title: 'Eggs Discarded',
+    Page: Discarded,
+    icon: EggOff,
+    periods: true,
+    keywords: ['infertile', 'unhatched', 'spoiled', 'rejected eggs'],
+  },
+  mortality: {
+    title: 'Mortality',
+    Page: Mortality,
+    icon: Activity,
+    periods: true,
+    keywords: ['death', 'deaths', 'died', 'necropsy', 'postmortem', 'cause of death'],
+  },
+  fetal: {
+    title: 'Fetal Death',
+    Page: Fetal,
+    icon: Baby,
+    periods: true,
+    keywords: ['stillbirth', 'miscarriage', 'abortion', 'prenatal loss'],
+  },
+  health: {
+    title: 'Health & Medical',
+    Page: Health,
+    icon: HeartPulse,
+    periods: true,
+    keywords: ['clinical', 'treatment', 'vet', 'veterinary', 'medical', 'under care', 'recovery'],
+  },
+  disease: {
+    title: 'Disease & Outbreak',
+    Page: Disease,
+    icon: Biohazard,
+    periods: true,
+    keywords: ['infection', 'epidemic', 'quarantine', 'contagion', 'pathogen', 'zoonotic'],
+  },
+  preventive: {
+    title: 'Preventive Care',
+    Page: Preventive,
+    icon: ShieldPlus,
+    periods: true,
+    keywords: ['prophylaxis', 'protection', 'coverage', 'routine care', 'screening'],
+  },
+  vaccination: {
+    title: 'Vaccination',
+    Page: Vaccination,
+    icon: Syringe,
+    periods: true,
+    keywords: ['vaccine', 'immunisation', 'immunization', 'jab', 'dose', 'booster'],
+  },
+  deworming: {
+    title: 'Deworming',
+    Page: Deworming,
+    icon: Pill,
+    periods: true,
+    keywords: ['parasite', 'anthelmintic', 'worming', 'faecal', 'fecal', 'load'],
+  },
+  transfers: {
+    title: 'Animal Movement',
+    Page: Transfers,
+    icon: ArrowLeftRight,
+    periods: true,
+    keywords: ['transfer', 'transport', 'loan', 'exchange', 'in transit', 'shifted', 'relocation'],
+  },
+  trends: {
+    title: '30-Day Trends',
+    Page: Trends,
+    icon: TrendingUp,
+    periods: true,
+    keywords: ['trend', 'over time', 'chart', 'graph', 'series', 'trajectory'],
+  },
 
   /* operations track */
-  approvals: { title: 'Approvals', Page: Approvals, ops: true },
-  tasks: { title: 'Tasks', Page: Tasks, ops: true },
-  lab: { title: 'Lab Requests', Page: Lab, ops: true },
-  attendance: { title: 'Staff Attendance', Page: Attendance, ops: true },
-  welfare: { title: 'Animal Welfare', Page: Welfare, ops: true },
-  alerts: { title: 'Alerts', Page: Alerts, ops: true },
+  approvals: {
+    title: 'Approvals',
+    Page: Approvals,
+    ops: true,
+    icon: CheckCircle2,
+    keywords: ['sign off', 'authorise', 'authorize', 'pending', 'sanction', 'permission'],
+  },
+  tasks: {
+    title: 'Tasks',
+    Page: Tasks,
+    ops: true,
+    icon: ListTodo,
+    keywords: ['todo', 'to do', 'assignments', 'work orders', 'overdue', 'checklist'],
+  },
+  lab: {
+    title: 'Lab Requests',
+    Page: Lab,
+    ops: true,
+    icon: FlaskConical,
+    keywords: ['laboratory', 'samples', 'pathology', 'histopathology', 'test', 'panel', 'results'],
+  },
+  attendance: {
+    title: 'Staff Attendance',
+    Page: Attendance,
+    ops: true,
+    icon: Users,
+    keywords: ['staffing', 'roster', 'shift', 'keepers', 'headcount', 'present', 'leave'],
+  },
+  welfare: {
+    title: 'Animal Welfare',
+    Page: Welfare,
+    ops: true,
+    icon: ShieldCheck,
+    keywords: ['audit', 'enrichment', 'wellbeing', 'five domains', 'inspection', 'score'],
+  },
+  alerts: {
+    title: 'Alerts',
+    Page: Alerts,
+    ops: true,
+    icon: BellRing,
+    keywords: ['alarm', 'critical', 'incident', 'escalation', 'notification', 'warning'],
+  },
 }
 
 export const findExecPage = (slug: string) => execPages[slug]

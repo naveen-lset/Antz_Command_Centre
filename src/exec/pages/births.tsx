@@ -11,7 +11,18 @@
  * that quietly excludes five fetal deaths is a figure that misleads.
  */
 
-import { Award, Baby, CalendarDays, Eye, Gauge, Home, Sparkles, TrendingUp, Users } from 'lucide-react'
+import {
+  Award,
+  Baby,
+  CalendarDays,
+  Eye,
+  Gauge,
+  Home,
+  MapPin,
+  Sparkles,
+  TrendingUp,
+  Users,
+} from 'lucide-react'
 import { report } from '../report'
 import {
   Band,
@@ -19,13 +30,14 @@ import {
   Calendar,
   Duo,
   Facts,
-  Hero,
   Ladder,
   More,
+  PeriodHero,
   Records,
   Rule,
   Scoreboard,
   Section,
+  Sites,
   Stack,
   Stamp,
   Trend,
@@ -34,7 +46,8 @@ import {
 export default function Births() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="births"
         icon={Sparkles}
         value="45"
         label="Births"
@@ -62,6 +75,11 @@ export default function Births() {
               { day: 29, count: 5, note: 'Grey Francolin · Open Aviary 7' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="births" />
         </Section>
 
         <Section icon={TrendingUp} label="Trend" aside="30 d">

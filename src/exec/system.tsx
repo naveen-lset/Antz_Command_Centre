@@ -13,8 +13,10 @@
  * its own order — see `src/exec/pages/`.
  */
 
-import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ComponentType, type ReactNode } from 'react'
 import { AnimatedValue, Reveal, usePlay } from '../detail/motion'
+import { usePeriod } from './period'
+import { siteCut } from './sites'
 
 /* ── tokens (from the v3 home screen) ────────────────────────────────────── */
 export const GROUND = '#e7f0ea'
@@ -1916,11 +1918,16 @@ export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[]
               <thead>
                 <tr style={{ backgroundColor: DEEP }}>
                   {head.map((h, i) => (
+                    /* 34%, not 38%: at 390px the identifier column was taking room the
+                       data columns needed, and a single long word like "Undetermined"
+                       overflowed its cell into the value beside it. The last column
+                       can't be pinned narrow — across the record pages it is variously
+                       "Age", "Qty" and "Organization". */
                     <th
                       key={h}
                       className={`px-2.5 py-2 text-left text-[10px] font-medium tracking-[0.05em] text-white/85 uppercase ${
-                        i === 0 ? 'w-[38%]' : ''
-                      } ${h === '' ? 'w-[38px] px-0' : ''}`}
+                        i === 0 ? 'w-[34%]' : ''
+                      } ${h === '' ? 'w-[34px] px-0' : ''}`}
                     >
                       {h}
                     </th>
@@ -1947,10 +1954,12 @@ export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[]
                     )}
                     {r.cells.map((cell, ci) => (
                       /* `whitespace-pre-line` so a cell can hold two prescriptions
-                         on two lines, as the printed report does. */
+                         on two lines, as the printed report does. `break-words` is the
+                         backstop for an unbreakable token — wrapping mid-word is ugly,
+                         but printing over the next column is wrong. */
                       <td
                         key={ci}
-                        className="px-2.5 py-2.5 align-top text-[12px] leading-[16px] whitespace-pre-line text-[#6d6860]"
+                        className="px-2.5 py-2.5 align-top text-[12px] leading-[16px] break-words whitespace-pre-line text-[#6d6860]"
                       >
                         {cell}
                       </td>
@@ -1966,14 +1975,225 @@ export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[]
   )
 }
 
+/* ── site breakdown ──────────────────────────────────────────────────────── */
+
+/**
+ * The module's figure, split across the six sites, with Overall stated above the
+ * rows it is made of.
+ *
+ * Overall comes first and is visually the largest thing in the card, because the
+ * zoo-wide number is still the headline — the sites explain it, they don't replace
+ * it. Every row carries its own bar so the shape of the split reads before any
+ * number is parsed, and the row that is doing the damage is the long one.
+ *
+ * The figure and its rows both come from `siteCut`, so Overall is arithmetically
+ * the rows and cannot drift from them.
+ */
+export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }) {
+  const accent = useAccent()
+  const { period } = usePeriod()
+  const cut = siteCut(slug, period.key)
+  if (!cut) return null
+
+  const rate = cut.kind === 'rate'
+  const overall = rate ? `${Math.round(cut.overall)}` : fmt(cut.overall)
+  /* A stock is a headcount at the window's end, so "6 sites" is the right note;
+     a flow can legitimately have quiet sites, and saying "4 of 6 reporting" is the
+     difference between a quiet site and a missing one. */
+  const note =
+    cut.kind === 'stock' || rate
+      ? `${cut.rows.length} sites`
+      : `${cut.active} of ${cut.rows.length} sites reporting`
+
+  return (
+    <div>
+      <div className="flex items-end justify-between gap-3">
+        <span>
+          <Figure value={overall} unit={rate ? '%' : cut.unit} size={34} />
+          <p className="mt-0.5 text-[12px] text-[#3d3a34]">
+            Overall · {period.label.toLowerCase()}
+          </p>
+        </span>
+        <span className="shrink-0 pb-1 text-[11px] whitespace-nowrap text-[#9b958b]">{note}</span>
+      </div>
+
+      <ul className="mt-4 flex flex-col gap-3 border-t border-[#f0efec] pt-4">
+        {cut.rows.map((r, i) => (
+          <li key={r.site.key}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span className="truncate text-[13.5px] text-[#1c1a16]">{r.site.name}</span>
+                {!dense && (
+                  <span className="shrink-0 text-[10.5px] tabular-nums text-[#9b958b]">
+                    {r.site.code} · {r.site.enclosures}
+                  </span>
+                )}
+              </span>
+              <span className="shrink-0 text-[13.5px] font-medium tabular-nums" style={{ color: VALUE }}>
+                {rate ? `${Math.round(r.percent)}%` : fmt(r.value)}
+                {rate && r.of && (
+                  <span className="ml-1 text-[10.5px] font-normal text-[#9b958b]">
+                    {fmt(r.value)}/{fmt(r.of)}
+                  </span>
+                )}
+                {!rate && r.value > 0 && (
+                  <span className="ml-1 text-[10.5px] font-normal text-[#9b958b]">
+                    {Math.round(r.percent)}%
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="mt-1.5 h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+              <div
+                className="h-full rounded-full"
+                style={{
+                  /* A rate is measured against 100% — a coverage bar scaled so the
+                     best site fills the track would say Reptile House is doing fine.
+                     A count has no natural ceiling, so there the widest row fills it;
+                     scaling counts against the total leaves every bar a stub on a
+                     six-way split. */
+                  width: `${clamp(
+                    rate ? r.percent : (r.percent / Math.max(...cut.rows.map((x) => x.percent), 1)) * 100,
+                  )}%`,
+                  backgroundColor: mix(accent, step(i)),
+                }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* ── filtering ───────────────────────────────────────────────────────────── */
+
+/**
+ * Chip filter over a list inside one card.
+ *
+ * For the sections that carry twenty-odd rows: the page's rule is that everything
+ * is on one scroll and nothing hides behind a tab, and a filter does not break it —
+ * every row is still one tap away, and "All" is always the default so the full set
+ * is what you see before you touch anything. A tab would decide for the reader
+ * which subset matters; this lets them narrow and then widen again.
+ */
+export function Filter<T>({
+  options,
+  items,
+  match,
+  count,
+  children,
+}: {
+  /** First entry is the default and should be the unfiltered one. */
+  options: string[]
+  items: T[]
+  /** Called for every item against the active chip. Never called for `options[0]`. */
+  match: (item: T, option: string) => boolean
+  /**
+   * What the chip badge counts. Defaults to the number of matching items, which is
+   * only right when an item is a row — where an item is a *group* of rows, the badge
+   * has to count the rows or every chip reads "1".
+   */
+  count?: (matching: T[]) => number
+  children: (visible: T[], active: string) => ReactNode
+}) {
+  const [active, setActive] = useState(options[0])
+  const visible = active === options[0] ? items : items.filter((it) => match(it, active))
+  const tally = count ?? ((m: T[]) => m.length)
+
+  return (
+    <div>
+      <div className="-mx-1 mb-3.5 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
+        {options.map((o) => {
+          const on = o === active
+          const n = tally(o === options[0] ? items : items.filter((it) => match(it, o)))
+          return (
+            <button
+              key={o}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setActive(o)}
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+                on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
+              }`}
+            >
+              {o}
+              {/* The count is the point of a filter chip — it tells you whether the
+                  narrowing is worth the tap before you spend it. */}
+              <span className={`ml-1 tabular-nums ${on ? 'text-white/60' : 'text-[#9b958b]'}`}>{n}</span>
+            </button>
+          )
+        })}
+      </div>
+      {visible.length > 0 ? (
+        children(visible, active)
+      ) : (
+        <p className="py-3 text-[12.5px] text-[#9b958b]">Nothing under {active} in this window.</p>
+      )}
+    </div>
+  )
+}
+
+/* ── period-aware hero ───────────────────────────────────────────────────── */
+
+/**
+ * The page hero, re-cut when the window changes.
+ *
+ * On `month` — the default — this renders exactly the hero each page authored: the
+ * hand-picked supporting figures, the real delta, the tone someone chose. Those are
+ * month facts and they are the best version of this card.
+ *
+ * On any other window they would be lies, so the card falls back to what the site
+ * data can actually support: the summed figure for that window, how many sites are
+ * in it, and the leading site. Fewer figures, all of them true.
+ */
+export function PeriodHero({
+  slug,
+  children,
+  ...month
+}: Parameters<typeof Hero>[0] & { slug: string; children?: never }) {
+  const { period } = usePeriod()
+  const cut = siteCut(slug, period.key)
+
+  if (period.key === 'month' || !cut) return <Hero {...month} />
+
+  const rate = cut.kind === 'rate'
+  const top = cut.rows[0]
+  return (
+    <Hero
+      {...month}
+      value={rate ? `${Math.round(cut.overall)}` : fmt(cut.overall)}
+      unit={rate ? '%' : undefined}
+      status={period.window}
+      tone="neutral"
+      stats={[
+        { value: `${cut.kind === 'count' ? cut.active : cut.rows.length}`, label: 'Sites' },
+        ...(top && top.value > 0
+          ? [
+              {
+                value: rate ? `${Math.round(top.percent)}` : fmt(top.value),
+                unit: rate ? '%' : undefined,
+                label: `Top · ${top.site.name}`,
+              },
+            ]
+          : []),
+      ]}
+    />
+  )
+}
+
 /**
  * Provenance, closing the page. A month's figures without the month they were
  * cut on are unciteable — the printed report stamps every page for this reason.
+ *
+ * `asOf` is overridden by the selected window: a page cut to last week that still
+ * stamps the month's closing date is citing the wrong thing.
  */
 export function Stamp({ asOf, source }: { asOf: string; source?: string }) {
+  const { period } = usePeriod()
   return (
     <p className="px-1 pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
-      As of {asOf}
+      {period.key === 'month' ? `As of ${asOf}` : period.window}
       {source && ` · ${source}`}
     </p>
   )

@@ -10,18 +10,26 @@
  * thing on the page.
  */
 
-import { Activity, ClipboardCheck, ListChecks, MapPin, ShieldCheck, TrendingDown } from 'lucide-react'
+import {
+  Activity,
+  ClipboardCheck,
+  ListChecks,
+  MapPin,
+  ShieldCheck,
+  TrendingDown,
+} from 'lucide-react'
 import { report } from '../report'
 import {
   Band,
   Donut,
   Events,
   Facts,
-  Hero,
   More,
+  PeriodHero,
   Records,
   Rule,
   Section,
+  Sites,
   Snapshot,
   Stack,
   Stamp,
@@ -31,7 +39,8 @@ import {
 export default function Mortality() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="mortality"
         icon={Activity}
         value="23"
         label="Deaths"
@@ -54,6 +63,11 @@ export default function Mortality() {
               { label: 'Avg age', value: '6.2', unit: 'y', note: '78% lifespan' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="mortality" />
         </Section>
 
         {/* One ring rather than a Pareto: the 80/20 line was answering a question
@@ -82,20 +96,12 @@ export default function Mortality() {
           />
         </Section>
 
-        <Section icon={MapPin} label="Concentration" aside="5 sites">
+        {/* The "Highest site" band that used to sit here said Aquatic Halls 48% —
+            which the Sites card above now states as the first row of the full split.
+            What the split cannot say is that one enclosure inside that site accounts
+            for six of its eleven, so that is all this card is left holding. */}
+        <Section icon={MapPin} label="Concentration" aside="AQ-204">
           <Band label="Highest species" title="Giant Prawn" sub="AQ-204 · 26 Jul" value="6" unit="deaths" tone="bad" />
-          {/* Stacked, not a Duo — half-width bands would shrink the two figures
-              that the section exists to compare. */}
-          <div className="mt-2.5">
-            <Band
-              label="Highest site"
-              title="Aquatic Halls"
-              sub="11 of 23 · 6 AQ-204"
-              value="48"
-              unit="%"
-              tone="warn"
-            />
-          </div>
           <Rule label="Ex event" />
           <Facts
             items={[

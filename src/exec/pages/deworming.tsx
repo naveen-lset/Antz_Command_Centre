@@ -12,17 +12,25 @@
  * covered, compliant, overdue — are what a rotation is actually managed on.
  */
 
-import { Activity, CalendarClock, Grid3x3, Pill, TriangleAlert } from 'lucide-react'
+import {
+  Activity,
+  CalendarClock,
+  Grid3x3,
+  MapPin,
+  Pill,
+  TriangleAlert,
+} from 'lucide-react'
 import { report } from '../report'
 import {
   Events,
   Facts,
-  Hero,
   More,
+  PeriodHero,
   Records,
   Ring,
   Rule,
   Section,
+  Sites,
   Snapshot,
   Stack,
   Stamp,
@@ -32,7 +40,8 @@ import {
 export default function Deworming() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="deworming"
         icon={Pill}
         value="63"
         label="Treatments"
@@ -69,6 +78,11 @@ export default function Deworming() {
               { label: 'C · Praziquantel', value: '2' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="deworming" />
         </Section>
 
         <Section icon={Pill} label="Coverage" aside="on rotation">

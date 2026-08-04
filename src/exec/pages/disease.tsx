@@ -8,18 +8,26 @@
  * named before any total is given.
  */
 
-import { Biohazard, Bug, MapPin, ShieldCheck, Siren, TrendingUp } from 'lucide-react'
+import {
+  Biohazard,
+  Bug,
+  MapPin,
+  ShieldCheck,
+  Siren,
+  TrendingUp,
+} from 'lucide-react'
 import { report } from '../report'
 import {
   Band,
   Bars,
   Donut,
   Facts,
-  Hero,
   More,
+  PeriodHero,
   Records,
   Rule,
   Section,
+  Sites,
   Snapshot,
   Stack,
   Stamp,
@@ -29,7 +37,8 @@ import {
 export default function Disease() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="disease"
         icon={Biohazard}
         value="9"
         label="Diseases flagged"
@@ -61,6 +70,11 @@ export default function Disease() {
               },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="disease" />
         </Section>
 
         <Section icon={Bug} label="Flagged" aside={<More href="#/disease/records" />}>

@@ -7,16 +7,25 @@
  * source organisations follow it.
  */
 
-import { Building, ClipboardList, Handshake, Rabbit, ShieldCheck, TrendingUp } from 'lucide-react'
+import {
+  Building,
+  ClipboardList,
+  Handshake,
+  MapPin,
+  Rabbit,
+  ShieldCheck,
+  TrendingUp,
+} from 'lucide-react'
 import { report } from '../report'
 import {
   Bars,
   Facts,
-  Hero,
   Ledger,
   More,
+  PeriodHero,
   Rule,
   Section,
+  Sites,
   Snapshot,
   Stack,
   Stamp,
@@ -27,7 +36,8 @@ import {
 export default function Accession() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="accession"
         icon={Rabbit}
         value="18"
         label="Accessioned"
@@ -55,6 +65,11 @@ export default function Accession() {
               { label: 'Examination', value: 1 },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="accession" />
         </Section>
 
         <Section icon={Building} label="Organizations" aside="6">

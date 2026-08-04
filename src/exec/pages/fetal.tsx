@@ -9,14 +9,32 @@
  * The tone here is the same as Mortality's: no targets, no praise, no streaks.
  */
 
-import { Baby, HeartPulse, ListChecks, MapPin, Stethoscope } from 'lucide-react'
+import {
+  Baby,
+  HeartPulse,
+  ListChecks,
+  MapPin,
+  Stethoscope,
+} from 'lucide-react'
 import { report } from '../report'
-import { Facts, Hero, More, Records, Rule, Section, Snapshot, Stack, Stamp } from '../system'
+import {
+  Facts,
+  More,
+  PeriodHero,
+  Records,
+  Rule,
+  Section,
+  Sites,
+  Snapshot,
+  Stack,
+  Stamp,
+} from '../system'
 
 export default function Fetal() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="fetal"
         icon={Baby}
         value="5"
         label="Fetal deaths"
@@ -37,6 +55,11 @@ export default function Fetal() {
               { label: 'Abortion', sub: 'Pre-term loss', value: '2' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="fetal" />
         </Section>
 
         {/* Stated against deliveries, because five is meaningless alone: five out of

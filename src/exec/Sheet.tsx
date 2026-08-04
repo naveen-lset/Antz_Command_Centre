@@ -22,12 +22,19 @@ const DISMISS_AT = 110
 export default function Sheet({
   title,
   eyebrow = 'Command Centre',
+  toolbar,
   onClose,
   onBack,
   children,
 }: {
   title: string
-  eyebrow?: string
+  eyebrow?: ReactNode
+  /**
+   * Pinned under the title — the reporting-window switcher, on the pages that have
+   * one. It belongs in the header rather than in the scroller: the control that
+   * decides what every figure below means must not scroll away from them.
+   */
+  toolbar?: ReactNode
   onClose: () => void
   /** Present only on a record page — steps back to its module. */
   onBack?: () => void
@@ -147,45 +154,53 @@ export default function Sheet({
             transition: dragging ? 'none' : 'transform 360ms cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
+          {/* The drag area and the toolbar are siblings, not nested. `touch-action:
+              none` on an ancestor is intersected down the whole subtree, so a chip
+              row inside the drag area could never be panned sideways on touch. */}
           <div
-            className="relative z-10 shrink-0 touch-none bg-white transition-shadow duration-300"
+            className="relative z-10 shrink-0 bg-white transition-shadow duration-300"
             style={{ boxShadow: scrolled ? '0 1px 0 rgba(22,21,15,0.08)' : 'none' }}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
           >
-            <div className="flex justify-center pt-2.5" aria-hidden>
-              <span className="h-[4px] w-9 rounded-full bg-[#16150f]/10" />
-            </div>
-            <header className="flex items-center gap-3 px-6 pt-2.5 pb-4">
-              {onBack && (
+            <div
+              className="touch-none"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
+              <div className="flex justify-center pt-2.5" aria-hidden>
+                <span className="h-[4px] w-9 rounded-full bg-[#16150f]/10" />
+              </div>
+              <header className={`flex items-center gap-3 px-6 pt-2.5 ${toolbar ? 'pb-3' : 'pb-4'}`}>
+                {onBack && (
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="-ml-2 grid size-9 shrink-0 place-items-center rounded-full transition-colors active:bg-[#f7f6f3]"
+                    aria-label="Back"
+                  >
+                    <ChevronLeft size={20} strokeWidth={2} className="text-[#55524a]" aria-hidden />
+                  </button>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[11px] font-medium tracking-[0.06em] text-[#b3aea6] uppercase">
+                    {eyebrow}
+                  </span>
+                  <h1 className="mt-[3px] truncate text-[21px] leading-7 font-semibold tracking-[-0.02em] text-[#16150f]">
+                    {title}
+                  </h1>
+                </span>
                 <button
                   type="button"
-                  onClick={onBack}
-                  className="-ml-2 grid size-9 shrink-0 place-items-center rounded-full transition-colors active:bg-[#f7f6f3]"
-                  aria-label="Back"
+                  onClick={close}
+                  className="grid size-9 shrink-0 place-items-center rounded-full border border-[#eceae5] transition-colors active:bg-[#f7f6f3]"
+                  aria-label="Close"
                 >
-                  <ChevronLeft size={20} strokeWidth={2} className="text-[#55524a]" aria-hidden />
+                  <X size={16} strokeWidth={2} className="text-[#55524a]" aria-hidden />
                 </button>
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-medium tracking-[0.06em] text-[#b3aea6] uppercase">
-                  {eyebrow}
-                </span>
-                <h1 className="mt-[3px] truncate text-[21px] leading-7 font-semibold tracking-[-0.02em] text-[#16150f]">
-                  {title}
-                </h1>
-              </span>
-              <button
-                type="button"
-                onClick={close}
-                className="grid size-9 shrink-0 place-items-center rounded-full border border-[#eceae5] transition-colors active:bg-[#f7f6f3]"
-                aria-label="Close"
-              >
-                <X size={16} strokeWidth={2} className="text-[#55524a]" aria-hidden />
-              </button>
-            </header>
+              </header>
+            </div>
+            {toolbar}
           </div>
 
           {/* Sage ground with white cards floating on it — the home screen's surface. */}

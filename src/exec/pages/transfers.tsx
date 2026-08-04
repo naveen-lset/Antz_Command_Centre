@@ -27,12 +27,13 @@ import {
   Band,
   Bullet,
   Facts,
-  Hero,
   Lanes,
   More,
+  PeriodHero,
   Records,
   Rule,
   Section,
+  Sites,
   Snapshot,
   Stack,
   Stamp,
@@ -42,7 +43,8 @@ import {
 export default function Transfers() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="transfers"
         icon={ArrowLeftRight}
         value="28"
         label="Transfers"
@@ -74,6 +76,11 @@ export default function Transfers() {
               { label: 'TRF-1180 · 2 Bengal Fox · CZA', value: 'Day 4', tone: 'bad' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="transfers" />
         </Section>
 
         <Section icon={ArrowLeftRight} label="Movements" aside="July">

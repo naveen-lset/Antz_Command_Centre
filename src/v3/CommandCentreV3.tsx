@@ -1,5 +1,7 @@
-import { Bell, MapPin } from 'lucide-react'
+import { useState } from 'react'
+import { Bell, MapPin, Search } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
+import { ModuleSearch } from './search'
 import { useCountUp } from '../hooks/useCountUp'
 import {
   clinical,
@@ -63,7 +65,7 @@ function MistBackdrop() {
 }
 
 /** Soft personal greeting header with org switcher. */
-function GreetingHeader() {
+function GreetingHeader({ onSearch }: { onSearch: () => void }) {
   const now = useNow(30_000)
 
   return (
@@ -80,11 +82,24 @@ function GreetingHeader() {
             {site.org}
           </p>
         </div>
-        <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#fbfaf7]" aria-hidden>
-          <Bell size={18} strokeWidth={1.75} className="text-[#1c1a16]" />
-        </span>
+        {/* Search sits beside the bell rather than as a field across the header: the
+            hero number is the first thing on this screen and a full-width input above
+            it would take that place. Twenty modules is enough to need search, not
+            enough to need it permanently open. */}
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onSearch}
+            aria-label="Search modules"
+            className="grid size-11 place-items-center rounded-full bg-[#fbfaf7] transition-colors active:bg-[#f2f1ed]"
+          >
+            <Search size={18} strokeWidth={1.75} className="text-[#1c1a16]" aria-hidden />
+          </button>
+          <span className="grid size-11 place-items-center rounded-full bg-[#fbfaf7]" aria-hidden>
+            <Bell size={18} strokeWidth={1.75} className="text-[#1c1a16]" />
+          </span>
+        </div>
       </div>
-
     </header>
   )
 }
@@ -376,20 +391,6 @@ function StatTile({ tile }: { tile: StatTileData }) {
   )
 }
 
-/**
- * Report section label. Small and quiet — it names the section, and the cards under
- * it carry the numbers. Making these look like headlines would put seven pieces of
- * chrome between the reader and the data.
- */
-function GroupHeading({ children, index }: { children: string; index?: string }) {
-  return (
-    <h2 className="flex items-baseline gap-2 pt-3 pb-0.5 text-[13px] font-semibold tracking-[0.02em] text-[#3d3a34]">
-      {index && <span className="font-display text-[12px] font-bold tabular-nums text-[#9b958b]">{index}</span>}
-      {children}
-    </h2>
-  )
-}
-
 /** Both preventive rates, each with the fraction it was computed from. */
 function PreventiveCard() {
   return (
@@ -452,6 +453,8 @@ function TrendsCard() {
 }
 
 export default function CommandCentreV3() {
+  const [searching, setSearching] = useState(false)
+
   return (
     <div className="relative isolate min-h-dvh bg-[#e7f0ea] font-sans">
       {/* Brand-green #034739 gradient — full-bleed, edge to edge, completing
@@ -462,7 +465,7 @@ export default function CommandCentreV3() {
         aria-hidden
       />
       <div className="mx-auto w-full max-w-[390px]">
-        <GreetingHeader />
+        <GreetingHeader onSearch={() => setSearching(true)} />
         <HeroBlock />
       </div>
 
@@ -472,11 +475,12 @@ export default function CommandCentreV3() {
       <div className="mx-auto w-full max-w-[390px]">
         {/* 16px gutters on the card stack — tighter than the header's 20px, so the
             cards sit slightly wider than the greeting and hero above them. */}
-        {/* The monthly report's table of contents, section for section. Numbered,
-            because the report is numbered and a director reading both should be
-            able to move between them without translating. */}
+        {/* The report's sections, in the report's order, but no longer captioned.
+            The numbered headings ("01 Animal Population", "02 Life Events") named
+            groups whose cards already name themselves — seven labels for twelve
+            cards, and each one pushed the next number further down the screen.
+            Order still carries the report's structure; it just isn't announced. */}
         <main className="flex flex-col gap-3 px-4 pt-3 pb-[max(40px,env(safe-area-inset-bottom))]">
-          <GroupHeading index="01">Animal Population</GroupHeading>
           <a href={population.href} className={`${TAP} ${CARD} block p-5`}>
             <span className="flex items-center gap-2 text-[15px] font-medium text-[#1c1a16]">
               <population.icon size={16} strokeWidth={1.75} style={{ color: population.accent }} aria-hidden />
@@ -499,7 +503,6 @@ export default function CommandCentreV3() {
             </div>
           </a>
 
-          <GroupHeading index="02">Life Events</GroupHeading>
           {/* Natality & Mortality — the headline pair */}
           <div className="grid grid-cols-2 gap-3">
             {mainPair.map((card) => (
@@ -512,18 +515,14 @@ export default function CommandCentreV3() {
             ))}
           </div>
 
-          <GroupHeading index="03">Veterinary & Health</GroupHeading>
           {clinical.map((card) => (
             <ModuleCard key={card.title} card={card} />
           ))}
 
-          <GroupHeading index="04">Preventive Care</GroupHeading>
           <PreventiveCard />
 
-          <GroupHeading index="05">Animal Movement</GroupHeading>
           <ModuleCard card={movement} />
 
-          <GroupHeading index="06">30-Day Trends</GroupHeading>
           <TrendsCard />
 
           {/* Below the report line. Nothing in this group is a monthly figure, so it
@@ -540,6 +539,8 @@ export default function CommandCentreV3() {
           </div>
         </main>
       </div>
+
+      {searching && <ModuleSearch onClose={() => setSearching(false)} />}
     </div>
   )
 }

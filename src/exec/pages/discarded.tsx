@@ -7,14 +7,35 @@
  * different departments, one number, and no way to tell them apart from the funnel.
  */
 
-import { Egg, EggOff, Grid3x3, ListChecks, Search } from 'lucide-react'
+import {
+  Egg,
+  EggOff,
+  Grid3x3,
+  ListChecks,
+  MapPin,
+  Search,
+} from 'lucide-react'
 import { report } from '../report'
-import { Bars, Donut, Facts, Hero, More, Records, Rule, Section, Snapshot, Stack, Stamp } from '../system'
+import {
+  Bars,
+  Donut,
+  Facts,
+  More,
+  PeriodHero,
+  Records,
+  Rule,
+  Section,
+  Sites,
+  Snapshot,
+  Stack,
+  Stamp,
+} from '../system'
 
 export default function Discarded() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="discarded"
         icon={EggOff}
         value="13"
         label="Eggs discarded"
@@ -47,6 +68,11 @@ export default function Discarded() {
               { label: 'Rotten · Red ring', sub: 'Handling · sanitation protocol', value: '5', tone: 'bad' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="discarded" />
         </Section>
 
         <Section icon={Egg} label="Against collection" aside="July">

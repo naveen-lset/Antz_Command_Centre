@@ -16,6 +16,7 @@ import {
   Columns3,
   Grid2x2Check,
   Layers,
+  MapPin,
   Scale,
   Syringe,
   TriangleAlert,
@@ -26,13 +27,14 @@ import {
   Columns,
   Events,
   Facts,
-  Hero,
   More,
+  PeriodHero,
   Poles,
   Records,
   Ring,
   Rule,
   Section,
+  Sites,
   Snapshot,
   Stack,
   Stamp,
@@ -41,7 +43,8 @@ import {
 export default function Vaccination() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="vaccination"
         icon={Syringe}
         value="92"
         unit="%"
@@ -68,6 +71,11 @@ export default function Vaccination() {
               { label: 'Overdue', value: '5', tone: 'bad' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="vaccination" />
         </Section>
 
         <Section icon={Syringe} label="Drive" aside={<More href="#/vaccination/records" />}>

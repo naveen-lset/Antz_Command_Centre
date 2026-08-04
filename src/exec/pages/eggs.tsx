@@ -6,18 +6,29 @@
  * pipeline, rates, stability meters and a unit-by-unit service table.
  */
 
-import { CalendarClock, Egg, EggOff, Gauge, Grid3x3, Search, Thermometer, Wrench } from 'lucide-react'
+import {
+  CalendarClock,
+  Egg,
+  EggOff,
+  Gauge,
+  Grid3x3,
+  MapPin,
+  Search,
+  Thermometer,
+  Wrench,
+} from 'lucide-react'
 import { report } from '../report'
 import {
   Band,
   Facts,
   Funnel,
-  Hero,
   MeterGroup,
   More,
+  PeriodHero,
   Records,
   Scoreboard,
   Section,
+  Sites,
   Stack,
   Stamp,
   Table,
@@ -27,7 +38,8 @@ import {
 export default function Eggs() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="eggs"
         icon={Egg}
         value="142"
         label="Eggs"
@@ -56,6 +68,11 @@ export default function Eggs() {
               { value: '13', label: 'INC-8 · Emu' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="eggs" />
         </Section>
 
         <Section icon={Egg} label="Pipeline" aside={<More href="#/eggs/records" />}>

@@ -30,7 +30,7 @@ import {
   Stethoscope,
   Syringe,
 } from 'lucide-react'
-import { Roster, Section, Stack, Stamp, Tray, type RosterGroup, type Tone } from './system'
+import { Filter, Roster, Section, Stack, Stamp, Tray, type RosterGroup, type Tone } from './system'
 import { report } from './report'
 
 type Icon = ComponentType<{ size?: number | string; strokeWidth?: number; style?: object }>
@@ -626,6 +626,14 @@ export const findRecordPage = (slug: string) => recordPages[slug]
 /** One renderer for all twelve — see the note at the top of this file. */
 export function RecordsView({ page }: { page: RecordPage }) {
   const rows = page.groups.reduce((n, g) => n + g.rows.length, 0)
+
+  /* The densest thing in the app — four or five grouped tables of individual
+     animals — and the one place a filter earns its keep. Filtering by group rather
+     than by any cell value because the groups are what the reader already sees: the
+     chips are the site names printed as headings a screen further down. "All" first,
+     so the page still opens on the complete set. */
+  const groupNames = page.groups.map((g) => g.group)
+
   return (
     <>
       <Stack>
@@ -633,10 +641,21 @@ export function RecordsView({ page }: { page: RecordPage }) {
           <Tray cols={4} cells={page.stats} />
         </Section>
         <Section icon={page.icon} label="Records" aside={page.groupsLabel}>
-          <Roster head={page.head} groups={page.groups} />
+          <Filter
+            options={['All', ...groupNames]}
+            items={page.groups}
+            match={(g, option) => g.group === option}
+            count={(gs) => gs.reduce((n, g) => n + g.rows.length, 0)}
+          >
+            {(visible) => <Roster head={page.head} groups={visible} />}
+          </Filter>
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={`${rows} of ${page.stats[0].value} rows shown`} />
+      {/* "in this extract", not "shown": the filter above can be narrowing the table to
+          one site, and a footer claiming fifteen rows are shown while five are would be
+          the page contradicting itself. What is *shown* is on the chips, which count it
+          exactly. This line describes the extract the page was cut from. */}
+      <Stamp asOf={report.asOf} source={`${rows} of ${page.stats[0].value} rows in this extract`} />
     </>
   )
 }

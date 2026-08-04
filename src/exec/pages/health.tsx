@@ -16,6 +16,7 @@ import {
   ArrowLeftRight,
   Biohazard,
   HeartPulse,
+  MapPin,
   MessageSquare,
   Pill,
   Stethoscope,
@@ -27,12 +28,14 @@ import {
   Band,
   Bars,
   Facts,
-  Hero,
+  Filter,
   More,
   Pair,
+  PeriodHero,
   Records,
   Rule,
   Section,
+  Sites,
   Snapshot,
   Stack,
   Stamp,
@@ -40,10 +43,22 @@ import {
   Table,
 } from '../system'
 
+/** Lifted out of the JSX so the filter can count each class before rendering. */
+const PRESCRIPTIONS = [
+  { label: 'Enrofloxacin 5 mg', sub: 'Antibacterial · aviary', cells: ['16', '14'] },
+  { label: 'Meloxicam 0.5 mg', sub: 'Anti-inflammatory', cells: ['13', '13'] },
+  { label: 'Ceftriaxone 20 mg', sub: 'Antibacterial · wounds', cells: ['9', '7'] },
+  { label: 'Ivermectin 0.2 mg', sub: 'Antiparasitic', cells: ['8', '8'] },
+  { label: 'Doxycycline 10 mg', sub: 'Antibacterial', cells: ['7', '6'] },
+  { label: 'Ceftazidime 20 mg', sub: 'Antibacterial · reptiles', cells: ['5', '4'] },
+  { label: 'Malachite green', sub: 'Bath · batch treatment', cells: ['4', '240'] },
+]
+
 export default function Health() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="health"
         icon={HeartPulse}
         value="124"
         label="Under care"
@@ -70,6 +85,11 @@ export default function Health() {
               { label: 'Recovered', value: '96', note: 'Month', tone: 'good' },
             ]}
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="health" />
         </Section>
 
         <Section icon={ArrowLeftRight} label="Movement" aside="today">
@@ -117,19 +137,18 @@ export default function Health() {
           />
         </Section>
 
+        {/* Filtered on drug class, which is the question actually asked of a
+            prescription list — four of the seven lines are antibacterials, and
+            "how much antibacterial are we using" is an antimicrobial-stewardship
+            question, not a browsing one. */}
         <Section icon={Pill} label="Prescriptions" aside="62 Rx">
-          <Table
-            head={['Medicine', 'Rx', 'Animals']}
-            rows={[
-              { label: 'Enrofloxacin 5 mg', sub: 'Antibacterial · aviary', cells: ['16', '14'] },
-              { label: 'Meloxicam 0.5 mg', sub: 'Anti-inflammatory', cells: ['13', '13'] },
-              { label: 'Ceftriaxone 20 mg', sub: 'Antibacterial · wounds', cells: ['9', '7'] },
-              { label: 'Ivermectin 0.2 mg', sub: 'Antiparasitic', cells: ['8', '8'] },
-              { label: 'Doxycycline 10 mg', sub: 'Antibacterial', cells: ['7', '6'] },
-              { label: 'Ceftazidime 20 mg', sub: 'Antibacterial · reptiles', cells: ['5', '4'] },
-              { label: 'Malachite green', sub: 'Bath · batch treatment', cells: ['4', '240'] },
-            ]}
-          />
+          <Filter
+            options={['All', 'Antibacterial', 'Antiparasitic', 'Anti-inflammatory', 'Bath']}
+            items={PRESCRIPTIONS}
+            match={(r, option) => r.sub.split(' · ')[0] === option}
+          >
+            {(rows) => <Table head={['Medicine', 'Rx', 'Animals']} rows={rows} />}
+          </Filter>
           <Rule label="No prescription" />
           <Facts items={[{ label: 'Observation only', sub: '12 of 50 new cases', value: '12' }]} />
         </Section>

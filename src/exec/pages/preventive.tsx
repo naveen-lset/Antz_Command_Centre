@@ -10,14 +10,33 @@
  * remainder, and the ring keeps them on screen.
  */
 
-import { CalendarClock, Pill, ShieldPlus, Syringe, TriangleAlert } from 'lucide-react'
+import {
+  CalendarClock,
+  MapPin,
+  Pill,
+  ShieldPlus,
+  Syringe,
+  TriangleAlert,
+} from 'lucide-react'
 import { report } from '../report'
-import { Facts, Hero, Records, Ring, Rule, Section, Snapshot, Stack, Stamp } from '../system'
+import {
+  Facts,
+  PeriodHero,
+  Records,
+  Ring,
+  Rule,
+  Section,
+  Sites,
+  Snapshot,
+  Stack,
+  Stamp,
+} from '../system'
 
 export default function Preventive() {
   return (
     <>
-      <Hero
+      <PeriodHero
+        slug="preventive"
         icon={ShieldPlus}
         value="90"
         unit="%"
@@ -40,6 +59,11 @@ export default function Preventive() {
             note="190 uncovered · 5 overdue"
             href="#/vaccination"
           />
+        </Section>
+
+        {/* Overall stated above the six sites it is the sum of. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="preventive" />
         </Section>
 
         <Section icon={Pill} label="Deworming" aside="on rotation">
