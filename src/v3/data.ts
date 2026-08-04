@@ -106,7 +106,8 @@ export interface StatTileData {
   accent: string
   /** Spans both columns — for an odd tile that would otherwise leave a gap. */
   wide?: boolean
-  /** Secondary figure, right-aligned. Only read on a wide tile, which has the room. */
+  /** Secondary figure, right-aligned on the number row. Keep it short — a narrow
+      tile shares that row with the value and unit. */
   note?: string
 }
 
