@@ -29,6 +29,15 @@ export const TONE = { good: '#1e7a44', warn: '#b45309', bad: '#dc2626', neutral:
 export type Tone = keyof typeof TONE
 
 /**
+ * Two darker greens the report layer needs and `mix()` cannot produce — `mix`
+ * only lightens toward white. `DEEP` is the record table's header bar, the one
+ * dark surface in the app; `ACCENT_INK` is accent-coloured text that still
+ * passes contrast on a pale accent wash.
+ */
+export const DEEP = '#123a2c'
+export const ACCENT_INK = '#1a6b40'
+
+/**
  * ONE accent for every module — the home screen's hero green. Fourteen different
  * module hues made the sheets busy and fought the sage ground, so colour identity
  * now comes from the ground and the type, not from a per-module tint. Icons and
@@ -417,83 +426,6 @@ export function Spark({ values, h = 40, w = 120 }: { values: number[]; h?: numbe
   )
 }
 
-/** Paired comparison — the gap between two values is the point. */
-export function Dumbbell({
-  items,
-  legend,
-  unit,
-}: {
-  items: { label: string; a: number; b: number }[]
-  legend: [string, string]
-  unit?: string
-}) {
-  const accent = useAccent()
-  const { ref, animate } = usePlay()
-  const max = Math.max(...items.flatMap((i) => [i.a, i.b]), 1)
-  return (
-    <div ref={ref}>
-      <div className="mb-4 flex items-center gap-4 text-[11px] text-[#9b958b]">
-        <span className="flex items-center gap-1.5">
-          <span className="size-[8px] rounded-full border-[1.5px] bg-white" style={{ borderColor: accent }} aria-hidden />
-          {legend[0]}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-[8px] rounded-full" style={{ backgroundColor: accent }} aria-hidden />
-          {legend[1]}
-        </span>
-      </div>
-      <ul className="flex flex-col gap-4">
-        {items.map((it, i) => {
-          const lo = Math.min(it.a, it.b) / max
-          const hi = Math.max(it.a, it.b) / max
-          const delay = animate ? i * 70 : undefined
-          return (
-            <li key={it.label}>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="truncate text-[14px] text-[#1c1a16]">{it.label}</span>
-                <span className="shrink-0 text-[13px] tabular-nums text-[#3d3a34]">
-                  {compact(it.a)} → {compact(it.b)}
-                  {unit && <span className="ml-0.5 text-[11px] text-[#9b958b]">{unit}</span>}
-                </span>
-              </div>
-              <div className="relative mt-2 h-[10px]">
-                <div className="absolute inset-x-0 top-[4.5px] h-px" style={{ backgroundColor: TRACK }} />
-                <div
-                  className={`absolute top-[4.5px] h-px origin-left ${animate ? 'animate-grow-x' : ''}`}
-                  style={{
-                    left: `${lo * 100}%`,
-                    width: `${(hi - lo) * 100}%`,
-                    backgroundColor: mix(accent, 0.45),
-                    animationDelay: delay !== undefined ? `${delay}ms` : undefined,
-                  }}
-                />
-                <span
-                  className={`absolute top-0 size-[10px] -translate-x-1/2 rounded-full border-[1.5px] bg-white ${
-                    animate ? 'animate-pop' : ''
-                  }`}
-                  style={{
-                    left: `${(it.a / max) * 100}%`,
-                    borderColor: accent,
-                    animationDelay: delay !== undefined ? `${delay}ms` : undefined,
-                  }}
-                />
-                <span
-                  className={`absolute top-0 size-[10px] -translate-x-1/2 rounded-full ${animate ? 'animate-pop' : ''}`}
-                  style={{
-                    left: `${(it.b / max) * 100}%`,
-                    backgroundColor: accent,
-                    animationDelay: delay !== undefined ? `${delay + 110}ms` : undefined,
-                  }}
-                />
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
-}
-
 /** Matrix heat grid — density read, normalised across the observed range. */
 export function Matrix({
   rows,
@@ -878,29 +810,6 @@ export function Radar({ axes, max = 100 }: { axes: { label: string; score: numbe
   )
 }
 
-/** Coverage as countable squares — “8 uncovered” beats “92%”. */
-export function Waffle({ percent }: { percent: number }) {
-  const accent = useAccent()
-  const { ref, animate } = usePlay()
-  const filled = Math.round(percent)
-  return (
-    <div ref={ref}>
-      <div className="grid grid-cols-10 gap-[3px]">
-        {Array.from({ length: 100 }, (_, i) => (
-          <span
-            key={i}
-            className={`aspect-square rounded-[3px] ${animate ? 'animate-veil' : ''}`}
-            style={{
-              backgroundColor: i < filled ? accent : TRACK,
-              // Cascade across the grid so the filled block reads as it lands.
-              animationDelay: animate ? `${i * 7}ms` : undefined,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export function Meter({ percent, label, value }: { percent: number; label: string; value: string }) {
   const accent = useAccent()
@@ -1025,8 +934,11 @@ export function Snapshot({
             size={size}
             color={m.tone && m.tone !== 'neutral' ? TONE[m.tone] : VALUE}
           />
-          <p className="mt-0.5 truncate text-[12px] text-[#3d3a34]">{m.label}</p>
-          {m.note && <p className="mt-0.5 truncate text-[11px] text-[#9b958b]">{m.note}</p>}
+          {/* Wraps rather than truncates: at four columns a cell is ~78px, and
+              "Sample quality" clipped to "Sample qua…" states nothing. Grid rows
+              size to the tallest cell, so a second line stays aligned. */}
+          <p className="mt-0.5 text-[12px] leading-[15px] text-[#3d3a34]">{m.label}</p>
+          {m.note && <p className="mt-0.5 text-[11px] leading-[14px] text-[#9b958b]">{m.note}</p>}
         </div>
       ))}
     </div>
@@ -1210,58 +1122,6 @@ export function BulletGroup({
   )
 }
 
-/**
- * Capacity as countable units. "16 beds free" is an operational instruction;
- * "81% occupancy" is a statistic — the squares give both.
- */
-export function Utilization({
-  used,
-  total,
-  label,
-  free,
-}: {
-  used: number
-  total: number
-  /** One or two words — "Beds", "Cots in use". */
-  label: string
-  free?: string
-}) {
-  const accent = useAccent()
-  const dense = total > 32
-  return (
-    <div>
-      <div className="flex items-end justify-between gap-3">
-        <span>
-          <Figure value={`${fmt(used)}`} size={30} />
-          <span className="ml-1.5 text-[14px] text-[#9b958b]">of {fmt(total)}</span>
-          <p className="mt-1 text-[12px] text-[#6d6860]">{label}</p>
-        </span>
-        <span className="pb-[3px] text-right">
-          <Figure value={`${Math.round((used / (total || 1)) * 100)}`} unit="%" size={19} color={INK2} />
-          {free && <p className="mt-0.5 text-[11px] text-[#9b958b]">{free}</p>}
-        </span>
-      </div>
-      {dense ? (
-        <div className="mt-4 h-[10px] w-full rounded-full" style={{ backgroundColor: TRACK }}>
-          <div
-            className="h-full rounded-full"
-            style={{ width: `${clamp((used / (total || 1)) * 100)}%`, backgroundColor: accent }}
-          />
-        </div>
-      ) : (
-        <div className="mt-4 flex gap-[3px]">
-          {Array.from({ length: total }, (_, i) => (
-            <span
-              key={i}
-              className="h-[24px] flex-1 rounded-[3px]"
-              style={{ backgroundColor: i < used ? accent : TRACK }}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 /** Columnar facts — Bloomberg density where three numbers per row all matter. */
 export function Table({
@@ -1629,5 +1489,492 @@ export function Events({
         </li>
       ))}
     </ul>
+  )
+}
+
+/* ── report marks ────────────────────────────────────────────────────────── */
+/*
+ * The monthly report's own vocabulary, which the aggregate marks above could not
+ * express: a rate against its stated denominator, a cause split as one ring, a
+ * 30-day trend with a real axis, and the record layer — animal-level rows
+ * grouped by site.
+ *
+ * The record layer is the report's third tier. Tiers one and two (summary card,
+ * trend) answer "how much"; only this one answers "which animal", and every
+ * summary that has one links down to it through `More`.
+ */
+
+/**
+ * Down into the record layer. The only link that leaves a module page, so it is
+ * deliberately the only pill-shaped thing in the set.
+ */
+export function More({ href, label = 'View details' }: { href: string; label?: string }) {
+  const accent = useAccent()
+  return (
+    <a
+      href={href}
+      className="card-press inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-[5px] text-[11.5px] font-medium whitespace-nowrap"
+      style={{ backgroundColor: mix(accent, 0.11), color: ACCENT_INK }}
+    >
+      {label}
+      <span aria-hidden>→</span>
+    </a>
+  )
+}
+
+/**
+ * A rate and the count it was computed from, in one mark.
+ *
+ * The denominator is the point: "68%" alone hides whether the base is 14 animals
+ * or 14,000, so the ring carries `value / of` at its centre and the percentage
+ * reads beside it.
+ */
+export function Ring({
+  percent,
+  label,
+  value,
+  of,
+  note,
+  href,
+  tone,
+}: {
+  percent: number
+  /** One or two words — "Vaccinated", "Dewormed". */
+  label: string
+  /** Numerator and denominator, stated inside the ring. */
+  value: string
+  of: string
+  /** Short token only. */
+  note?: string
+  href?: string
+  tone?: Tone
+}) {
+  const accent = useAccent()
+  const c = tone && tone !== 'neutral' ? TONE[tone] : accent
+  const { ref, animate, reduce } = usePlay()
+  const p = clamp(percent)
+  /* 270° of arc, opening at the bottom — a full circle reads as a pie, and a
+     half dial (see `Dial`) cannot hold two stacked numbers at its centre. */
+  const ARC = 'M 36.16 123.84 A 62 62 0 1 1 123.84 123.84'
+  const shown = animate || reduce ? p : 0
+
+  return (
+    <div ref={ref} className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <Figure value={`${Math.round(p)}`} unit="%" size={34} color={c} />
+        <p className="mt-1 text-[13.5px] text-[#1c1a16]">{label}</p>
+        {note && <p className="mt-0.5 text-[11px] leading-[15px] text-[#9b958b]">{note}</p>}
+        {href && (
+          <div className="mt-2.5">
+            <More href={href} />
+          </div>
+        )}
+      </div>
+      <div className="relative w-[124px] shrink-0">
+        <svg viewBox="0 0 160 140" className="w-full" aria-hidden>
+          <path d={ARC} fill="none" stroke={TRACK} strokeWidth={13} strokeLinecap="round" />
+          <path
+            d={ARC}
+            fill="none"
+            stroke={c}
+            strokeWidth={13}
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray={`${shown} ${100 - shown}`}
+            style={reduce ? undefined : { transition: 'stroke-dasharray 900ms cubic-bezier(0.22,1,0.36,1)' }}
+          />
+        </svg>
+        {/* Numerator over denominator, hairline between — the fraction the
+            percentage came from, at the centre of the ring that shows it. */}
+        <div className="absolute inset-x-0 top-[38px] text-center">
+          <Figure value={value} size={21} />
+          <span className="mx-auto mt-1 block h-px w-[42px]" style={{ backgroundColor: HAIR }} aria-hidden />
+          <span className="mt-1 block text-[12px] tabular-nums text-[#6d6860]">{of}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * A split as one ring with the total at its centre.
+ *
+ * Segments are lightness steps of the module accent, not cycled hues — the same
+ * rule every other multi-series mark here follows. A six-colour donut would make
+ * "Unknown" look like a category with its own meaning rather than a residual.
+ */
+export function Donut({
+  items,
+  label = 'Total',
+  unit,
+}: {
+  items: { label: string; value: number; tone?: Tone }[]
+  /** The word under the centre number. */
+  label?: string
+  unit?: string
+}) {
+  const accent = useAccent()
+  const { ref, animate } = usePlay()
+  const total = items.reduce((s, i) => s + i.value, 0) || 1
+  /* A 1.4% gap between segments, taken off each one's own length — without it
+     adjacent lightness steps read as a single band. */
+  const GAP = 1.4
+  let acc = 0
+
+  return (
+    <div ref={ref}>
+      <div className="flex items-center gap-4">
+        <div className="relative w-[132px] shrink-0">
+          <svg viewBox="0 0 160 160" className="w-full" aria-hidden>
+            <circle cx={80} cy={80} r={58} fill="none" stroke={TRACK} strokeWidth={22} />
+            <g transform="rotate(-90 80 80)">
+              {items.map((it, i) => {
+                const frac = (it.value / total) * 100
+                const len = Math.max(frac - GAP, 0.6)
+                const offset = acc
+                acc += frac
+                return (
+                  <circle
+                    key={it.label}
+                    cx={80}
+                    cy={80}
+                    r={58}
+                    fill="none"
+                    stroke={it.tone && it.tone !== 'neutral' ? TONE[it.tone] : mix(accent, step(i))}
+                    strokeWidth={22}
+                    strokeLinecap="butt"
+                    pathLength={100}
+                    strokeDasharray={`${len} ${100 - len}`}
+                    strokeDashoffset={-offset}
+                    className={animate ? 'animate-veil' : undefined}
+                    style={animate ? { animationDelay: `${i * 70}ms` } : undefined}
+                  />
+                )
+              })}
+            </g>
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[11px] text-[#9b958b]">{label}</span>
+            <Figure value={compact(total)} size={26} />
+          </div>
+        </div>
+        {/* Legend rides beside the ring, not under it — a 132px ring leaves a
+            full column free, and stacking wasted the height. */}
+        <ul className="min-w-0 flex-1 space-y-2">
+          {items.map((it, i) => (
+            <li key={it.label} className="flex items-baseline gap-2">
+              <span
+                className="mt-[5px] size-[7px] shrink-0 rounded-full"
+                style={{
+                  backgroundColor: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : mix(accent, step(i)),
+                }}
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1 truncate text-[12.5px] text-[#3d3a34]">{it.label}</span>
+              <span className="shrink-0 text-[12.5px] font-medium tabular-nums text-[#1c1a16]">
+                {compact(it.value)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {unit && (
+        <p className="mt-3.5 text-[11px] text-[#9b958b]">
+          {fmt(total)} {unit}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Rounds a maximum up to a readable axis step — 112 → 30s, 43 → 10s.
+ *
+ * `integral` forces a whole-number step. Every series on these pages is a count of
+ * animals, and a series peaking at 2 was otherwise labelled 0, 0.5, 1, 1.5, 2 —
+ * half an animal is not a quantity.
+ */
+const niceStep = (max: number, divisions: number, integral: boolean) => {
+  const rough = max / divisions
+  const magnitude = 10 ** Math.floor(Math.log10(rough || 1))
+  const s = [1, 2, 2.5, 5, 10].find((k) => k * magnitude >= rough) ?? 10
+  const step = s * magnitude
+  return integral ? Math.max(1, Math.round(step)) : step
+}
+
+/**
+ * Catmull-Rom through the points, emitted as cubic béziers, with each control
+ * point clamped to its own segment's value range.
+ *
+ * Unclamped, the spline overshoots: a flat 1,1,1,2,1 series grew peaks well above
+ * 2 and troughs below 0, so the chart showed excursions that are not in the data.
+ * Clamping costs a little smoothness at sharp corners and buys a curve that never
+ * claims a value nobody recorded.
+ */
+const smooth = (pts: readonly (readonly [number, number])[]) => {
+  if (pts.length < 2) return ''
+  const clampTo = (v: number, a: number, b: number) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), v))
+  let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]
+    const [x1, y1] = pts[i]
+    const [x2, y2] = pts[i + 1]
+    const p3 = pts[i + 2] ?? pts[i + 1]
+    const c1x = x1 + (x2 - p0[0]) / 6
+    const c1y = clampTo(y1 + (y2 - p0[1]) / 6, y1, y2)
+    const c2x = x2 - (p3[0] - x1) / 6
+    const c2y = clampTo(y2 - (p3[1] - y1) / 6, y1, y2)
+    d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${x2.toFixed(2)} ${y2.toFixed(2)}`
+  }
+  return d
+}
+
+/**
+ * The report's standard time window: 30 days, labelled by week, on a real axis.
+ *
+ * `Spark` is a glance and `Columns` is a period comparison; this is the one mark
+ * that has to be read against values, so it carries a zero-based scale with
+ * gridlines. Zero-based deliberately — a trend that starts the axis at the
+ * series minimum exaggerates every wobble into a crisis.
+ */
+export function Trend({
+  values,
+  labels,
+  unit,
+  tone,
+  height = 132,
+}: {
+  values: number[]
+  /** Week markers — four for a 30-day window. */
+  labels: string[]
+  unit?: string
+  tone?: Tone
+  height?: number
+}) {
+  const accent = useAccent()
+  const c = tone && tone !== 'neutral' ? TONE[tone] : accent
+  const { ref, animate } = usePlay()
+  const W = 300
+  const H = 100
+  const integral = values.every(Number.isInteger)
+  const stepY = niceStep(Math.max(...values, 1), 4, integral)
+  const top = Math.max(Math.ceil(Math.max(...values, 1) / stepY) * stepY, stepY)
+  const gridlines = Array.from({ length: Math.round(top / stepY) + 1 }, (_, i) => i * stepY)
+  const pts = values.map((v, i) => [
+    (i / Math.max(values.length - 1, 1)) * W,
+    H - (v / top) * H,
+  ] as const)
+  const line = smooth(pts)
+  const id = `trend-${values.join('-')}-${c.slice(1)}`
+
+  return (
+    <div ref={ref}>
+      <div className="flex gap-2">
+        {/* Axis labels sit outside the SVG: the plot is drawn with
+            preserveAspectRatio="none" so it can be short and wide, and any text
+            inside would stretch with it. */}
+        <div className="relative w-[22px] shrink-0" style={{ height }}>
+          {gridlines.map((g) => (
+            <span
+              key={g}
+              className="absolute right-0 -translate-y-1/2 text-[9.5px] tabular-nums text-[#9b958b]"
+              style={{ top: `${(1 - g / top) * 100}%` }}
+            >
+              {compact(g)}
+            </span>
+          ))}
+        </div>
+        <div className="min-w-0 flex-1">
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            preserveAspectRatio="none"
+            className="w-full"
+            style={{ height }}
+            aria-hidden
+          >
+            <defs>
+              <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={c} stopOpacity={0.26} />
+                <stop offset="100%" stopColor={c} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            {gridlines.map((g) => (
+              <line
+                key={g}
+                x1={0}
+                x2={W}
+                y1={H - (g / top) * H}
+                y2={H - (g / top) * H}
+                stroke={HAIR}
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+            <path
+              d={`${line} L ${W} ${H} L 0 ${H} Z`}
+              fill={`url(#${id})`}
+              className={animate ? 'animate-veil' : undefined}
+              style={animate ? { animationDelay: '180ms' } : undefined}
+            />
+            <path
+              d={line}
+              fill="none"
+              stroke={c}
+              strokeWidth={1.75}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              pathLength={1}
+              strokeDasharray={animate ? 1 : undefined}
+              className={animate ? 'animate-draw' : undefined}
+            />
+          </svg>
+          <div className="mt-2 flex">
+            {labels.map((l, i) => (
+              <span
+                key={`${l}-${i}`}
+                className={`flex-1 text-[10px] text-[#9b958b] ${
+                  i === 0 ? 'text-left' : i === labels.length - 1 ? 'text-right' : 'text-center'
+                }`}
+              >
+                {l}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      {unit && <p className="mt-2.5 text-[11px] text-[#9b958b]">{unit}</p>}
+    </div>
+  )
+}
+
+/* ── the record layer ────────────────────────────────────────────────────── */
+
+export interface RosterRow {
+  /** Record identifier — animal, egg or fetal id. Set in bold, first. */
+  id?: string
+  /** Species or subject name, under the id. */
+  name: string
+  /** `U` is a real answer, not missing data — most of the collection is unsexed. */
+  sex?: 'M' | 'F' | 'U'
+  /** One cell per `head` column after the subject and sex. `--` where unknown. */
+  cells: string[]
+}
+
+export interface RosterGroup {
+  /** Usually the site. Pages that group by disease or by incubator pass that. */
+  group: string
+  /** "40 Animals", "12 Eggs" — the unit changes by page, so it is passed whole. */
+  count: string
+  rows: RosterRow[]
+}
+
+const SEX_LABEL = { M: 'Male', F: 'Female', U: 'Undetermined' } as const
+
+function SexChip({ sex }: { sex: 'M' | 'F' | 'U' }) {
+  const accent = useAccent()
+  return (
+    <span
+      className="inline-grid size-[19px] place-items-center rounded-[5px] text-[10px] font-medium"
+      style={{ backgroundColor: mix(accent, 0.13), color: ACCENT_INK }}
+      title={SEX_LABEL[sex]}
+    >
+      {sex}
+    </span>
+  )
+}
+
+/**
+ * Animal-level rows, grouped by the site they happened at.
+ *
+ * The grouping is the substance, not formatting: a month's 325 deaths spread
+ * evenly across four sites and the same 325 concentrated in one are different
+ * facts, and no aggregate on the summary tier can tell them apart.
+ *
+ * Each group is its own table with its own header, exactly as the printed report
+ * repeats the header per site — one long table with occasional site rows loses
+ * the column names as soon as the first group scrolls off.
+ */
+export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[] }) {
+  const accent = useAccent()
+  return (
+    <div className="flex flex-col gap-5">
+      {groups.map((g) => (
+        <div key={g.group}>
+          <div className="mb-2.5 flex items-center gap-2">
+            <span
+              className="grid size-[22px] shrink-0 place-items-center rounded-full"
+              style={{ backgroundColor: mix(accent, 0.13) }}
+              aria-hidden
+            >
+              <span className="size-[7px] rounded-full" style={{ backgroundColor: accent }} />
+            </span>
+            <span className="min-w-0 truncate text-[13.5px] font-medium text-[#1c1a16]">{g.group}</span>
+            <span className="shrink-0 text-[12px] text-[#9b958b]">· {g.count}</span>
+          </div>
+          <div className="overflow-hidden rounded-[10px]">
+            <table className="w-full table-fixed">
+              <thead>
+                <tr style={{ backgroundColor: DEEP }}>
+                  {head.map((h, i) => (
+                    <th
+                      key={h}
+                      className={`px-2.5 py-2 text-left text-[10px] font-medium tracking-[0.05em] text-white/85 uppercase ${
+                        i === 0 ? 'w-[38%]' : ''
+                      } ${h === '' ? 'w-[38px] px-0' : ''}`}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {g.rows.map((r, ri) => (
+                  <tr key={`${r.id ?? r.name}-${ri}`} style={{ backgroundColor: ri % 2 ? '#ffffff' : '#f4f7f4' }}>
+                    <td className="px-2.5 py-2.5 align-top">
+                      {r.id && (
+                        <span className="block text-[12px] leading-[15px] font-semibold text-[#1c1a16]">{r.id}</span>
+                      )}
+                      <span
+                        className={`block text-[12px] leading-[15px] text-[#3d3a34] ${r.id ? 'mt-0.5' : ''}`}
+                      >
+                        {r.name}
+                      </span>
+                    </td>
+                    {r.sex && (
+                      <td className="px-0 py-2.5 text-center align-top">
+                        <SexChip sex={r.sex} />
+                      </td>
+                    )}
+                    {r.cells.map((cell, ci) => (
+                      /* `whitespace-pre-line` so a cell can hold two prescriptions
+                         on two lines, as the printed report does. */
+                      <td
+                        key={ci}
+                        className="px-2.5 py-2.5 align-top text-[12px] leading-[16px] whitespace-pre-line text-[#6d6860]"
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Provenance, closing the page. A month's figures without the month they were
+ * cut on are unciteable — the printed report stamps every page for this reason.
+ */
+export function Stamp({ asOf, source }: { asOf: string; source?: string }) {
+  return (
+    <p className="px-1 pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
+      As of {asOf}
+      {source && ` · ${source}`}
+    </p>
   )
 }

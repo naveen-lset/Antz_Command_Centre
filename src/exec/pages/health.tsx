@@ -1,26 +1,43 @@
 /**
  * HEALTH & MEDICAL — the ward board.
  *
- * Inverts Animals: today's movement opens, then live status, beds, case mix.
- * Nothing here is a trend — every block is a live state, and the only ranked
- * mark is the disease ledger. Numbers only; no block explains another.
+ * Inverts Animal Population: the live case state opens, then today's movement,
+ * then what is actually wrong with the animals and what they are being given for
+ * it. Nothing here is a trend — 30-day movement lives on the Trends page, and
+ * pathogens live on Disease & Outbreak; this page is the ward as it stands now.
+ *
+ * Complaints and prescriptions are the two things a director cannot get anywhere
+ * else. A case count says the ward is busy; "eleven birds with laboured breathing
+ * on 5 mg enrofloxacin" says what is happening in it.
  */
 
-import { Activity, ArrowLeftRight, BedDouble, HeartPulse, Pill, Stethoscope, TriangleAlert, Users } from 'lucide-react'
+import {
+  Activity,
+  ArrowLeftRight,
+  Biohazard,
+  HeartPulse,
+  MessageSquare,
+  Pill,
+  Stethoscope,
+  TriangleAlert,
+  Users,
+} from 'lucide-react'
+import { report } from '../report'
 import {
   Band,
+  Bars,
   Facts,
-  Highlights,
   Hero,
-  Ledger,
+  More,
   Pair,
   Records,
   Rule,
   Section,
   Snapshot,
   Stack,
+  Stamp,
   StatusList,
-  Utilization,
+  Table,
 } from '../system'
 
 export default function Health() {
@@ -39,6 +56,22 @@ export default function Health() {
         ]}
       />
       <Stack>
+        {/* The four states of a case, in the order a case passes through them. This
+            quartet is the report's opening figure and it was missing entirely —
+            "124 under care" says nothing about whether the ward is filling or
+            emptying. */}
+        <Section icon={Stethoscope} label="Cases" aside={<More href="#/health/records" />}>
+          <Snapshot
+            cols={4}
+            items={[
+              { label: 'Active', value: '124' },
+              { label: 'New', value: '50', note: 'Month' },
+              { label: 'Critical', value: '11', tone: 'bad' },
+              { label: 'Recovered', value: '96', note: 'Month', tone: 'good' },
+            ]}
+          />
+        </Section>
+
         <Section icon={ArrowLeftRight} label="Movement" aside="today">
           <Pair
             a={{ value: '14', label: 'Admitted' }}
@@ -60,19 +93,45 @@ export default function Health() {
           />
         </Section>
 
-        {/* Beds and the where-treated split share one card: 68 in hospital plus 56
-            in-enclosure is the same 124, and two cards would break that read. */}
-        <Section icon={BedDouble} label="Beds" aside="6 wards">
-          <Utilization used={68} total={84} label="Beds occupied" free="16 free" />
-          <Rule label="Split" />
-          <Snapshot
-            cols={3}
+        <Section icon={MessageSquare} label="Complaints" aside="50 new cases">
+          <Bars
+            showShare
             items={[
-              { label: 'Hospital', value: '68' },
-              { label: 'In-enclosure', value: '56' },
-              { label: 'Isolation', value: '79', unit: '%', note: '19 of 24', tone: 'warn' },
+              { label: 'Laboured breathing', value: 11, sub: 'Aviary' },
+              { label: 'Reduced appetite', value: 9 },
+              { label: 'Lameness · limping', value: 8 },
+              { label: 'Open wound', value: 7 },
+              { label: 'Skin redness', value: 6 },
+              { label: 'Fungal patches', value: 5, sub: 'Aquatic' },
+              { label: 'Other · 6 complaints', value: 4 },
             ]}
           />
+          {/* Catalogue growth, not case volume — new terms the clinical team had to
+              add because the existing vocabulary could not describe what they saw. */}
+          <Rule label="Catalogue · 30 d" />
+          <Facts
+            items={[
+              { label: 'New complaint terms', value: '12' },
+              { label: 'New symptom terms', value: '23' },
+            ]}
+          />
+        </Section>
+
+        <Section icon={Pill} label="Prescriptions" aside="62 Rx">
+          <Table
+            head={['Medicine', 'Rx', 'Animals']}
+            rows={[
+              { label: 'Enrofloxacin 5 mg', sub: 'Antibacterial · aviary', cells: ['16', '14'] },
+              { label: 'Meloxicam 0.5 mg', sub: 'Anti-inflammatory', cells: ['13', '13'] },
+              { label: 'Ceftriaxone 20 mg', sub: 'Antibacterial · wounds', cells: ['9', '7'] },
+              { label: 'Ivermectin 0.2 mg', sub: 'Antiparasitic', cells: ['8', '8'] },
+              { label: 'Doxycycline 10 mg', sub: 'Antibacterial', cells: ['7', '6'] },
+              { label: 'Ceftazidime 20 mg', sub: 'Antibacterial · reptiles', cells: ['5', '4'] },
+              { label: 'Malachite green', sub: 'Bath · batch treatment', cells: ['4', '240'] },
+            ]}
+          />
+          <Rule label="No prescription" />
+          <Facts items={[{ label: 'Observation only', sub: '12 of 50 new cases', value: '12' }]} />
         </Section>
 
         <Section icon={Stethoscope} label="Case mix" aside="124">
@@ -83,6 +142,14 @@ export default function Health() {
               { label: 'Observation', value: '46' },
               { label: 'Isolation', value: '19' },
               { label: 'Critical', value: '11', tone: 'bad' },
+            ]}
+          />
+          <Rule label="Treated at" />
+          <Snapshot
+            cols={2}
+            items={[
+              { label: 'Hospital', value: '68' },
+              { label: 'In-enclosure', value: '56' },
             ]}
           />
         </Section>
@@ -99,14 +166,15 @@ export default function Health() {
           />
         </Section>
 
-        <Section icon={Pill} label="Diseases" aside="top 5">
-          <Ledger
+        {/* Diagnoses moved to their own module — a contagious diagnosis is an
+            institutional decision, not a ward statistic. What stays here is the
+            handoff. */}
+        <Section icon={Biohazard} label="Flagged" aside={<More href="#/disease" />}>
+          <Facts
             items={[
-              { label: 'Respiratory', sub: 'Aviary 4 · Isolation 2', value: '31', share: 100 },
-              { label: 'Gastrointestinal', sub: 'Savanna herds', value: '26', share: 84 },
-              { label: 'Parasitic', sub: 'Rotation C', value: '22', share: 71 },
-              { label: 'Dermatological', sub: 'Reptiles', value: '18', share: 58 },
-              { label: 'Trauma', sub: 'Enclosure injuries', value: '15', share: 48 },
+              { label: 'Diseases flagged', sub: '112 cases · 6 sites', value: '9' },
+              { label: 'Active outbreaks', sub: 'Open Aviary 4 · Aquatic Hall 2', value: '2', tone: 'bad' },
+              { label: 'Under isolation', sub: 'Of 112 flagged', value: '53', tone: 'warn' },
             ]}
           />
         </Section>
@@ -151,20 +219,8 @@ export default function Health() {
             />
           </div>
         </Section>
-
-        <Section icon={HeartPulse} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Flow', value: '6 of 7', label: 'Discharge days', tone: 'good' },
-              { tag: 'Forecast', value: '<100', label: 'Cases, fortnight' },
-              { tag: 'Risk', value: '14', unit: 'h', label: 'Culture · Bengal Fox', tone: 'bad' },
-              { tag: 'Isolation', value: '79', unit: '%', label: '19 of 24', tone: 'warn' },
-              { tag: 'Success', value: '94', unit: '%', label: '1,284 closed' },
-              { tag: 'Stay', value: '5.2', unit: 'd', label: 'June 6.1 d' },
-            ]}
-          />
-        </Section>
       </Stack>
+      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }

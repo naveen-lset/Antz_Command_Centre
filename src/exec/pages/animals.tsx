@@ -1,14 +1,17 @@
 /**
- * ANIMALS — the register.
+ * ANIMAL POPULATION — the register.
  *
  * Numbers only. Every word on this page names a number; none explains one.
  * Section headings are one word, sub-labels are tokens, and there is no prose
  * anywhere — the composition, not the copy, carries the reading order.
+ *
+ * Classes are named scientifically and counted individually. "Fish" collapsed
+ * ray-finned fish, sharks and lungfish into one bar, which is fine for a poster and
+ * useless for a collection plan — those are three husbandry systems.
  */
 
 import {
   Building2,
-  HeartPulse,
   Layers,
   ListOrdered,
   PawPrint,
@@ -16,20 +19,22 @@ import {
   ShieldAlert,
   Sparkles,
   TrendingUp,
+  Venus,
 } from 'lucide-react'
+import { report } from '../report'
 import {
   Bars,
   Composition,
-  Dial,
   Facts,
-  Highlights,
   Hero,
   Movers,
   Poles,
   Rule,
   Scoreboard,
   Section,
+  Snapshot,
   Stack,
+  Stamp,
   Table,
 } from '../system'
 
@@ -49,6 +54,25 @@ export default function Animals() {
         ]}
       />
       <Stack>
+        {/* Undetermined is the majority answer, not missing data: most of a
+            collection this size is fish and invertebrates that are never sexed. */}
+        <Section icon={Venus} label="Sex" aside="215,432">
+          <Scoreboard
+            items={[
+              { value: '18,204', label: 'Male' },
+              { value: '16,880', label: 'Female' },
+              { value: '180,348', label: 'Undetermined' },
+            ]}
+          />
+          <Rule label="Sexed" />
+          <Facts
+            items={[
+              { label: 'Determined', sub: '16% of collection', value: '35,084' },
+              { label: 'Sex ratio', sub: 'Male to female', value: '1.08 : 1' },
+            ]}
+          />
+        </Section>
+
         <Section icon={Building2} label="Scale">
           <Scoreboard
             items={[
@@ -60,12 +84,41 @@ export default function Animals() {
           />
         </Section>
 
-        {/* Three extremes in one card. Separate cards for each would have made the
-            page read as a list of widgets rather than a single executive fact. */}
+        {/* Nine classes as counts, three to a row — the report's own grid. A stacked
+            bar for nine segments produced four slivers with no readable share. */}
+        <Section icon={Layers} label="Class composition" aside="9 classes">
+          <Snapshot
+            cols={3}
+            items={[
+              { label: 'Actinopterygii', value: '77,840', note: 'Ray-finned fish' },
+              { label: 'Aves', value: '38,600', note: 'Birds' },
+              { label: 'Malacostraca', value: '34,180', note: 'Crustaceans' },
+              { label: 'Mammalia', value: '21,900' },
+              { label: 'Reptilia', value: '12,850' },
+              { label: 'Insecta', value: '12,220' },
+              { label: 'Chondrichthyes', value: '8,120', note: 'Sharks, rays' },
+              { label: 'Amphibia', value: '5,482' },
+              { label: 'Euchelicerata', value: '4,240', note: 'Arachnids' },
+            ]}
+          />
+          <Rule label="Share" />
+          <Composition
+            unit="animals"
+            items={[
+              { label: 'Actinopterygii', value: 77840 },
+              { label: 'Aves', value: 38600 },
+              { label: 'Malacostraca', value: 34180 },
+              { label: 'Mammalia', value: 21900 },
+              { label: 'Reptilia', value: 12850 },
+              { label: 'Other · 4 classes', value: 30062 },
+            ]}
+          />
+        </Section>
+
         <Section icon={Scale} label="Extremes">
           <Poles
             caption={['Largest', 'Smallest']}
-            high={{ value: '12,400', label: 'Common Carp', sub: 'Fish' }}
+            high={{ value: '12,400', label: 'Common Carp', sub: 'Actinopterygii' }}
             low={{ value: '4', label: 'Sangai Deer', sub: 'Critically Endangered' }}
           />
           <Rule label="Sites" />
@@ -73,27 +126,6 @@ export default function Animals() {
             caption={['Highest', 'Lowest']}
             high={{ value: '78,420', label: 'Jamnagar Core', sub: '36%' }}
             low={{ value: '11,822', label: 'Quarantine', sub: '5%' }}
-          />
-          <Rule label="Occupancy" />
-          <Poles
-            caption={['Highest', 'Lowest']}
-            high={{ value: '104%', label: 'Aquatic Hall 2', sub: '2,480 of 2,400' }}
-            low={{ value: '22%', label: 'Quarantine Ward C', sub: '18 of 80' }}
-            lowTone="warn"
-          />
-        </Section>
-
-        <Section icon={Layers} label="Distribution" aside="6 classes">
-          <Composition
-            unit="animals"
-            items={[
-              { label: 'Fish', value: 84200 },
-              { label: 'Invertebrates', value: 52400 },
-              { label: 'Birds', value: 38600 },
-              { label: 'Mammals', value: 21900 },
-              { label: 'Reptiles', value: 12850 },
-              { label: 'Amphibians', value: 5482 },
-            ]}
           />
         </Section>
 
@@ -114,16 +146,16 @@ export default function Animals() {
           <Table
             head={['Species', 'Count', '30 d']}
             rows={[
-              { label: 'Common Carp', sub: 'Fish', cells: ['12,400', '+180'] },
-              { label: 'Zebra Finch', sub: 'Bird', cells: ['6,820', '+182'] },
-              { label: 'Nile Tilapia', sub: 'Fish', cells: ['5,940', '+96'] },
-              { label: 'Indian Peafowl', sub: 'Bird', cells: ['4,310', '+22'] },
-              { label: 'Rose Shrimp', sub: 'Invertebrate', cells: ['3,880', '+74'] },
-              { label: 'Silver Barb', sub: 'Fish', cells: ['2,940', '+12'] },
-              { label: 'Rock Pigeon', sub: 'Bird', cells: ['2,210', '−6'] },
-              { label: 'Grey Francolin', sub: 'Bird', cells: ['1,640', '−18'] },
-              { label: 'Bengal Fox', sub: 'Mammal', cells: ['1,280', '+4'] },
-              { label: 'Flapshell Turtle', sub: 'Reptile', cells: ['1,090', '+8'] },
+              { label: 'Common Carp', sub: 'Actinopterygii', cells: ['12,400', '+180'] },
+              { label: 'Zebra Finch', sub: 'Aves', cells: ['6,820', '+182'] },
+              { label: 'Nile Tilapia', sub: 'Actinopterygii', cells: ['5,940', '+96'] },
+              { label: 'Indian Peafowl', sub: 'Aves', cells: ['4,310', '+22'] },
+              { label: 'Rose Shrimp', sub: 'Malacostraca', cells: ['3,880', '+74'] },
+              { label: 'Silver Barb', sub: 'Actinopterygii', cells: ['2,940', '+12'] },
+              { label: 'Rock Pigeon', sub: 'Aves', cells: ['2,210', '−6'] },
+              { label: 'Grey Francolin', sub: 'Aves', cells: ['1,640', '−18'] },
+              { label: 'Bengal Fox', sub: 'Mammalia', cells: ['1,280', '+4'] },
+              { label: 'Flapshell Turtle', sub: 'Reptilia', cells: ['1,090', '+8'] },
             ]}
           />
         </Section>
@@ -131,13 +163,13 @@ export default function Animals() {
         <Section icon={TrendingUp} label="Movers" aside="30 d">
           <Movers
             items={[
-              { label: 'Zebra Finch', sub: 'Bird', delta: 182 },
-              { label: 'Common Carp', sub: 'Fish', delta: 180 },
-              { label: 'Nile Tilapia', sub: 'Fish', delta: 96 },
-              { label: 'Rose Shrimp', sub: 'Invertebrate', delta: 74 },
-              { label: 'Chital', sub: 'Mammal', delta: -9 },
-              { label: 'Grey Francolin', sub: 'Bird', delta: -18 },
-              { label: 'Mallard', sub: 'Bird', delta: -24 },
+              { label: 'Zebra Finch', sub: 'Aves', delta: 182 },
+              { label: 'Common Carp', sub: 'Actinopterygii', delta: 180 },
+              { label: 'Nile Tilapia', sub: 'Actinopterygii', delta: 96 },
+              { label: 'Rose Shrimp', sub: 'Malacostraca', delta: 74 },
+              { label: 'Chital', sub: 'Mammalia', delta: -9 },
+              { label: 'Grey Francolin', sub: 'Aves', delta: -18 },
+              { label: 'Mallard', sub: 'Aves', delta: -24 },
             ]}
           />
         </Section>
@@ -147,6 +179,7 @@ export default function Animals() {
             size="lg"
             items={[
               { label: 'Births', sub: '24 species', value: '45', delta: '+12%' },
+              { label: 'Accessions', sub: '6 sources', value: '18', delta: '+6' },
               { label: 'Deaths', sub: '0.011%', value: '23', delta: '−18%' },
               { label: 'Transfers', sub: '12 in · 9 out · 7 internal', value: '28', delta: '+8' },
               { label: 'Net', sub: 'Month 12', value: '+324', tone: 'good' },
@@ -166,31 +199,8 @@ export default function Animals() {
             ]}
           />
         </Section>
-
-        <Section icon={HeartPulse} label="Health">
-          <Dial
-            percent={97.4}
-            value="97.4"
-            unit="%"
-            label="No open flag"
-            benchmark={95}
-            benchmarkLabel="Target 95% · 5,601 flagged"
-          />
-        </Section>
-
-        <Section icon={Sparkles} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Growth', value: '+3,452', label: 'Year' },
-              { tag: 'Threatened', value: '13,012', label: 'Vulnerable or worse', tone: 'warn' },
-              { tag: 'Concentration', value: '36%', label: 'Jamnagar Core' },
-              { tag: 'Over capacity', value: '104%', label: 'Aquatic Hall 2', tone: 'bad' },
-              { tag: 'Under used', value: '22%', label: 'Quarantine Ward C', tone: 'warn' },
-              { tag: 'Endangered', value: '388', label: 'Critically', tone: 'bad' },
-            ]}
-          />
-        </Section>
       </Stack>
+      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }

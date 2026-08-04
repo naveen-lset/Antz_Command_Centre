@@ -6,6 +6,8 @@ import DetailPage from './detail/DetailPage'
 import { findDetailPage, otherPages } from './detail/pages'
 import Sheet from './exec/Sheet'
 import { findExecPage } from './exec/pages'
+import { RecordsView, findRecordPage } from './exec/records'
+import { report } from './exec/report'
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(() => window.location.hash)
@@ -39,11 +41,13 @@ function HomeScreen({ route }: { route: string }) {
 export default function App() {
   const route = useHashRoute()
   const slug = route.replace(/^#\//, '')
-  /* Executive pages take precedence; modules not yet rebuilt fall through to the
-     older generic renderer so the app stays whole during the rollout. */
+  /* Three tiers, resolved most-specific first: a module page (`#/mortality`), its
+     record page (`#/mortality/records`), then the older generic renderer for any
+     detail route not yet rebuilt, so the app stays whole. */
   const exec = findExecPage(slug)
-  const detail = exec ? undefined : findDetailPage(slug)
-  const open = Boolean(exec || detail)
+  const record = exec ? undefined : findRecordPage(slug)
+  const detail = exec || record ? undefined : findDetailPage(slug)
+  const open = Boolean(exec || record || detail)
 
   /* The home screen stays mounted under the sheet, so closing reveals the screen
      the user opened from — same scroll position, no remount, no replayed counters.
@@ -59,9 +63,19 @@ export default function App() {
   return (
     <>
       <HomeScreen route={home.current} />
-      {exec && (
-        <Sheet title={exec.title} onClose={back}>
-          <exec.Page />
+      {/* One `Sheet` element for both tiers, not one per tier — React keeps the
+          same instance mounted, so stepping into a record page swaps the content
+          inside the sheet instead of sliding one sheet out and another in. */}
+      {(exec || record) && (
+        <Sheet
+          title={exec ? exec.title : record!.title}
+          /* A record page names its parent module; a report-track module names the
+             period it was cut against; an operations page names neither. */
+          eyebrow={record ? record.parentTitle : exec!.ops ? 'Command Centre' : report.period}
+          onClose={back}
+          onBack={record ? () => { window.location.hash = `#/${record.parent}` } : undefined}
+        >
+          {exec ? <exec.Page /> : <RecordsView page={record!} />}
         </Sheet>
       )}
       {detail && <DetailPage page={detail} others={otherPages(detail.slug)} onClose={back} />}

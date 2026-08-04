@@ -28,22 +28,22 @@ export default function Lab() {
       <Hero
         icon={FlaskConical}
         value="31"
-        label="Open Requests"
-        status="2 breaches"
+        label="Open requests"
+        status="2 Breaches"
         tone="warn"
         stats={[
-          { value: '6.2', unit: 'h', label: 'Avg Turnaround' },
+          { value: '6.2', unit: 'h', label: 'Turnaround' },
           { value: '112', label: 'Completed' },
-          { value: '12', label: 'In Analysis' },
+          { value: '12', label: 'In analysis' },
         ]}
       />
       <Stack>
         <Section icon={Hourglass} label="Status" aside="31 open">
           <Funnel
             stages={[
-              { label: 'Awaiting Collection', value: 4, sub: '2 tonight' },
+              { label: 'Awaiting collection', value: 4, sub: '2 tonight' },
               { label: 'Queued', value: 5 },
-              { label: 'In Analysis', value: 12, sub: '2 past SLA' },
+              { label: 'In analysis', value: 12, sub: '2 past SLA' },
               { label: 'Reporting', value: 10 },
             ]}
           />
@@ -102,7 +102,7 @@ export default function Lab() {
             outlier would read as unrelated to the four samples behind it. */}
         <Section icon={TriangleAlert} label="Oldest" aside="38 h">
           <Band
-            label="Longest Waiting"
+            label="Longest waiting"
             title="LAB-2284 · Histopathology"
             sub="Zebra Finch ANM-33810 · Partner lab · 01 Aug"
             value="38"

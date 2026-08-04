@@ -6,18 +6,20 @@
  * pipeline, rates, stability meters and a unit-by-unit service table.
  */
 
-import { CalendarClock, Egg, Gauge, Grid3x3, Search, Thermometer, Wrench } from 'lucide-react'
+import { CalendarClock, Egg, EggOff, Gauge, Grid3x3, Search, Thermometer, Wrench } from 'lucide-react'
+import { report } from '../report'
 import {
   Band,
   Facts,
   Funnel,
-  Highlights,
   Hero,
   MeterGroup,
+  More,
   Records,
   Scoreboard,
   Section,
   Stack,
+  Stamp,
   Table,
   Tray,
 } from '../system'
@@ -56,7 +58,7 @@ export default function Eggs() {
           />
         </Section>
 
-        <Section icon={Egg} label="Pipeline" aside="July">
+        <Section icon={Egg} label="Pipeline" aside={<More href="#/eggs/records" />}>
           <Funnel
             stages={[
               { label: 'Collected', value: 142 },
@@ -64,6 +66,19 @@ export default function Eggs() {
               { label: 'Hatched', value: 96 },
               { label: 'Incubating', value: 21 },
               { label: 'Failed', value: 12, sub: 'Post-mortem' },
+            ]}
+          />
+        </Section>
+
+        {/* The discard stage got its own module — four reasons owned by three
+            different departments could not be read off one funnel sub-label. */}
+        <Section icon={EggOff} label="Discarded" aside={<More href="#/discarded" />}>
+          <Facts
+            items={[
+              { label: 'Discarded', sub: '9% of collected · June 11%', value: '13', tone: 'warn' },
+              { label: 'Infertile', sub: 'Breeding · pairing review', value: '5' },
+              { label: 'Thin shelled', sub: 'Nutrition', value: '3' },
+              { label: 'Rotten · Red ring', sub: 'Handling', value: '5', tone: 'bad' },
             ]}
           />
         </Section>
@@ -133,19 +148,8 @@ export default function Eggs() {
           />
         </Section>
 
-        <Section icon={Egg} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Imminent', value: '5', label: 'Zebra Finch · 24 h', tone: 'warn' },
-              { tag: 'Lowest unit', value: '84', unit: '%', label: 'INC-6', tone: 'warn' },
-              { tag: 'Fertility', value: '91', unit: '%', label: 'Rank 2, year' },
-              { tag: 'Temperature', value: '99.4', unit: '%', label: '±0.2 °C' },
-              { tag: 'Downtime', value: '12', unit: 'd', label: 'INC-7', tone: 'bad' },
-              { tag: 'Capacity', value: '1', label: 'Clutch free · INC-1' },
-            ]}
-          />
-        </Section>
       </Stack>
+      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }

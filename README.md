@@ -42,25 +42,47 @@ src/
 
 ## Drill-down pages
 
-Every card on the home screen opens a module analytics page at `#/<slug>`:
+Three tiers. A card on the home screen opens a module page at `#/<slug>`; a module
+page's `View details →` opens its record page at `#/<slug>/records`. Nothing goes
+deeper — the record layer is the animals themselves.
 
-| Route | Module | Route | Module |
-| --- | --- | --- | --- |
-| `#/animals` | Animals | `#/lab` | Lab Requests |
-| `#/health` | Health & Medical | `#/welfare` | Animal Welfare |
-| `#/births` | Birth Analytics | `#/approvals` | Approvals |
-| `#/eggs` | Eggs & Incubation | `#/tasks` | Tasks |
-| `#/mortality` | Mortality | `#/attendance` | Staff Attendance |
-| `#/transfers` | Transfers | `#/alerts` | Alerts |
-| `#/vaccination` | Vaccination | `#/deworming` | Deworming |
+Modules split into two tracks. **Report** is what the monthly board report is made
+of, in its table-of-contents order; those pages carry the reporting period in the
+sheet eyebrow and a provenance stamp at the foot. **Operations** is live-ops with no
+presence in that report, so it carries neither and sits below the fold at home.
+
+| # | Report track | Record page |
+| --- | --- | --- |
+| 01 | `#/animals` Animal Population | — |
+| 02 | `#/births` Birth Analytics | `#/births/records` |
+| 02 | `#/accession` Accession | `#/accession/records` |
+| 02 | `#/eggs` Eggs & Incubation | `#/eggs/records` |
+| 02 | `#/discarded` Eggs Discarded | `#/discarded/records` |
+| 02 | `#/mortality` Mortality | `#/mortality/records` |
+| 02 | `#/fetal` Fetal Death | `#/fetal/records` |
+| 03 | `#/health` Health & Medical | `#/health/records` |
+| 04 | `#/preventive` Preventive Care | — |
+| 04 | `#/vaccination` Vaccination | `#/vaccination/records` |
+| 04 | `#/deworming` Deworming | `#/deworming/records` |
+| 05 | `#/transfers` Animal Movement | `#/transfers/in`, `#/transfers/out` |
+| 06 | `#/trends` 30-Day Trends | — |
+| 07 | `#/disease` Disease & Outbreak | `#/disease/records` |
+
+| Operations | | |
+| --- | --- | --- |
+| `#/approvals` Approvals | `#/tasks` Tasks | `#/lab` Lab Requests |
+| `#/attendance` Staff Attendance | `#/welfare` Animal Welfare | `#/alerts` Alerts |
 
 ```
-src/detail/
-  model.ts        # Section vocabulary — the shared page grammar
-  charts.tsx      # AreaTrend, Columns, BarRows, ShareBar, Meter, MiniArea, Ring
-  motion.tsx      # Reveal, AnimatedValue, usePlay, useScrolledPast
-  DetailPage.tsx  # One renderer for all 14 pages (shell + section switch)
-  pages/          # Per-module content: animals, breeding, medical, operations
+src/exec/
+  system.tsx      # The composition primitives — 43 of them, one accent
+  Sheet.tsx       # Two-level shell: module page, and one step down to records
+  report.ts       # The reporting period, in one place
+  pages/          # Per-module content, hand-composed; no two share a structure
+  records.tsx     # The record layer: 12 rosters + the one renderer they share
+
+src/detail/       # Older generic renderer, now unreachable from a module route
+  motion.tsx      # Reveal, AnimatedValue, usePlay, useScrolledPast — still shared
 ```
 
 ### Motion

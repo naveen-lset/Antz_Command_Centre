@@ -2,25 +2,30 @@
  * DEWORMING — the rotation programme.
  *
  * Paddock tray first, so the drug class on the ground is read before any rate.
- * The pre/post dumbbell is the only place in the set where two values per row are
- * compared — the gap between them is the whole measure, and the aggregate figures
- * sit directly under it rather than in a caption.
+ * Then coverage as a ring with its fraction inside, the overdue herds, and the
+ * next four rotation dates.
+ *
+ * Egg-count reduction and resistance status came off this page. Both are real and
+ * both are parasitology, not governance: a pre/post epg dumbbell is the single
+ * most technical mark in the app, and no director has ever needed to read a larval
+ * culture result off a monthly summary. The programme figures that replaced them —
+ * covered, compliant, overdue — are what a rotation is actually managed on.
  */
 
-import { Activity, CalendarClock, FlaskConical, Gauge, Grid3x3, Pill, TriangleAlert } from 'lucide-react'
+import { Activity, CalendarClock, Grid3x3, Pill, TriangleAlert } from 'lucide-react'
+import { report } from '../report'
 import {
-  Band,
-  BulletGroup,
-  Dumbbell,
   Events,
   Facts,
-  Highlights,
   Hero,
+  More,
   Records,
+  Ring,
   Rule,
   Section,
   Snapshot,
   Stack,
+  Stamp,
   Tray,
 } from '../system'
 
@@ -31,12 +36,12 @@ export default function Deworming() {
         icon={Pill}
         value="63"
         label="Treatments"
-        status="4 overdue"
+        status="4 Overdue"
         tone="warn"
         stats={[
-          { value: '94%', label: 'Compliance' },
-          { value: '89%', label: 'Coverage' },
-          { value: '96%', label: 'Success' },
+          { value: '89', unit: '%', label: 'Coverage' },
+          { value: '94', unit: '%', label: 'Compliance' },
+          { value: '3', label: 'Medicines' },
         ]}
       />
       <Stack>
@@ -59,14 +64,27 @@ export default function Deworming() {
           <Rule label="Classes" />
           <Facts
             items={[
-              { label: 'A · Macrocyclic lactone', value: '3' },
-              { label: 'B · Benzimidazole', value: '3' },
+              { label: 'A · Ivermectin 1%', value: '3' },
+              { label: 'B · Fenbendazole', value: '3' },
               { label: 'C · Praziquantel', value: '2' },
             ]}
           />
         </Section>
 
-        <Section icon={Activity} label="Status" aside="July">
+        <Section icon={Pill} label="Coverage" aside="on rotation">
+          <Ring percent={89} label="Dewormed" value="1,946" of="2,190" note="244 uncovered · 4 herds overdue" />
+          <Rule label="Programme" />
+          <Snapshot
+            cols={3}
+            items={[
+              { label: 'Slots treated', value: '63', note: 'Of 71' },
+              { label: 'Compliance', value: '94', unit: '%', note: '4 missed' },
+              { label: 'Overdue herds', value: '4', note: 'Oldest 5 d', tone: 'bad' },
+            ]}
+          />
+        </Section>
+
+        <Section icon={Activity} label="Status" aside={<More href="#/deworming/records" />}>
           <Facts
             size="lg"
             items={[
@@ -75,50 +93,6 @@ export default function Deworming() {
               { label: 'Overdue herds', sub: 'Oldest 5 d', value: '4', tone: 'bad' },
               { label: 'Recheck due', sub: '4 herds · 19 Aug', value: '20' },
             ]}
-          />
-        </Section>
-
-        <Section icon={Gauge} label="Coverage" aside="vs target">
-          <BulletGroup
-            items={[
-              { label: 'Coverage', value: '89%', percent: 89, target: 90, note: '63 of 71' },
-              { label: 'Compliance', value: '94%', percent: 94, target: 95, note: '4 missed · Keeper' },
-              { label: 'Success', value: '96%', percent: 96, target: 90, note: 'Post-treatment epg' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={FlaskConical} label="Reduction" aside="5 herds">
-          <Dumbbell
-            legend={['Before', 'After']}
-            unit="epg"
-            items={[
-              { label: 'Blackbuck herd', a: 420, b: 40 },
-              { label: 'Sambar Deer', a: 380, b: 55 },
-              { label: 'Nilgai', a: 310, b: 30 },
-              { label: 'Indian Peafowl', a: 260, b: 90 },
-              { label: 'Chital', a: 240, b: 120 },
-            ]}
-          />
-          <Rule label="Aggregate" />
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Reduction', value: '79', unit: '%', note: 'Target 90%', tone: 'warn' },
-              { label: 'Before', value: '1,610', unit: 'epg' },
-              { label: 'After', value: '335', unit: 'epg' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={TriangleAlert} label="Resistance">
-          <Band
-            label="Non-responder"
-            title="Chital · Zone A"
-            sub="50% · Rotation B · Cycle 2"
-            value="120"
-            unit="epg"
-            tone="bad"
           />
         </Section>
 
@@ -144,20 +118,8 @@ export default function Deworming() {
             ]}
           />
         </Section>
-
-        <Section icon={Pill} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Resistance', value: '50%', label: 'Chital · Cycle 2', tone: 'bad' },
-              { tag: 'Efficacy', value: '79%', label: 'Aggregate reduction', tone: 'warn' },
-              { tag: 'Cleared', value: '4 of 5', label: 'Herds over 65%' },
-              { tag: 'Compliance', value: '94%', label: '4 missed slots' },
-              { tag: 'Overdue', value: '5 d', label: 'Herpetarium · 8', tone: 'warn' },
-              { tag: 'Coverage', value: '89%', label: '63 of 71' },
-            ]}
-          />
-        </Section>
       </Stack>
+      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }

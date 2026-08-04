@@ -27,7 +27,7 @@ export default function Alerts() {
         icon={BellRing}
         value="6"
         label="Critical alerts"
-        status="36 open"
+        status="36 Open"
         tone="bad"
         stats={[
           { value: '36', label: 'Open' },
@@ -102,7 +102,7 @@ export default function Alerts() {
         {/* SLA is pulled out of the response meters: it is the compliance number,
             not one rate among three. */}
         <Section icon={ShieldCheck} label="Resolved" aside="this month">
-          <Dial percent={96} value="96" unit="%" label="Within SLA" />
+          <Dial percent={96} value="96" unit="%" label="Within SLA" benchmarkLabel="128 resolved · 12 min average" />
         </Section>
 
         <Section icon={BellRing} label="Highlights">

@@ -1,9 +1,20 @@
 import { Bell, MapPin } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { useCountUp } from '../hooks/useCountUp'
-import { dailyUpdates, hero, mainPair, moduleCards, moreModules, site, welfare } from './data'
-import type { DailyCardData, ModuleCardData } from './data'
-import { ArcGauge, AreaMini, DotBars, MiniColumns, PulseLine } from './viz'
+import {
+  clinical,
+  hero,
+  lifeEvents,
+  mainPair,
+  movement,
+  operations,
+  population,
+  preventive,
+  site,
+  trends,
+} from './data'
+import type { DailyCardData, ModuleCardData, StatTileData } from './data'
+import { ArcGauge, AreaMini, DotBars, MiniColumns, PulseLine, Sparkline } from './viz'
 
 const VIZ = { dots: DotBars, pulse: PulseLine, area: AreaMini, cols: MiniColumns } as const
 
@@ -258,7 +269,7 @@ function ForestBand() {
   )
 }
 
-/** Giant centered hero. */
+/** Giant centered hero, with the sex split the report states alongside the total. */
 function HeroBlock() {
   const value = useCountUp(hero.value, { format: (v) => Math.round(v).toLocaleString('en-US') })
 
@@ -270,6 +281,21 @@ function HeroBlock() {
         </p>
         <p className="mt-2 text-center text-[16px] text-[#1c1a16]">Total {hero.label}</p>
         <p className="mt-1.5 text-center text-[12px] font-semibold text-[#37bd69]">▲ {hero.delta}</p>
+        {/* Bare on the gradient, not in a card — it belongs to the number above it,
+            and a card here would read as the first item of the stack below. */}
+        <div className="mt-4 flex items-stretch">
+          {hero.sex.map((s, i) => (
+            <span
+              key={s.label}
+              className={`min-w-0 flex-1 text-center ${i ? 'border-l border-[#1c1a16]/10' : ''}`}
+            >
+              <span className="block font-display text-[17px] leading-6 font-bold tabular-nums text-[#20291f]">
+                {s.value}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] text-[#3d3a34]">{s.label}</span>
+            </span>
+          ))}
+        </div>
       </a>
     </section>
   )
@@ -327,6 +353,104 @@ function ModuleCard({ card }: { card: ModuleCardData }) {
   )
 }
 
+/** Number-first tile, two to a row. */
+function StatTile({ tile }: { tile: StatTileData }) {
+  return (
+    <a href={tile.href} className={`${TAP} ${CARD} flex min-w-0 flex-col p-4 ${tile.wide ? 'col-span-2' : ''}`}>
+      <span className="flex items-center gap-2 text-[14px] font-medium text-[#1c1a16]">
+        <tile.icon size={15} strokeWidth={1.75} className="shrink-0" style={{ color: tile.accent }} aria-hidden />
+        <span className="truncate">{tile.title}</span>
+      </span>
+      <span className="mt-2.5 flex items-baseline justify-between gap-2 font-display text-[26px] leading-8 font-bold text-[#2f2424]">
+        <span className="min-w-0 truncate">
+          {tile.value}
+          <span className="ml-1 font-sans text-[12px] font-normal text-[#9b958b]">{tile.unit}</span>
+        </span>
+        {tile.note && (
+          <span className="shrink-0 font-sans text-[12px] font-medium" style={{ color: deltaColor(tile.note) }}>
+            {tile.note}
+          </span>
+        )}
+      </span>
+    </a>
+  )
+}
+
+/**
+ * Report section label. Small and quiet — it names the section, and the cards under
+ * it carry the numbers. Making these look like headlines would put seven pieces of
+ * chrome between the reader and the data.
+ */
+function GroupHeading({ children, index }: { children: string; index?: string }) {
+  return (
+    <h2 className="flex items-baseline gap-2 pt-3 pb-0.5 text-[13px] font-semibold tracking-[0.02em] text-[#3d3a34]">
+      {index && <span className="font-display text-[12px] font-bold tabular-nums text-[#9b958b]">{index}</span>}
+      {children}
+    </h2>
+  )
+}
+
+/** Both preventive rates, each with the fraction it was computed from. */
+function PreventiveCard() {
+  return (
+    <a href={preventive.href} className={`${TAP} ${CARD} block p-5`}>
+      <span className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2 text-[15px] font-medium text-[#1c1a16]">
+          <preventive.icon size={16} strokeWidth={1.75} style={{ color: preventive.accent }} aria-hidden />
+          {preventive.title}
+        </span>
+        <span className="shrink-0 text-[13px] font-medium" style={{ color: '#fa6140' }}>
+          {preventive.note}
+        </span>
+      </span>
+      <div className="mt-4 flex">
+        {preventive.rates.map((r, i) => (
+          <span
+            key={r.label}
+            className={`flex min-w-0 flex-1 flex-col items-center ${i ? 'border-l border-[#f0efec]' : ''}`}
+          >
+            <ArcGauge fraction={r.percent / 100} label={`${r.percent}%`} accent={preventive.accent} />
+            <span className="mt-2 block text-[13px] text-[#1c1a16]">{r.label}</span>
+            <span className="mt-0.5 block text-[11px] tabular-nums text-[#9b958b]">
+              {r.value} of {r.of}
+            </span>
+          </span>
+        ))}
+      </div>
+    </a>
+  )
+}
+
+/** Three series, one window — the point is that they line up. */
+function TrendsCard() {
+  return (
+    <a href={trends.href} className={`${TAP} ${CARD} block p-5`}>
+      <span className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2 text-[15px] font-medium text-[#1c1a16]">
+          <trends.icon size={16} strokeWidth={1.75} style={{ color: trends.accent }} aria-hidden />
+          {trends.title}
+        </span>
+        <span className="shrink-0 text-[12px] text-[#9b958b]">Week 1 – 4</span>
+      </span>
+      <ul className="mt-3.5 flex flex-col gap-3">
+        {trends.series.map((s) => (
+          <li key={s.label} className="flex items-center gap-3">
+            <span className="w-[76px] shrink-0">
+              <span className="block font-display text-[20px] leading-6 font-bold tabular-nums text-[#2f2424]">
+                {s.value}
+              </span>
+              <span className="block truncate text-[11px] text-[#6d6860]">{s.label}</span>
+            </span>
+            <span className="min-w-0 flex-1" aria-hidden>
+              <Sparkline values={s.values} accent={s.accent} />
+            </span>
+          </li>
+        ))}
+      </ul>
+    </a>
+  )
+}
+
 export default function CommandCentreV3() {
   return (
     <div className="relative isolate min-h-dvh bg-[#e7f0ea] font-sans">
@@ -348,52 +472,70 @@ export default function CommandCentreV3() {
       <div className="mx-auto w-full max-w-[390px]">
         {/* 16px gutters on the card stack — tighter than the header's 20px, so the
             cards sit slightly wider than the greeting and hero above them. */}
+        {/* The monthly report's table of contents, section for section. Numbered,
+            because the report is numbered and a director reading both should be
+            able to move between them without translating. */}
         <main className="flex flex-col gap-3 px-4 pt-3 pb-[max(40px,env(safe-area-inset-bottom))]">
-          <h2 className="pt-1 text-[20px] font-semibold text-[#1c1a16]">Overview</h2>
+          <GroupHeading index="01">Animal Population</GroupHeading>
+          <a href={population.href} className={`${TAP} ${CARD} block p-5`}>
+            <span className="flex items-center gap-2 text-[15px] font-medium text-[#1c1a16]">
+              <population.icon size={16} strokeWidth={1.75} style={{ color: population.accent }} aria-hidden />
+              {population.title}
+            </span>
+            <div className="mt-3.5 flex items-stretch">
+              {population.facts.map((f, i) => (
+                <span
+                  key={f.label}
+                  className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-3' : ''} ${
+                    i < population.facts.length - 1 ? 'pr-3' : ''
+                  }`}
+                >
+                  <span className="block font-display text-[22px] leading-7 font-bold tabular-nums text-[#2f2424]">
+                    {f.value}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11px] text-[#6d6860]">{f.label}</span>
+                </span>
+              ))}
+            </div>
+          </a>
+
+          <GroupHeading index="02">Life Events</GroupHeading>
           {/* Natality & Mortality — the headline pair */}
           <div className="grid grid-cols-2 gap-3">
             {mainPair.map((card) => (
               <DailyCard key={card.title} card={card} prominent />
             ))}
           </div>
-
           <div className="grid grid-cols-2 gap-3">
-            {dailyUpdates.map((card) => (
-              <DailyCard key={card.title} card={card} />
+            {lifeEvents.map((tile) => (
+              <StatTile key={tile.title} tile={tile} />
             ))}
           </div>
 
-          <a href={welfare.href} className={`${TAP} ${CARD} flex items-center justify-between gap-4 p-5`}>
-            <div>
-              <p className="flex items-center gap-2 text-[15px] font-medium text-[#1c1a16]">
-                <welfare.icon size={16} strokeWidth={1.75} style={{ color: welfare.accent }} aria-hidden />
-                {welfare.title}
-              </p>
-              <p className="mt-1.5 text-[11px] text-[#6d6860]">{welfare.sub}</p>
-            </div>
-            <p className="font-display text-[30px] leading-9 font-bold text-[#2f2424]">
-              {welfare.value}
-              <span className="font-sans text-[13px] font-normal text-[#9b958b]">{welfare.of}</span>
-            </p>
-          </a>
-
-          {moduleCards.map((card) => (
+          <GroupHeading index="03">Veterinary & Health</GroupHeading>
+          {clinical.map((card) => (
             <ModuleCard key={card.title} card={card} />
           ))}
 
-          {/* Everything else — number-first stat tiles, 2×2 */}
+          <GroupHeading index="04">Preventive Care</GroupHeading>
+          <PreventiveCard />
+
+          <GroupHeading index="05">Animal Movement</GroupHeading>
+          <ModuleCard card={movement} />
+
+          <GroupHeading index="06">30-Day Trends</GroupHeading>
+          <TrendsCard />
+
+          {/* Below the report line. Nothing in this group is a monthly figure, so it
+              is separated rather than ranked in among the sections above. */}
+          <div className="mt-4 flex items-center gap-3 px-1">
+            <span className="h-px flex-1 bg-[#1c1a16]/8" aria-hidden />
+            <h2 className="text-[11px] font-semibold tracking-[0.09em] text-[#6d6860] uppercase">Operations</h2>
+            <span className="h-px flex-1 bg-[#1c1a16]/8" aria-hidden />
+          </div>
           <div className="grid grid-cols-2 gap-3">
-            {moreModules.map((m) => (
-              <a key={m.title} href={m.href} className={`${TAP} ${CARD} flex min-w-0 flex-col p-4`}>
-                <span className="flex items-center gap-2 text-[15px] font-medium text-[#1c1a16]">
-                  <m.icon size={16} strokeWidth={1.75} className="shrink-0" style={{ color: m.accent }} aria-hidden />
-                  <span className="truncate">{m.title}</span>
-                </span>
-                <span className="mt-3 font-display text-[28px] leading-8 font-bold text-[#2f2424]">
-                  {m.value}
-                  <span className="ml-1 font-sans text-[13px] font-normal text-[#9b958b]">{m.unit}</span>
-                </span>
-              </a>
+            {operations.map((tile) => (
+              <StatTile key={tile.title} tile={tile} />
             ))}
           </div>
         </main>

@@ -38,7 +38,7 @@ export default function Approvals() {
         icon={CheckCircle2}
         value="14"
         label="Pending"
-        status="3 past SLA"
+        status="3 Past SLA"
         tone="warn"
         stats={[
           { value: '1.4 d', label: 'Average' },
@@ -73,7 +73,7 @@ export default function Approvals() {
           <Band
             label="Highest value"
             title="APR-4412 · Feed contract"
-            sub="Finance · CFO · 29 Jul · cover 22 Aug"
+            sub="Finance · CFO · 29 Jul · Cover 22 Aug"
             value="₹18.4L"
             tone="bad"
           />
@@ -129,7 +129,7 @@ export default function Approvals() {
                 tone: 'good',
               },
               {
-                label: 'APR-4429 · Night-shift roster change',
+                label: 'APR-4429 · Night-shift roster',
                 sub: 'HR · 12 staff · Shift C',
                 value: 'Approved',
                 tone: 'good',

@@ -1,25 +1,31 @@
 /**
  * MORTALITY — the review.
  *
- * Deliberately sober: no leaderboards, no praise language. Four numbers, the
- * causes, where it concentrated, the trend, the open necropsies and what was
- * done. The Pareto is the only chart — two causes carry 65% of the month.
+ * Deliberately sober: no leaderboards, no praise language, no sector comparison
+ * and no falling-streak counter. Twenty-three animals died; the page's job is to
+ * say which, where, why, and what was done — not to grade the month.
+ *
+ * `Undetermined` is a cause on the ring, not a gap in it. Two of the twenty-three
+ * have no confirmed cause and pretending otherwise would be the one dishonest
+ * thing on the page.
  */
 
 import { Activity, ClipboardCheck, ListChecks, MapPin, ShieldCheck, TrendingDown } from 'lucide-react'
+import { report } from '../report'
 import {
   Band,
-  Columns,
+  Donut,
   Events,
   Facts,
-  Highlights,
   Hero,
-  Pareto,
+  More,
   Records,
   Rule,
   Section,
   Snapshot,
   Stack,
+  Stamp,
+  Trend,
 } from '../system'
 
 export default function Mortality() {
@@ -33,44 +39,50 @@ export default function Mortality() {
         tone="good"
         stats={[
           { value: '0.011', unit: '%', label: 'Rate' },
-          { value: '0.018', unit: '%', label: 'Benchmark' },
-          { value: '6', label: 'Months falling' },
+          { value: '9', label: 'Species' },
+          { value: '5', label: 'Sites' },
         ]}
       />
       <Stack>
-        <Section icon={Activity} label="Month" aside="July">
+        <Section icon={Activity} label="Month" aside={<More href="#/mortality/records" />}>
           <Snapshot
             cols={4}
             items={[
               { label: 'Deaths', value: '23', note: '−5 June' },
-              { label: 'Rate', value: '0.011', unit: '%', note: 'Benchmark 0.018' },
+              { label: 'Rate', value: '0.011', unit: '%' },
               { label: '7-day', value: '5', note: 'Prior 6' },
               { label: 'Avg age', value: '6.2', unit: 'y', note: '78% lifespan' },
             ]}
           />
         </Section>
 
-        {/* The accident split rides under the Pareto rather than taking its own
-            card — three deaths don't earn a section, but the breakdown is data. */}
-        <Section icon={ListChecks} label="Causes" aside="65% top two">
-          <Pareto
+        {/* One ring rather than a Pareto: the 80/20 line was answering a question
+            nobody asked here, and it had no room for the two undetermined deaths
+            or the three-cause tail. */}
+        <Section icon={ListChecks} label="Causes" aside="6">
+          <Donut
+            label="Deaths"
             items={[
               { label: 'Natural causes', value: 9 },
-              { label: 'Old age', value: 6 },
               { label: 'Disease', value: 5 },
-              { label: 'Accident', value: 3 },
+              { label: 'Injury', value: 3 },
+              { label: 'Trauma', value: 2, tone: 'bad' },
+              { label: 'Undetermined', value: 2 },
+              { label: 'Other · 3 causes', value: 2 },
             ]}
           />
-          <Rule label="Accidents" />
+          <Rule label="Trauma & injury" />
           <Facts
             items={[
               { label: 'Enclosure falls', sub: 'Savanna', value: '2' },
               { label: 'Fence injury', sub: 'Savanna', value: '1' },
+              { label: 'Post-surgical', sub: 'Zone A', value: '1' },
+              { label: 'Water quality', sub: 'Aquatic Halls · AQ-204', value: '1' },
             ]}
           />
         </Section>
 
-        <Section icon={MapPin} label="Concentration" aside="6 sites">
+        <Section icon={MapPin} label="Concentration" aside="5 sites">
           <Band label="Highest species" title="Giant Prawn" sub="AQ-204 · 26 Jul" value="6" unit="deaths" tone="bad" />
           {/* Stacked, not a Duo — half-width bands would shrink the two figures
               that the section exists to compare. */}
@@ -88,16 +100,29 @@ export default function Mortality() {
           <Facts
             items={[
               { label: 'Aquatic Halls', sub: 'Ex AQ-204', value: '5' },
-              { label: 'Site maximum', sub: 'Five other sites', value: '5' },
+              { label: 'Site maximum', sub: 'Four other sites', value: '5' },
             ]}
           />
         </Section>
 
-        <Section icon={TrendingDown} label="Trend" aside="6 months">
-          <Columns
-            values={[30, 27, 26, 29, 25, 23]}
-            labels={['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']}
-            unit="Deaths, month"
+        {/* Thirty days on the report's standard window, with the six-month figures
+            stated underneath rather than plotted — the long view is a list of six
+            numbers, and six columns were spending a third of the page on it. */}
+        <Section icon={TrendingDown} label="Trend" aside="30 d">
+          {/* The week-4 spike is AQ-204 on 26 July — the same event the
+              Concentration card above names. The two have to agree. */}
+          <Trend
+            tone="bad"
+            values={[1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 4, 3, 1]}
+            labels={['Week 1', 'Week 2', 'Week 3', 'Week 4']}
+            unit="23 deaths · 2-day buckets"
+          />
+          <Rule label="Six months" />
+          <Facts
+            items={[
+              { label: 'Feb – Apr', sub: '30 · 27 · 26', value: '83' },
+              { label: 'May – Jul', sub: '29 · 25 · 23', value: '77' },
+            ]}
           />
         </Section>
 
@@ -122,20 +147,8 @@ export default function Mortality() {
             ]}
           />
         </Section>
-
-        <Section icon={Activity} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Single event', value: '6', label: 'AQ-204', tone: 'warn' },
-              { tag: 'Ex event', value: '17', label: 'Record low', tone: 'good' },
-              { tag: 'Rate', value: '0.011', unit: '%', label: 'Sector 0.018%' },
-              { tag: 'Streak', value: '6', label: 'Months falling', tone: 'good' },
-              { tag: 'Backlog', value: '4', label: 'Necropsies open', tone: 'bad' },
-              { tag: 'Ageing', value: '78', unit: '%', label: 'Lifespan · 71% prior' },
-            ]}
-          />
-        </Section>
       </Stack>
+      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }

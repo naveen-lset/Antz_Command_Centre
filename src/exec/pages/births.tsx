@@ -1,26 +1,34 @@
 /**
- * BIRTHS — the nursery.
+ * BIRTH ANALYTICS — the nursery.
  *
  * The only forward-facing sheet in the set, so the month grid opens the page and
- * the count sits above it in the hero. Performance is stated against target, never
- * plotted — two bullets say more than a trend line.
+ * the count sits above it in the hero. Performance is stated against the house
+ * target and nothing else — the three-year average was a benchmark dressed as a
+ * note, and this page is not a scorecard.
+ *
+ * Losses before birth used to live here as five words on a target bar. They are a
+ * module now; what remains is the handoff to it, because a delivery-success figure
+ * that quietly excludes five fetal deaths is a figure that misleads.
  */
 
-import { Award, Baby, CalendarDays, Eye, Gauge, Home, Sparkles, Users } from 'lucide-react'
+import { Award, Baby, CalendarDays, Eye, Gauge, Home, Sparkles, TrendingUp, Users } from 'lucide-react'
+import { report } from '../report'
 import {
   Band,
   BulletGroup,
   Calendar,
   Duo,
   Facts,
-  Highlights,
   Hero,
   Ladder,
+  More,
   Records,
+  Rule,
   Scoreboard,
   Section,
   Stack,
-  Utilization,
+  Stamp,
+  Trend,
 } from '../system'
 
 export default function Births() {
@@ -39,7 +47,7 @@ export default function Births() {
         ]}
       />
       <Stack>
-        <Section icon={CalendarDays} label="Calendar" aside="August · 38 due">
+        <Section icon={CalendarDays} label="Calendar" aside={<More href="#/births/records" />}>
           <Calendar
             days={31}
             offset={5}
@@ -56,6 +64,14 @@ export default function Births() {
           />
         </Section>
 
+        <Section icon={TrendingUp} label="Trend" aside="30 d">
+          <Trend
+            values={[2, 2, 3, 3, 4, 4, 3, 3, 3, 4, 3, 3, 3, 3, 2]}
+            labels={['Week 1', 'Week 2', 'Week 3', 'Week 4']}
+            unit="45 births · 2-day buckets"
+          />
+        </Section>
+
         <Section icon={Gauge} label="Delivery" aside="vs target">
           <BulletGroup
             items={[
@@ -64,14 +80,14 @@ export default function Births() {
                 value: '93%',
                 percent: 93,
                 target: 90,
-                note: 'Target 90% · 42 of 45 · 3 still births',
+                note: 'Target 90% · 42 of 45',
               },
               {
                 label: 'Neonatal survival',
                 value: '88%',
                 percent: 88,
                 target: 85,
-                note: 'Target 85% · First 30 d · 3 y average 84%',
+                note: 'Target 85% · first 30 d',
               },
             ]}
           />
@@ -153,23 +169,18 @@ export default function Births() {
           />
         </Section>
 
-        <Section icon={Baby} label="Nursery">
-          <Utilization used={14} total={20} label="Hand-rearing cots" free="6 free" />
-        </Section>
-
-        <Section icon={Sparkles} label="Highlights">
-          <Highlights
+        <Section icon={Baby} label="Losses" aside={<More href="#/fetal" />}>
+          <Facts
             items={[
-              { tag: 'Forward', value: '38', label: 'Expected, 30 d' },
-              { tag: 'Peak', value: '12', label: '11 August' },
-              { tag: 'Delivery', value: '93', unit: '%', label: 'Target 90%' },
-              { tag: 'Survival', value: '88', unit: '%', label: '3 y average 84%' },
-              { tag: 'Risk', value: '4', label: '2 cervids', tone: 'warn' },
-              { tag: 'Lowest', value: '75', unit: '%', label: 'Zone A', tone: 'warn' },
+              { label: 'Fetal deaths', sub: '3 still birth · 2 abortion', value: '5', tone: 'warn' },
+              { label: 'Fetal loss rate', sub: '5 of 50 pregnancies', value: '10%' },
             ]}
           />
+          <Rule label="Not in the 45" />
+          <Facts items={[{ label: 'Live births counted above', sub: 'Excludes all 5 losses', value: '45' }]} />
         </Section>
       </Stack>
+      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }

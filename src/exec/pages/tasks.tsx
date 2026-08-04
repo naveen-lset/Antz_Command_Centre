@@ -28,13 +28,13 @@ export default function Tasks() {
       <Hero
         icon={ListTodo}
         value="35"
-        label="Open Tasks"
+        label="Open tasks"
         status="5 Overdue · 2 High"
         tone="warn"
         stats={[
           { value: '41', label: 'Closed' },
-          { value: '14', label: 'Due Today' },
-          { value: '8', label: 'High Priority' },
+          { value: '14', label: 'Due today' },
+          { value: '8', label: 'High' },
         ]}
       />
       <Stack>
@@ -43,7 +43,7 @@ export default function Tasks() {
             percent={87}
             value="87"
             unit="%"
-            label="On Time"
+            label="On time"
             benchmark={90}
             benchmarkLabel="Target 90% · 5 of 41 late"
           />
@@ -105,7 +105,7 @@ export default function Tasks() {
 
         <Section icon={TriangleAlert} label="Overdue" aside="5 tasks">
           <Band
-            label="Longest Pending"
+            label="Longest pending"
             title="Zone A perimeter fence inspection"
             sub="Maintenance · 14 Jul"
             value="20"
@@ -142,7 +142,7 @@ export default function Tasks() {
                   tone: 'warn',
                 },
                 {
-                  label: 'Quarantine intake redistribution plan',
+                  label: 'Quarantine redistribution',
                   sub: 'Curator · High · 5 Aug',
                   value: 'Due today',
                   tone: 'warn',

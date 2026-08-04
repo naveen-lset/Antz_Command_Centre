@@ -48,6 +48,35 @@ export function AreaMini({ accent }: { accent: string }) {
   )
 }
 
+/**
+ * `AreaMini` with the series passed in — the 30-day trends card carries three
+ * different ones, and a shared module constant could only draw one.
+ *
+ * Zero-based, unlike `AreaMini`: these are counts, and a floor at the series
+ * minimum turns "two deaths instead of one" into a cliff.
+ */
+export function Sparkline({ values, accent, h = 34 }: { values: number[]; accent: string; h?: number }) {
+  const w = 132
+  const pad = 4
+  const max = Math.max(...values, 1)
+  const step = (w - pad * 2) / Math.max(values.length - 1, 1)
+  const pts = values.map((v, i) => [pad + i * step, pad + (1 - v / max) * (h - pad * 2)] as const)
+  let d = `M ${pts[0][0]} ${pts[0][1]}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x, y] = pts[i]
+    const [nx, ny] = pts[i + 1]
+    d += ` Q ${x} ${y}, ${(x + nx) / 2} ${(y + ny) / 2}`
+  }
+  d += ` L ${pts[pts.length - 1][0]} ${pts[pts.length - 1][1]}`
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: h }} preserveAspectRatio="none">
+      <path d={`${d} L ${w - pad} ${h} L ${pad} ${h} Z`} fill={accent} opacity={0.12} />
+      <path d={d} fill="none" stroke={accent} strokeWidth={1.75} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
 const COLUMN_VALUES = [0.45, 0.7, 0.55, 0.8, 0.6, 0.9, 0.7, 1]
 
 /** Solid rounded mini columns, the latest period in full accent. */

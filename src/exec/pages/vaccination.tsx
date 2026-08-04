@@ -1,10 +1,13 @@
 /**
  * VACCINATION — the coverage drive.
  *
- * A hundred squares open the page, eight of them empty, with the count behind
- * those eight stated directly underneath. Everything after is a figure and the
- * word that names it: group coverage, the two poles, the week's doses,
- * compliance, the overdue rail, the August campaigns.
+ * The rate opens the page as a ring with its own fraction inside it. A hundred
+ * squares used to do this job and did it badly: they said "92%" in a form that
+ * took eight seconds to count, and never said 92% of what. The ring says 2,184 of
+ * 2,374 without being counted at all.
+ *
+ * Everything after is a figure and the word that names it: group coverage, the two
+ * poles, the week's doses, compliance, the overdue rail, the August campaigns.
  */
 
 import {
@@ -17,20 +20,22 @@ import {
   Syringe,
   TriangleAlert,
 } from 'lucide-react'
+import { report } from '../report'
 import {
   Bars,
   Columns,
   Events,
   Facts,
-  Highlights,
   Hero,
+  More,
   Poles,
   Records,
+  Ring,
   Rule,
   Section,
   Snapshot,
   Stack,
-  Waffle,
+  Stamp,
 } from '../system'
 
 export default function Vaccination() {
@@ -50,10 +55,10 @@ export default function Vaccination() {
         ]}
       />
       <Stack>
-        {/* The gap figures stay inside the waffle card rather than taking one of
-            their own — the eight empty squares and the 190 animals are one fact. */}
-        <Section icon={Grid2x2Check} label="Coverage" aside="1% per square">
-          <Waffle percent={92} />
+        {/* The gap figures stay inside the coverage card rather than taking one of
+            their own — the rate and the 190 animals behind it are one fact. */}
+        <Section icon={Grid2x2Check} label="Coverage" aside="on protocol">
+          <Ring percent={92} label="Vaccinated" value="2,184" of="2,374" note="Target 95% by September" />
           <Rule label="Gap" />
           <Snapshot
             cols={3}
@@ -65,7 +70,7 @@ export default function Vaccination() {
           />
         </Section>
 
-        <Section icon={Syringe} label="Drive" aside="July">
+        <Section icon={Syringe} label="Drive" aside={<More href="#/vaccination/records" />}>
           <Snapshot
             cols={4}
             items={[
@@ -153,19 +158,8 @@ export default function Vaccination() {
           />
         </Section>
 
-        <Section icon={Syringe} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Gap', value: '71', label: 'Animals to target' },
-              { tag: 'Target', value: '95', unit: '%', label: 'September' },
-              { tag: 'Clinic days', value: '3', label: 'To close' },
-              { tag: 'Weakest', value: '71', unit: '%', label: 'Star Tortoise', tone: 'bad' },
-              { tag: 'Cold chain', value: '214', label: 'Days clear', tone: 'good' },
-              { tag: 'On time', value: '91', unit: '%', label: 'Exact due date' },
-            ]}
-          />
-        </Section>
       </Stack>
+      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }

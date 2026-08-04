@@ -1,14 +1,19 @@
 /**
  * Executive module page shell.
  *
- * This is the FINAL level — there is no navigation out of it except closing.
- * No tabs, no chapter chips, no "view more": everything the module has lives in
- * one continuous scroll. The chrome is deliberately almost nothing — a title, a
- * close button, and a hairline that appears once you've scrolled.
+ * A module page has no tabs, no chapter chips and no "view more": everything the
+ * module aggregates lives in one continuous scroll. The chrome is deliberately
+ * almost nothing — a title, a close button, and a hairline once you've scrolled.
+ *
+ * There is exactly ONE way deeper: a record page, reached from a `More` link.
+ * When one is open the sheet grows a back chevron and nothing else — the stack is
+ * two levels and cannot become three, so a breadcrumb would never have a third
+ * crumb to show. Swipe-down and Escape step back one level; the ✕ leaves for home
+ * from either level.
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { ChevronLeft, X } from 'lucide-react'
 
 /** How much of the home screen stays visible above the sheet. */
 const PEEK = 'calc(env(safe-area-inset-top, 0px) + 40px)'
@@ -18,11 +23,14 @@ export default function Sheet({
   title,
   eyebrow = 'Command Centre',
   onClose,
+  onBack,
   children,
 }: {
   title: string
   eyebrow?: string
   onClose: () => void
+  /** Present only on a record page — steps back to its module. */
+  onBack?: () => void
   children: ReactNode
 }) {
   const scroller = useRef<HTMLDivElement>(null)
@@ -53,6 +61,13 @@ export default function Sheet({
     }
   }, [])
 
+  /* Every level starts at the top. Dropping into a record page halfway down the
+     module's scroll position would land mid-table with no header in sight. */
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 })
+    setScrolled(false)
+  }, [title])
+
   useEffect(() => {
     const el = scroller.current
     if (!el) return
@@ -73,13 +88,23 @@ export default function Sheet({
     window.setTimeout(onClose, 240)
   }, [onClose])
 
+  /* Back where there is a level to go back to, otherwise out. Going back does not
+     slide the sheet away — it stays put and its content swaps, which is what makes
+     the two levels feel like one page rather than two stacked sheets. */
+  const dismiss = useCallback(() => {
+    if (onBack) {
+      setDy(0)
+      onBack()
+    } else close()
+  }, [onBack, close])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
+      if (e.key === 'Escape') dismiss()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [close])
+  }, [dismiss])
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
@@ -97,7 +122,7 @@ export default function Sheet({
     if (grab.current?.id !== e.pointerId) return
     grab.current = null
     setDragging(false)
-    if (dy > DISMISS_AT) close()
+    if (dy > DISMISS_AT) dismiss()
     else setDy(0)
   }
 
@@ -133,7 +158,17 @@ export default function Sheet({
             <div className="flex justify-center pt-2.5" aria-hidden>
               <span className="h-[4px] w-9 rounded-full bg-[#16150f]/10" />
             </div>
-            <header className="flex items-center gap-4 px-6 pt-2.5 pb-4">
+            <header className="flex items-center gap-3 px-6 pt-2.5 pb-4">
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="-ml-2 grid size-9 shrink-0 place-items-center rounded-full transition-colors active:bg-[#f7f6f3]"
+                  aria-label="Back"
+                >
+                  <ChevronLeft size={20} strokeWidth={2} className="text-[#55524a]" aria-hidden />
+                </button>
+              )}
               <span className="min-w-0 flex-1">
                 <span className="block text-[11px] font-medium tracking-[0.06em] text-[#b3aea6] uppercase">
                   {eyebrow}
@@ -158,7 +193,12 @@ export default function Sheet({
             ref={scroller}
             className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#e7f0ea] scrollbar-hidden"
           >
-            <div className="animate-swap-in pt-4 pb-[max(48px,env(safe-area-inset-bottom))]">{children}</div>
+            {/* Keyed on the title so stepping between a module and its records
+                remounts the content: swap-in replays, and the reveal-on-scroll
+                marks get a fresh observer instead of arriving already-visible. */}
+            <div key={title} className="animate-swap-in pt-4 pb-[max(48px,env(safe-area-inset-bottom))]">
+              {children}
+            </div>
           </div>
         </section>
       </div>

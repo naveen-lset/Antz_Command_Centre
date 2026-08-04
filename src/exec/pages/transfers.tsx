@@ -1,24 +1,41 @@
 /**
- * TRANSFERS — the dispatch board.
+ * ANIMAL MOVEMENT — the dispatch board.
  *
  * Opens on what is moving right now: live counts, then the two named consignments
  * on the road. Lanes are the signature mark and appear nowhere else in the set.
  * Numbers only — every word here names a figure, none explains one.
+ *
+ * Movement is counted on two independent axes, which is why the taxonomy card
+ * carries five figures and not one list. Scope (intersite / external / in-house)
+ * is a regulatory question; direction (in / out / internal) is a population one.
+ * The same twenty-eight movements answer both, and collapsing them into a single
+ * five-row list would double-count every animal.
  */
 
-import { ArrowLeftRight, Gauge, MapPin, Route, Sparkles, TriangleAlert, Truck } from 'lucide-react'
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Gauge,
+  MapPin,
+  Route,
+  TriangleAlert,
+  Truck,
+} from 'lucide-react'
+import { report } from '../report'
 import {
   Band,
   Bullet,
   Facts,
-  Highlights,
   Hero,
   Lanes,
+  More,
   Records,
   Rule,
   Section,
   Snapshot,
   Stack,
+  Stamp,
   StatusList,
 } from '../system'
 
@@ -53,7 +70,7 @@ export default function Transfers() {
           <Rule label="On road" />
           <StatusList
             items={[
-              { label: 'VH-01 · 4 Blackbuck → Wetland Reserve', value: '40 min', tone: 'warn' },
+              { label: 'VH-01 · 4 Blackbuck → Wetland', value: '40 min', tone: 'warn' },
               { label: 'TRF-1180 · 2 Bengal Fox · CZA', value: 'Day 4', tone: 'bad' },
             ]}
           />
@@ -61,12 +78,43 @@ export default function Transfers() {
 
         <Section icon={ArrowLeftRight} label="Movements" aside="July">
           <Snapshot
-            cols={2}
+            cols={3}
             items={[
-              { label: 'Internal', value: '7', note: '6 sites' },
+              { label: 'Intersite', value: '7', note: 'Own 6 sites' },
               { label: 'External', value: '21', note: 'Partners' },
-              { label: 'Incoming', value: '12', note: '6 rescue' },
-              { label: 'Outgoing', value: '9', note: '4 breeding loan' },
+              { label: 'In-house', value: '46', note: 'Within a site' },
+            ]}
+          />
+          {/* Same 28 movements, cut by direction instead of by scope. In-house moves
+              sit above and are excluded here — they change no site's population. */}
+          <Rule label="Direction · 28" />
+          <Facts
+            items={[
+              { label: 'Transfer in', sub: '4 sources · 6 rescue', value: '12' },
+              { label: 'Transfer out', sub: '4 destinations · 4 breeding loan', value: '9' },
+              { label: 'Internal', sub: 'Between own sites', value: '7' },
+            ]}
+          />
+        </Section>
+
+        <Section icon={ArrowDownLeft} label="Transfer in" aside={<More href="#/transfers/in" />}>
+          <Snapshot
+            cols={3}
+            items={[
+              { label: 'Animals', value: '12' },
+              { label: 'Species', value: '7' },
+              { label: 'Sources', value: '4' },
+            ]}
+          />
+        </Section>
+
+        <Section icon={ArrowUpRight} label="Transfer out" aside={<More href="#/transfers/out" />}>
+          <Snapshot
+            cols={3}
+            items={[
+              { label: 'Animals', value: '9' },
+              { label: 'Species', value: '5' },
+              { label: 'Blocked', value: '1', tone: 'bad' },
             ]}
           />
         </Section>
@@ -136,19 +184,8 @@ export default function Transfers() {
           />
         </Section>
 
-        <Section icon={Sparkles} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Blocked', value: '4', unit: 'd', label: 'TRF-1180 · CZA', tone: 'bad' },
-              { tag: 'Throughput', value: '28', label: 'High since March' },
-              { tag: 'On schedule', value: '96%', label: '24 of 25', tone: 'good' },
-              { tag: 'Fleet', value: '1', label: 'Brake inspection', tone: 'warn' },
-              { tag: 'Top lane', value: '9', label: 'Jamnagar → Wetland' },
-              { tag: 'Longest', value: '214', unit: 'km', label: 'Junagadh Zoo' },
-            ]}
-          />
-        </Section>
       </Stack>
+      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }
