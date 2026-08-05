@@ -157,26 +157,18 @@ export function PeriodBar({
         })}
       </div>
       {/*
-       * What re-cut and what didn't, stated rather than left to be discovered.
+       * No default disclosure line any more.
        *
-       * The headline and the site split are cut from data that exists for every
-       * window. The cards below them — cause rings, prescription tables, necropsy
-       * queues — are hand-composed month facts, and there is no six-month version of
-       * them to show. Leaving that unsaid is how a reader ends up thinking a "23" in
-       * a card under a "160" headline is a contradiction rather than a narrower
-       * window. It is one line and it only appears when it is needed.
+       * There used to be one on the sheet — "Headline and sites · 26 Jul – 01 Aug.
+       * Other cards · July 2025." — because only the hero and the site split re-cut
+       * and the hand-composed cards below them stay on the month. Bharathi asked for
+       * it gone: it is a sentence of chrome pinned under the title on every report
+       * page, and the sheet eyebrow already names the window.
+       *
+       * The mismatch it explained is still real, so a caller that wants to say
+       * something can still pass `note`.
        */}
-      {/* Colon form rather than a sentence, because the windows don't share a
-          grammar — "cut to Since Apr 2019" reads as a typo. */}
-      {/* The disclosure belongs to the sheet, where a cut window leaves hand-composed
-          month cards sitting under a re-cut headline. The home has no such mismatch
-          to explain — its stocks read as standing figures on their face — so `home`
-          gets no default line, and any caller wanting one passes `note`. */}
-      {!month && (note ?? (tone === 'sheet' ? (
-        <p className={`${gutter} pb-3 text-[11px] leading-[15px] text-[#9b958b]`}>
-          Headline and sites · {period.window}. Other cards · {PERIODS[2].window}.
-        </p>
-      ) : null))}
+      {!month && note}
     </>
   )
 }

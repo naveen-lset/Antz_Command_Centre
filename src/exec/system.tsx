@@ -1020,11 +1020,21 @@ export function Snapshot({
         <div key={m.label} className={i >= cols ? 'border-t border-[#f0efec] pt-4' : ''}>
           {/* The icon leads the cell rather than sharing the label's line. Inline it
               had to be 13px to leave room for "Chondrichthyes" in a ~100px column, and
-              at 13px a drawn glyph is mush; on its own line it gets 16px and the label
+              at 13px a drawn glyph is mush; on its own line it gets room and the label
               gets the full width back. It stays smaller than the figure, so leading the
-              cell does not make it the thing you read first. */}
+              cell does not make it the thing you read first.
+
+              The tinted tile is what makes it read as an icon rather than as a stray
+              mark floating above a number — it gives the glyph a footprint, and nine of
+              them set up a column the eye can run down. Accent at 10%, so it sits under
+              the figure in weight, not beside it. */}
           {m.icon && (
-            <m.icon size={16} strokeWidth={1.75} className="mb-1.5 block" style={{ color: accent }} />
+            <span
+              className="mb-2 grid size-7 place-items-center rounded-[9px]"
+              style={{ backgroundColor: mix(accent, 0.1) }}
+            >
+              <m.icon size={16} strokeWidth={1.75} style={{ color: accent }} />
+            </span>
           )}
           <Figure
             value={m.value}

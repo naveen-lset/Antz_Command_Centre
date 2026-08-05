@@ -22,7 +22,6 @@ import {
   Venus,
 } from 'lucide-react'
 import { CLASS_ICONS } from '../classIcons'
-import { report } from '../report'
 import {
   Composition,
   Facts,
@@ -38,7 +37,6 @@ import {
   Sites,
   Snapshot,
   Stack,
-  Stamp,
   Table,
 } from '../system'
 
@@ -130,7 +128,6 @@ export default function Animals() {
           />
           <Rule label="Share" />
           <Composition
-            unit="animals"
             items={[
               { label: 'Actinopterygii', value: 77840 },
               { label: 'Aves', value: 38600 },
@@ -277,7 +274,6 @@ export default function Animals() {
           />
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
     </>
   )
 }
