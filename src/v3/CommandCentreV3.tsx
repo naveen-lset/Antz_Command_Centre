@@ -145,13 +145,33 @@ function StickyPeriod() {
       <div ref={sentinel} className="h-px" aria-hidden />
       {/* z-30 — under the drill-down sheet (z-40) and module search (z-50), over
           the card stack and the forest band. */}
-      <div
-        className={`sticky top-0 z-30 pt-[max(6px,env(safe-area-inset-top))] transition-[background-color,box-shadow,backdrop-filter] duration-300 ${
-          stuck ? 'bg-[#e7f0ea]/85 backdrop-blur-md' : ''
-        }`}
-        style={{ boxShadow: stuck ? '0 1px 0 rgba(22,21,15,0.08)' : 'none' }}
-      >
-        <div className="mx-auto w-full max-w-[390px]">
+      <div className="sticky top-0 z-30 pt-[max(6px,env(safe-area-inset-top))]">
+        {/*
+         * The pinned wash is its own layer, for two reasons.
+         *
+         * It is a GRADIENT in the header's own light greens, not the flat ground
+         * colour. Flat #e7f0ea pinned over a page whose top 880px is a green ramp
+         * read as a pale rectangle laid across it — the bar looked stuck on rather
+         * than part of the surface. These two stops are lifted from the first third
+         * of that ramp, so the bar reads as the header continuing.
+         *
+         * And it fades via `opacity` rather than by toggling a background class,
+         * because `background-image` does not interpolate — a gradient swapped on a
+         * class would appear in one frame no matter what transition is declared.
+         * Same reason the hairline lives here: it fades with the wash instead of
+         * snapping in a frame ahead of it.
+         */}
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-0 backdrop-blur-md transition-opacity duration-300 ${
+            stuck ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{
+            background: 'linear-gradient(180deg, rgba(213,232,221,0.94) 0%, rgba(190,216,203,0.90) 100%)',
+            boxShadow: '0 1px 0 rgba(22,21,15,0.08)',
+          }}
+        />
+        <div className="relative mx-auto w-full max-w-[390px]">
           <PeriodBar tone="home" />
         </div>
       </div>
