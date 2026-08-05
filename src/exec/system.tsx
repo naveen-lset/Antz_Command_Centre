@@ -31,6 +31,27 @@ export const TONE = { good: '#1e7a44', warn: '#b45309', bad: '#dc2626', neutral:
 export type Tone = keyof typeof TONE
 
 /**
+ * IUCN Red List category colours, as published.
+ *
+ * The second sanctioned exception to one-accent-per-page, alongside the semantic
+ * tones — and for the same reason. These are not decoration and not ours: a curator
+ * reads them on the Red List, on enclosure signage and in every conservation report,
+ * so recolouring them to fit a green ramp would be discarding encoding the reader
+ * already has. Note the yellows are unreadable as text on white; they are bar fills
+ * with the label outside the bar, never type.
+ */
+export const IUCN = {
+  'Least Concern': '#60C659',
+  'Near Threatened': '#CCE226',
+  Vulnerable: '#F9E814',
+  Endangered: '#FC7F3F',
+  'Critically Endangered': '#D81E05',
+  'Extinct in the Wild': '#542344',
+  Extinct: '#000000',
+  'Data Deficient': '#D1D1C6',
+} as const
+
+/**
  * Two darker greens the report layer needs and `mix()` cannot produce — `mix`
  * only lightens toward white. `DEEP` is the record table's header bar, the one
  * dark surface in the app; `ACCENT_INK` is accent-coloured text that still
@@ -296,13 +317,22 @@ export function MetricGrid({
   )
 }
 
-/** Ranked composition — bar length is the message, accent step is the rank. */
+/**
+ * Ranked composition — bar length is the message, accent step is the rank.
+ *
+ * `color` overrides the accent step for one row, and exists for scales whose colours
+ * mean something OUTSIDE this app. The IUCN Red List categories are the case:
+ * "Critically Endangered" is red the world over, and rendering it as the palest step
+ * of a green ramp because it happens to be the smallest number would be throwing away
+ * the one piece of encoding every reader already knows. Use it for published scales
+ * only — never to give an ordinary series its own hues.
+ */
 export function Bars({
   items,
   unit,
   showShare = false,
 }: {
-  items: { label: string; value: number; sub?: string }[]
+  items: { label: string; value: number; sub?: string; color?: string }[]
   unit?: string
   showShare?: boolean
 }) {
@@ -321,8 +351,15 @@ export function Bars({
               {compact(it.value)}
               {unit && <span className="ml-0.5 text-[11px] font-normal text-[#9b958b]">{unit}</span>}
               {showShare && (
+                /* A decimal below 1%, because `toFixed(0)` printed "0%" beside 388
+                   Critically Endangered animals — a real figure rounded into
+                   nothing. Whole numbers everywhere else. */
                 <span className="ml-1.5 text-[11px] font-normal text-[#9b958b]">
-                  {((it.value / total) * 100).toFixed(0)}%
+                  {(() => {
+                    const pct = (it.value / total) * 100
+                    return pct >= 1 || pct === 0 ? pct.toFixed(0) : pct.toFixed(1)
+                  })()}
+                  %
                 </span>
               )}
             </span>
@@ -331,8 +368,14 @@ export function Bars({
             <div
               className={`h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
               style={{
-                width: `${Math.max(2, (it.value / max) * 100)}%`,
-                backgroundColor: mix(accent, step(i)),
+                /* Floor of 4%, not 2%. On a distribution as skewed as the IUCN
+                   categories — 178,240 against 388, a 460× spread — a 2% stub
+                   rendered as a dot too small to take a colour from, which defeats
+                   the point of colouring it. 4% is the least that reads as a bar.
+                   The number and share beside it carry the magnitude; the bar's job
+                   at this end is to be identifiably red. */
+                width: `${Math.max(4, (it.value / max) * 100)}%`,
+                backgroundColor: it.color ?? mix(accent, step(i)),
                 animationDelay: animate ? `${i * 60}ms` : undefined,
               }}
             />
@@ -921,15 +964,24 @@ export function Snapshot({
   cols = 2,
 }: {
   /** `note` is a supporting figure — "of 71", "Target 90%" — never a phrase. */
-  items: { label: string; value: string; unit?: string; note?: string; tone?: Tone }[]
+  items: { label: string; value: string; unit?: string; note?: string; tone?: Tone; icon?: Icon }[]
   cols?: 2 | 3 | 4
 }) {
+  const accent = useAccent()
   const grid = cols === 4 ? 'grid-cols-4' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2'
   const size = cols === 4 ? 22 : cols === 3 ? 25 : 28
   return (
     <div className={`grid ${grid} gap-x-3 gap-y-4`}>
       {items.map((m, i) => (
         <div key={m.label} className={i >= cols ? 'border-t border-[#f0efec] pt-4' : ''}>
+          {/* The icon leads the cell rather than sharing the label's line. Inline it
+              had to be 13px to leave room for "Chondrichthyes" in a ~100px column, and
+              at 13px a drawn glyph is mush; on its own line it gets 16px and the label
+              gets the full width back. It stays smaller than the figure, so leading the
+              cell does not make it the thing you read first. */}
+          {m.icon && (
+            <m.icon size={16} strokeWidth={1.75} className="mb-1.5 block" style={{ color: accent }} />
+          )}
           <Figure
             value={m.value}
             unit={m.unit}

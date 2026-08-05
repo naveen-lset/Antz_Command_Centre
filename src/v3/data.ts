@@ -65,14 +65,25 @@ export const hero = {
   /** A stock — the collection as it stands, not a sum over the window. */
   value: 215432,
   label: 'Animals',
-  /** Net arrivals inside the window. "All time" is the collection's whole intake
-      history since Apr 2019, which is why it approaches the total above. */
+  /**
+   * Net change inside the window, on a RECORDED-EVENTS basis:
+   * births + intakes − deaths + net transfers (internal moves change nothing).
+   *
+   * Every window is derived from the same four flows the module pages state, so the
+   * Animal Population page's Month card can be added up by hand and will agree. It
+   * used to read +324 for the month against components summing to +43 — the
+   * headline and the workings disagreed by a factor of eight.
+   *
+   * A consequence worth knowing: at this rate the collection's 215,432 animals are
+   * not accounted for by the events recorded here. This figure is net change in
+   * INDIVIDUALLY TRACKED animals, not the whole population's movement.
+   */
   gain: {
-    today: '+11',
-    week: '+76',
-    month: '+324',
-    sixMonths: '+1,842',
-    all: '+186,904',
+    today: '+4',
+    week: '+11',
+    month: '+43',
+    sixMonths: '+218',
+    all: '+7,942',
   } as ByPeriod<string>,
   /** Drill-down route for the hero KPI. */
   href: '#/animals',

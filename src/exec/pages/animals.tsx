@@ -11,7 +11,6 @@
  */
 
 import {
-  Building2,
   Layers,
   ListOrdered,
   MapPin,
@@ -22,15 +21,18 @@ import {
   TrendingUp,
   Venus,
 } from 'lucide-react'
+import { CLASS_ICONS } from '../classIcons'
 import { report } from '../report'
 import {
   Bars,
   Composition,
   Facts,
   Filter,
+  IUCN,
   Movers,
   PeriodHero,
   Poles,
+  Records,
   Rule,
   Scoreboard,
   Section,
@@ -41,19 +43,31 @@ import {
   Table,
 } from '../system'
 
-/** Lifted out of the JSX so the filter can measure it before rendering a subset. */
+/**
+ * Lifted out of the JSX so the filter can measure it before rendering a subset.
+ *
+ * Second column is share of the 215,432 collection, computed once here rather than
+ * printed by hand — 12,400/215,432 is 5.8%, and a rounded 6% typed into a string is
+ * a number nobody can check.
+ */
+const TOTAL = 215432
+const share = (n: number) => `${((n / TOTAL) * 100).toFixed(1)}%`
 const TOP_SPECIES = [
-  { label: 'Common Carp', sub: 'Actinopterygii', cells: ['12,400', '+180'] },
-  { label: 'Zebra Finch', sub: 'Aves', cells: ['6,820', '+182'] },
-  { label: 'Nile Tilapia', sub: 'Actinopterygii', cells: ['5,940', '+96'] },
-  { label: 'Indian Peafowl', sub: 'Aves', cells: ['4,310', '+22'] },
-  { label: 'Rose Shrimp', sub: 'Malacostraca', cells: ['3,880', '+74'] },
-  { label: 'Silver Barb', sub: 'Actinopterygii', cells: ['2,940', '+12'] },
-  { label: 'Rock Pigeon', sub: 'Aves', cells: ['2,210', '−6'] },
-  { label: 'Grey Francolin', sub: 'Aves', cells: ['1,640', '−18'] },
-  { label: 'Bengal Fox', sub: 'Mammalia', cells: ['1,280', '+4'] },
-  { label: 'Flapshell Turtle', sub: 'Reptilia', cells: ['1,090', '+8'] },
-]
+  ['Common Carp', 'Actinopterygii', 12400],
+  ['Zebra Finch', 'Aves', 6820],
+  ['Nile Tilapia', 'Actinopterygii', 5940],
+  ['Indian Peafowl', 'Aves', 4310],
+  ['Rose Shrimp', 'Malacostraca', 3880],
+  ['Silver Barb', 'Actinopterygii', 2940],
+  ['Rock Pigeon', 'Aves', 2210],
+  ['Grey Francolin', 'Aves', 1640],
+  ['Bengal Fox', 'Mammalia', 1280],
+  ['Flapshell Turtle', 'Reptilia', 1090],
+].map(([label, sub, count]) => ({
+  label: label as string,
+  sub: sub as string,
+  cells: [(count as number).toLocaleString('en-US'), share(count as number)],
+}))
 
 export default function Animals() {
   return (
@@ -63,7 +77,7 @@ export default function Animals() {
         icon={PawPrint}
         value="215,432"
         label="Animals"
-        status="+324 Month"
+        status="+43 Month"
         tone="good"
         stats={[
           { value: '428', label: 'Species' },
@@ -73,7 +87,10 @@ export default function Animals() {
       />
       <Stack>
         {/* Undetermined is the majority answer, not missing data: most of a
-            collection this size is fish and invertebrates that are never sexed. */}
+            collection this size is fish and invertebrates that are never sexed. The
+            "Sexed" sub-block that used to restate that as 35,084 and a 1.08:1 ratio is
+            gone — the three figures are the answer, and two derivations of them were
+            the card's whole second half. */}
         <Section icon={Venus} label="Sex" aside="215,432">
           <Scoreboard
             items={[
@@ -82,46 +99,33 @@ export default function Animals() {
               { value: '180,348', label: 'Undetermined' },
             ]}
           />
-          <Rule label="Sexed" />
-          <Facts
-            items={[
-              { label: 'Determined', sub: '16% of collection', value: '35,084' },
-              { label: 'Sex ratio', sub: 'Male to female', value: '1.08 : 1' },
-            ]}
-          />
         </Section>
 
-        {/* Overall stated above the six sites it is the sum of. */}
-        <Section icon={MapPin} label="Sites">
+        {/* Overall stated above the six sites it is the sum of. Enclosure occupancy
+            joins it here: 92 of 96 in use is a fact about the sites, and it was
+            previously stranded in a "Scale" card with two unrelated growth rates. */}
+        <Section icon={MapPin} label="Sites" aside="92 of 96 enclosures">
           <Sites slug="animals" />
         </Section>
 
-        <Section icon={Building2} label="Scale">
-          <Scoreboard
-            items={[
-              { value: '92', label: 'Occupied' },
-              { value: '4', label: 'Vacant' },
-              { value: '+6', label: 'Species, quarter' },
-              { value: '1.6', unit: '%', label: 'Growth, year' },
-            ]}
-          />
-        </Section>
-
         {/* Nine classes as counts, three to a row — the report's own grid. A stacked
-            bar for nine segments produced four slivers with no readable share. */}
+            bar for nine segments produced four slivers with no readable share.
+            Each class wears its own glyph: nine scientific names in a 3×3 grid are
+            nine similar-length words, and the icon is what makes a row findable
+            without reading it. */}
         <Section icon={Layers} label="Class composition" aside="9 classes">
           <Snapshot
             cols={3}
             items={[
-              { label: 'Actinopterygii', value: '77,840', note: 'Ray-finned fish' },
-              { label: 'Aves', value: '38,600', note: 'Birds' },
-              { label: 'Malacostraca', value: '34,180', note: 'Crustaceans' },
-              { label: 'Mammalia', value: '21,900' },
-              { label: 'Reptilia', value: '12,850' },
-              { label: 'Insecta', value: '12,220' },
-              { label: 'Chondrichthyes', value: '8,120', note: 'Sharks, rays' },
-              { label: 'Amphibia', value: '5,482' },
-              { label: 'Euchelicerata', value: '4,240', note: 'Arachnids' },
+              { label: 'Actinopterygii', value: '77,840', note: 'Ray-finned fish', icon: CLASS_ICONS.Actinopterygii },
+              { label: 'Aves', value: '38,600', note: 'Birds', icon: CLASS_ICONS.Aves },
+              { label: 'Malacostraca', value: '34,180', note: 'Crustaceans', icon: CLASS_ICONS.Malacostraca },
+              { label: 'Mammalia', value: '21,900', icon: CLASS_ICONS.Mammalia },
+              { label: 'Reptilia', value: '12,850', icon: CLASS_ICONS.Reptilia },
+              { label: 'Insecta', value: '12,220', icon: CLASS_ICONS.Insecta },
+              { label: 'Chondrichthyes', value: '8,120', note: 'Sharks, rays', icon: CLASS_ICONS.Chondrichthyes },
+              { label: 'Amphibia', value: '5,482', icon: CLASS_ICONS.Amphibia },
+              { label: 'Euchelicerata', value: '4,240', note: 'Arachnids', icon: CLASS_ICONS.Euchelicerata },
             ]}
           />
           <Rule label="Share" />
@@ -138,29 +142,31 @@ export default function Animals() {
           />
         </Section>
 
-        <Section icon={Scale} label="Extremes">
+        {/* Renamed from "Extremes", which read as body size — the figures are
+            headcounts, so the caption now says so. The site pair that used to sit
+            underneath is gone twice over: the Sites card above is sorted, so its first
+            and last rows ARE the extremes, and the pair named two sites
+            ("Jamnagar Core", "Quarantine") that contradicted it — claiming a 78,420
+            leader at 36% where Sites states 178,400 at 83%. */}
+        <Section icon={Scale} label="Most & fewest animals" aside="by species">
           <Poles
-            caption={['Largest', 'Smallest']}
+            caption={['Most', 'Fewest']}
             high={{ value: '12,400', label: 'Common Carp', sub: 'Actinopterygii' }}
             low={{ value: '4', label: 'Sangai Deer', sub: 'Critically Endangered' }}
           />
-          <Rule label="Sites" />
-          <Poles
-            caption={['Highest', 'Lowest']}
-            high={{ value: '78,420', label: 'Jamnagar Core', sub: '36%' }}
-            low={{ value: '11,822', label: 'Quarantine', sub: '5%' }}
-          />
         </Section>
 
+        {/* Published IUCN colours, not accent steps. See `IUCN` in system.tsx for why
+            this is allowed to break the one-accent rule. */}
         <Section icon={ShieldAlert} label="Conservation" aside="IUCN">
           <Bars
             showShare
             items={[
-              { label: 'Least Concern', value: 178240 },
-              { label: 'Near Threatened', value: 24180 },
-              { label: 'Vulnerable', value: 9640 },
-              { label: 'Endangered', value: 2984 },
-              { label: 'Critically Endangered', value: 388 },
+              { label: 'Least Concern', value: 178240, color: IUCN['Least Concern'] },
+              { label: 'Near Threatened', value: 24180, color: IUCN['Near Threatened'] },
+              { label: 'Vulnerable', value: 9640, color: IUCN.Vulnerable },
+              { label: 'Endangered', value: 2984, color: IUCN.Endangered },
+              { label: 'Critically Endangered', value: 388, color: IUCN['Critically Endangered'] },
             ]}
           />
         </Section>
@@ -168,18 +174,28 @@ export default function Animals() {
         {/* Ten species across five classes, and the class is already printed under
             every name — so it is the one axis the reader can see before they filter
             on it. Sorted by count, which puts the four fish first; anyone asking
-            "what about the mammals" was previously scanning for them. */}
-        <Section icon={ListOrdered} label="Top species" aside="10">
+            "what about the mammals" was previously scanning for them.
+
+            Columns are Count and Share. The "30 d" column is gone: it held the same
+            numbers as the Net change card below — +182 Zebra Finch, +180 Common Carp,
+            +96 Nile Tilapia — so the two sections were one dataset shown twice. This
+            card now answers "how is the collection composed" and that one answers
+            "what is moving". */}
+        <Section icon={ListOrdered} label="Top species" aside="10 of 428">
           <Filter
             options={['All', 'Actinopterygii', 'Aves', 'Malacostraca', 'Mammalia', 'Reptilia']}
             items={TOP_SPECIES}
             match={(r, option) => r.sub === option}
           >
-            {(rows) => <Table head={['Species', 'Count', '30 d']} rows={rows} />}
+            {(rows) => <Table head={['Species', 'Count', 'Share']} rows={rows} />}
           </Filter>
         </Section>
 
-        <Section icon={TrendingUp} label="Movers" aside="30 d">
+        {/* Net change per species — births and intakes less deaths and outward
+            transfers. Not the same as the Animal Movement module, which counts
+            transfer events: a species can be flat here while being moved a great deal.
+            Named "Net change" because "Movers" was read as transfers. */}
+        <Section icon={TrendingUp} label="Net change" aside="30 d · per species">
           <Movers
             items={[
               { label: 'Zebra Finch', sub: 'Aves', delta: 182 },
@@ -193,28 +209,64 @@ export default function Animals() {
           />
         </Section>
 
-        <Section icon={Sparkles} label="Month" aside="vs June">
+        {/* Signed values, so the column adds up in the reader's head: 45 + 18 − 23 + 3
+            = 43. Transfers contributes its NET, not its volume — 28 movements with 7
+            internal among them changes the headcount by three, and stating 28 beside a
+            net of 43 was most of why the old total looked arbitrary. */}
+        {/*
+          * A BRIDGE, not a list of five figures.
+          *
+          * It opens on the headcount at the start of the month and closes on the one
+          * the hero states, with the four flows that get you from one to the other in
+          * between. That shape has two properties the old list didn't: the reader can
+          * verify it by adding a column, and it cannot silently disagree with itself —
+          * 215,389 + 45 + 18 − 23 + 3 = 215,432, or the card is wrong on its face.
+          *
+          * The list it replaced ended in a "Net" of +324 against components summing to
+          * +43, and nothing about its shape made that visible.
+          *
+          * Transfers contributes its NET. 28 movements with 7 internal among them
+          * changes the collection by three, and stating 28 in a column that is being
+          * added up would break the bridge.
+          */}
+        <Section icon={Sparkles} label="Month" aside="01 – 31 Jul">
           <Facts
             size="lg"
             items={[
-              { label: 'Births', sub: '24 species', value: '45', delta: '+12%' },
-              { label: 'Accessions', sub: '6 sources', value: '18', delta: '+6' },
-              { label: 'Deaths', sub: '0.011%', value: '23', delta: '−18%' },
-              { label: 'Transfers', sub: '12 in · 9 out · 7 internal', value: '28', delta: '+8' },
-              { label: 'Net', sub: 'Month 12', value: '+324', tone: 'good' },
+              { label: 'Opening', sub: '30 Jun', value: '215,389' },
+              { label: 'Births', sub: '24 species', value: '+45', delta: '+12%' },
+              { label: 'Accessions', sub: '6 sources', value: '+18', delta: '+6' },
+              { label: 'Deaths', sub: '0.011% of collection', value: '−23', delta: '−18%' },
+              { label: 'Transfers', sub: '12 in · 9 out · 7 internal', value: '+3', delta: '+8' },
+              { label: 'Closing', sub: '31 Jul', value: '215,432', delta: '+43', tone: 'good' },
+            ]}
+          />
+          {/* The two growth rates that used to sit in a "Scale" card alongside
+              enclosure occupancy. They are the long view of this same bridge, so they
+              belong under it; occupancy went to Sites, and Scale is gone. */}
+          <Rule label="Longer view" />
+          <Facts
+            items={[
+              { label: 'New species', sub: 'Quarter', value: '+6' },
+              { label: 'Collection growth', sub: 'Rolling year', value: '1.6%' },
             ]}
           />
         </Section>
 
-        <Section icon={PawPrint} label="New species" aside="6, quarter">
-          <Facts
+        {/* Where, who and when — a first-of-species arrival is an event with a
+            provenance, and a name against a date was none of it. Four columns rather
+            than five: the head count moves into the sub-line beside the source, because
+            at 390px a fifth column would clip the organisation names that are the
+            point of the "who". */}
+        <Section icon={PawPrint} label="New species" aside="6 · quarter">
+          <Records
             items={[
-              { label: 'Sangai Deer', sub: '12 Jun', value: '4' },
-              { label: 'Indian Skimmer', sub: '28 May', value: '6' },
-              { label: 'Fishing Cat', sub: '19 May', value: '2' },
-              { label: 'Malabar Pit Viper', sub: '04 May', value: '3' },
-              { label: 'Painted Stork', sub: '22 Apr', value: '8' },
-              { label: 'Grey Junglefowl', sub: '09 Apr', value: '3' },
+              { label: 'Sangai Deer · 4', sub: 'Savanna Paddocks · Manipur Forest Dept', value: '12 Jun' },
+              { label: 'Indian Skimmer · 6', sub: 'Aviary Complex · Chambal rescue', value: '28 May' },
+              { label: 'Fishing Cat · 2', sub: 'Zone A · Bhitarkanika transfer', value: '19 May' },
+              { label: 'Malabar Pit Viper · 3', sub: 'Reptile House · Agumbe rescue', value: '04 May' },
+              { label: 'Painted Stork · 8', sub: 'Aviary Complex · Bharatpur exchange', value: '22 Apr' },
+              { label: 'Grey Junglefowl · 3', sub: 'Savanna Paddocks · Confiscation', value: '09 Apr' },
             ]}
           />
         </Section>
