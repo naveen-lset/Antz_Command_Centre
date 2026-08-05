@@ -970,7 +970,14 @@ export function Snapshot({
 }) {
   const accent = useAccent()
   const grid = cols === 4 ? 'grid-cols-4' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2'
-  const size = cols === 4 ? 22 : cols === 3 ? 25 : 28
+  /* Same fitting as `Scoreboard`, and for the same reason — a fixed size per column
+     count holds only until a value gets long. The per-count number is the CEILING
+     now, not the answer. */
+  const size = fitSize(
+    items.map((m) => m.value),
+    cols,
+    cols === 4 ? 22 : cols === 3 ? 25 : 28,
+  )
   return (
     <div className={`grid ${grid} gap-x-3 gap-y-4`}>
       {items.map((m, i) => (
@@ -1000,13 +1007,43 @@ export function Snapshot({
   )
 }
 
+/**
+ * Approximate rendered width of a figure, in em.
+ *
+ * The numerals are `tabular-nums`, so every digit is one advance and the width is
+ * predictable without measuring: ~0.58em a digit, ~0.3em for a comma or point,
+ * ~0.36em for a sign. Good enough to pick a font size that fits, which is all this
+ * is for.
+ */
+const figureEm = (s: string) =>
+  [...s].reduce((n, c) => n + (/[.,]/.test(c) ? 0.3 : /[+\-−]/.test(c) ? 0.36 : 0.58), 0)
+
+/**
+ * Largest size at which the widest value still fits its column.
+ *
+ * `content` is the card's inner width at the 390px reference viewport: 390 − 40 for
+ * the stack gutter − 40 for the card's own padding.
+ */
+function fitSize(values: string[], columns: number, max: number, content = 310) {
+  const column = content / columns - 12
+  const widest = Math.max(...values.map(figureEm), 0.6)
+  return Math.min(max, Math.max(17, Math.floor(column / widest)))
+}
+
 /** One line of headline numbers, hairline-ruled. The 3-second scan. */
 export function Scoreboard({
   items,
 }: {
   items: { value: string; unit?: string; label: string; tone?: Tone }[]
 }) {
-  const size = items.length > 3 ? 23 : 28
+  /* Sized to what has to fit, not to how many items there are. Three items used to
+     get 28px unconditionally, and "180,348" at 28px wants ~120px in a ~95px column —
+     the Sex card's third figure ran into the edge of the card. */
+  const size = fitSize(
+    items.map((it) => it.value),
+    items.length,
+    28,
+  )
   return (
     <div className="flex items-stretch">
       {items.map((it, i) => (
