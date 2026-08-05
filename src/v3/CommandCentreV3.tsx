@@ -145,7 +145,10 @@ function StickyPeriod() {
       <div ref={sentinel} className="h-px" aria-hidden />
       {/* z-30 — under the drill-down sheet (z-40) and module search (z-50), over
           the card stack and the forest band. */}
-      <div className="sticky top-0 z-30 pt-[max(6px,env(safe-area-inset-top))]">
+      {/* 12px above and below the chips. The bottom 12 comes from `PeriodBar`'s own
+          `pb-3`, so only the top is set here — adding padding at both ends of this
+          element would double the gap underneath. */}
+      <div className="sticky top-0 z-30 pt-[max(12px,env(safe-area-inset-top))]">
         {/*
          * The pinned wash is its own layer, for two reasons.
          *

@@ -91,7 +91,7 @@ export default function Animals() {
             "Sexed" sub-block that used to restate that as 35,084 and a 1.08:1 ratio is
             gone — the three figures are the answer, and two derivations of them were
             the card's whole second half. */}
-        <Section icon={Venus} label="Sex" aside="215,432">
+        <Section icon={Venus} label="Sex">
           <Scoreboard
             items={[
               { value: '18,204', label: 'Male' },
@@ -101,11 +101,12 @@ export default function Animals() {
           />
         </Section>
 
-        {/* Overall stated above the six sites it is the sum of. Enclosure occupancy
-            joins it here: 92 of 96 in use is a fact about the sites, and it was
-            previously stranded in a "Scale" card with two unrelated growth rates. */}
-        <Section icon={MapPin} label="Sites" aside="92 of 96 enclosures">
-          <Sites slug="animals" />
+        {/* Overall stated above the six sites it is the sum of, with a find-a-site
+            field. Six rows fit on screen, so the field is not for discovery — it is for
+            going straight to the site you came to read. Overall does not re-total while
+            filtering; the count beside it says how many rows are showing. */}
+        <Section icon={MapPin} label="Sites">
+          <Sites slug="animals" searchable />
         </Section>
 
         {/* Nine classes as counts, three to a row — the report's own grid. A stacked
@@ -229,7 +230,7 @@ export default function Animals() {
           * changes the collection by three, and stating 28 in a column that is being
           * added up would break the bridge.
           */}
-        <Section icon={Sparkles} label="Month" aside="01 – 31 Jul">
+        <Section icon={Sparkles} label="Month">
           <Facts
             size="lg"
             items={[
@@ -258,7 +259,7 @@ export default function Animals() {
             than five: the head count moves into the sub-line beside the source, because
             at 390px a fifth column would clip the organisation names that are the
             point of the "who". */}
-        <Section icon={PawPrint} label="New species" aside="6 · quarter">
+        <Section icon={PawPrint} label="New species">
           <Records
             items={[
               { label: 'Sangai Deer · 4', sub: 'Savanna Paddocks · Manipur Forest Dept', value: '12 Jun' },

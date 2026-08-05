@@ -14,6 +14,7 @@
  */
 
 import { createContext, useContext, useState, type ComponentType, type ReactNode } from 'react'
+import { Search, X } from 'lucide-react'
 import { AnimatedValue, Reveal, usePlay } from '../detail/motion'
 import { usePeriod } from './period'
 import { siteCut } from './sites'
@@ -2041,19 +2042,43 @@ export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[]
  * The figure and its rows both come from `siteCut`, so Overall is arithmetically
  * the rows and cannot drift from them.
  */
-export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }) {
+export function Sites({
+  slug,
+  dense = false,
+  searchable = false,
+}: {
+  slug: string
+  dense?: boolean
+  /**
+   * Adds a find-a-site field.
+   *
+   * Six rows all fit on screen, so this is not about discovery — it is about going
+   * straight to the one site you came to read without your eye walking the list.
+   * `Overall` deliberately does NOT re-total while filtering: it is labelled Overall
+   * and it means the collection. The row count beside it says how many are showing,
+   * so the figure and the list never claim to be the same thing.
+   */
+  searchable?: boolean
+}) {
   const accent = useAccent()
   const { period } = usePeriod()
+  const [query, setQuery] = useState('')
   const cut = siteCut(slug, period.key)
   if (!cut) return null
 
   const rate = cut.kind === 'rate'
   const overall = rate ? `${Math.round(cut.overall)}` : fmt(cut.overall)
+  const q = query.trim().toLowerCase()
+  const rows = q
+    ? cut.rows.filter((r) => r.site.name.toLowerCase().includes(q) || r.site.code.toLowerCase().includes(q))
+    : cut.rows
+
   /* A stock is a headcount at the window's end, so "6 sites" is the right note;
      a flow can legitimately have quiet sites, and saying "4 of 6 reporting" is the
      difference between a quiet site and a missing one. */
-  const note =
-    cut.kind === 'stock' || rate
+  const note = q
+    ? `${rows.length} of ${cut.rows.length} sites`
+    : cut.kind === 'stock' || rate
       ? `${cut.rows.length} sites`
       : `${cut.active} of ${cut.rows.length} sites reporting`
 
@@ -2069,8 +2094,38 @@ export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }
         <span className="shrink-0 pb-1 text-[11px] whitespace-nowrap text-[#9b958b]">{note}</span>
       </div>
 
-      <ul className="mt-4 flex flex-col gap-3 border-t border-[#f0efec] pt-4">
-        {cut.rows.map((r, i) => (
+      {searchable && (
+        <label className="mt-3.5 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
+          <Search size={14} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a site"
+            aria-label="Find a site"
+            autoComplete="off"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear"
+              className="-mr-1 grid size-5 shrink-0 place-items-center rounded-full active:bg-[#eceae5]"
+            >
+              <X size={13} strokeWidth={2} className="text-[#6d6860]" aria-hidden />
+            </button>
+          )}
+        </label>
+      )}
+
+      {rows.length === 0 && (
+        <p className="mt-4 border-t border-[#f0efec] pt-4 text-[12.5px] text-[#9b958b]">
+          No site matches “{query.trim()}”.
+        </p>
+      )}
+
+      <ul className="mt-4 flex flex-col gap-3 border-t border-[#f0efec] pt-4 empty:mt-0 empty:border-0 empty:pt-0">
+        {rows.map((r) => (
           <li key={r.site.key}>
             <div className="flex items-baseline justify-between gap-3">
               <span className="flex min-w-0 items-baseline gap-2">
@@ -2107,7 +2162,10 @@ export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }
                   width: `${clamp(
                     rate ? r.percent : (r.percent / Math.max(...cut.rows.map((x) => x.percent), 1)) * 100,
                   )}%`,
-                  backgroundColor: mix(accent, step(i)),
+                  /* Shade comes from the site's rank in the FULL list, not its
+                     position in the filtered one — searching for "reptile" should not
+                     repaint that row the darkest step just because it is now first. */
+                  backgroundColor: mix(accent, step(cut.rows.indexOf(r))),
                 }}
               />
             </div>
