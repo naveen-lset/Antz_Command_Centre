@@ -64,16 +64,26 @@ export const IUCN = {
  * badge at all.
  */
 export const RED_LIST = [
-  { code: 'NC', name: 'Not Checked', fill: '#B7B7B7', ink: '#37352f' },
-  { code: 'DD', name: 'Data Deficient', fill: '#D1D1C6', ink: '#37352f' },
-  { code: 'NE', name: 'Not Evaluated', fill: '#ffffff', ink: '#37352f', outline: '#c8c3ba' },
-  { code: 'LC', name: 'Least Concern', fill: '#60C659', ink: '#12301b' },
-  { code: 'NT', name: 'Near Threatened', fill: '#CCE226', ink: '#33380a' },
-  { code: 'VU', name: 'Vulnerable', fill: '#F9E814', ink: '#3d3703' },
-  { code: 'EN', name: 'Endangered', fill: '#FC7F3F', ink: '#3f1a02' },
-  { code: 'CR', name: 'Critically Endangered', fill: '#D81E05', ink: '#ffffff' },
-  { code: 'EW', name: 'Extinct in the Wild', fill: '#542344', ink: '#ffffff' },
-  { code: 'EX', name: 'Extinct', fill: '#000000', ink: '#ffffff' },
+  /* `tier` groups the ten as IUCN itself does. It is what lets the card rank them:
+     a conservation card exists for the at-risk tail, so those rows lead and carry the
+     larger type, and Least Concern — much the biggest number and much the least
+     interesting — sits below them. */
+  { code: 'EX', name: 'Extinct', fill: '#000000', ink: '#ffffff', tier: 'risk' },
+  { code: 'EW', name: 'Extinct in the Wild', fill: '#542344', ink: '#ffffff', tier: 'risk' },
+  { code: 'CR', name: 'Critically Endangered', fill: '#D81E05', ink: '#ffffff', tier: 'risk' },
+  { code: 'EN', name: 'Endangered', fill: '#FC7F3F', ink: '#3f1a02', tier: 'risk' },
+  { code: 'VU', name: 'Vulnerable', fill: '#F9E814', ink: '#3d3703', tier: 'risk' },
+  { code: 'NT', name: 'Near Threatened', fill: '#CCE226', ink: '#33380a', tier: 'lower' },
+  { code: 'LC', name: 'Least Concern', fill: '#60C659', ink: '#12301b', tier: 'lower' },
+  { code: 'DD', name: 'Data Deficient', fill: '#D1D1C6', ink: '#37352f', tier: 'open' },
+  { code: 'NE', name: 'Not Evaluated', fill: '#ffffff', ink: '#37352f', outline: '#c8c3ba', tier: 'open' },
+  { code: 'NC', name: 'Not Checked', fill: '#B7B7B7', ink: '#37352f', tier: 'open' },
+] as const
+
+const RED_LIST_TIERS = [
+  { key: 'risk', label: 'At risk' },
+  { key: 'lower', label: 'Lower risk' },
+  { key: 'open', label: 'Unassessed' },
 ] as const
 
 export type RedListCode = (typeof RED_LIST)[number]['code']
@@ -2256,47 +2266,70 @@ export function Sites({
  * and it can only be read if the empty categories are present to be read as empty.
  */
 export function RedList({ counts }: { counts: Partial<Record<RedListCode, number>> }) {
-  const total = RED_LIST.reduce((n, c) => n + (counts[c.code] ?? 0), 0)
   return (
-    <div>
-      <ul className="grid grid-cols-5 gap-x-2 gap-y-4">
-        {RED_LIST.map((c) => {
-          const n = counts[c.code] ?? 0
-          return (
-            <li key={c.code} className="flex min-w-0 flex-col items-center">
-              {/* Circle with one squared corner — the published badge silhouette.
-                  Badges are NEVER dimmed, even at a count of zero. Fading them was the
-                  first attempt and it turned Extinct's black into the same grey as Not
-                  Checked, which is the one category whose colour carries the whole
-                  meaning. An empty category is signalled by its count going faint
-                  instead; the badge is a legend, and a legend does not dim. */}
-              <span
-                className="grid size-10 place-items-center rounded-full rounded-tr-[4px] font-display text-[13px] font-bold"
-                style={{
-                  backgroundColor: c.fill,
-                  color: c.ink,
-                  boxShadow: 'outline' in c && c.outline ? `inset 0 0 0 1.5px ${c.outline}` : undefined,
-                }}
-                aria-hidden
-              >
-                {c.code}
+    <div className="flex flex-col gap-5">
+      {RED_LIST_TIERS.map((tier) => {
+        const rows = RED_LIST.filter((c) => c.tier === tier.key)
+        const subtotal = rows.reduce((n, c) => n + (counts[c.code] ?? 0), 0)
+        const lead = tier.key === 'risk'
+        return (
+          <div key={tier.key}>
+            {/* Tier header carries its own subtotal. This is where the hierarchy comes
+                from: three figures at a glance, before any individual row is read. */}
+            <div className="mb-2.5 flex items-baseline gap-3">
+              <span className="text-[10px] font-medium tracking-[0.09em] whitespace-nowrap text-[#9b958b] uppercase">
+                {tier.label}
               </span>
+              <span className="h-px flex-1" style={{ backgroundColor: HAIR }} />
               <span
-                className="mt-2 font-display text-[15px] leading-5 font-bold tabular-nums"
-                style={{ color: n === 0 ? FAINT : VALUE }}
+                className={`shrink-0 font-display tabular-nums ${lead ? 'text-[15px] font-bold' : 'text-[13px] font-medium'}`}
+                style={{ color: lead ? VALUE : MUTED }}
               >
-                {compact(n)}
+                {fmt(subtotal)}
               </span>
-              <span className="mt-0.5 text-center text-[9.5px] leading-[12px] text-[#9b958b]">{c.name}</span>
-            </li>
-          )
-        })}
-      </ul>
-      {/* The total is the check: these ten are a partition of the collection, so if
-          this line stops matching the hero the card has drifted. */}
-      <p className="mt-4 border-t border-[#f0efec] pt-3 text-[11px] text-[#9b958b]">
-        {fmt(total)} animals assessed across 10 categories
-      </p>
+            </div>
+            <ul>
+              {rows.map((c) => {
+                const n = counts[c.code] ?? 0
+                return (
+                  <li key={c.code} className="flex items-center gap-2.5 py-[5px]">
+                    {/* 22px, down from 40. The badge is an identifier now, not the
+                        subject — the published silhouette and exact fill are kept so it
+                        is still the Red List badge, at a size that lets the number lead.
+                        Never dimmed at zero: fading it turned Extinct's black into Not
+                        Checked's grey, and for that one category the colour IS the
+                        meaning. An empty row says so through its figure instead. */}
+                    <span
+                      className="grid size-[22px] shrink-0 place-items-center rounded-full rounded-tr-[3px] font-display text-[9.5px] font-bold"
+                      style={{
+                        backgroundColor: c.fill,
+                        color: c.ink,
+                        boxShadow: 'outline' in c && c.outline ? `inset 0 0 0 1.25px ${c.outline}` : undefined,
+                      }}
+                      aria-hidden
+                    >
+                      {c.code}
+                    </span>
+                    {/* One line, never wrapping. The 5-across grid this replaced gave
+                        "Critically Endangered" a 55px column and three stacked lines. */}
+                    <span
+                      className={`min-w-0 flex-1 truncate ${lead ? 'text-[13.5px] text-[#1c1a16]' : 'text-[13px] text-[#3d3a34]'}`}
+                    >
+                      {c.name}
+                    </span>
+                    <span
+                      className={`shrink-0 font-display tabular-nums ${lead ? 'text-[17px] font-bold' : 'text-[14px] font-medium'}`}
+                      style={{ color: n === 0 ? FAINT : VALUE }}
+                    >
+                      {fmt(n)}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )
+      })}
     </div>
   )
 }

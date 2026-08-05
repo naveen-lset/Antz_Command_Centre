@@ -156,14 +156,11 @@ export default function Animals() {
           />
         </Section>
 
-        {/* The published Red List badges. Ten categories, not the five the old bar
-            list carried — a collection holding no Extinct animals and only 80
-            unchecked is saying something about how completely it has been assessed,
-            and that is unreadable if the empty categories are absent.
-
-            The ten are a partition of the collection: they sum to 215,432, the same
-            figure as the hero. */}
-        <Section icon={ShieldAlert} label="Conservation" aside="IUCN Red List">
+        {/* The published Red List badges, grouped into IUCN's own three tiers so the
+            at-risk tail leads and Least Concern — much the largest number and much the
+            least interesting — sits under it. Same ten categories, same counts; they
+            partition the collection and sum to 215,432, the hero's own figure. */}
+        <Section icon={ShieldAlert} label="Conservation" aside="IUCN">
           <RedList
             counts={{
               NC: 80,
