@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, Search, X } from 'lucide-react'
 import { execPages, type ExecPage } from '../exec/pages'
+import { GROUND_GRADIENT } from '../exec/system'
 
 interface Hit {
   slug: string
@@ -127,11 +128,11 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
   const ops = ALL.filter((m) => m.page.ops)
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#e7f0ea] font-sans" role="dialog" aria-modal="true" aria-label="Search modules">
+    <div className="fixed inset-0 z-50 flex flex-col font-sans" style={{ background: GROUND_GRADIENT }} role="dialog" aria-modal="true" aria-label="Search modules">
       <div className="mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col">
         <form
           onSubmit={onSubmit}
-          className="shrink-0 bg-[#e7f0ea] px-4 pt-[max(14px,env(safe-area-inset-top))] pb-3"
+          className="shrink-0 px-4 pt-[max(14px,env(safe-area-inset-top))] pb-3"
         >
           <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5">
             <Search size={17} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />

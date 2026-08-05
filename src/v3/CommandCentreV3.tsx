@@ -4,6 +4,7 @@ import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
 import forestScene from '../assets/forest-scene.webp'
 import { PeriodBar, PeriodProvider, useByPeriod, useFigure, usePeriod, pick } from '../exec/period'
+import { GROUND_GRADIENT } from '../exec/system'
 import { useCountUp } from '../hooks/useCountUp'
 import {
   clinical,
@@ -460,7 +461,7 @@ function HomeBody() {
   const [searching, setSearching] = useState(false)
 
   return (
-    <div className="relative isolate min-h-dvh bg-[#e7f0ea] font-sans">
+    <div className="relative isolate min-h-dvh font-sans" style={{ background: GROUND_GRADIENT }}>
       {/* Brand-green #034739 gradient — full-bleed, edge to edge, completing
           within the first screen: light at the very top → richest behind the
           hero → settling into the light-green ground */}

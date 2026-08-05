@@ -21,6 +21,19 @@ import { siteCut } from './sites'
 
 /* ── tokens (from the v3 home screen) ────────────────────────────────────── */
 export const GROUND = '#e7f0ea'
+
+/**
+ * The page ground, as a gradient rather than a flat fill.
+ *
+ * Flat #e7f0ea is only 4% saturated, and beside a white card it reads as white — which
+ * it did for everything below the header, because the header's green ramp stops at 880px
+ * and the page runs to three times that. This keeps the sage present the whole way down,
+ * deepening gently so the bottom of a long scroll is still recognisably green.
+ *
+ * Applied to all four surfaces that used the flat colour — the home, the module sheet,
+ * and both parts of the search overlay — from here, so they cannot drift apart.
+ */
+export const GROUND_GRADIENT = 'linear-gradient(180deg, #ddeae3 0%, #c6ddd1 100%)'
 export const INK = '#1c1a16'
 export const VALUE = '#2f2424'
 export const INK2 = '#3d3a34'

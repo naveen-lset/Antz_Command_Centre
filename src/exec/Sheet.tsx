@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, X } from 'lucide-react'
+import { GROUND_GRADIENT } from './system'
 
 /** How much of the home screen stays visible above the sheet. */
 const PEEK = 'calc(env(safe-area-inset-top, 0px) + 40px)'
@@ -206,7 +207,8 @@ export default function Sheet({
           {/* Sage ground with white cards floating on it — the home screen's surface. */}
           <div
             ref={scroller}
-            className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#e7f0ea] scrollbar-hidden"
+            className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-hidden"
+            style={{ background: GROUND_GRADIENT }}
           >
             {/* Keyed on the title so stepping between a module and its records
                 remounts the content: swap-in replays, and the reveal-on-scroll
