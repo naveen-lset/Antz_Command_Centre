@@ -195,36 +195,31 @@ function StickyPeriod() {
  *
  * It replaces an inline SVG horizon that was hand-drawn to approximate this.
  *
- * The scene is anchored to the BOTTOM and CLIPPED to the band. An earlier version let
- * it overflow upward behind the hero, on the reasoning that the artwork's empty top
- * half was composed for content to sit in — but what that actually put behind the sex
- * split was faint clouds, birds and hanging blossoms drifting past the figures. Texture
- * behind data is noise, however soft. The band shows more of the horizon instead, and
- * stops where it stops.
- *
- * The fade lives on the WRAPPER, not the image: masking the image would fade a
- * proportion of its full 292px height, most of which is clipped away, so the top edge
- * of what you actually see would still land as a hard line across the sky.
+ * The scene is anchored to the BOTTOM and allowed to overflow upward behind the hero
+ * rather than being cropped to the band's height. The artwork's top half is empty sky —
+ * it was composed for content to sit in — so cropping it would have thrown away the
+ * hanging vines and clouds for nothing. `-z-10` puts it behind the numbers, and the
+ * mask fades its top edge into the header gradient so the two greens meet without a
+ * seam. Layout only reserves the 168px the horizon itself occupies.
  */
 function ForestBand() {
   return (
-    <div
-      className="relative h-[196px] w-full overflow-hidden"
-      style={{
-        maskImage: 'linear-gradient(to bottom, transparent 0, #000 38px)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 38px)',
-      }}
-    >
+    <div className="relative -z-10 h-[168px] w-full">
       {/* `max-h` + `object-cover` is the guard for a wide viewport. At full viewport
           width with a natural aspect, a 1400px-wide window would scale the artwork to
-          1050px tall. Capped at 320 it crops horizontally instead — the same trade the
-          inline SVG made with `preserveAspectRatio="xMidYMax slice"`. On a phone the cap
-          never binds: 390px wide is 292px tall. */}
+          1050px tall and overflow most of that behind the page. Capped at 320 it crops
+          horizontally instead — the same trade the inline SVG made with
+          `preserveAspectRatio="xMidYMax slice"`. On a phone the cap never binds: 390px
+          wide is 292px tall. */}
       <img
         src={forestScene}
         alt=""
         aria-hidden
         className="pointer-events-none absolute bottom-0 left-0 max-h-[320px] w-full object-cover object-bottom select-none"
+        style={{
+          maskImage: 'linear-gradient(to bottom, transparent 0%, #000 30%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 30%)',
+        }}
       />
     </div>
   )
