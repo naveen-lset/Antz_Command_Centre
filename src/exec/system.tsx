@@ -2125,24 +2125,23 @@ export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[]
  * The figure and its rows both come from `siteCut`, so Overall is arithmetically
  * the rows and cannot drift from them.
  */
-export function Sites({
-  slug,
-  dense = false,
-  searchable = false,
-}: {
-  slug: string
-  dense?: boolean
-  /**
-   * Adds a find-a-site field.
-   *
-   * Six rows all fit on screen, so this is not about discovery — it is about going
-   * straight to the one site you came to read without your eye walking the list.
-   * `Overall` deliberately does NOT re-total while filtering: it is labelled Overall
-   * and it means the collection. The row count beside it says how many are showing,
-   * so the figure and the list never claim to be the same thing.
-   */
-  searchable?: boolean
-}) {
+/**
+ * Overall above the six sites it is the sum of, with a find-a-site field.
+ *
+ * The field is part of the card rather than a prop, so every site listing in the app has
+ * one and any page added later gets it without remembering to ask. Six rows all fit on
+ * screen, so this is not about discovery — it is about going straight to the site you
+ * came to read without your eye walking the list.
+ *
+ * Three things it deliberately does not do:
+ *   · `Overall` does not re-total while filtering. It is labelled Overall and it means
+ *     the collection; the count beside it changes to "1 of 6 sites" so the figure and
+ *     the list never claim to be the same thing.
+ *   · Bar widths stay scaled to the full set, so a filtered row reads at its true size
+ *     against the collection rather than filling the track alone.
+ *   · Shade follows the site's rank in the full list, not its filtered position.
+ */
+export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }) {
   const accent = useAccent()
   const { period } = usePeriod()
   const [query, setQuery] = useState('')
@@ -2177,29 +2176,27 @@ export function Sites({
         <span className="shrink-0 pb-1 text-[11px] whitespace-nowrap text-[#9b958b]">{note}</span>
       </div>
 
-      {searchable && (
-        <label className="mt-3.5 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
-          <Search size={14} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a site"
-            aria-label="Find a site"
-            autoComplete="off"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              aria-label="Clear"
-              className="-mr-1 grid size-5 shrink-0 place-items-center rounded-full active:bg-[#eceae5]"
-            >
-              <X size={13} strokeWidth={2} className="text-[#6d6860]" aria-hidden />
-            </button>
-          )}
-        </label>
-      )}
+      <label className="mt-3.5 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
+        <Search size={14} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Find a site"
+          aria-label="Find a site"
+          autoComplete="off"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery('')}
+            aria-label="Clear"
+            className="-mr-1 grid size-5 shrink-0 place-items-center rounded-full active:bg-[#eceae5]"
+          >
+            <X size={13} strokeWidth={2} className="text-[#6d6860]" aria-hidden />
+          </button>
+        )}
+      </label>
 
       {rows.length === 0 && (
         <p className="mt-4 border-t border-[#f0efec] pt-4 text-[12.5px] text-[#9b958b]">

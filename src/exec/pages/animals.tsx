@@ -103,7 +103,7 @@ export default function Animals() {
             going straight to the site you came to read. Overall does not re-total while
             filtering; the count beside it says how many rows are showing. */}
         <Section icon={MapPin} label="Sites">
-          <Sites slug="animals" searchable />
+          <Sites slug="animals" />
         </Section>
 
         {/* Nine classes as counts, three to a row — the report's own grid. A stacked
