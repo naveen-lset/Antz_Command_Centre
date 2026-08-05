@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MapPin, Search } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
@@ -17,7 +17,7 @@ import {
   trends,
 } from './data'
 import type { DailyCardData, ModuleCardData, StatTileData } from './data'
-import { ArcGauge, AreaMini, DotBars, MiniColumns, PulseLine, Sparkline } from './viz'
+import { ArcGauge, AreaMini, DotBars, MiniColumns, PulseLine, TrendLines } from './viz'
 
 const VIZ = { dots: DotBars, pulse: PulseLine, area: AreaMini, cols: MiniColumns } as const
 
@@ -78,7 +78,9 @@ function GreetingHeader({ onSearch }: { onSearch: () => void }) {
   const now = useNow(30_000)
 
   return (
-    <header className="relative px-5 pt-12 pb-6">
+    /* pb-4 rather than pb-6: the window chips moved out into their own pinned row
+       below, which carries its own top padding. */
+    <header className="relative px-5 pt-12 pb-4">
       <MistBackdrop />
       <div className="relative flex items-start justify-between gap-4">
         <div>
@@ -105,15 +107,55 @@ function GreetingHeader({ onSearch }: { onSearch: () => void }) {
           <Search size={18} strokeWidth={1.75} className="text-[#1c1a16]" aria-hidden />
         </button>
       </div>
-
-      {/* The window sits above every figure it governs. Putting it lower — between
-          two sections — would imply it only cuts what follows it, when it cuts the
-          hero as well. Same chips as the module sheets, so "Last week" means one
-          thing across the product. */}
-      <div className="relative mt-5 -mx-5">
-        <PeriodBar tone="home" />
-      </div>
     </header>
+  )
+}
+
+/**
+ * The reporting window, pinned to the top of the screen.
+ *
+ * Sheet.tsx already says why: "the control that decides what every figure below
+ * means must not scroll away from them." The home is twelve cards long, so a reader
+ * four cards down had no way to see whether they were looking at a week or a year
+ * without scrolling back. Now the two surfaces behave the same way.
+ *
+ * It sits as a direct child of the page root rather than inside the header, because
+ * a sticky element can only travel as far as its own parent's box — nested in the
+ * header it would unpin the moment the greeting scrolled past, which is the one
+ * moment it needs to hold.
+ *
+ * The ground only appears once it actually pins. Painting a bar permanently would
+ * lay a flat rectangle across the header gradient at rest, so a sentinel above it
+ * reports the transition and the background, blur and hairline fade in together.
+ */
+function StickyPeriod() {
+  const sentinel = useRef<HTMLDivElement>(null)
+  const [stuck, setStuck] = useState(false)
+
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el) return
+    const io = new IntersectionObserver(([entry]) => setStuck(!entry.isIntersecting))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  return (
+    <>
+      <div ref={sentinel} className="h-px" aria-hidden />
+      {/* z-30 — under the drill-down sheet (z-40) and module search (z-50), over
+          the card stack and the forest band. */}
+      <div
+        className={`sticky top-0 z-30 pt-[max(6px,env(safe-area-inset-top))] transition-[background-color,box-shadow,backdrop-filter] duration-300 ${
+          stuck ? 'bg-[#e7f0ea]/85 backdrop-blur-md' : ''
+        }`}
+        style={{ boxShadow: stuck ? '0 1px 0 rgba(22,21,15,0.08)' : 'none' }}
+      >
+        <div className="mx-auto w-full max-w-[390px]">
+          <PeriodBar tone="home" />
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -452,8 +494,24 @@ function PreventiveCard() {
 }
 
 /** Three series, one window — the point is that they line up. */
+/**
+ * Three series, one plot.
+ *
+ * This was three stacked rows of number-plus-sparkline. Two things were wrong with
+ * it. Each sparkline auto-scaled to its own maximum, so a flat 1–2 deaths and a
+ * climbing 2–6 cases were drawn the same height — the one thing the card exists to
+ * show, whether they move together, was the one thing the layout denied. And the
+ * plotted array never changed, so "Today's Trend" drew a month of shape.
+ *
+ * Now: one shared zero-based scale with the three lines overlaid, the figures as a
+ * legend beneath, and the bucket width stated instead of an axis. On `today` the
+ * plot is dropped — a single reading has no shape, and the three numbers standing
+ * alone is both the honest form and the calmer one.
+ */
 function TrendsCard() {
   const { period } = usePeriod()
+  const single = period.key === 'today'
+  const series = trends.series.map((s) => ({ ...s, values: pick(s.values, period.key) }))
 
   return (
     <a href={trends.href} className={`${TAP} ${CARD} block p-5`}>
@@ -466,21 +524,41 @@ function TrendsCard() {
             only ever true of the month. */}
         <span className="shrink-0 text-[12px] tabular-nums text-[#9b958b]">{period.window}</span>
       </span>
-      <ul className="mt-3.5 flex flex-col gap-3">
-        {trends.series.map((s) => (
-          <li key={s.label} className="flex items-center gap-3">
-            <span className="w-[76px] shrink-0">
-              <span className="block font-display text-[20px] leading-6 font-bold tabular-nums text-[#2f2424]">
-                {pick(s.value, period.key)}
-              </span>
-              <span className="block truncate text-[11px] text-[#6d6860]">{s.label}</span>
+
+      {!single && (
+        <div className="mt-4">
+          <TrendLines series={series} />
+        </div>
+      )}
+
+      {/* Legend on a flow, scoreboard on a single reading — same three figures, sized
+          to how much room the card has left once the plot has or hasn't taken its. */}
+      <div className={`flex items-stretch ${single ? 'mt-5' : 'mt-3.5 border-t border-[#f0efec] pt-3.5'}`}>
+        {series.map((s, i) => (
+          <span
+            key={s.label}
+            className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-3' : ''} ${
+              i < series.length - 1 ? 'pr-3' : ''
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <span className="size-[7px] shrink-0 rounded-full" style={{ backgroundColor: s.accent }} aria-hidden />
+              <span className="truncate text-[11px] text-[#6d6860]">{s.label}</span>
             </span>
-            <span className="min-w-0 flex-1" aria-hidden>
-              <Sparkline values={s.values} accent={s.accent} />
+            <span
+              className={`mt-1 block font-display font-bold tabular-nums text-[#2f2424] ${
+                single ? 'text-[26px] leading-8' : 'text-[20px] leading-6'
+              }`}
+            >
+              {pick(s.value, period.key)}
             </span>
-          </li>
+          </span>
         ))}
-      </ul>
+      </div>
+
+      {!single && (
+        <p className="mt-2.5 text-[11px] text-[#9b958b]">{pick(trends.buckets, period.key)}</p>
+      )}
     </a>
   )
 }
@@ -516,6 +594,14 @@ function HomeBody() {
       />
       <div className="mx-auto w-full max-w-[390px]">
         <GreetingHeader onSearch={() => setSearching(true)} />
+      </div>
+
+      {/* Outside the 390px column so the pinned ground runs edge to edge, the way
+          the forest band does — a bar that stopped at the column edge would read as
+          a floating card rather than as the top of the screen. */}
+      <StickyPeriod />
+
+      <div className="mx-auto w-full max-w-[390px]">
         <HeroBlock />
       </div>
 

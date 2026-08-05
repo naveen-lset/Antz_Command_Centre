@@ -77,6 +77,75 @@ export function Sparkline({ values, accent, h = 34 }: { values: number[]; accent
   )
 }
 
+/**
+ * Three series on ONE set of axes, rather than three stacked sparklines.
+ *
+ * The whole point of this card is whether births, deaths and new cases move
+ * together — and three separate mini-charts, each auto-scaled to its own maximum,
+ * is the one layout that cannot answer it: a flat line at 1–2 deaths and a rising
+ * line at 2–6 cases were drawn the same height. One shared zero-based scale makes
+ * the comparison true, and puts the three lines in the same picture so it can be
+ * read at a glance instead of assembled from three.
+ *
+ * Zero-based on purpose: these are counts, and a floor at the series minimum turns
+ * "two deaths instead of one" into a cliff.
+ */
+export function TrendLines({
+  series,
+  h = 96,
+}: {
+  series: { label: string; values: number[]; accent: string }[]
+  h?: number
+}) {
+  const w = 300
+  const pad = 6
+  const max = Math.max(...series.flatMap((s) => s.values), 1)
+  const inner = h - pad * 2
+
+  const path = (values: number[]) => {
+    const step = (w - pad * 2) / Math.max(values.length - 1, 1)
+    const pts = values.map((v, i) => [pad + i * step, pad + (1 - v / max) * inner] as const)
+    if (pts.length === 1) return { d: '', last: pts[0] }
+    let d = `M ${pts[0][0]} ${pts[0][1]}`
+    for (let i = 1; i < pts.length - 1; i++) {
+      const [x, y] = pts[i]
+      const [nx, ny] = pts[i + 1]
+      d += ` Q ${x} ${y}, ${(x + nx) / 2} ${(y + ny) / 2}`
+    }
+    d += ` L ${pts[pts.length - 1][0]} ${pts[pts.length - 1][1]}`
+    return { d, last: pts[pts.length - 1] }
+  }
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: h }} preserveAspectRatio="none" aria-hidden>
+      {/* One baseline, so the shared zero is visible and the lines have a floor to
+          sit on rather than floating in the card. */}
+      <line x1={pad} x2={w - pad} y1={h - pad} y2={h - pad} stroke="#e6e4de" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      {series.map((s) => {
+        const { d } = path(s.values)
+        return (
+          <path
+            key={s.label}
+            d={d}
+            fill="none"
+            stroke={s.accent}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        )
+      })}
+      {/* The latest point marked on each line — with three lines crossing, the end
+          is the only place a reader can reliably tell which series is which. */}
+      {series.map((s) => {
+        const { last } = path(s.values)
+        return <circle key={s.label} cx={last[0]} cy={last[1]} r={3} fill={s.accent} />
+      })}
+    </svg>
+  )
+}
+
 const COLUMN_VALUES = [0.45, 0.7, 0.55, 0.8, 0.6, 0.9, 0.7, 1]
 
 /** Solid rounded mini columns, the latest period in full accent. */

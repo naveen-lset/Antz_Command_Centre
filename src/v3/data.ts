@@ -50,7 +50,7 @@ import type { ByPeriod, Figure } from '../exec/period'
  */
 
 export const site = {
-  userName: 'Subhash',
+  userName: 'Bharathi Raja',
   org: 'Vantara Wildlife Trust',
   zooName: 'Jamnagar Zoo',
   weather: { tempC: 24, summary: 'Partly Cloudy', feelsLike: 27, high: 31, low: 22 },
@@ -121,11 +121,15 @@ export interface DailyCardData {
 
 /** The two headline life events, directly under the hero. */
 export const mainPair: DailyCardData[] = [
+  /* Today and six-month figures match `trends` below and the module pages behind
+     both — the Trends card sits on this same screen, and two cards disagreeing about
+     how many animals were born today is the one error a reader cannot un-see.
+     Mortality's six months is the Mortality page's Feb–Apr 83 + May–Jul 77. */
   {
     title: 'Natality',
     icon: Sparkles,
     delta: { today: '+1', week: '+9%', month: '+12%', sixMonths: '+7%', all: '—' },
-    value: { today: '2', week: '11', month: '45', sixMonths: '268', all: '9,412' },
+    value: { today: '3', week: '11', month: '45', sixMonths: '264', all: '9,412' },
     viz: 'dots',
     accent: '#e8590c',
     href: '#/births',
@@ -134,7 +138,7 @@ export const mainPair: DailyCardData[] = [
     title: 'Mortality',
     icon: Activity,
     delta: { today: '−1', week: '−14%', month: '−18%', sixMonths: '−6%', all: '—' },
-    value: { today: '1', week: '5', month: '23', sixMonths: '141', all: '4,870' },
+    value: { today: '0', week: '5', month: '23', sixMonths: '160', all: '4,870' },
     viz: 'area',
     accent: '#9d174d',
     href: '#/mortality',
@@ -303,27 +307,68 @@ export const trends = {
   icon: TrendingUp,
   accent: '#0e7490',
   href: '#/trends',
-  /** Same series, same buckets as the Trends page — they have to match. */
+  /**
+   * Same series, same buckets as the Trends page — they have to match.
+   *
+   * The plotted series is now cut per window too. It used to be one fixed 15-point
+   * 30-day array drawn under every title, so "Today's Trend" rendered a month of
+   * shape: the label said one thing and the line said another. Bucket size follows
+   * the window — daily for a week, 2-day for a month, monthly for six months, yearly
+   * for all time — and each array sums to the figure beside it.
+   *
+   * `today` is deliberately a single point. One day has no shape, and the card drops
+   * the plot entirely rather than drawing a line through one reading.
+   *
+   * Six-month figures are pinned to the module pages: deaths 160 is the Mortality
+   * page's Feb–Apr 83 + May–Jul 77, and its monthly buckets are that page's
+   * 30·27·26 · 29·25·23 exactly.
+   */
   series: [
     {
       label: 'Births',
-      value: { today: '2', week: '11', month: '45', sixMonths: '268', all: '9,412' },
+      value: { today: '3', week: '11', month: '45', sixMonths: '264', all: '9,412' },
       accent: '#e8590c',
-      values: [2, 2, 3, 3, 4, 4, 3, 3, 3, 4, 3, 3, 3, 3, 2],
+      values: {
+        today: [3],
+        week: [1, 2, 1, 2, 1, 3, 1],
+        month: [2, 2, 3, 3, 4, 4, 3, 3, 3, 4, 3, 3, 3, 3, 2],
+        sixMonths: [38, 42, 45, 48, 50, 41],
+        all: [620, 980, 1240, 1480, 1620, 1780, 1692],
+      } as ByPeriod<number[]>,
     },
     {
       label: 'Deaths',
-      value: { today: '1', week: '5', month: '23', sixMonths: '141', all: '4,870' },
+      value: { today: '0', week: '5', month: '23', sixMonths: '160', all: '4,870' },
       accent: '#9d174d',
-      values: [1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 4, 3, 1],
+      values: {
+        today: [0],
+        week: [0, 1, 0, 1, 1, 1, 1],
+        month: [1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 4, 3, 1],
+        sixMonths: [30, 27, 26, 29, 25, 23],
+        all: [280, 520, 680, 760, 840, 920, 870],
+      } as ByPeriod<number[]>,
     },
     {
       label: 'New cases',
-      value: { today: '2', week: '12', month: '50', sixMonths: '296', all: '10,480' },
+      value: { today: '2', week: '12', month: '50', sixMonths: '297', all: '10,480' },
       accent: '#0284c7',
-      values: [2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 6, 5, 4, 2, 1],
+      values: {
+        today: [2],
+        week: [1, 2, 2, 1, 2, 2, 2],
+        month: [2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 6, 5, 4, 2, 1],
+        sixMonths: [42, 46, 48, 54, 56, 51],
+        all: [680, 1180, 1480, 1680, 1820, 1940, 1700],
+      } as ByPeriod<number[]>,
     },
   ],
+  /** Bucket width, named under the plot so the x-axis needs no ticks. */
+  buckets: {
+    today: 'One reading',
+    week: 'Daily · 7 days',
+    month: '2-day buckets · 30 days',
+    sixMonths: 'Monthly · Feb – Jul',
+    all: 'Yearly · 2019 – 2025',
+  } as ByPeriod<string>,
 }
 
 /**
