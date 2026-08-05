@@ -24,15 +24,14 @@ import {
 import { CLASS_ICONS } from '../classIcons'
 import { report } from '../report'
 import {
-  Bars,
   Composition,
   Facts,
   Filter,
-  IUCN,
   Movers,
   PeriodHero,
   Poles,
   Records,
+  RedList,
   Rule,
   Scoreboard,
   Section,
@@ -157,18 +156,27 @@ export default function Animals() {
           />
         </Section>
 
-        {/* Published IUCN colours, not accent steps. See `IUCN` in system.tsx for why
-            this is allowed to break the one-accent rule. */}
-        <Section icon={ShieldAlert} label="Conservation" aside="IUCN">
-          <Bars
-            showShare
-            items={[
-              { label: 'Least Concern', value: 178240, color: IUCN['Least Concern'] },
-              { label: 'Near Threatened', value: 24180, color: IUCN['Near Threatened'] },
-              { label: 'Vulnerable', value: 9640, color: IUCN.Vulnerable },
-              { label: 'Endangered', value: 2984, color: IUCN.Endangered },
-              { label: 'Critically Endangered', value: 388, color: IUCN['Critically Endangered'] },
-            ]}
+        {/* The published Red List badges. Ten categories, not the five the old bar
+            list carried — a collection holding no Extinct animals and only 80
+            unchecked is saying something about how completely it has been assessed,
+            and that is unreadable if the empty categories are absent.
+
+            The ten are a partition of the collection: they sum to 215,432, the same
+            figure as the hero. */}
+        <Section icon={ShieldAlert} label="Conservation" aside="IUCN Red List">
+          <RedList
+            counts={{
+              NC: 80,
+              DD: 1640,
+              NE: 316,
+              LC: 176180,
+              NT: 24180,
+              VU: 9640,
+              EN: 2984,
+              CR: 388,
+              EW: 24,
+              EX: 0,
+            }}
           />
         </Section>
 

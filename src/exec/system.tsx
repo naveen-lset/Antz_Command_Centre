@@ -53,6 +53,32 @@ export const IUCN = {
 } as const
 
 /**
+ * The Red List categories as their published badges — two-letter code, official fill,
+ * in assessment order from unassessed through to extinct.
+ *
+ * `ink` is chosen for legibility, NOT copied from the reference sheet. The official
+ * artwork sets white type on the yellow of Vulnerable and the green of Least Concern,
+ * which is about 1.9:1 and 2.2:1 — unreadable at the 40px this renders at. The FILL is
+ * the part that carries the standard and is exact; the code on top of it is dark
+ * wherever the fill is light. `Not Evaluated` is white and so needs an outline to be a
+ * badge at all.
+ */
+export const RED_LIST = [
+  { code: 'NC', name: 'Not Checked', fill: '#B7B7B7', ink: '#37352f' },
+  { code: 'DD', name: 'Data Deficient', fill: '#D1D1C6', ink: '#37352f' },
+  { code: 'NE', name: 'Not Evaluated', fill: '#ffffff', ink: '#37352f', outline: '#c8c3ba' },
+  { code: 'LC', name: 'Least Concern', fill: '#60C659', ink: '#12301b' },
+  { code: 'NT', name: 'Near Threatened', fill: '#CCE226', ink: '#33380a' },
+  { code: 'VU', name: 'Vulnerable', fill: '#F9E814', ink: '#3d3703' },
+  { code: 'EN', name: 'Endangered', fill: '#FC7F3F', ink: '#3f1a02' },
+  { code: 'CR', name: 'Critically Endangered', fill: '#D81E05', ink: '#ffffff' },
+  { code: 'EW', name: 'Extinct in the Wild', fill: '#542344', ink: '#ffffff' },
+  { code: 'EX', name: 'Extinct', fill: '#000000', ink: '#ffffff' },
+] as const
+
+export type RedListCode = (typeof RED_LIST)[number]['code']
+
+/**
  * Two darker greens the report layer needs and `mix()` cannot produce — `mix`
  * only lightens toward white. `DEEP` is the record table's header bar, the one
  * dark surface in the app; `ACCENT_INK` is accent-coloured text that still
@@ -2209,6 +2235,68 @@ export function Sites({
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+/* ── conservation status ─────────────────────────────────────────────────── */
+
+/**
+ * The Red List as its own badges, five to a row.
+ *
+ * This replaces a ranked bar list, and the swap is a real improvement rather than
+ * decoration. On this distribution the bars could not work: Least Concern is 176,180
+ * against 388 Critically Endangered, a 450× spread, so the two categories a curator
+ * actually opens the card for were rendered as stubs. Badges give every category the
+ * same footprint, which is the right emphasis — "how many Critically Endangered do we
+ * hold" is not a question about magnitude relative to the carp.
+ *
+ * All ten show, including the zeroes. That a collection holds no Extinct animals and
+ * has left only 80 unchecked is a statement about the completeness of its assessment,
+ * and it can only be read if the empty categories are present to be read as empty.
+ */
+export function RedList({ counts }: { counts: Partial<Record<RedListCode, number>> }) {
+  const total = RED_LIST.reduce((n, c) => n + (counts[c.code] ?? 0), 0)
+  return (
+    <div>
+      <ul className="grid grid-cols-5 gap-x-2 gap-y-4">
+        {RED_LIST.map((c) => {
+          const n = counts[c.code] ?? 0
+          return (
+            <li key={c.code} className="flex min-w-0 flex-col items-center">
+              {/* Circle with one squared corner — the published badge silhouette.
+                  Badges are NEVER dimmed, even at a count of zero. Fading them was the
+                  first attempt and it turned Extinct's black into the same grey as Not
+                  Checked, which is the one category whose colour carries the whole
+                  meaning. An empty category is signalled by its count going faint
+                  instead; the badge is a legend, and a legend does not dim. */}
+              <span
+                className="grid size-10 place-items-center rounded-full rounded-tr-[4px] font-display text-[13px] font-bold"
+                style={{
+                  backgroundColor: c.fill,
+                  color: c.ink,
+                  boxShadow: 'outline' in c && c.outline ? `inset 0 0 0 1.5px ${c.outline}` : undefined,
+                }}
+                aria-hidden
+              >
+                {c.code}
+              </span>
+              <span
+                className="mt-2 font-display text-[15px] leading-5 font-bold tabular-nums"
+                style={{ color: n === 0 ? FAINT : VALUE }}
+              >
+                {compact(n)}
+              </span>
+              <span className="mt-0.5 text-center text-[9.5px] leading-[12px] text-[#9b958b]">{c.name}</span>
+            </li>
+          )
+        })}
+      </ul>
+      {/* The total is the check: these ten are a partition of the collection, so if
+          this line stops matching the hero the card has drifted. */}
+      <p className="mt-4 border-t border-[#f0efec] pt-3 text-[11px] text-[#9b958b]">
+        {fmt(total)} animals assessed across 10 categories
+      </p>
     </div>
   )
 }
