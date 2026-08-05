@@ -195,31 +195,41 @@ function StickyPeriod() {
  *
  * It replaces an inline SVG horizon that was hand-drawn to approximate this.
  *
- * The scene is anchored to the BOTTOM and allowed to overflow upward behind the hero
- * rather than being cropped to the band's height. The artwork's top half is empty sky —
- * it was composed for content to sit in — so cropping it would have thrown away the
- * hanging vines and clouds for nothing. `-z-10` puts it behind the numbers, and the
- * mask fades its top edge into the header gradient so the two greens meet without a
- * seam. Layout only reserves the 168px the horizon itself occupies.
+ * The scene is anchored to the bottom and CLIPPED to the band, so the illustration
+ * begins only after the KPI block rather than drifting up behind it.
+ *
+ * Worth knowing before changing the height. Measuring the artwork: its zoo scene is the
+ * bottom 49% — content starts at y≈455 of 900 — which at 390px wide is 146px tall at
+ * natural aspect. This band is 168px and shows from asset y≈382, so it is ALREADY very
+ * nearly pure scene, carrying about 24px of sky. There is no sky left in here to trade
+ * for height. A taller band at this width can only come from scaling the artwork up,
+ * which crops the elephants and the deer off the sides, or from stretching it
+ * vertically, which distorts them. Both were ruled out, so the band stays at the
+ * scene's own size.
+ *
+ * The fade is on the WRAPPER, not the image: a mask on the image fades a proportion of
+ * its full 292px height, most of which is clipped away, so the top edge of what you
+ * actually see would still land as a hard line.
  */
 function ForestBand() {
   return (
-    <div className="relative -z-10 h-[168px] w-full">
+    <div
+      className="relative h-[168px] w-full overflow-hidden"
+      style={{
+        maskImage: 'linear-gradient(to bottom, transparent 0, #000 26px)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 26px)',
+      }}
+    >
       {/* `max-h` + `object-cover` is the guard for a wide viewport. At full viewport
           width with a natural aspect, a 1400px-wide window would scale the artwork to
-          1050px tall and overflow most of that behind the page. Capped at 320 it crops
-          horizontally instead — the same trade the inline SVG made with
-          `preserveAspectRatio="xMidYMax slice"`. On a phone the cap never binds: 390px
-          wide is 292px tall. */}
+          1050px tall. Capped at 320 it crops horizontally instead — the same trade the
+          inline SVG made with `preserveAspectRatio="xMidYMax slice"`. On a phone the cap
+          never binds: 390px wide is 292px tall. */}
       <img
         src={forestScene}
         alt=""
         aria-hidden
         className="pointer-events-none absolute bottom-0 left-0 max-h-[320px] w-full object-cover object-bottom select-none"
-        style={{
-          maskImage: 'linear-gradient(to bottom, transparent 0%, #000 30%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 30%)',
-        }}
       />
     </div>
   )
@@ -239,7 +249,12 @@ function HeroBlock() {
   const value = useCountUp(hero.value, { format: (v) => Math.round(v).toLocaleString('en-US') })
 
   return (
-    <section className="px-5 pt-5" aria-label="Zoo population">
+    /* Open air above and below the KPI block: 56px clear of the window chips and 48px
+       clear of the horizon, so the number, its title and the growth line sit in a band
+       of empty sky rather than being sandwiched between two pieces of chrome. That is
+       ~84px more than before, and it is where the illustration's faded bleed used to
+       be — the space was always there, it was just occupied. */
+    <section className="px-5 pt-14 pb-12" aria-label="Zoo population">
       <a href={hero.href} className="card-press block">
         <p className={`${HERO_GRADIENT} text-center font-display text-[58px] leading-none font-bold tracking-[-0.02em]`}>
           {value}
