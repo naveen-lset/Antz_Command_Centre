@@ -21,7 +21,12 @@ export function useCountUp(
     enabled?: boolean
   } = {},
 ): string {
-  const [value, setValue] = useState(0)
+  /* Reduced motion is decided in the initialiser, not just in the effect below: the
+     effect runs after the first paint, so setting the target there left one frame of
+     "0" on screen for a reader who has asked for no animation. */
+  const [value, setValue] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? target : 0,
+  )
   const frame = useRef(0)
 
   useEffect(() => {
@@ -32,7 +37,12 @@ export function useCountUp(
     }
     const start = performance.now()
     const tick = (now: number) => {
-      const t = Math.min((now - start) / duration, 1)
+      /* `Math.max(…, 0)` matters: the first rAF timestamp can be EARLIER than the
+         `performance.now()` captured a line above, because the frame's time is
+         stamped before this effect runs. Unclamped, `t` goes slightly negative and
+         `easeOutCubic` returns a negative multiplier — the population hero opened on
+         "-13,186" and "-935" before it started climbing. */
+      const t = Math.min(Math.max(now - start, 0) / duration, 1)
       setValue(target * easeOutCubic(t))
       if (t < 1) frame.current = requestAnimationFrame(tick)
     }

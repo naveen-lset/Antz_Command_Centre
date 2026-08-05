@@ -12,6 +12,12 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type R
 import { useInView } from '../hooks/useInView'
 import { useTween } from '../hooks/useTween'
 
+/**
+ * One scroll threshold for a card, its marks and its numbers, so all three fire on
+ * the same frame rather than within a few pixels of each other.
+ */
+const REVEAL_MARGIN = '0px 0px -4% 0px'
+
 export function usePrefersReducedMotion(): boolean {
   const [reduce, setReduce] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -41,7 +47,11 @@ export function Reveal({
   delay?: number
   className?: string
 }) {
-  const { ref, inView } = useInView<HTMLDivElement>('0px 0px -6% 0px')
+  /* Same margin as `usePlay` and `AnimatedValue` below. It was -6% here against
+     their -4%, so a card began fading up on a slightly earlier scroll position than
+     the marks and numbers inside it — the comment above claimed they animate together
+     and they very nearly did. */
+  const { ref, inView } = useInView<HTMLDivElement>(REVEAL_MARGIN)
   const reduce = usePrefersReducedMotion()
   const play = inView || reduce
 
@@ -62,7 +72,7 @@ export function Reveal({
  * HTML elements and the marks themselves are SVG.
  */
 export function usePlay<T extends HTMLElement = HTMLDivElement>() {
-  const { ref, inView } = useInView<T>('0px 0px -4% 0px')
+  const { ref, inView } = useInView<T>(REVEAL_MARGIN)
   const reduce = usePrefersReducedMotion()
   return { ref, reduce, animate: inView && !reduce }
 }
@@ -84,7 +94,7 @@ export function AnimatedValue({
   /** `Figure` sets its own size, tracking and colour here — pass them through. */
   style?: CSSProperties
 }) {
-  const { ref, inView } = useInView<HTMLSpanElement>('0px 0px -4% 0px')
+  const { ref, inView } = useInView<HTMLSpanElement>(REVEAL_MARGIN)
   const reduce = usePrefersReducedMotion()
   const match = NUMERIC.exec(value)
   const raw = match?.[2] ?? ''
@@ -97,7 +107,22 @@ export function AnimatedValue({
 
   let text = value
   if (animatable) {
-    const shown = inView && !reduce ? tweened : target
+    /*
+     * Before the first intersection this renders the ORIGIN, not the target.
+     *
+     * It used to render the target, on the reasoning that an unseen number should
+     * still read correctly. But "unseen" is not the same as "invisible": a sheet
+     * mounts with its content translated fully off-screen and then slides up, so
+     * every number in it painted its final figure during the slide and then dropped
+     * to zero to count back up. Measured frame by frame, a Mortality hero read
+     * "23", "0", "1", … "23".
+     *
+     * A number that genuinely never intersects is one nobody can see, so showing 0
+     * there costs nothing — and the two cases that must not animate are handled
+     * above it: reduced motion renders the target outright, and a missing
+     * IntersectionObserver reports in-view immediately.
+     */
+    const shown = reduce ? target : inView ? tweened : 0
     text = `${match[1]}${shown.toLocaleString('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,

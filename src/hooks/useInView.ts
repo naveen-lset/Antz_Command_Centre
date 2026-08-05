@@ -8,6 +8,13 @@ export function useInView<T extends HTMLElement>(rootMargin = '0px 0px -10% 0px'
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    /* Without an observer there is no signal, and callers render `opacity-0` until
+       they get one — so the failure mode is a permanently invisible card rather than
+       an unanimated one. Reveal everything instead. */
+    if (typeof IntersectionObserver === 'undefined') {
+      setInView(true)
+      return
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {

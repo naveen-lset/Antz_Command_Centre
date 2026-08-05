@@ -267,9 +267,11 @@ function TrendCard({ section, accent }: { section: Extract<Section, { kind: 'tre
 
 /** Arc sweeps 0 → target and the label counts with it, once in view. */
 function Gauge({ percent, label, note, accent }: { percent: number; label: string; note?: string; accent: string }) {
-  const { ref, animate } = usePlay()
+  const { ref, reduce, animate } = usePlay()
   const tweened = useTween(percent, { enabled: animate, duration: 1100 })
-  const shown = animate ? tweened : percent
+  /* Origin before the first intersection, not the destination — otherwise the arc
+     paints full, then snaps to zero to sweep. Same reasoning as `AnimatedValue`. */
+  const shown = reduce ? percent : animate ? tweened : 0
 
   return (
     <div ref={ref} className="flex min-w-0 flex-col items-center gap-2">
