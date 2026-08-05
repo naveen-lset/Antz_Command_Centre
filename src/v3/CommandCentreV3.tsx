@@ -225,7 +225,14 @@ function ForestBand() {
   )
 }
 
-/** Giant centered hero, with the sex split the report states alongside the total. */
+/**
+ * Giant centered hero: the collection total and the gain inside the window.
+ *
+ * The Male / Female / Undetermined split that used to sit under it is gone. It is still
+ * on the Animal Population page, in its own Sex card, which is where a three-way
+ * breakdown belongs — under the headline it was answering a question nobody had asked
+ * yet, and 84% of the answer was "Undetermined".
+ */
 function HeroBlock() {
   const gain = useByPeriod(hero.gain)
   const { period } = usePeriod()
@@ -242,23 +249,6 @@ function HeroBlock() {
         <p className="mt-1.5 text-center text-[12px] font-semibold text-[#37bd69]">
           ▲ {gain} {period.noun}
         </p>
-        {/* Bare on the gradient, not in a card — it belongs to the number above it,
-            and a card here would read as the first item of the stack below. */}
-        <div className="mt-4 flex items-stretch">
-          {hero.sex.map((s, i) => (
-            <span
-              key={s.label}
-              className={`min-w-0 flex-1 text-center ${i ? 'border-l border-[#1c1a16]/10' : ''}`}
-            >
-              {/* 20px and the hero's own gradient, so the split reads as three parts
-                  of the number above rather than as a caption under it. */}
-              <span className={`${HERO_GRADIENT} block font-display text-[20px] leading-7 font-bold tabular-nums`}>
-                {s.value}
-              </span>
-              <span className="mt-0.5 block truncate text-[11px] text-[#3d3a34]">{s.label}</span>
-            </span>
-          ))}
-        </div>
       </a>
     </section>
   )

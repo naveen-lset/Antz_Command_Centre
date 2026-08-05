@@ -57,9 +57,12 @@ export const site = {
 }
 
 /**
- * 01 · Animal Population. The sex split rides with the total because the report
- * states them together, and because "undetermined" being the overwhelming majority
- * is the single most surprising fact about a collection this size.
+ * 01 · Animal Population — the collection total and the gain inside the window.
+ *
+ * The Male / Female / Undetermined split that used to ride with it has gone. It lives
+ * on the Animal Population page now, in its own Sex card, which is where a three-way
+ * breakdown belongs: under the headline it answered a question nobody had asked yet,
+ * and 84% of the answer was "Undetermined".
  */
 export const hero = {
   /** A stock — the collection as it stands, not a sum over the window. */
@@ -87,11 +90,6 @@ export const hero = {
   } as ByPeriod<string>,
   /** Drill-down route for the hero KPI. */
   href: '#/animals',
-  sex: [
-    { value: '18,204', label: 'Male' },
-    { value: '16,880', label: 'Female' },
-    { value: '180,348', label: 'Undetermined' },
-  ],
 }
 
 /**
