@@ -16,6 +16,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
+
 export type PeriodKey = 'today' | 'week' | 'month' | 'sixMonths' | 'all'
 
 export interface Period {
@@ -77,17 +78,50 @@ export function useByPeriod<T>(by: ByPeriod<T>): T {
 }
 
 /**
+ * A figure that may or may not vary by window.
+ *
+ * The home screen mixes the two in the same card — "124 under care" is a standing
+ * caseload while "50 new" is a count inside the window — so the type is what says
+ * which is which, and no card has to carry a flag.
+ */
+export type Figure<T = string> = T | ByPeriod<T>
+
+export function pickFigure<T>(figure: Figure<T>, key: PeriodKey): T {
+  return figure !== null && typeof figure === 'object' ? pick(figure as ByPeriod<T>, key) : (figure as T)
+}
+
+/** `pickFigure`, bound to the current window. */
+export function useFigure<T>(figure: Figure<T>): T {
+  const { period } = usePeriod()
+  return pickFigure(figure, period.key)
+}
+
+/**
  * The window switcher, sitting under the sheet title.
  *
  * A chip row rather than a dropdown or a date-range picker: five fixed windows is
  * the whole vocabulary, and a director changing the cut mid-read should not have to
  * open a calendar and pick two dates to see last week. Scrolls horizontally so the
  * fifth chip is reachable at 390px without shrinking the type.
+ *
+ * The home screen uses the same control rather than one of its own, so there is a
+ * single window vocabulary across the product — a chip row here and a date-range
+ * picker there would make "Last week" mean two different things. `tone` only moves
+ * it onto the home screen's gutter and header ground; the chips stay identical.
  */
-export function PeriodBar() {
+export function PeriodBar({
+  tone = 'sheet',
+  note,
+}: {
+  /** `home` sits on the header gradient and takes that screen's 20px gutter. */
+  tone?: 'sheet' | 'home'
+  /** Replaces the default disclosure line — the home cuts a different set. */
+  note?: ReactNode
+}) {
   const { period, set } = usePeriod()
   const month = period.key === 'month'
   const active = useRef<HTMLButtonElement>(null)
+  const gutter = tone === 'home' ? 'px-5' : 'px-6'
 
   /* Five chips need ~500px and have 390. Tapping the last one used to leave the
      selection off-screen, so the row looked unchanged while everything below it
@@ -99,7 +133,7 @@ export function PeriodBar() {
   return (
     <>
       <div
-        className="flex gap-1.5 overflow-x-auto px-6 pb-3 scrollbar-hidden"
+        className={`flex gap-1.5 overflow-x-auto ${gutter} pb-3 scrollbar-hidden`}
         role="tablist"
         aria-label="Reporting period"
       >
@@ -134,11 +168,15 @@ export function PeriodBar() {
        */}
       {/* Colon form rather than a sentence, because the windows don't share a
           grammar — "cut to Since Apr 2019" reads as a typo. */}
-      {!month && (
-        <p className="px-6 pb-3 text-[11px] leading-[15px] text-[#9b958b]">
+      {/* The disclosure belongs to the sheet, where a cut window leaves hand-composed
+          month cards sitting under a re-cut headline. The home has no such mismatch
+          to explain — its stocks read as standing figures on their face — so `home`
+          gets no default line, and any caller wanting one passes `note`. */}
+      {!month && (note ?? (tone === 'sheet' ? (
+        <p className={`${gutter} pb-3 text-[11px] leading-[15px] text-[#9b958b]`}>
           Headline and sites · {period.window}. Other cards · {PERIODS[2].window}.
         </p>
-      )}
+      ) : null))}
     </>
   )
 }

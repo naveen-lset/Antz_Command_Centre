@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Bell, MapPin, Search } from 'lucide-react'
+import { MapPin, Search } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
+import { PeriodBar, PeriodProvider, useByPeriod, useFigure, usePeriod, pick } from '../exec/period'
 import { useCountUp } from '../hooks/useCountUp'
 import {
   clinical,
@@ -19,6 +20,14 @@ import type { DailyCardData, ModuleCardData, StatTileData } from './data'
 import { ArcGauge, AreaMini, DotBars, MiniColumns, PulseLine, Sparkline } from './viz'
 
 const VIZ = { dots: DotBars, pulse: PulseLine, area: AreaMini, cols: MiniColumns } as const
+
+/**
+ * The hero's deep-green gradient, clipped to the glyphs. Shared by the total and by
+ * the sex split beneath it — one declaration, because two hand-copied gradients drift
+ * the moment either is adjusted.
+ */
+const HERO_GRADIENT =
+  'bg-[linear-gradient(180deg,#20291f_0%,#0a4d3c_62%,#034739_100%)] bg-clip-text text-transparent'
 
 /** Paper surface — one warm tonal step above the ground. No border, no shadow. */
 const CARD = 'rounded-[16px] bg-white'
@@ -64,7 +73,7 @@ function MistBackdrop() {
   )
 }
 
-/** Soft personal greeting header with org switcher. */
+/** Soft personal greeting header with org switcher and the reporting window. */
 function GreetingHeader({ onSearch }: { onSearch: () => void }) {
   const now = useNow(30_000)
 
@@ -82,23 +91,27 @@ function GreetingHeader({ onSearch }: { onSearch: () => void }) {
             {site.org}
           </p>
         </div>
-        {/* Search sits beside the bell rather than as a field across the header: the
-            hero number is the first thing on this screen and a full-width input above
-            it would take that place. Twenty modules is enough to need search, not
-            enough to need it permanently open. */}
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={onSearch}
-            aria-label="Search modules"
-            className="grid size-11 place-items-center rounded-full bg-[#fbfaf7] transition-colors active:bg-[#f2f1ed]"
-          >
-            <Search size={18} strokeWidth={1.75} className="text-[#1c1a16]" aria-hidden />
-          </button>
-          <span className="grid size-11 place-items-center rounded-full bg-[#fbfaf7]" aria-hidden>
-            <Bell size={18} strokeWidth={1.75} className="text-[#1c1a16]" />
-          </span>
-        </div>
+        {/* Search, not a field across the header: the hero number is the first thing on
+            this screen and a full-width input above it would take that place. Twenty
+            modules is enough to need search, not enough to need it permanently open.
+            The notification bell that sat beside it is gone — it was a dead affordance
+            with no notifications behind it, and Alerts is a module on the screen. */}
+        <button
+          type="button"
+          onClick={onSearch}
+          aria-label="Search modules"
+          className="grid size-11 shrink-0 place-items-center rounded-full bg-[#fbfaf7] transition-colors active:bg-[#f2f1ed]"
+        >
+          <Search size={18} strokeWidth={1.75} className="text-[#1c1a16]" aria-hidden />
+        </button>
+      </div>
+
+      {/* The window sits above every figure it governs. Putting it lower — between
+          two sections — would imply it only cuts what follows it, when it cuts the
+          hero as well. Same chips as the module sheets, so "Last week" means one
+          thing across the product. */}
+      <div className="relative mt-5 -mx-5">
+        <PeriodBar tone="home" />
       </div>
     </header>
   )
@@ -286,16 +299,21 @@ function ForestBand() {
 
 /** Giant centered hero, with the sex split the report states alongside the total. */
 function HeroBlock() {
+  const gain = useByPeriod(hero.gain)
+  const { period } = usePeriod()
   const value = useCountUp(hero.value, { format: (v) => Math.round(v).toLocaleString('en-US') })
 
   return (
     <section className="px-5 pt-5" aria-label="Zoo population">
       <a href={hero.href} className="card-press block">
-        <p className="bg-[linear-gradient(180deg,#20291f_0%,#0a4d3c_62%,#034739_100%)] bg-clip-text text-center font-display text-[58px] leading-none font-bold tracking-[-0.02em] text-transparent">
+        <p className={`${HERO_GRADIENT} text-center font-display text-[58px] leading-none font-bold tracking-[-0.02em]`}>
           {value}
         </p>
         <p className="mt-2 text-center text-[16px] text-[#1c1a16]">Total {hero.label}</p>
-        <p className="mt-1.5 text-center text-[12px] font-semibold text-[#37bd69]">▲ {hero.delta}</p>
+        {/* The total above is a standing figure; only this gain is cut. */}
+        <p className="mt-1.5 text-center text-[12px] font-semibold text-[#37bd69]">
+          ▲ {gain} {period.noun}
+        </p>
         {/* Bare on the gradient, not in a card — it belongs to the number above it,
             and a card here would read as the first item of the stack below. */}
         <div className="mt-4 flex items-stretch">
@@ -304,7 +322,9 @@ function HeroBlock() {
               key={s.label}
               className={`min-w-0 flex-1 text-center ${i ? 'border-l border-[#1c1a16]/10' : ''}`}
             >
-              <span className="block font-display text-[17px] leading-6 font-bold tabular-nums text-[#20291f]">
+              {/* 20px and the hero's own gradient, so the split reads as three parts
+                  of the number above rather than as a caption under it. */}
+              <span className={`${HERO_GRADIENT} block font-display text-[20px] leading-7 font-bold tabular-nums`}>
                 {s.value}
               </span>
               <span className="mt-0.5 block truncate text-[11px] text-[#3d3a34]">{s.label}</span>
@@ -317,6 +337,9 @@ function HeroBlock() {
 }
 
 function DailyCard({ card, prominent = false }: { card: DailyCardData; prominent?: boolean }) {
+  const value = useByPeriod(card.value)
+  const delta = useFigure(card.delta)
+
   return (
     <a href={card.href} className={`${TAP} ${CARD} flex min-w-0 flex-col ${prominent ? 'p-5' : 'p-4'}`}>
       <div className="flex items-center gap-2">
@@ -327,9 +350,9 @@ function DailyCard({ card, prominent = false }: { card: DailyCardData; prominent
       <p
         className={`mt-3 flex items-baseline gap-1.5 font-display font-bold text-[#2f2424] ${prominent ? 'text-[38px] leading-11' : 'text-[30px] leading-9'}`}
       >
-        {card.value}
-        <span className="font-sans text-[13px] font-medium" style={{ color: deltaColor(card.delta) }}>
-          {card.delta}
+        {value}
+        <span className="font-sans text-[13px] font-medium" style={{ color: deltaColor(delta) }}>
+          {delta}
         </span>
         {card.unit && <span className="font-sans text-[13px] font-normal text-[#9b958b]">{card.unit}</span>}
       </p>
@@ -344,6 +367,9 @@ function DailyCard({ card, prominent = false }: { card: DailyCardData; prominent
 }
 
 function ModuleCard({ card }: { card: ModuleCardData }) {
+  const value = useFigure(card.value)
+  const unit = useFigure(card.unit)
+
   return (
     <a href={card.href} className={`${TAP} ${CARD} flex w-full items-center gap-4 p-5`}>
       <span className="min-w-0 flex-1">
@@ -352,7 +378,7 @@ function ModuleCard({ card }: { card: ModuleCardData }) {
           {card.title}
         </span>
         <span className="mt-2 block font-display text-[28px] leading-8 font-bold text-[#2f2424]">
-          {card.value} <span className="font-sans text-[13px] font-normal text-[#9b958b]">{card.unit}</span>
+          {value} <span className="font-sans text-[13px] font-normal text-[#9b958b]">{unit}</span>
         </span>
       </span>
       {card.gauge ? (
@@ -370,6 +396,9 @@ function ModuleCard({ card }: { card: ModuleCardData }) {
 
 /** Number-first tile, two to a row. */
 function StatTile({ tile }: { tile: StatTileData }) {
+  const value = useFigure(tile.value)
+  const unit = useFigure(tile.unit)
+
   return (
     <a href={tile.href} className={`${TAP} ${CARD} flex min-w-0 flex-col p-4 ${tile.wide ? 'col-span-2' : ''}`}>
       <span className="flex items-center gap-2 text-[14px] font-medium text-[#1c1a16]">
@@ -378,8 +407,8 @@ function StatTile({ tile }: { tile: StatTileData }) {
       </span>
       <span className="mt-2.5 flex items-baseline justify-between gap-2 font-display text-[26px] leading-8 font-bold text-[#2f2424]">
         <span className="min-w-0 truncate">
-          {tile.value}
-          <span className="ml-1 font-sans text-[12px] font-normal text-[#9b958b]">{tile.unit}</span>
+          {value}
+          <span className="ml-1 font-sans text-[12px] font-normal text-[#9b958b]">{unit}</span>
         </span>
         {tile.note && (
           <span className="shrink-0 font-sans text-[12px] font-medium" style={{ color: deltaColor(tile.note) }}>
@@ -424,21 +453,25 @@ function PreventiveCard() {
 
 /** Three series, one window — the point is that they line up. */
 function TrendsCard() {
+  const { period } = usePeriod()
+
   return (
     <a href={trends.href} className={`${TAP} ${CARD} block p-5`}>
       <span className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-[15px] font-medium text-[#1c1a16]">
           <trends.icon size={16} strokeWidth={1.75} style={{ color: trends.accent }} aria-hidden />
-          {trends.title}
+          {pick(trends.title, period.key)}
         </span>
-        <span className="shrink-0 text-[12px] text-[#9b958b]">Week 1 – 4</span>
+        {/* The dates the buckets cover, replacing a fixed "Week 1 – 4" that was
+            only ever true of the month. */}
+        <span className="shrink-0 text-[12px] tabular-nums text-[#9b958b]">{period.window}</span>
       </span>
       <ul className="mt-3.5 flex flex-col gap-3">
         {trends.series.map((s) => (
           <li key={s.label} className="flex items-center gap-3">
             <span className="w-[76px] shrink-0">
               <span className="block font-display text-[20px] leading-6 font-bold tabular-nums text-[#2f2424]">
-                {s.value}
+                {pick(s.value, period.key)}
               </span>
               <span className="block truncate text-[11px] text-[#6d6860]">{s.label}</span>
             </span>
@@ -452,7 +485,24 @@ function TrendsCard() {
   )
 }
 
+/**
+ * The home gets its own `PeriodProvider` rather than sharing the sheet's.
+ *
+ * The sheet's provider is keyed per module precisely so opening a page starts it on
+ * its own default instead of inheriting "all time" from whatever was open before —
+ * and the same reasoning applies in reverse. Reading the home cut to last week then
+ * drilling into Mortality should land on Mortality's default window, not carry the
+ * home's choice in. One window per surface, none of them leaking.
+ */
 export default function CommandCentreV3() {
+  return (
+    <PeriodProvider>
+      <HomeBody />
+    </PeriodProvider>
+  )
+}
+
+function HomeBody() {
   const [searching, setSearching] = useState(false)
 
   return (
@@ -525,8 +575,12 @@ export default function CommandCentreV3() {
 
           <TrendsCard />
 
-          {/* Below the report line. Nothing in this group is a monthly figure, so it
-              is separated rather than ranked in among the sections above. */}
+          {/* Below the report line. Nothing in this group is a monthly figure, so it is
+              separated rather than ranked in among the sections above, and the window
+              control does not reach it. The "Live queues · as of today" caption that
+              explained that is gone: the rule and the word Operations already mark the
+              break, and a second line under a divider is the caption explaining the
+              caption. */}
           <div className="mt-4 flex items-center gap-3 px-1">
             <span className="h-px flex-1 bg-[#1c1a16]/8" aria-hidden />
             <h2 className="text-[11px] font-semibold tracking-[0.09em] text-[#6d6860] uppercase">Operations</h2>
