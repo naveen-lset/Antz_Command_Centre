@@ -16,7 +16,7 @@
  * the two have to match.
  */
 
-import type { PeriodKey } from './period'
+import type { AnchorKey, Cut } from './period'
 
 export interface Site {
   key: string
@@ -39,8 +39,8 @@ export const SITES: Site[] = [
 /** [today, week, month, sixMonths, all] — the order is load-bearing. */
 export type Series = [number, number, number, number, number]
 
-const ORDER: PeriodKey[] = ['today', 'week', 'month', 'sixMonths', 'all']
-const at = (s: Series, k: PeriodKey) => s[ORDER.indexOf(k)] ?? s[2]
+const ORDER: AnchorKey[] = ['today', 'week', 'month', 'sixMonths', 'all']
+const at = (s: Series, k: AnchorKey) => s[ORDER.indexOf(k)] ?? s[2]
 
 export interface SiteRow {
   site: string
@@ -268,17 +268,28 @@ export interface SiteCut {
   active: number
 }
 
-/** A module's site split for one window, sorted biggest first. */
-export function siteCut(slug: string, period: PeriodKey): SiteCut | undefined {
+/**
+ * A module's site split for one window, sorted biggest first.
+ *
+ * `cut` carries the authored column to read AND the factor between that column and the
+ * window the reader picked — see `period.tsx`. The factor is applied to COUNTS only: a
+ * stock is a headcount at the window's end and a rate is a ratio, and multiplying
+ * either by 2.92 because the reader chose "Quarter" would be nonsense.
+ */
+export function siteCut(slug: string, cut: Cut): SiteCut | undefined {
   const mod = moduleSites[slug]
   if (!mod) return undefined
+
+  const grow = (n: number) => (mod.kind === 'count' ? Math.round(n * cut.scale) : n)
 
   /* Rows whose site key doesn't resolve are dropped here rather than rendered as a
      blank name — but they are dropped from the totals too, so Overall stays the sum
      of exactly the rows shown underneath it. */
   const resolved = mod.rows.flatMap((r) => {
     const site = siteOf(r.site)
-    return site ? [{ site, value: at(r.v, period), of: r.of ? at(r.of, period) : undefined }] : []
+    return site
+      ? [{ site, value: grow(at(r.v, cut.of)), of: r.of ? at(r.of, cut.of) : undefined }]
+      : []
   })
 
   const total = resolved.reduce((n, r) => n + r.value, 0)

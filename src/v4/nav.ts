@@ -38,7 +38,14 @@ export interface NavGroup {
   items: NavItem[]
 }
 
-/** The thirteen the brief names, in the order it names them. */
+/**
+ * The nine the brief lists in the sidebar, in the order it lists them: Animals,
+ * Health, Birth, Mortality, Transfers, Vaccination, Pharmacy, Lab, Approvals. Home and
+ * Settings are not modules and are placed by the sidebar itself, above and below.
+ *
+ * Everything else the product has follows in a second group rather than being hidden —
+ * a module that exists and cannot be reached is worse than a longer list.
+ */
 const PRIMARY = [
   'animals',
   'health',
@@ -46,13 +53,9 @@ const PRIMARY = [
   'mortality',
   'transfers',
   'vaccination',
-  'deworming',
+  'pharmacy',
   'lab',
   'approvals',
-  'attendance',
-  'tasks',
-  'alerts',
-  'welfare',
 ]
 
 const toItem = (slug: string): NavItem | undefined => {

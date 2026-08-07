@@ -84,24 +84,34 @@ export function SheetProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  /**
+   * THE HISTORY CALLS MUST NOT LIVE INSIDE THE STATE UPDATER.
+   *
+   * They did, and it was a real bug rather than a style point: React invokes an
+   * updater twice under StrictMode, so one `open()` pushed TWO history entries while
+   * the stack grew by one. `back()` then popped to an entry still claiming depth 1,
+   * the truncation was a no-op, and the sheet would not close — selecting a site from
+   * the filter left its own sheet sitting on screen.
+   *
+   * A ref carries the current depth so the push can happen outside, where a double
+   * render cannot double it.
+   */
+  const depth = useRef(0)
+  depth.current = stack.length
+
   const api = useMemo<SheetApi>(
     () => ({
       depth: stack.length,
       open: (spec) => {
-        setStack((s) => {
-          window.history.pushState({ antzSheet: s.length + 1 }, '')
-          return [...s, spec]
-        })
+        window.history.pushState({ antzSheet: depth.current + 1 }, '')
+        setStack((s) => [...s, spec])
       },
       back: () => window.history.back(),
+      /* One `go` for however deep we are, so the entries this sheet added are all
+         unwound — otherwise closing from level four would leave three dead entries
+         that the back button then walks back into. */
       close: () => {
-        /* One `go` for however deep we are, so the entries this sheet added are all
-           unwound — otherwise closing from level four would leave three dead entries
-           that the back button then walks back into. */
-        setStack((s) => {
-          if (s.length) window.history.go(-s.length)
-          return s
-        })
+        if (depth.current) window.history.go(-depth.current)
       },
     }),
     [stack.length],

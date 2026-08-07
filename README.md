@@ -154,12 +154,38 @@ src/
     period.ts(x)          # the five reporting windows and the switcher
 ```
 
+## Global filters
+
+Two pills, pinned on the home and on every report module, each opening a sheet — which
+is where the brief puts filters. They are global: set once, honoured everywhere.
+
+- **Date range** — Today, Yesterday, Last 7 days, Last 30 days, This month, Last month,
+  Quarter, Year, and a custom range with two date fields. The demo set is authored at
+  five grains, so each window declares the grain it reads and the factor between them
+  (`ANCHOR` in `src/exec/period.tsx`). The factor applies to **counts only** — a stock
+  is a headcount at the window's end and a rate is a ratio; neither multiplies.
+- **Site** — the whole collection or one of six. Picking one re-cuts the hero, the
+  headline KPIs, every drill sheet and every module hero, and raises a banner saying
+  so. Figures with no site model behind them (scores, wastage) stay zoo-wide and say
+  "zoo-wide" rather than quietly showing an unscoped number under a scoped heading.
+- **Species search** inside the animal drill; **find-a-site** inside the site sheet.
+
 ## Modules
 
-Every module keeps its own dedicated, hand-composed page — no two share a layout.
+Every module has its own hand-composed page and its own information architecture — no
+two share a layout, and eight were rebuilt or written for this brief.
 
-**Named in the brief:** Animals, Health, Natality, Mortality, Transfers, Vaccination,
-Deworming, Lab, Approvals, Attendance, Tasks, Alerts, Welfare.
+| Module | Organised around | Drill |
+|---|---|---|
+| **Animal Population** | regulatory standing (CITES, WPA schedules) | Site → Species → Animal, plus Site → Enclosure |
+| **Pharmacy** *(new)* | cost, then the request queue, then the shelf | Central → Site pharmacy → Medicine |
+| **Preventive Care** | three parallel streams, led by overdue | Site → Species → Animal |
+| **Eggs & Incubation** | the laying-to-fledging funnel | Nursery → Clutch |
+| **Health & Medical** | caseload, then the building | Hospital → Department → Ward → Animal |
+| **Lab Requests** | turnaround, then results | Department → Species → Specimen |
+| **Mortality** | rate, cause, then the record | Necropsy centre → Species → Case |
+| **Users** *(new)* | activity, not headcount | Site → Department → User |
 
-**Report detail:** Accession, Eggs & Incubation, Eggs Discarded, Fetal Death, Disease,
-Preventive, Trends.
+**Also present, unchanged:** Natality, Animal Movement, Vaccination, Deworming,
+Approvals, Tasks, Staff Attendance, Alerts, Animal Welfare, Accession, Eggs Discarded,
+Fetal Death, Disease & Outbreak, 30-Day Trends.

@@ -2439,9 +2439,9 @@ export function Roster({
  */
 export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }) {
   const accent = useAccent()
-  const { period } = usePeriod()
+  const { period, cut: window } = usePeriod()
   const [query, setQuery] = useState('')
-  const cut = siteCut(slug, period.key)
+  const cut = siteCut(slug, window)
   if (!cut) return null
 
   const rate = cut.kind === 'rate'
@@ -2752,8 +2752,8 @@ export function PeriodHero({
   children,
   ...month
 }: Parameters<typeof Hero>[0] & { slug: string; children?: never }) {
-  const { period } = usePeriod()
-  const cut = siteCut(slug, period.key)
+  const { period, cut: window } = usePeriod()
+  const cut = siteCut(slug, window)
 
   if (period.key === 'month' || !cut) return <Hero {...month} />
 

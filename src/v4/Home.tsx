@@ -29,7 +29,7 @@ import { ChevronRight, MapPin, Search } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
 import forestScene from '../assets/forest-scene.webp'
-import { PeriodBar, useFigure, usePeriod } from '../exec/period'
+import { useFigure, usePeriod } from '../exec/period'
 import { useCountUp } from '../hooks/useCountUp'
 import { Reveal } from '../motion'
 import {
@@ -69,6 +69,7 @@ import {
   type Kpi,
 } from './data'
 import { useSheet } from './sheet'
+import { FilterBar, ScopeNote, useScoped, useSite } from './filters'
 import {
   AlertPanel,
   ApprovalPanel,
@@ -176,12 +177,11 @@ function StickyPeriod() {
             boxShadow: '0 1px 0 rgba(22,21,15,0.08)',
           }}
         />
-        {/* 560, not 390. Five chips need about 500px; capped at a phone's width they
-            scrolled horizontally on a 716px desktop column too, so the fifth window
-            sat off the edge of a column with 200px to spare. The phone still scrolls,
-            which is what the cap was for. */}
+        {/* Two pills now, not nine chips — so the row no longer needs a width cap
+            to keep the last option reachable. It stays centred at the same 560 so the
+            control sits over the hero rather than hard against the gutter. */}
         <div className="relative mx-auto w-full max-w-[560px]">
-          <PeriodBar tone="home" />
+          <FilterBar tone="home" />
         </div>
       </div>
     </>
@@ -281,9 +281,16 @@ function ScoreStrip() {
 function HeroBlock() {
   const { period } = usePeriod()
   const { open } = useSheet()
+  const { site: scope } = useSite()
+  const scoped = useScoped('animals')
   const animals = headlineKpis[0]
   const gain = useFigure(animals.delta ?? '')
-  const total = useCountUp(215432, { format: (v) => Math.round(v).toLocaleString('en-US') })
+  /* The hero scopes with everything else. It briefly did not, and the result was a
+     screen headed 215,432 Total Animals above a KPI row reading 178K for Aquatic
+     Halls — the single worst thing this app can do, which is state two different
+     answers to one question on one screen. */
+  const headcount = scope && scoped ? Math.round(scoped.value) : 215432
+  const total = useCountUp(headcount, { format: (v) => Math.round(v).toLocaleString('en-US') })
 
   return (
     <section className="px-[var(--gutter-lg)] pt-4" aria-label="Total animals">
@@ -303,11 +310,17 @@ function HeroBlock() {
         >
           {total}
         </p>
-        <p className="mt-2 text-center text-[16px] text-[#1c1a16] @[900px]:text-[18px]">Total Animals</p>
-        {/* The total above is a standing figure; only this gain is cut by the window. */}
-        <p className="mt-1.5 text-center text-[length:var(--fs-cap)] font-semibold text-[#37bd69]">
-          ▲ {gain} {period.noun}
+        <p className="mt-2 text-center text-[16px] text-[#1c1a16] @[900px]:text-[18px]">
+          {scope ? `Animals · ${scope.name}` : 'Total Animals'}
         </p>
+        {/* The total above is a standing figure; only this gain is cut by the window —
+            and the gain is a COLLECTION movement, so it is dropped under a site scope
+            rather than being attached to one site's headcount. */}
+        {!scope && (
+          <p className="mt-1.5 text-center text-[length:var(--fs-cap)] font-semibold text-[#37bd69]">
+            ▲ {gain} {period.noun}
+          </p>
+        )}
       </button>
     </section>
   )
@@ -395,9 +408,18 @@ function LevelChip({ level }: { level: keyof typeof LEVEL_TONE }) {
 function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
   const { open } = useSheet()
   const { period } = usePeriod()
-  const value = useFigure(kpi.value)
+  const { site: scope } = useSite()
+  const scoped = useScoped(kpi.drill ?? '')
+  const zooWide = useFigure(kpi.value)
   const delta = useFigure(kpi.delta ?? '')
   const colour = kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : ACCENT
+
+  /* With a site picked the card states THAT SITE'S figure, and its note says so. A
+     KPI whose figure has no site model behind it keeps the collection number and is
+     labelled "zoo-wide" — a grid where half the tiles are scoped and half are not,
+     with nothing saying which, is worse than not scoping at all. */
+  const value = scope && scoped ? (scoped.rate ? `${Math.round(scoped.value)}` : compact(scoped.value)) : zooWide
+  const note = scope ? (scoped ? scope.name : `${kpi.note} · zoo-wide`) : kpi.note
 
   return (
     <button
@@ -419,8 +441,8 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
         <Figure value={value} size={34} color={kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : undefined} />
       </span>
       <span className="mt-1 flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate text-[11px] text-[#9b958b]">{kpi.note}</span>
-        {delta && (
+        <span className="min-w-0 truncate text-[11px] text-[#9b958b]">{note}</span>
+        {delta && !scope && (
           <span className="shrink-0 text-[11.5px] font-semibold tabular-nums" style={{ color: signTone(delta) ?? FAINT }}>
             {delta}
           </span>
@@ -516,9 +538,13 @@ function KpiRail() {
 function KpiTile({ kpi }: { kpi: Kpi }) {
   const { open } = useSheet()
   const { period } = usePeriod()
-  const value = useFigure(kpi.value)
+  const { site: scope } = useSite()
+  const scoped = useScoped(kpi.drill ?? '')
+  const zooWide = useFigure(kpi.value)
   const delta = useFigure(kpi.delta ?? '')
   const measure = executiveHealth.find((m) => m.key === kpi.measure)
+  const value = scope && scoped ? (scoped.rate ? `${Math.round(scoped.value)}` : compact(scoped.value)) : zooWide
+  const note = scope ? (scoped ? scope.name : `${kpi.note ?? ''} · zoo-wide`) : kpi.note
 
   const onOpen = kpi.drill
     ? () => open({ title: kpi.label, eyebrow: period.window, body: <MetricPanel metric={kpi.drill!} /> })
@@ -545,8 +571,11 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
         />
       </span>
       <span className="mt-1.5 flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate text-[10.5px] text-[#9b958b]">{kpi.note ?? ' '}</span>
-        {delta && (
+        <span className="min-w-0 truncate text-[10.5px] text-[#9b958b]">{note ?? ' '}</span>
+        {/* Dropped under a site scope: the delta is a month-on-month change for
+            the COLLECTION, and printing it beside one site's figure would attach the
+            zoo's movement to that site. */}
+        {delta && !scope && (
           <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: signTone(delta) ?? FAINT }}>
             {delta}
           </span>
@@ -895,6 +924,9 @@ function TrendTile({ card }: { card: (typeof trends)[number] }) {
 export function HomeSections() {
   return (
     <main className="flex flex-col gap-[var(--gap)] px-[var(--gutter)] pt-3 pb-[max(40px,env(safe-area-inset-bottom))]">
+      <div className="-mx-[var(--gutter)]">
+        <ScopeNote />
+      </div>
       <SectionHead icon={SECTION_ICONS.kpis} title="Executive KPIs" aside="10 measures" />
       <Reveal>
         <KpiRail />

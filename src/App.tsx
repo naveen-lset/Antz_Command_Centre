@@ -26,8 +26,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { HomeView } from './v4/Home'
 import { AppShell, ModuleHeader, ModulePane, PhonePage } from './v4/Shell'
 import { SheetProvider } from './v4/sheet'
+import { FilterBar, ScopeNote } from './v4/filters'
+import { SiteProvider } from './v4/filters'
 import { titleOf } from './v4/nav'
-import { PeriodBar, PeriodProvider, usePeriod } from './exec/period'
+import { PeriodProvider, usePeriod } from './exec/period'
 import { findExecPage } from './exec/pages'
 import { RecordsView, findRecordPage } from './exec/records'
 import { report } from './exec/report'
@@ -79,9 +81,12 @@ function ModuleInPane({
     <ModulePane>
       <ModuleHeader title={title} eyebrow={eyebrow} onBack={onBack} />
       {periods && !parentTitle && (
-        <div className="px-[var(--gutter-lg)] pb-3">
-          <PeriodBar />
-        </div>
+        <>
+          <div className="px-[var(--gutter-lg)] pb-3">
+            <FilterBar />
+          </div>
+          <ScopeNote />
+        </>
       )}
       {children}
     </ModulePane>
@@ -109,7 +114,14 @@ function ModuleOnPhone({
       title={title}
       eyebrow={eyebrow}
       onBack={onBack}
-      toolbar={periods && !parentTitle ? <PeriodBar /> : undefined}
+      toolbar={
+        periods && !parentTitle ? (
+          <>
+            <FilterBar />
+            <ScopeNote />
+          </>
+        ) : undefined
+      }
     >
       {children}
     </PhonePage>
@@ -152,6 +164,7 @@ export default function App() {
 
   return (
     <PeriodProvider>
+      <SiteProvider>
       <SheetProvider>
         {shell ? (
           <AppShell route={route} panel={panel}>
@@ -189,6 +202,7 @@ export default function App() {
           <PhoneHome />
         )}
       </SheetProvider>
+      </SiteProvider>
     </PeriodProvider>
   )
 }

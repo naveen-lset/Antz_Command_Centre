@@ -76,6 +76,7 @@ import {
   type UpcomingGroup,
 } from './data'
 import { useSheet } from './sheet'
+import { useSite } from './filters'
 
 /* ── the tappable row ────────────────────────────────────────────────────── */
 
@@ -210,31 +211,37 @@ export const TapList = ({ children }: { children: ReactNode }) => <ul className=
  * that leaves it was an admission that it wasn't.
  */
 export function MetricPanel({ metric }: { metric: string }) {
-  const { period } = usePeriod()
+  const { period, cut } = usePeriod()
   const { open } = useSheet()
-  const [site, setSite] = useState<{ key: string; name: string } | null>(null)
+  const { site: scope } = useSite()
+  /* Opens on whatever the global site filter is set to. A director who has scoped the
+     whole home to Aquatic Halls and then taps a KPI is asking about Aquatic Halls; the
+     sheet starting zoo-wide would make them pick it a second time. */
+  const [site, setSite] = useState<{ key: string; name: string } | null>(
+    scope ? { key: scope.key, name: scope.name } : null,
+  )
   const [species, setSpecies] = useState<string | null>(null)
   const speciesCard = useRef<HTMLDivElement>(null)
   const animalsCard = useRef<HTMLDivElement>(null)
 
   const def = DRILL[metric]
-  const level = sitesFor(metric, period.key)
+  const level = sitesFor(metric, cut)
 
   /* Every window change re-cuts the figures underneath the facets, and a site that
      reported nothing last week would leave the page filtered to an empty list with no
      visible cause. Clearing on the window is the honest reset. */
   useEffect(() => {
-    setSite(null)
+    setSite(scope ? { key: scope.key, name: scope.name } : null)
     setSpecies(null)
-  }, [period.key])
+  }, [period.key, scope])
 
   const speciesRows = useMemo(
-    () => (site ? speciesFor(metric, site.key, period.key) : speciesForAll(metric, period.key)),
-    [metric, site, period.key],
+    () => (site ? speciesFor(metric, site.key, cut) : speciesForAll(metric, cut)),
+    [metric, site, cut],
   )
   const animals = useMemo(
-    () => animalsFor(metric, period.key, site?.key, species ?? undefined),
-    [metric, period.key, site, species],
+    () => animalsFor(metric, cut, site?.key, species ?? undefined),
+    [metric, cut, site, species],
   )
 
   if (!def || !level) return null
@@ -271,7 +278,7 @@ export function MetricPanel({ metric }: { metric: string }) {
   /* How many sites hold the selected species — counted from the same per-site cuts
      the rows below are built from, so it cannot disagree with them. */
   const speciesSites = species
-    ? level.rows.filter((r) => speciesFor(metric, r.site.key, period.key).some((s) => s.name === species && s.value > 0))
+    ? level.rows.filter((r) => speciesFor(metric, r.site.key, cut).some((s) => s.name === species && s.value > 0))
         .length
     : 0
 

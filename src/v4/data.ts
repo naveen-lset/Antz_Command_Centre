@@ -400,6 +400,18 @@ export const criticalAlerts: CriticalAlert[] = [
     ],
   },
   {
+    key: 'escaped',
+    label: 'Escaped Animals',
+    count: 1,
+    level: 'critical',
+    note: 'contained · perimeter held',
+    icon: Footprints,
+    href: '#/animals',
+    rows: [
+      { id: 'ESC-0091', subject: 'Rhesus Macaque', where: 'Primate Forest · PR-01', when: '05:20', status: 'Recaptured 07:10', tone: 'warn', animal: 'ANM-30115' },
+    ],
+  },
+  {
     key: 'outbreak',
     label: 'Disease Outbreaks',
     count: 2,
@@ -422,6 +434,22 @@ export const criticalAlerts: CriticalAlert[] = [
     href: '#/alerts',
     rows: [
       { id: 'BIO-0447', subject: 'Perimeter gate unsecured', where: 'Zone A · Gate 3', when: '11:12', status: 'Open 6 min', tone: 'bad' },
+    ],
+  },
+  {
+    key: 'fetal',
+    label: 'Fetal Deaths',
+    count: 5,
+    level: 'high',
+    note: 'this month · 3 species',
+    icon: Baby,
+    href: '#/fetal',
+    rows: [
+      { id: 'FTL-0412', subject: 'Blackbuck · third trimester', where: 'Savanna · SV-02', when: '28 Jul', status: 'Necropsy done', tone: 'neutral' },
+      { id: 'FTL-0409', subject: 'Chital · second trimester', where: 'Savanna · SV-09', when: '21 Jul', status: 'Necropsy done', tone: 'neutral' },
+      { id: 'FTL-0404', subject: 'Nile Tilapia brood loss', where: 'Aquatic Halls · AQ-11', when: '17 Jul', status: 'Cause unknown', tone: 'warn' },
+      { id: 'FTL-0401', subject: 'Rhesus Macaque', where: 'Primate Forest · PR-03', when: '09 Jul', status: 'Necropsy done', tone: 'neutral' },
+      { id: 'FTL-0398', subject: 'Sarus Crane · egg-bound', where: 'Aviary Complex · AV-06', when: '04 Jul', status: 'Necropsy done', tone: 'neutral' },
     ],
   },
   {
@@ -664,7 +692,7 @@ export const upcoming: UpcomingGroup[] = [
   },
   {
     key: 'vaccination',
-    label: 'Vaccinations Due',
+    label: 'Vaccination Due',
     icon: Syringe,
     href: '#/vaccination',
     rows: [
@@ -678,7 +706,7 @@ export const upcoming: UpcomingGroup[] = [
   },
   {
     key: 'health',
-    label: 'Health Assessments Due',
+    label: 'Health Assessment Due',
     icon: Stethoscope,
     href: '#/health',
     rows: [
@@ -691,7 +719,7 @@ export const upcoming: UpcomingGroup[] = [
   },
   {
     key: 'welfare',
-    label: 'Animal Welfare Due',
+    label: 'Welfare Assessment Due',
     icon: ShieldCheck,
     href: '#/welfare',
     rows: [
@@ -703,7 +731,7 @@ export const upcoming: UpcomingGroup[] = [
   },
   {
     key: 'enclosure',
-    label: 'Enclosure Assessments Due',
+    label: 'Enclosure Assessment Due',
     icon: Building2,
     href: '#/welfare',
     rows: [
@@ -739,7 +767,7 @@ export const upcoming: UpcomingGroup[] = [
   },
   {
     key: 'training',
-    label: 'Training Due',
+    label: 'Staff Training Due',
     icon: GraduationCap,
     href: '#/attendance',
     rows: [
@@ -939,6 +967,20 @@ export const risks: Risk[] = [
     ],
   },
   {
+    key: 'biosecurity',
+    label: 'Biosecurity Risk',
+    level: 'high',
+    value: '3',
+    note: 'controls lapsed · 2 zones',
+    icon: ShieldAlert,
+    href: '#/alerts',
+    rows: [
+      { id: 'BSR-01', subject: 'Footbath renewal overdue', where: 'Aviary Complex · 4 gates', when: '9 d late', status: 'Open', tone: 'bad' },
+      { id: 'BSR-02', subject: 'Quarantine block at capacity', where: 'Veterinary Hospital', when: '12 of 12', status: 'No isolation space', tone: 'bad' },
+      { id: 'BSR-03', subject: 'Visitor contact barrier damaged', where: 'Savanna · SV-07', when: '3 d', status: 'Scheduled', tone: 'warn' },
+    ],
+  },
+  {
     key: 'inbreeding',
     label: 'Inbreeding Risk',
     level: 'medium',
@@ -983,7 +1025,7 @@ export const risks: Risk[] = [
   },
   {
     key: 'compliance',
-    label: 'Pending Compliance',
+    label: 'Compliance Risk',
     level: 'low',
     value: '6',
     note: 'statutory filings open',

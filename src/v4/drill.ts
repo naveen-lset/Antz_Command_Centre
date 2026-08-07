@@ -25,7 +25,7 @@
  */
 
 import { SITES, siteCut, type Site } from '../exec/sites'
-import type { PeriodKey } from '../exec/period'
+import type { Cut } from '../exec/period'
 
 /* ── metrics that can be drilled ─────────────────────────────────────────── */
 
@@ -185,10 +185,10 @@ export interface SiteLevel {
 }
 
 /** The zoo-wide figure and its six sites, straight from the shared site model. */
-export function sitesFor(metric: string, period: PeriodKey): SiteLevel | undefined {
-  const cut = siteCut(DRILL[metric]?.slug ?? metric, period)
-  if (!cut) return undefined
-  return { kind: cut.kind, unit: cut.unit, overall: cut.overall, rows: cut.rows }
+export function sitesFor(metric: string, cut: Cut): SiteLevel | undefined {
+  const split = siteCut(DRILL[metric]?.slug ?? metric, cut)
+  if (!split) return undefined
+  return { kind: split.kind, unit: split.unit, overall: split.overall, rows: split.rows }
 }
 
 /* ── level 2 · species within a site ─────────────────────────────────────── */
@@ -209,8 +209,8 @@ export interface SpeciesRow {
  * a site would report the site's exact coverage, and a card whose six rows all read
  * 92% has told the reader nothing they did not already know from the row above.
  */
-export function speciesFor(metric: string, siteKey: string, period: PeriodKey): SpeciesRow[] {
-  const level = sitesFor(metric, period)
+export function speciesFor(metric: string, siteKey: string, cut: Cut): SpeciesRow[] {
+  const level = sitesFor(metric, cut)
   const row = level?.rows.find((r) => r.site.key === siteKey)
   const seeds = SPECIES[siteKey]
   if (!level || !row || !seeds) return []
@@ -255,15 +255,15 @@ export function speciesFor(metric: string, siteKey: string, period: PeriodKey): 
  * Because each site's rows already sum to that site (`apportion` guarantees it), the
  * merged list sums to Overall — the same invariant, one level up.
  */
-export function speciesForAll(metric: string, period: PeriodKey): SpeciesRow[] {
-  const level = sitesFor(metric, period)
+export function speciesForAll(metric: string, cut: Cut): SpeciesRow[] {
+  const level = sitesFor(metric, cut)
   if (!level) return []
 
   const rate = level.kind === 'rate'
   const merged = new Map<string, { cls: string; value: number; of: number }>()
 
   for (const row of level.rows) {
-    for (const s of speciesFor(metric, row.site.key, period)) {
+    for (const s of speciesFor(metric, row.site.key, cut)) {
       const at = merged.get(s.name) ?? { cls: s.cls, value: 0, of: 0 }
       at.value += s.value
       at.of += s.of ?? 0
@@ -396,18 +396,18 @@ function animalAt(metric: string, siteKey: string, species: string, cls: string,
  */
 export function animalsFor(
   metric: string,
-  period: PeriodKey,
+  cut: Cut,
   siteKey?: string,
   species?: string,
 ): { rows: AnimalRow[]; total: number } {
-  const level = sitesFor(metric, period)
+  const level = sitesFor(metric, cut)
   if (!level) return { rows: [], total: 0 }
 
   /* Every (site, species) bucket the facets allow, with its real count. */
   const buckets = level.rows
     .filter((r) => (siteKey ? r.site.key === siteKey : true) && r.value > 0)
     .flatMap((r) =>
-      speciesFor(metric, r.site.key, period)
+      speciesFor(metric, r.site.key, cut)
         .filter((s) => (species ? s.name === species : true) && s.value > 0)
         .map((s) => ({ siteKey: r.site.key, species: s.name, cls: s.cls, count: s.value })),
     )

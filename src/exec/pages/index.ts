@@ -36,23 +36,26 @@ import {
   Syringe,
   TrendingUp,
   Users,
+  Warehouse,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import Animals from './animals'
+import Animals from '../../v4/modules/animals'
+import Pharmacy from '../../v4/modules/pharmacy'
+import UsersPage from '../../v4/modules/users'
 import Accession from './accession'
-import Health from './health'
+import Health from '../../v4/modules/medical'
 import Births from './births'
-import Eggs from './eggs'
+import Eggs from '../../v4/modules/eggs'
 import Discarded from './discarded'
 import Fetal from './fetal'
-import Mortality from './mortality'
+import Mortality from '../../v4/modules/mortality'
 import Disease from './disease'
 import Transfers from './transfers'
-import Preventive from './preventive'
+import Preventive from '../../v4/modules/preventive'
 import Vaccination from './vaccination'
 import Deworming from './deworming'
 import Trends from './trends'
-import Lab from './lab'
+import Lab from '../../v4/modules/lab'
 import Welfare from './welfare'
 import Approvals from './approvals'
 import Tasks from './tasks'
@@ -155,6 +158,13 @@ export const execPages: Record<string, ExecPage> = {
     periods: true,
     keywords: ['prophylaxis', 'protection', 'coverage', 'routine care', 'screening'],
   },
+  pharmacy: {
+    title: 'Pharmacy',
+    Page: Pharmacy,
+    icon: Warehouse,
+    periods: true,
+    keywords: ['medicine', 'stock', 'dispensary', 'store', 'procurement', 'expiry', 'consumables', 'drugs'],
+  },
   vaccination: {
     title: 'Vaccination',
     Page: Vaccination,
@@ -219,6 +229,13 @@ export const execPages: Record<string, ExecPage> = {
     ops: true,
     icon: ShieldCheck,
     keywords: ['audit', 'enrichment', 'wellbeing', 'five domains', 'inspection', 'score'],
+  },
+  users: {
+    title: 'Users',
+    Page: UsersPage,
+    ops: true,
+    icon: Users,
+    keywords: ['accounts', 'access', 'login', 'active', 'adoption', 'permissions', 'staff accounts'],
   },
   alerts: {
     title: 'Alerts',
