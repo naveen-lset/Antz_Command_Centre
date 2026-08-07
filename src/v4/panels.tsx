@@ -12,9 +12,8 @@
  * sub, figure, chevron — with a handler instead of an anchor.
  */
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  ArrowUpRight,
   Building2,
   CalendarClock,
   Check,
@@ -53,18 +52,19 @@ import {
   useAccent,
 } from '../exec/system'
 import {
-  ANIMAL_CAP,
   DRILL,
   animalRecord,
   animalsFor,
   animalFromId,
   sitesFor,
   speciesFor,
+  speciesForAll,
   type AnimalRecord,
   type AnimalRow,
 } from './drill'
 import {
   LEVEL_TONE,
+  headlineKpis,
   type AlertRow,
   type ApprovalGroup,
   type ApprovalRequest,
@@ -95,6 +95,7 @@ export function TapRow({
   onOpen,
   lead,
   bar,
+  active,
 }: {
   label: string
   sub?: string
@@ -106,6 +107,8 @@ export function TapRow({
   lead?: LucideIcon
   /** 0–100. Draws the row's share as a hairline bar under it. */
   bar?: number
+  /** Currently the selected facet — tinted, so the filter's cause stays visible. */
+  active?: boolean
 }) {
   const accent = useAccent()
   const Glyph = lead
@@ -166,7 +169,13 @@ export function TapRow({
   return (
     <li className="border-b border-[#f0efec] last:border-0">
       {onOpen ? (
-        <button type="button" onClick={onOpen} className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left">
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-pressed={active}
+          className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left"
+          style={active ? { backgroundColor: mix(accent, 0.09) } : undefined}
+        >
           {body}
         </button>
       ) : (
@@ -178,63 +187,175 @@ export function TapRow({
 
 export const TapList = ({ children }: { children: ReactNode }) => <ul className="flex flex-col">{children}</ul>
 
-/** Leaves the sheet for the module that owns what you are looking at. */
-function OpenModule({ href, label }: { href: string; label: string }) {
-  const { close } = useSheet()
-  const accent = useAccent()
-  return (
-    <div className="px-[var(--gutter-lg)] pt-1 pb-2">
-      <button
-        type="button"
-        onClick={() => {
-          close()
-          window.location.hash = href
-        }}
-        className="card-press flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-card)] bg-white py-3 text-[13px] font-medium"
-        style={{ color: ACCENT_INK }}
-      >
-        <ArrowUpRight size={15} strokeWidth={2} style={{ color: accent }} aria-hidden />
-        {label}
-      </button>
-    </div>
-  )
-}
-
-/* ── level 1 · overall, split by site ────────────────────────────────────── */
+/* ── the detail page ─────────────────────────────────────────────────────── */
 
 /**
- * The first level of every KPI drill: the zoo-wide figure, then the six sites.
+ * ONE PAGE FOR THE WHOLE DRILL — Overall, Site, Species and Animals at once.
  *
- * Overall is stated above the rows it is the sum of, and the rows are the shared
- * site model's — so this level cannot disagree with the module page the KPI links
- * to. Rate metrics scale their bars against 100%, counts against the widest row;
- * `Sites` on the module pages makes the same distinction for the same reason.
+ * This replaces three stacked sheets. The hierarchy is identical to the one the brief
+ * asked for, and stops in the same place; what changed is that moving through it no
+ * longer replaces the screen. Tapping Aquatic Halls does not open a new level, it
+ * SELECTS one: the Species card below re-titles and refilters, the Animals card
+ * refilters under it, and both stay on screen with the sites they came from.
+ *
+ * Three reasons that is better than the stack it replaces:
+ *
+ *   · You can see the answer and its context together. "Which species is driving
+ *     Aquatic Halls" is a comparison between a site row and a species row, and the
+ *     stack put them on different screens.
+ *   · Switching sites is one tap instead of back-then-tap.
+ *   · Nothing has to be dismissed to get out. The facet chips undo themselves.
+ *
+ * There is no link out to the module, deliberately. This page is the detail; a button
+ * that leaves it was an admission that it wasn't.
  */
-export function SitesPanel({ metric }: { metric: string }) {
+export function MetricPanel({ metric }: { metric: string }) {
   const { period } = usePeriod()
   const { open } = useSheet()
+  const [site, setSite] = useState<{ key: string; name: string } | null>(null)
+  const [species, setSpecies] = useState<string | null>(null)
+  const speciesCard = useRef<HTMLDivElement>(null)
+  const animalsCard = useRef<HTMLDivElement>(null)
+
   const def = DRILL[metric]
   const level = sitesFor(metric, period.key)
-  if (!level || !def) return null
+
+  /* Every window change re-cuts the figures underneath the facets, and a site that
+     reported nothing last week would leave the page filtered to an empty list with no
+     visible cause. Clearing on the window is the honest reset. */
+  useEffect(() => {
+    setSite(null)
+    setSpecies(null)
+  }, [period.key])
+
+  const speciesRows = useMemo(
+    () => (site ? speciesFor(metric, site.key, period.key) : speciesForAll(metric, period.key)),
+    [metric, site, period.key],
+  )
+  const animals = useMemo(
+    () => animalsFor(metric, period.key, site?.key, species ?? undefined),
+    [metric, period.key, site, species],
+  )
+
+  if (!def || !level) return null
 
   const rate = level.kind === 'rate'
-  const widest = Math.max(...level.rows.map((r) => r.percent), 1)
+  const siteRow = site ? level.rows.find((r) => r.site.key === site.key) : undefined
+  const speciesRow = species ? speciesRows.find((s) => s.name === species) : undefined
+
+  /* The headline follows the facets. Scoped to a species it states that species'
+     figure, to a site that site's, and otherwise the collection's — so the number at
+     the top of the page is always the number the lists below add up to. */
+  const scoped = speciesRow ?? siteRow ?? { value: level.overall, percent: 100 }
+  const headline = rate
+    ? `${Math.round('percent' in scoped ? scoped.percent : level.overall)}`
+    : fmt(Math.round(scoped.value))
+  const scopeLabel = species ?? site?.name ?? 'Zoo-wide'
+
+  const pickSite = (key: string, name: string) => {
+    const same = site?.key === key
+    setSite(same ? null : { key, name })
+    setSpecies(null)
+    if (!same) requestAnimationFrame(() => speciesCard.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+  const pickSpecies = (name: string) => {
+    const same = species === name
+    setSpecies(same ? null : name)
+    if (!same) requestAnimationFrame(() => animalsCard.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
+  const widestSite = Math.max(...level.rows.map((r) => r.percent), 1)
+  const widestSpecies = Math.max(...speciesRows.map((r) => r.percent), 1)
+  const classes = new Set(speciesRows.map((r) => r.cls)).size
+  const kpi = headlineKpis.find((k) => k.drill === metric)
+  /* How many sites hold the selected species — counted from the same per-site cuts
+     the rows below are built from, so it cannot disagree with them. */
+  const speciesSites = species
+    ? level.rows.filter((r) => speciesFor(metric, r.site.key, period.key).some((s) => s.name === species && s.value > 0))
+        .length
+    : 0
 
   return (
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={rate ? `${Math.round(level.overall)}` : fmt(level.overall)} unit={rate ? '%' : undefined} size={52} />
+          <Figure value={headline} unit={rate ? '%' : undefined} size={52} />
+          {/* The UNIT here, not the module name — the sheet header two inches above
+              already says "Health & Medical", and repeating it under the figure spends
+              the one line that could say what the figure counts and what it is scoped
+              to. The affordance line that used to sit below is gone too; the Sites
+              card's own aside teaches it, in the place you would use it. */}
           <p className="mt-1 text-[15px] text-[#3d3a34]">
-            {def.title} · {period.label.toLowerCase()}
+            {def.unit} · {scopeLabel === 'Zoo-wide' ? 'zoo-wide' : scopeLabel}
           </p>
-          <p className="mt-3 text-[12px] text-[#9b958b]">
-            {level.rows.length} sites · tap a site for its species
-          </p>
+          <p className="mt-2.5 text-[12px] text-[#9b958b]">{period.window}</p>
         </section>
       </div>
+
+      {/* THE FACET BAR IS THE NAVIGATION. It is the only thing on the page that says
+          how far in you are, so it is present at every depth — greyed at the root
+          rather than absent, or its first appearance would look like a new control. */}
+      <div className="-mx-1 mb-2 flex items-center gap-1.5 overflow-x-auto px-[calc(var(--gutter-lg)+4px)] pb-2 scrollbar-hidden">
+        <Chip label="Zoo-wide" on={!site} onClick={() => { setSite(null); setSpecies(null) }} />
+        {site && <Sep />}
+        {site && <Chip label={site.name} on onClear={() => { setSite(null); setSpecies(null) }} />}
+        {species && <Sep />}
+        {species && <Chip label={species} on onClear={() => setSpecies(null)} />}
+      </div>
+
       <Stack>
-        <Section icon={MapPin} label="Sites" aside={level.unit}>
+        {kpi && (
+          <Section icon={TrendingUp} label="Twelve months" aside="zoo-wide">
+            {/* Always the collection's own series, whatever is selected. There is no
+                twelve-month history at species grain in this data, and drawing the
+                zoo-wide curve under a species heading would be the kind of quiet lie
+                this system is built to avoid — so it says which it is. */}
+            <Trend
+              values={[...kpi.series]}
+              labels={['Aug 24', 'Nov 24', 'Feb 25', 'Jul 25']}
+              unit={`${def.unit} · per month`}
+              height={132}
+            />
+          </Section>
+        )}
+
+        {/* Recut per facet, and that is the point of the card: what "composition"
+            means depends entirely on what is selected. Zoo-wide it is the six sites;
+            inside a site it is the species it holds; on a species it is where that
+            species is and how many. A card that kept saying "6 sites · 40 species"
+            under a Zebra Finch heading would be answering the previous question. */}
+        <Section icon={Layers} label="Composition" aside={speciesRow ? speciesRow.cls : scopeLabel}>
+          {/* The class goes in the ASIDE, not into a cell. `Snapshot` sizes a cell to
+              fit its value as though it were a figure, so "Aves" was set at 34pt
+              display type — a taxonomic rank shouting louder than the count beside it.
+              Cells hold numbers; the word belongs in the card's own header. */}
+          <Snapshot
+            cols={speciesRow ? 2 : 3}
+            items={
+              speciesRow
+                ? [
+                    { label: speciesSites === 1 ? 'Site holding' : 'Sites holding', value: String(speciesSites) },
+                    { label: def.unit, value: fmt(Math.round(speciesRow.value)) },
+                  ]
+                : site
+                  ? [
+                      { label: 'Species', value: String(speciesRows.length) },
+                      { label: 'Classes', value: String(classes) },
+                      { label: 'Enclosures', value: String(siteRow?.site.enclosures ?? 0) },
+                    ]
+                  : [
+                      { label: 'Sites', value: String(level.rows.length) },
+                      { label: 'Species', value: String(speciesRows.length) },
+                      { label: 'Classes', value: String(classes) },
+                    ]
+            }
+          />
+        </Section>
+
+        {/* All six rows stay, selected or not. Filtering the list down to the chosen
+            site would make switching sites a two-step — clear, then pick — and hide
+            the comparison that made you pick in the first place. */}
+        <Section icon={MapPin} label="Sites" aside={`${level.rows.length} · tap to filter`}>
           <TapList>
             {level.rows.map((r) => (
               <TapRow
@@ -243,187 +364,121 @@ export function SitesPanel({ metric }: { metric: string }) {
                 sub={`${r.site.code} · ${r.site.enclosures} enclosures`}
                 value={rate ? `${Math.round(r.percent)}%` : fmt(r.value)}
                 unit={rate && r.of ? `${fmt(r.value)}/${fmt(r.of)}` : undefined}
-                bar={rate ? r.percent : (r.percent / widest) * 100}
-                onOpen={
-                  r.value > 0
-                    ? () =>
-                        open({
-                          title: r.site.name,
-                          eyebrow: `${def.title} · ${rate ? `${Math.round(r.percent)}%` : fmt(r.value)}`,
-                          body: <SpeciesPanel metric={metric} siteKey={r.site.key} siteName={r.site.name} />,
-                        })
-                    : undefined
-                }
+                bar={rate ? r.percent : (r.percent / widestSite) * 100}
+                active={site?.key === r.site.key}
+                onOpen={r.value > 0 ? () => pickSite(r.site.key, r.site.name) : undefined}
               />
             ))}
           </TapList>
         </Section>
-      </Stack>
-      <OpenModule href={def.href} label={`Open ${def.title}`} />
-    </>
-  )
-}
 
-/* ── level 2 · species within a site ─────────────────────────────────────── */
-
-export function SpeciesPanel({
-  metric,
-  siteKey,
-  siteName,
-}: {
-  metric: string
-  siteKey: string
-  siteName: string
-}) {
-  const { period } = usePeriod()
-  const { open } = useSheet()
-  const def = DRILL[metric]
-  const level = sitesFor(metric, period.key)
-  const row = level?.rows.find((r) => r.site.key === siteKey)
-  const rows = useMemo(() => speciesFor(metric, siteKey, period.key), [metric, siteKey, period.key])
-  if (!def || !level || !row) return null
-
-  const rate = level.kind === 'rate'
-  const widest = Math.max(...rows.map((r) => r.percent), 1)
-  const classes = new Set(rows.map((r) => r.cls)).size
-
-  return (
-    <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
-        <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={rate ? `${Math.round(row.percent)}` : fmt(row.value)} unit={rate ? '%' : undefined} size={48} />
-          <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
-            <MapPin size={15} strokeWidth={1.75} aria-hidden />
-            {siteName}
-          </p>
-          <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
-            <span className="min-w-0 flex-1 pr-4">
-              <Figure value={`${rows.length}`} size={22} />
-              <span className="mt-0.5 block text-[12px] text-[#6d6860]">Species</span>
-            </span>
-            <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4 pr-4">
-              <Figure value={`${classes}`} size={22} />
-              <span className="mt-0.5 block text-[12px] text-[#6d6860]">Classes</span>
-            </span>
-            <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
-              <Figure value={`${row.site.enclosures}`} size={22} />
-              <span className="mt-0.5 block text-[12px] text-[#6d6860]">Enclosures</span>
-            </span>
-          </div>
-        </section>
-      </div>
-      <Stack>
-        <Section icon={Layers} label="Species" aside={`${rows.length} held`}>
-          <TapList>
-            {rows.map((s) => (
-              <TapRow
-                key={s.name}
-                label={s.name}
-                sub={s.cls}
-                value={rate ? `${Math.round(s.percent)}%` : fmt(s.value)}
-                unit={rate && s.of ? `${fmt(s.value)}/${fmt(s.of)}` : undefined}
-                bar={rate ? s.percent : (s.percent / widest) * 100}
-                onOpen={
-                  s.value > 0
-                    ? () =>
-                        open({
-                          title: s.name,
-                          eyebrow: `${siteName} · ${def.title}`,
-                          body: <AnimalsPanel metric={metric} siteKey={siteKey} siteName={siteName} species={s.name} />,
-                        })
-                    : undefined
-                }
-              />
-            ))}
-          </TapList>
-        </Section>
-      </Stack>
-    </>
-  )
-}
-
-/* ── level 3 · animals within a species ──────────────────────────────────── */
-
-export function AnimalsPanel({
-  metric,
-  siteKey,
-  siteName,
-  species,
-}: {
-  metric: string
-  siteKey: string
-  siteName: string
-  species: string
-}) {
-  const { period } = usePeriod()
-  const { open } = useSheet()
-  const def = DRILL[metric]
-  const { rows, total } = useMemo(
-    () => animalsFor(metric, siteKey, species, period.key),
-    [metric, siteKey, species, period.key],
-  )
-  if (!def) return null
-
-  const byStatus = rows.reduce<Record<string, number>>((acc, r) => {
-    acc[r.status] = (acc[r.status] ?? 0) + 1
-    return acc
-  }, {})
-
-  return (
-    <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
-        <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={fmt(total)} size={48} />
-          <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
-            <PawPrint size={15} strokeWidth={1.75} aria-hidden />
-            {species} · {siteName}
-          </p>
-          {total > ANIMAL_CAP && (
-            /* Never let forty rows imply forty animals. The cap is a reading limit
-               and has to be stated as one. */
-            <p className="mt-3 text-[12px] text-[#9b958b]">
-              Showing {ANIMAL_CAP} of {fmt(total)} — open the module for the full register
-            </p>
-          )}
-        </section>
-      </div>
-      <Stack>
-        {Object.keys(byStatus).length > 1 && (
-          <Section icon={ClipboardList} label="Status" aside={`${rows.length} shown`}>
-            <StatusList
-              items={Object.entries(byStatus).map(([label, value]) => ({
-                label,
-                value: String(value),
-                tone: rows.find((r) => r.status === label)?.tone ?? 'neutral',
-              }))}
-            />
+        <div ref={speciesCard} className="contents">
+          <Section
+            icon={Dna}
+            label="Species"
+            aside={site ? `${speciesRows.length} in ${site.name}` : `${speciesRows.length} · zoo-wide`}
+          >
+            <TapList>
+              {speciesRows.map((s) => (
+                <TapRow
+                  key={s.name}
+                  label={s.name}
+                  sub={s.cls}
+                  value={rate ? `${Math.round(s.percent)}%` : fmt(s.value)}
+                  unit={rate && s.of ? `${fmt(s.value)}/${fmt(s.of)}` : undefined}
+                  bar={rate ? s.percent : (s.percent / widestSpecies) * 100}
+                  active={species === s.name}
+                  onOpen={s.value > 0 ? () => pickSpecies(s.name) : undefined}
+                />
+              ))}
+            </TapList>
           </Section>
-        )}
-        <Section icon={PawPrint} label="Animals" aside={total > ANIMAL_CAP ? `${ANIMAL_CAP} of ${fmt(total)}` : `${total}`}>
-          <TapList>
-            {rows.map((a) => (
-              <TapRow
-                key={a.id}
-                label={a.id}
-                sub={`${a.enclosure} · ${a.sex} · ${a.age}${a.when ? ` · ${a.when}` : ''}`}
-                value={a.status}
-                tone={a.tone}
-                onOpen={() =>
-                  open({
-                    title: a.id,
-                    eyebrow: `${species} · ${siteName}`,
-                    body: <AnimalPanel row={a} />,
-                  })
-                }
-              />
-            ))}
-          </TapList>
-        </Section>
+        </div>
+
+        <div ref={animalsCard} className="contents">
+          <Section
+            icon={PawPrint}
+            label="Animals"
+            aside={
+              animals.total > animals.rows.length
+                ? `${animals.rows.length} of ${fmt(animals.total)}`
+                : `${animals.rows.length}`
+            }
+          >
+            {animals.total > animals.rows.length && (
+              /* Never let forty rows imply forty animals. The cap is a reading limit
+                 and has to be stated as one. */
+              <p className="mb-3 text-[11.5px] text-[#9b958b]">
+                A sample across {site ? 'this site' : 'all sites'}, drawn in proportion to each
+                species' share. Narrow further to see fewer, truer rows.
+              </p>
+            )}
+            <TapList>
+              {animals.rows.map((a) => (
+                <TapRow
+                  key={a.id}
+                  label={a.id}
+                  sub={`${a.name} · ${a.enclosure} · ${a.sex} · ${a.age}${a.when ? ` · ${a.when}` : ''}`}
+                  value={a.status}
+                  tone={a.tone}
+                  onOpen={() =>
+                    open({ title: a.id, eyebrow: `${a.name} · ${a.site}`, body: <AnimalPanel row={a} /> })
+                  }
+                />
+              ))}
+            </TapList>
+            {animals.rows.length === 0 && (
+              <p className="text-[13px] text-[#6d6860]">Nothing recorded here in {period.window}.</p>
+            )}
+          </Section>
+        </div>
       </Stack>
-      <OpenModule href={def.href} label={`Open ${def.title}`} />
     </>
   )
 }
+
+/** A facet, and the ✕ that undoes it. */
+function Chip({
+  label,
+  on,
+  onClick,
+  onClear,
+}: {
+  label: string
+  on: boolean
+  onClick?: () => void
+  onClear?: () => void
+}) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full py-[5px] text-[12px] font-medium whitespace-nowrap transition-colors ${
+        on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a]'
+      } ${onClear ? 'pr-1.5 pl-3' : 'px-3'}`}
+    >
+      <button type="button" onClick={onClick} disabled={!onClick} className="max-w-[140px] truncate">
+        {label}
+      </button>
+      {onClear && (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={`Clear ${label}`}
+          className="grid size-[18px] shrink-0 place-items-center rounded-full bg-white/15"
+        >
+          <X size={11} strokeWidth={2.5} aria-hidden />
+        </button>
+      )}
+    </span>
+  )
+}
+
+const Sep = () => (
+  <span className="shrink-0 text-[12px] text-[#b3aea6]" aria-hidden>
+    ›
+  </span>
+)
+
+
 
 /* ── level 4 · one animal. There is nothing below this. ──────────────────── */
 
@@ -565,7 +620,6 @@ export function AlertPanel({ alert }: { alert: CriticalAlert }) {
           </TapList>
         </Section>
       </Stack>
-      <OpenModule href={alert.href} label="Open module" />
     </>
   )
 }
@@ -634,7 +688,6 @@ export function ApprovalPanel({ group }: { group: ApprovalGroup }) {
           </Section>
         )}
       </Stack>
-      <OpenModule href="#/approvals" label="Open Approvals" />
     </>
   )
 }
@@ -728,7 +781,6 @@ export function UpcomingPanel({ group, horizon }: { group: UpcomingGroup; horizo
           </Section>
         )}
       </Stack>
-      <OpenModule href={group.href} label="Open module" />
     </>
   )
 }
@@ -774,7 +826,6 @@ export function RiskPanel({ risk }: { risk: Risk }) {
           />
         </Section>
       </Stack>
-      <OpenModule href={risk.href} label="Open module" />
     </>
   )
 }
@@ -817,7 +868,6 @@ export function MeasurePanel({ measure }: { measure: Measure }) {
           />
         </Section>
       </Stack>
-      <OpenModule href={measure.href} label="Open module" />
     </>
   )
 }
@@ -876,7 +926,6 @@ export function TrendPanel({ card }: { card: TrendCard }) {
           />
         </Section>
       </Stack>
-      <OpenModule href={card.href} label="Open module" />
     </>
   )
 }

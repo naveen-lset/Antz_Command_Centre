@@ -72,8 +72,9 @@ function Weather() {
 function Queues() {
   const { open } = useSheet()
 
-  /* The first two rows open the thing they count; the last two are module queues with
-     no home-screen object behind them, so they navigate. */
+  /* The first two rows open the thing they count. The last two have no home-screen
+     object behind them, so they navigate to the module that owns the queue — the one
+     place in V4 where a rail row still leaves the page. */
   const openFor = (slug: string) => {
     if (slug === 'alerts') {
       const worst = criticalAlerts[0]

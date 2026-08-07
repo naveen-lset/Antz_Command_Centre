@@ -121,6 +121,25 @@ export const zooHealthScore = Math.round(
 
 /* ── 1 · executive KPIs ──────────────────────────────────────────────────── */
 
+/**
+ * Twelve months of shape, declared once.
+ *
+ * The headline KPI cards and the Trends section draw the same series, so they are
+ * stated here and referenced from both. Typed twice, the Natality card would sooner or
+ * later show a curve the Birth Trend chart disagrees with — and the two sit on the
+ * same screen.
+ *
+ * Oldest first. The last reading is the figure the KPI states.
+ */
+export const SERIES = {
+  population: [212040, 212580, 213100, 213480, 213900, 214180, 214460, 214690, 214900, 215120, 215389, 215432],
+  natality: [31, 34, 29, 36, 40, 33, 38, 42, 45, 48, 50, 45],
+  mortality: [34, 32, 36, 31, 33, 30, 30, 27, 26, 29, 25, 23],
+  /* Standing caseload at each month's close — a stock, so it is drawn as a line.
+     Ends on 124, the figure the Health & Medical card and module both state. */
+  caseload: [146, 152, 149, 158, 161, 154, 148, 139, 141, 133, 132, 124],
+} as const
+
 export interface Kpi {
   key: string
   /** One or two words. Names the number, never explains it. */
@@ -145,54 +164,91 @@ export interface Kpi {
   href: string
 }
 
+export interface HeadlineKpi extends Kpi {
+  /** Twelve monthly readings, oldest first. */
+  series: readonly number[]
+  /**
+   * A stock gets a line, a flow gets columns. Not a style choice: a line through
+   * "births per month" implies a value between the months and there isn't one — 11
+   * births on the 3rd and none on the 4th is not a slope. The design system already
+   * splits these (`Spark`/`Trend` against `Columns`); this names which side a KPI
+   * falls on so the tile cannot pick the wrong one.
+   */
+  chart: 'line' | 'bars'
+}
+
 /**
- * Ten numbers, no charts, no prose.
+ * THE FOUR. Everything about the home's first screen is built to make these read in
+ * three seconds: the collection, what is sick in it, what it gained, what it lost.
  *
- * The order is decision order rather than report order: the size of the collection,
- * then what is wrong with it, then what it produced and lost, then the rates that
- * say whether that is normal, then the two scores. A chairman reads left to right
- * and stops when something is off.
+ * They carry a graph and the other six do not, which is the whole point of separating
+ * them — ten equal tiles is a statement that nothing matters more than anything else.
+ *
+ * Wording is the product's own, as it runs on port 5201: "Animal Population", not
+ * "Animals"; "Health & Medical", not "Under Treatment"; "Natality" and "Mortality" as
+ * the home there already calls them. Two names for one module is how a director stops
+ * trusting that two screens are showing the same thing.
  */
-export const kpis: Kpi[] = [
+export const headlineKpis: HeadlineKpi[] = [
   {
     key: 'animals',
-    label: 'Animals',
+    label: 'Animal Population',
     value: '215,432',
+    note: 'animals',
     delta: { today: '+4', week: '+11', month: '+43', sixMonths: '+218', all: '+7,942' },
     icon: PawPrint,
     drill: 'animals',
     href: '#/animals',
+    series: SERIES.population,
+    chart: 'line',
   },
   {
     key: 'treatment',
-    label: 'Under Treatment',
+    label: 'Health & Medical',
     value: '124',
-    note: '7 critical',
+    note: 'under care · 7 critical',
     delta: { today: '+2', week: '+6', month: '−8', sixMonths: '−22', all: '—' },
     icon: Stethoscope,
     tone: 'warn',
     drill: 'health',
     href: '#/health',
+    series: SERIES.caseload,
+    chart: 'line',
   },
   {
     key: 'births',
-    label: 'Births',
+    label: 'Natality',
     value: { today: '3', week: '11', month: '45', sixMonths: '264', all: '9,412' },
+    note: 'births',
     delta: { today: '+1', week: '+9%', month: '+12%', sixMonths: '+7%', all: '—' },
     icon: Sparkles,
     tone: 'good',
     drill: 'births',
     href: '#/births',
+    series: SERIES.natality,
+    chart: 'bars',
   },
   {
     key: 'deaths',
-    label: 'Deaths',
+    label: 'Mortality',
     value: { today: '0', week: '5', month: '23', sixMonths: '160', all: '4,870' },
+    note: 'deaths',
     delta: { today: '−1', week: '−14%', month: '−18%', sixMonths: '−6%', all: '—' },
     icon: Activity,
     drill: 'mortality',
     href: '#/mortality',
+    series: SERIES.mortality,
+    chart: 'bars',
   },
+]
+
+/**
+ * The supporting six — rates and scores, no graphs, quieter tiles under the row.
+ *
+ * They are still executive KPIs; they are simply not what a chairman opens the app
+ * for. Each opens either its target-and-trend panel or the module that owns it.
+ */
+export const supportingKpis: Kpi[] = [
   {
     key: 'breeding',
     label: 'Breeding Success',
@@ -218,9 +274,9 @@ export const kpis: Kpi[] = [
   },
   {
     key: 'tasks',
-    label: 'Priority Tasks',
+    label: 'Tasks',
     value: '18',
-    note: 'of 76 open',
+    note: 'high priority · of 76',
     delta: '+3',
     icon: ListTodo,
     tone: 'warn',
@@ -228,10 +284,10 @@ export const kpis: Kpi[] = [
   },
   {
     key: 'welfare',
-    label: 'Welfare Score',
+    label: 'Welfare Audits',
     value: '4.6',
     unit: '/ 5',
-    note: '12 audits due',
+    note: '12 due',
     delta: '+0.1',
     icon: ShieldCheck,
     tone: 'good',
@@ -286,7 +342,7 @@ export interface CriticalAlert {
   /** Short qualifier — "2 sites", "since 06:40". Never a sentence. */
   note: string
   icon: LucideIcon
-  /** Module that owns the queue, for the "Open module" step out of the sheet. */
+  /** Module that owns the queue. Sheets no longer link out; the sidebar and search do. */
   href: string
   rows: AlertRow[]
 }
@@ -980,7 +1036,7 @@ export const trends: TrendCard[] = [
     delta: '+1.6%',
     tone: 'good',
     icon: PawPrint,
-    values: [212040, 212580, 213100, 213480, 213900, 214180, 214460, 214690, 214900, 215120, 215389, 215432],
+    values: [...SERIES.population],
     labels: MONTHS,
     unitNote: 'Animals · monthly close',
     href: '#/animals',
@@ -992,7 +1048,7 @@ export const trends: TrendCard[] = [
     delta: '+12%',
     tone: 'good',
     icon: Sparkles,
-    values: [31, 34, 29, 36, 40, 33, 38, 42, 45, 48, 50, 45],
+    values: [...SERIES.natality],
     labels: MONTHS,
     unitNote: 'Births · per month',
     href: '#/births',
@@ -1004,7 +1060,7 @@ export const trends: TrendCard[] = [
     delta: '−18%',
     tone: 'good',
     icon: Activity,
-    values: [34, 32, 36, 31, 33, 30, 30, 27, 26, 29, 25, 23],
+    values: [...SERIES.mortality],
     labels: MONTHS,
     unitNote: 'Deaths · per month',
     href: '#/mortality',
@@ -1080,10 +1136,10 @@ export const trends: TrendCard[] = [
  * that gets approved on the home is the request that disappears from the rail.
  */
 export const railQueues = [
-  { slug: 'alerts', label: 'Critical Alerts', value: alertsCritical, note: `${alertsUrgent} urgent`, tone: 'bad' as const },
-  { slug: 'approvals', label: 'Needs Approval', value: approvalsPending, note: `${approvalsOverdue} past SLA`, tone: 'warn' as const },
+  { slug: 'alerts', label: 'Alerts', value: alertsCritical, note: `critical · ${alertsUrgent} urgent`, tone: 'bad' as const },
+  { slug: 'approvals', label: 'Approvals', value: approvalsPending, note: `pending · ${approvalsOverdue} past SLA`, tone: 'warn' as const },
   { slug: 'lab', label: 'Lab Requests', value: 31, note: 'open · 9 overdue', tone: 'warn' as const },
-  { slug: 'attendance', label: 'Staff Presence', value: 243, note: 'of 312 on site', tone: 'good' as const },
+  { slug: 'attendance', label: 'Staff Attendance', value: 243, note: 'of 312 on site', tone: 'good' as const },
 ]
 
 export interface Activity {

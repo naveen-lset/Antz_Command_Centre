@@ -31,14 +31,27 @@ reached from the sidebar, from search, and from the foot of every sheet.
 
 | # | Section | Answers |
 |---|---------|---------|
-| — | Zoo Health hero | overall health, as one composite of four weighted parts |
-| 1 | Executive KPIs | ten numbers, minimal labels, no charts |
+| — | Score strip | Health · Welfare · Compliance · Operations, kept in view at the top |
+| — | Hero | Total Animals — the collection, and its gain inside the window |
+| 1 | Executive KPIs | **four headline metrics in one row, each with twelve months of graph**, then six supporting rates |
 | 2 | Critical Alerts | the ten queues that can start a phone call today |
 | 3 | Needs My Approval | six decision types, each with Approve / Reject |
 | 4 | Upcoming | nine date-driven groups under a 7 / 30-day switch |
 | 5 | Executive Health | six board measures, each against its stated target |
 | 6 | Risk Indicators | seven exposures, named and sized — no suggestions |
 | 7 | Trends | eight twelve-month series as compact sparklines |
+
+The four headline metrics are **Animal Population, Health & Medical, Natality and
+Mortality**. They sit in one row — a horizontal snap-scroll with the next card peeking
+on a phone, a static four-across from 640px of column — and they are the only KPIs
+that carry a graph, because "45 births" cannot answer *are we improving?* and
+forty-five against eleven previous months can. A stock is drawn as a line, a flow as
+columns; the distinction is in the data, not in the tile.
+
+**The wording is the product's own** — the vocabulary running on port 5201. Animal
+Population, not "Animals"; Health & Medical, not "Under Treatment"; Lab Requests,
+Staff Attendance, Animal Movement, Birth Analytics. Two names for one module is how a
+reader stops trusting that two screens show the same figure.
 
 ## Two layers: routes and sheets
 
@@ -53,18 +66,31 @@ content swaps, with a back chevron and a breadcrumb in the eyebrow. Each level p
 a history entry carrying its own depth, so the browser/Android back button, Escape,
 the chevron and swipe-down are all one behaviour.
 
-### The drill: Overall → Site → Species → Animal
+### The detail page: Overall → Site → Species → Animal, on one page
 
-Four levels, and no fifth. The animal record is the bottom — everything below it
-(samples, doses, keeper notes) is the working screen of the person who owns the
-animal, not the executive question that opened the drill.
+Tapping a headline KPI opens **one page that holds the whole drill in place**. Sites,
+Species and Animals are all on it, together with a twelve-month chart and a
+composition card. Tapping a site does not open a level — it *selects* one: a facet
+chip appears in the trail, the Species card re-titles and refilters, and the Animals
+list refilters under it, with the sites they came from still on screen.
+
+Three things that buys over the stacked sheets it replaced: you can see the answer
+beside its context, switching sites is one tap instead of back-then-tap, and nothing
+has to be dismissed to get out — the chips undo themselves.
+
+The only nested sheet left in the flow is the **animal record**, which is the bottom.
+Everything below it (samples, doses, keeper notes) is the working screen of the person
+who owns the animal, not the executive question that opened the drill. There is **no
+link out to a module** from any sheet: this page is the detail, and a button leaving it
+was an admission that it wasn't.
 
 Site totals come from `src/exec/sites.ts` untouched, where Overall is defined as the
 sum of its rows rather than authored. Species and animal rows are **derived** from
 those totals by weighted apportionment, so a species split always sums to its site and
-a site split always sums to Overall, at every reporting window, by construction.
-Per-animal attributes come from a seeded hash of the animal's own id, so a given
-animal reads identically on every visit without a row being stored.
+a site split always sums to Overall, at every reporting window, by construction — the
+running app is checked against this, not just the code. Per-animal attributes come from
+a seeded hash of the animal's own id, so a given animal reads identically on every
+visit without a row being stored.
 
 ## Responsive
 

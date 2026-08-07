@@ -540,6 +540,41 @@ export function Spark({ values, h = 40, w = 120 }: { values: number[]; h?: numbe
   )
 }
 
+/**
+ * `Spark` for a FLOW — the same glance, drawn as columns instead of a line.
+ *
+ * This system already distinguishes the two: `Spark`/`Trend` draw a line through a
+ * standing quantity, `Columns` draws period counts as bars. A line through "births
+ * per month" implies a continuous value between the months, and there isn't one —
+ * eleven births on the 3rd and none on the 4th is not a slope. So a flow gets bars.
+ *
+ * `Columns` is that mark with a value label, an axis row and 92px of height, which is
+ * right in a card and far too much in a KPI tile. This is the same encoding at tile
+ * scale: latest column in full accent, the rest recessive, nothing else.
+ */
+export function SparkBars({ values, h = 34 }: { values: number[]; h?: number }) {
+  const accent = useAccent()
+  const { ref, animate } = usePlay()
+  const max = Math.max(...values, 1)
+  return (
+    <div ref={ref} className="flex items-end gap-[3px]" style={{ height: h }}>
+      {values.map((v, i) => (
+        <span
+          key={i}
+          className={`min-w-0 flex-1 origin-bottom rounded-[2px] ${animate ? 'animate-grow-y' : ''}`}
+          style={{
+            /* Floor of 3px so a zero month is still a mark on the axis rather than a
+               gap the eye reads as missing data. */
+            height: `${Math.max(3, (v / max) * h)}px`,
+            backgroundColor: i === values.length - 1 ? accent : mix(accent, 0.3),
+            animationDelay: animate ? `${i * 35}ms` : undefined,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
 /** Matrix heat grid — density read, normalised across the observed range. */
 export function Matrix({
   rows,

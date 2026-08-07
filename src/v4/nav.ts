@@ -14,31 +14,18 @@
  * the working set and lead; the seven that only ever appear inside the monthly report
  * follow under their own rule.
  *
- * And a few titles are renamed to the words the brief uses — "Natality", not "Birth
- * Analytics"; "Animals", not "Animal Population". The rename lives here, in one map,
- * and is applied to the sidebar AND the page header, so the row you click and the
- * heading you land on always say the same thing.
+ * THE TITLES ARE THE REGISTRY'S, NOT OURS. There was briefly an override map here that
+ * shortened them for the sidebar — "Animals" for Animal Population, "Lab" for Lab
+ * Requests, "Natality" for Birth Analytics. It read well and it was wrong: the module
+ * you click and the page you land on then say different things, and two names for one
+ * module is how a reader stops trusting that two screens are showing the same figure.
+ * `titleOf` survives as the single place any future exception would go.
  */
 
 import { Settings, type LucideIcon } from 'lucide-react'
 import { execPages } from '../exec/pages'
 
-/** Executive naming. Anything absent keeps the registry's own title. */
-export const TITLES: Record<string, string> = {
-  animals: 'Animals',
-  births: 'Natality',
-  transfers: 'Transfers',
-  health: 'Health',
-  lab: 'Lab',
-  attendance: 'Attendance',
-  welfare: 'Welfare',
-  trends: 'Trends',
-  disease: 'Disease',
-  preventive: 'Preventive',
-  discarded: 'Eggs Discarded',
-}
-
-export const titleOf = (slug: string): string => TITLES[slug] ?? execPages[slug]?.title ?? slug
+export const titleOf = (slug: string): string => execPages[slug]?.title ?? slug
 
 export interface NavItem {
   slug: string

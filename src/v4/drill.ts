@@ -40,13 +40,15 @@ export interface DrillMetric {
   href: string
 }
 
+/* Titles are the module registry's, so a sheet opened from a KPI is headed the same
+   thing the sidebar calls the module it came from. */
 export const DRILL: Record<string, DrillMetric> = {
-  animals: { slug: 'animals', title: 'Animals', unit: 'animals', grain: 'member', href: '#/animals' },
-  health: { slug: 'health', title: 'Under Treatment', unit: 'under care', grain: 'member', href: '#/health' },
-  births: { slug: 'births', title: 'Births', unit: 'births', grain: 'event', href: '#/births' },
-  mortality: { slug: 'mortality', title: 'Deaths', unit: 'deaths', grain: 'event', href: '#/mortality' },
+  animals: { slug: 'animals', title: 'Animal Population', unit: 'animals', grain: 'member', href: '#/animals' },
+  health: { slug: 'health', title: 'Health & Medical', unit: 'under care', grain: 'member', href: '#/health' },
+  births: { slug: 'births', title: 'Natality', unit: 'births', grain: 'event', href: '#/births' },
+  mortality: { slug: 'mortality', title: 'Mortality', unit: 'deaths', grain: 'event', href: '#/mortality' },
   vaccination: { slug: 'vaccination', title: 'Vaccination', unit: 'covered', grain: 'member', href: '#/vaccination' },
-  transfers: { slug: 'transfers', title: 'Transfers', unit: 'transfers', grain: 'event', href: '#/transfers' },
+  transfers: { slug: 'transfers', title: 'Animal Movement', unit: 'transfers', grain: 'event', href: '#/transfers' },
 }
 
 /* ── the species each site holds ─────────────────────────────────────────── */
@@ -242,6 +244,45 @@ export function speciesFor(metric: string, siteKey: string, period: PeriodKey): 
     .sort((a, b) => b.value - a.value)
 }
 
+/**
+ * The species list with NO site picked — every site's species, merged.
+ *
+ * The detail page shows Sites and Species at the same time rather than one behind the
+ * other, so there has to be an honest answer to "which species" before a site is
+ * chosen. Merging is by name, not by name-and-site: Common Carp held in two sites is
+ * one species with one total, which is what a curator means by the word.
+ *
+ * Because each site's rows already sum to that site (`apportion` guarantees it), the
+ * merged list sums to Overall — the same invariant, one level up.
+ */
+export function speciesForAll(metric: string, period: PeriodKey): SpeciesRow[] {
+  const level = sitesFor(metric, period)
+  if (!level) return []
+
+  const rate = level.kind === 'rate'
+  const merged = new Map<string, { cls: string; value: number; of: number }>()
+
+  for (const row of level.rows) {
+    for (const s of speciesFor(metric, row.site.key, period)) {
+      const at = merged.get(s.name) ?? { cls: s.cls, value: 0, of: 0 }
+      at.value += s.value
+      at.of += s.of ?? 0
+      merged.set(s.name, at)
+    }
+  }
+
+  const total = [...merged.values()].reduce((n, m) => n + m.value, 0) || 1
+  return [...merged.entries()]
+    .map(([name, m]) => ({
+      name,
+      cls: m.cls,
+      value: m.value,
+      of: rate ? m.of : undefined,
+      percent: rate ? (m.of ? (m.value / m.of) * 100 : 0) : (m.value / total) * 100,
+    }))
+    .sort((a, b) => (rate ? b.percent - a.percent : b.value - a.value))
+}
+
 /* ── level 3 · animals within a species ──────────────────────────────────── */
 
 export interface AnimalRow {
@@ -303,58 +344,88 @@ const STATUS: Record<string, { word: string; tone: AnimalRow['tone'] }[]> = {
 
 const DAYS = ['01', '03', '05', '08', '11', '14', '17', '20', '23', '26', '29', '31']
 
+/** One animal, derived from the bucket it belongs to. Deterministic in `i`. */
+function animalAt(metric: string, siteKey: string, species: string, cls: string, i: number): AnimalRow {
+  const site = SITES.find((s) => s.key === siteKey)!
+  const id = `ANM-${String(10000 + (Math.abs(hash(`${siteKey}:${species}:${i}`)) % 89999))}`
+  const rng = seeded(id)
+  const state = pickFrom(rng, STATUS[metric] ?? STATUS.animals)
+  return {
+    id,
+    name: species,
+    cls,
+    /* Aquatic and invertebrate stock is largely unsexed, which is a fact about the
+       collection rather than missing data — the Animal Population page says the same
+       thing with its 180,348 Undetermined. */
+    sex: (cls === 'Actinopterygii' || cls === 'Malacostraca' || cls === 'Chondrichthyes'
+      ? rng() < 0.88
+        ? 'U'
+        : rng() < 0.5
+          ? 'M'
+          : 'F'
+      : rng() < 0.5
+        ? 'M'
+        : 'F') as AnimalRow['sex'],
+    age: pickFrom(rng, AGES_MEMBER),
+    site: site.name,
+    siteKey,
+    enclosure: `${site.code}-${String(1 + Math.floor(rng() * site.enclosures)).padStart(2, '0')}`,
+    status: state.word,
+    tone: state.tone,
+    when: DRILL[metric]?.grain === 'event' ? `${pickFrom(rng, DAYS)} Jul` : undefined,
+  }
+}
+
 /**
- * The animals behind one species row.
+ * The animals behind whatever is currently selected.
  *
- * Capped at forty. Twelve thousand carp is a true number and an unreadable list, and
- * a scroll that never ends is not a drill-down — it is a database export. The header
- * states the cap against the real count, so the reader is never told forty is all
- * there is.
+ * BOTH FACETS ARE OPTIONAL, and that is what lets the detail page show Sites, Species
+ * and Animals at once instead of one behind the other. With neither set the list is a
+ * cross-site, cross-species sample of the metric; with a site set it is that site;
+ * with both it is one species in one site.
+ *
+ * Capped at forty. Twelve thousand carp is a true number and an unreadable list, and a
+ * scroll that never ends is not a drill-down, it is a database export. `total` is
+ * always the real figure so the caller can state the cap against it — the reader is
+ * never told forty is all there is.
+ *
+ * The sample is drawn PROPORTIONALLY across the matching buckets rather than taking
+ * the first forty of the largest one: an unfiltered list that is forty carp would
+ * imply the collection is only carp, which is roughly true by count and useless as an
+ * answer to "show me the animals".
  */
 export function animalsFor(
   metric: string,
-  siteKey: string,
-  species: string,
   period: PeriodKey,
+  siteKey?: string,
+  species?: string,
 ): { rows: AnimalRow[]; total: number } {
-  const row = speciesFor(metric, siteKey, period).find((s) => s.name === species)
-  const site = SITES.find((s) => s.key === siteKey)
-  if (!row || !site) return { rows: [], total: 0 }
+  const level = sitesFor(metric, period)
+  if (!level) return { rows: [], total: 0 }
 
-  const total = row.value
+  /* Every (site, species) bucket the facets allow, with its real count. */
+  const buckets = level.rows
+    .filter((r) => (siteKey ? r.site.key === siteKey : true) && r.value > 0)
+    .flatMap((r) =>
+      speciesFor(metric, r.site.key, period)
+        .filter((s) => (species ? s.name === species : true) && s.value > 0)
+        .map((s) => ({ siteKey: r.site.key, species: s.name, cls: s.cls, count: s.value })),
+    )
+
+  const total = buckets.reduce((n, b) => n + b.count, 0)
+  if (total === 0) return { rows: [], total: 0 }
+
   const shown = Math.min(total, ANIMAL_CAP)
-  const states = STATUS[metric] ?? STATUS.animals
-  const event = DRILL[metric]?.grain === 'event'
+  const take = apportion(
+    shown,
+    buckets.map((b) => b.count),
+  )
 
-  const rows = Array.from({ length: shown }, (_, i) => {
-    const id = `ANM-${String(10000 + (Math.abs(hash(`${siteKey}:${species}:${i}`)) % 89999))}`
-    const rng = seeded(id)
-    const state = pickFrom(rng, states)
-    return {
-      id,
-      name: species,
-      cls: row.cls,
-      /* Aquatic and invertebrate stock is largely unsexed, which is a fact about the
-         collection rather than missing data — the Animal Population page says the
-         same thing with its 180,348 Undetermined. */
-      sex: (row.cls === 'Actinopterygii' || row.cls === 'Malacostraca' || row.cls === 'Chondrichthyes'
-        ? rng() < 0.88
-          ? 'U'
-          : rng() < 0.5
-            ? 'M'
-            : 'F'
-        : rng() < 0.5
-          ? 'M'
-          : 'F') as AnimalRow['sex'],
-      age: pickFrom(rng, AGES_MEMBER),
-      site: site.name,
-      siteKey,
-      enclosure: `${site.code}-${String(1 + Math.floor(rng() * site.enclosures)).padStart(2, '0')}`,
-      status: state.word,
-      tone: state.tone,
-      when: event ? `${pickFrom(rng, DAYS)} Jul` : undefined,
-    }
-  })
+  const rows = buckets.flatMap((b, bi) =>
+    Array.from({ length: Math.min(take[bi], b.count) }, (_, i) =>
+      animalAt(metric, b.siteKey, b.species, b.cls, i),
+    ),
+  )
 
   return { rows, total }
 }

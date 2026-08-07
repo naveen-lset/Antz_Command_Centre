@@ -40,6 +40,7 @@ import {
   Figure,
   MUTED,
   Spark,
+  SparkBars,
   TONE,
   TRACK,
   compact,
@@ -56,13 +57,15 @@ import {
   criticalAlerts,
   dueWithin,
   executiveHealth,
-  kpis,
+  headlineKpis,
   risks,
   site,
+  supportingKpis,
   trends,
   upcoming,
   zooHealth,
   zooHealthScore,
+  type HeadlineKpi,
   type Kpi,
 } from './data'
 import { useSheet } from './sheet'
@@ -70,8 +73,8 @@ import {
   AlertPanel,
   ApprovalPanel,
   MeasurePanel,
+  MetricPanel,
   RiskPanel,
-  SitesPanel,
   TrendPanel,
   UpcomingPanel,
   ZooHealthPanel,
@@ -187,15 +190,25 @@ function StickyPeriod() {
 
 function ForestBand() {
   return (
-    <div className="relative -z-10 h-[clamp(140px,20cqw,240px)] w-full">
+    <div className="relative -z-10 h-[clamp(150px,21cqw,250px)] w-full">
+      {/* THE CAP ONLY EVER TRIMS SKY. The artwork is 4:3, so at column width W its
+          natural height is 0.75W; keep the box shorter than that and `object-cover`
+          crops the height — the empty sky the scene was composed with — rather than
+          the sides, where the elephants and the pond are.
+
+          40cqw, down from 54. The score strip added a row above the hero and pushed it
+          down into the illustration: on a 716px desktop column the giraffe and the hut
+          ended up directly behind "Total Animals", which is dark type on mid-green.
+          A shorter image sits the horizon lower, and the mask now clears the top 42%
+          rather than 30% so the hero has flat ground under it at every width. */}
       <img
         src={forestScene}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute bottom-0 left-0 max-h-[clamp(300px,54cqw,500px)] w-full object-cover object-bottom select-none"
+        className="pointer-events-none absolute bottom-0 left-0 max-h-[clamp(230px,34cqw,340px)] w-full object-cover object-bottom select-none"
         style={{
-          maskImage: 'linear-gradient(to bottom, transparent 0%, #000 30%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 30%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, #000 50%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 50%)',
         }}
       />
     </div>
@@ -203,22 +216,26 @@ function ForestBand() {
 }
 
 /**
- * The hero is now ZOO HEALTH, not the collection total.
+ * The four composite scores, kept at the top of the screen.
  *
- * V3 opened on 215,432 — the biggest number in the product, and an answer to a
- * question no executive asks first. The total has not been demoted so much as
- * relocated: it is the first tile of the KPI grid immediately below, where it sits
- * beside the nine other figures it should be read against. What the hero carries
- * instead is the one number that says whether anything is wrong.
+ * They used to live under the hero, as the breakdown of a Zoo Health headline. The
+ * headline is the collection total again, so the scores need their own place — and
+ * above the hero rather than below it is the right one: they are the standing answer
+ * to "is anything wrong", read once on arrival, while the hero and the KPI row are
+ * what a director actually came to read. A strip of four small figures reads in about
+ * a second and then gets out of the way.
+ *
+ * One word each. Four cells share ~350px at 390px wide, which leaves ~78px a cell —
+ * "Animal health" truncated to "Animal heal…" there, and a clipped label in the first
+ * thing on the screen is worse than a less precise one. The sheet spells them out.
  */
-function HeroBlock() {
-  const { period } = usePeriod()
+function ScoreStrip() {
   const { open } = useSheet()
+  const { period } = usePeriod()
   const delta = useFigure(zooHealth.delta)
-  const score = useCountUp(Math.round(zooHealthScore), { format: (v) => String(Math.round(v)) })
 
   return (
-    <section className="px-[var(--gutter-lg)] pt-4" aria-label="Zoo health">
+    <div className="px-[var(--gutter-lg)] pb-1">
       <button
         type="button"
         onClick={() =>
@@ -228,35 +245,69 @@ function HeroBlock() {
             body: <ZooHealthPanel score={zooHealthScore} parts={zooHealth.parts} delta={delta} />,
           })
         }
+        className="card-press flex w-full items-stretch rounded-[14px] bg-white/70 px-3 py-2.5 backdrop-blur-sm"
+        aria-label={`Zoo health ${Math.round(zooHealthScore)} out of 100`}
+      >
+        {zooHealth.parts.map((p, i) => (
+          <span
+            key={p.label}
+            className={`min-w-0 flex-1 ${i ? 'border-l border-[#1c1a16]/8 pl-3' : ''} ${
+              i < zooHealth.parts.length - 1 ? 'pr-3' : ''
+            }`}
+          >
+            <span className="block font-display text-[18px] leading-none font-bold tabular-nums text-[#2f2424]">
+              {p.score}
+            </span>
+            <span className="mt-1 block truncate text-[10.5px] text-[#3d3a34]">{p.label}</span>
+          </span>
+        ))}
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The hero is the collection total — the anchor read from across a room.
+ *
+ * It briefly carried a Zoo Health composite instead. That number answers "is anything
+ * wrong", which is a real question, but it is not the one this screen opens on: the
+ * scores now sit in their own strip above, and the hero is back to the figure the
+ * product has always led with.
+ *
+ * The total is stated again on the first KPI card below, deliberately. The hero is the
+ * anchor and carries no shape; the card is where the same number acquires twelve
+ * months of curve and a detail page you can open.
+ */
+function HeroBlock() {
+  const { period } = usePeriod()
+  const { open } = useSheet()
+  const animals = headlineKpis[0]
+  const gain = useFigure(animals.delta ?? '')
+  const total = useCountUp(215432, { format: (v) => Math.round(v).toLocaleString('en-US') })
+
+  return (
+    <section className="px-[var(--gutter-lg)] pt-4" aria-label="Total animals">
+      <button
+        type="button"
+        onClick={() =>
+          open({
+            title: animals.label,
+            eyebrow: period.window,
+            body: <MetricPanel metric={animals.drill!} />,
+          })
+        }
         className="card-press block w-full"
       >
         <p
           className={`${HERO_GRADIENT} text-center font-display text-[length:var(--fs-hero)] leading-none font-bold tracking-[-0.02em]`}
         >
-          {score}
+          {total}
         </p>
-        <p className="mt-2 text-center text-[16px] text-[#1c1a16] @[900px]:text-[18px]">Zoo Health · out of 100</p>
+        <p className="mt-2 text-center text-[16px] text-[#1c1a16] @[900px]:text-[18px]">Total Animals</p>
+        {/* The total above is a standing figure; only this gain is cut by the window. */}
         <p className="mt-1.5 text-center text-[length:var(--fs-cap)] font-semibold text-[#37bd69]">
-          ▲ {delta} {period.noun}
+          ▲ {gain} {period.noun}
         </p>
-
-        {/* The four parts, so the composite is never a black box. Same anatomy as
-            the hero stat row every module page already uses. */}
-        <span className="mt-5 flex items-stretch rounded-[var(--radius-card)] bg-white/70 p-3 backdrop-blur-sm">
-          {zooHealth.parts.map((p, i) => (
-            <span
-              key={p.label}
-              className={`min-w-0 flex-1 ${i ? 'border-l border-[#1c1a16]/8 pl-3' : ''} ${
-                i < zooHealth.parts.length - 1 ? 'pr-3' : ''
-              }`}
-            >
-              <span className="block font-display text-[19px] leading-none font-bold tabular-nums text-[#2f2424]">
-                {p.score}
-              </span>
-              <span className="mt-1 block truncate text-[10.5px] text-[#3d3a34]">{p.label}</span>
-            </span>
-          ))}
-        </span>
       </button>
     </section>
   )
@@ -270,6 +321,7 @@ export function HomeBanner({ onSearch }: { onSearch: () => void }) {
         aria-hidden
       />
       <GreetingHeader onSearch={onSearch} />
+      <ScoreStrip />
       <StickyPeriod />
       <HeroBlock />
       <ForestBand />
@@ -332,6 +384,135 @@ function LevelChip({ level }: { level: keyof typeof LEVEL_TONE }) {
 
 /* ── 1 · executive KPIs ──────────────────────────────────────────────────── */
 
+/**
+ * A headline card — the Apple Health anatomy: what it is, what it reads, how it moved,
+ * and the shape behind it.
+ *
+ * The graph is what separates these four from the six below. "45 births" cannot answer
+ * "are we improving?"; forty-five against eleven previous months can, and it costs
+ * 34px of card height to say it.
+ */
+function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
+  const { open } = useSheet()
+  const { period } = usePeriod()
+  const value = useFigure(kpi.value)
+  const delta = useFigure(kpi.delta ?? '')
+  const colour = kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : ACCENT
+
+  return (
+    <button
+      type="button"
+      onClick={() => open({ title: kpi.label, eyebrow: period.window, body: <MetricPanel metric={kpi.drill!} /> })}
+      className={`${TAP} ${CARD} flex min-w-0 shrink-0 basis-[78%] snap-start flex-col p-[var(--pad-card)] @[640px]:basis-auto`}
+    >
+      {/* The label WRAPS rather than truncates. Four cards across a 716px content
+          column leaves each about 113px of inner width, and "Animal Population" needs
+          ~131px with its glyph — truncated to "Animal Popu…" it names nothing. Grid
+          rows size to the tallest card, so a second line stays aligned. */}
+      <span className="flex items-start gap-1.5">
+        <kpi.icon size={15} strokeWidth={1.75} className="mt-[2px] shrink-0" style={{ color: colour }} aria-hidden />
+        <span className="min-w-0 text-[length:var(--fs-label)] leading-[17px] font-medium text-balance text-[#1c1a16]">
+          {kpi.label}
+        </span>
+      </span>
+      <span className="mt-2.5 block">
+        <Figure value={value} size={34} color={kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : undefined} />
+      </span>
+      <span className="mt-1 flex items-baseline justify-between gap-2">
+        <span className="min-w-0 truncate text-[11px] text-[#9b958b]">{kpi.note}</span>
+        {delta && (
+          <span className="shrink-0 text-[11.5px] font-semibold tabular-nums" style={{ color: signTone(delta) ?? FAINT }}>
+            {delta}
+          </span>
+        )}
+      </span>
+      {/* Tinted by putting the tone on the accent context rather than by threading a
+          colour prop through two shared marks.
+
+          Always twelve months, whatever the window chip above says. The graph is the
+          long view, and a backdrop that re-cut every time the figure did would leave
+          nothing stable to read the figure against. */}
+      <span className="mt-3.5 block" aria-hidden>
+        <AccentProvider value={colour}>
+          {kpi.chart === 'bars' ? <SparkBars values={[...kpi.series]} /> : <Spark values={[...kpi.series]} h={34} />}
+        </AccentProvider>
+      </span>
+      <span className="mt-1.5 block text-[10px] tracking-[0.06em] text-[#b3aea6] uppercase">12 months</span>
+    </button>
+  )
+}
+
+/**
+ * ONE ROW, as Apple Health's Highlights are one row.
+ *
+ * Four cards will not fit legibly across 390px — that is 97px each, narrower than
+ * "215,432" — so on a phone the row scrolls sideways with snap points and the next
+ * card peeking, with dots underneath saying how many there are. The peek is the whole
+ * affordance: a row that ends flush at the screen edge looks finished, and nobody
+ * swipes something that looks finished.
+ *
+ * Past 640px of column the scroll is dropped and all four sit in a static row.
+ * Measured off the COLUMN, not the window — see the note in `index.css`.
+ */
+function KpiRail() {
+  const rail = useRef<HTMLDivElement>(null)
+  const [active, setActive] = useState(0)
+  const [scrollable, setScrollable] = useState(false)
+
+  useEffect(() => {
+    const el = rail.current
+    if (!el) return
+    /* The dots are shown only when the row can actually move. Past the breakpoint it
+       is a grid, and four dots under a static row would be an affordance for a gesture
+       that does nothing. */
+    const measure = () => setScrollable(el.scrollWidth > el.clientWidth + 4)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    let raf = 0
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() =>
+        setActive(Math.round(el.scrollLeft / (el.scrollWidth / headlineKpis.length))),
+      )
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      ro.disconnect()
+      el.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+
+  return (
+    <div>
+      {/* Negative margin then matching padding, so the row bleeds to the screen edge
+          while the first card still starts on the stack's gutter. Without it the last
+          card stops 16px short and the row reads as ending there. */}
+      <div
+        ref={rail}
+        className="-mx-[var(--gutter)] flex snap-x snap-mandatory gap-[var(--gap)] overflow-x-auto px-[var(--gutter)] pb-1 scrollbar-hidden @[640px]:mx-0 @[640px]:grid @[640px]:snap-none @[640px]:grid-cols-4 @[640px]:overflow-visible @[640px]:px-0"
+      >
+        {headlineKpis.map((k) => (
+          <HeadlineCard key={k.key} kpi={k} />
+        ))}
+      </div>
+      {scrollable && (
+        <div className="mt-2.5 flex justify-center gap-1.5" aria-hidden>
+          {headlineKpis.map((k, i) => (
+            <span
+              key={k.key}
+              className="size-[5px] rounded-full transition-colors duration-200"
+              style={{ backgroundColor: i === active ? ACCENT : 'rgba(28,26,22,0.16)' }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The supporting six — the same tile, no graph, quieter. */
 function KpiTile({ kpi }: { kpi: Kpi }) {
   const { open } = useSheet()
   const { period } = usePeriod()
@@ -340,12 +521,7 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
   const measure = executiveHealth.find((m) => m.key === kpi.measure)
 
   const onOpen = kpi.drill
-    ? () =>
-        open({
-          title: kpi.label,
-          eyebrow: period.window,
-          body: <SitesPanel metric={kpi.drill!} />,
-        })
+    ? () => open({ title: kpi.label, eyebrow: period.window, body: <MetricPanel metric={kpi.drill!} /> })
     : measure
       ? () => open({ title: measure.label, eyebrow: measure.targetLabel, body: <MeasurePanel measure={measure} /> })
       : undefined
@@ -356,7 +532,7 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
         <kpi.icon size={14} strokeWidth={1.75} style={{ color: ACCENT }} aria-hidden />
         <span className="min-w-0 truncate text-[length:var(--fs-micro)] font-medium text-[#6d6860]">{kpi.label}</span>
       </span>
-      {/* 26, not 30. At five columns a KPI cell is ~125px of inner width and
+      {/* 26, not 30. At six columns a KPI cell is ~125px of inner width and
           "215,432" is about 3.8em wide — at 30pt with the tier multiplier on top it
           printed straight over the card's own edge. The scale variable still grows it
           per tier; this is the base it grows from. */}
@@ -393,14 +569,12 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
 
 function KpiGrid() {
   return (
-    /* Ten tiles, and the column counts are picked so none of them is ever left alone
-       on the last row: two (five clean rows), four (4·4·2) and five (5·5). Three was
-       the obvious middle step and is the one count that strands a single tile.
-       Measured off the COLUMN, not the window — with a sidebar and a panel flanking
-       it, a 1280 desktop hands this stack less width than a tablet landscape does.
-       See the note in `index.css`. */
-    <div className="grid grid-cols-2 gap-[var(--gap)] @[640px]:grid-cols-4 @[1000px]:grid-cols-5">
-      {kpis.map((k) => (
+    /* Six tiles, so every column count divides them exactly and no tile is ever left
+       alone on the last row: two, three, six. Measured off the COLUMN, not the window
+       — with a sidebar and a panel flanking it, a 1280 desktop hands this stack less
+       width than a tablet landscape does. See the note in `index.css`. */
+    <div className="grid grid-cols-2 gap-[var(--gap)] @[640px]:grid-cols-3 @[1000px]:grid-cols-6">
+      {supportingKpis.map((k) => (
         <KpiTile key={k.key} kpi={k} />
       ))}
     </div>
@@ -722,6 +896,9 @@ export function HomeSections() {
   return (
     <main className="flex flex-col gap-[var(--gap)] px-[var(--gutter)] pt-3 pb-[max(40px,env(safe-area-inset-bottom))]">
       <SectionHead icon={SECTION_ICONS.kpis} title="Executive KPIs" aside="10 measures" />
+      <Reveal>
+        <KpiRail />
+      </Reveal>
       <Reveal>
         <KpiGrid />
       </Reveal>
