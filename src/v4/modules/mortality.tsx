@@ -1,16 +1,32 @@
 /**
  * MORTALITY — a rate, a cause and a name.
  *
- * The page is built around the three things a death can be asked about, in the order
- * they are asked: how many against how many we hold (the rate, which is the only
- * figure comparable to another zoo's), why (cause analysis, which is where an
- * intervention lives), and which animal (the record, which is what a necropsy report
- * is filed against).
+ * The page is built around the three things a death can be asked about, in the order they are
+ * asked: how many against how many we hold (the rate, which is the only figure comparable to
+ * another zoo's), why (cause analysis, which is where an intervention lives), and which animal
+ * (the record, which is what a necropsy report is filed against).
  *
- * The regulatory split leads the counts, because a Schedule I death is a notifiable
- * event and an aquarium fish is not.
+ * EVERY FIGURE ON THIS PAGE IS READ, NOT AUTHORED, and that is the change worth stating. The hero
+ * was already scoped, and everything under it was a string: "against 215,432 held", "23 deaths",
+ * a twelve-month array, a Pareto of six causes, five record rows. Scope to Carnivore Ridge for the
+ * last seven days and the hero read 0 while the cards beneath it read 23 deaths against 215,432 —
+ * six contradictions on one screen, each individually plausible.
+ *
+ * They are now all derived from `core/query.ts` under the scope in force:
+ *
+ *   · the rate is the window's deaths over the window's population, both scoped
+ *   · the cause Pareto is the window's own events grouped by cause, so it sums to the hero
+ *   · the site ladder, the species bars and the records are the same events grouped three ways
+ *   · the twelve-month columns are the scoped daily series bucketed by month
+ *
+ * WHAT IS STILL AUTHORED, AND WHY THAT IS HONEST. The regulatory instruments and the necropsy
+ * bench queue are not metrics — there is no Schedule I flag in the data model, and inventing one
+ * to make a card scopeable would be the fabrication the brief rules out. Those two cards therefore
+ * state that they are collection-wide rather than quietly re-scoping, and they are the last two
+ * things on this page that a real system would replace with a query.
  */
 
+import { useMemo } from 'react'
 import {
   Activity,
   ClipboardList,
@@ -39,6 +55,14 @@ import {
 } from '../../exec/system'
 import { DrillList, DrillRow, ModuleHero, NodePanel, SiteSplit, useSheet } from './kit'
 import { MetricPanel } from '../panels'
+import { useScope } from '../scope'
+import { byDimension, bySpecies, bySite, figure, records } from '../../core/query'
+import { series } from '../../core/series'
+import { resolveWindow, shortDate } from '../../core/calendar'
+import { siteKeyOf } from '../../core/scope'
+import { fmt } from '../../exec/system'
+
+/* ── the authored remainder ──────────────────────────────────────────────── */
 
 const CASE = (id: string, species: string, cause: string, tone?: 'good' | 'warn' | 'bad') => ({
   id,
@@ -55,7 +79,13 @@ const CASE = (id: string, species: string, cause: string, tone?: 'good' | 'warn'
   ],
 })
 
-/** Necropsy Centre → Species → Case. The pathologist's queue, not the collection's map. */
+/**
+ * Necropsy Centre → Species → Case. The pathologist's queue, not the collection's map.
+ *
+ * Authored, and labelled as collection-wide on the card. A necropsy bench is not a dimension of
+ * the event data — there is no "which suite" on a death — so this cannot be scoped without
+ * inventing the attribution.
+ */
 const NECROPSY = [
   {
     id: 'central',
@@ -83,48 +113,167 @@ const NECROPSY = [
   },
 ]
 
+/** The regulatory ceiling the rate is judged against. A policy number, not a measurement. */
+const RATE_CEILING = 0.015
+
+const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+
 export default function Mortality() {
   const { open } = useSheet()
+  const { scope } = useScope()
+
+  const deaths = figure(scope, 'mortality')
+  const held = figure(scope, 'animals')
+
+  /* The rate, and the two things it needs beside it: its own denominator and the ceiling it is
+     judged against. Both scoped, so the comparison holds at any site and any window. */
+  const rate = held.value > 0 ? (deaths.value / held.value) * 100 : 0
+  const headroom = Math.min(100, Math.round((rate / RATE_CEILING) * 100))
+
+  const causes = useMemo(() => byDimension(scope, 'mortality', 'detail'), [scope])
+  const speciesRows = useMemo(() => bySpecies(scope, 'mortality'), [scope])
+  const siteRows = useMemo(() => bySite(scope, 'mortality'), [scope])
+  const where = useMemo(() => byDimension(scope, 'mortality', 'class'), [scope])
+  const recent = useMemo(() => records(scope, 'mortality', 0, 6), [scope])
+
+  /* Twelve months of the SCOPED series, labelled with the months it actually covers. */
+  const year = resolveWindow('year')
+  const monthly = useMemo(() => series('mortality', siteKeyOf(scope), year, 12), [scope, year.from])
+  const monthLabels = useMemo(() => {
+    const start = new Date(2025, 6, 31)
+    return Array.from({ length: 12 }, (_, i) => MONTH_LETTERS[(start.getMonth() - 11 + i + 12) % 12])
+  }, [])
+
+  const leader = siteRows[0]
+  const topCause = causes[0]
 
   return (
     <>
       <ModuleHero
         icon={Activity}
         slug="mortality"
-        value="23"
+        value={fmt(deaths.value)}
         label="Deaths"
-        status="−18% on prior month"
-        tone="good"
+        tone={deaths.value === 0 ? 'good' : 'neutral'}
         stats={[
-          { value: '0.011', unit: '%', label: 'Rate' },
-          { value: '9', label: 'Species' },
-          { value: '5', label: 'Sites' },
+          { value: rate.toFixed(3), unit: '%', label: 'Rate' },
+          { value: String(speciesRows.length), label: 'Species' },
+          { value: String(siteRows.filter((r) => r.value > 0).length), label: 'Sites' },
         ]}
       />
       <Stack>
-        {/* The rate, with the denominator visible. A count of 23 means nothing without
-            215,432 beside it, and a rate without its base cannot be compared to
-            anyone else's. */}
-        <Section icon={Percent} label="Mortality rate" aside="against 215,432 held">
+        {/* The rate, with the denominator visible. A count of 23 means nothing without 215,432
+            beside it, and a rate without its base cannot be compared to anyone else's. Both are
+            now the scope's own figures rather than the collection's. */}
+        <Section icon={Percent} label="Mortality rate" aside={`against ${fmt(held.value)} held`}>
           <Bullet
-            label="This month"
-            value="0.011%"
-            percent={73}
+            label={scope.win.label}
+            value={`${rate.toFixed(3)}%`}
+            percent={headroom}
             target={100}
-            note="Ceiling 0.015% · 73% of allowance unused"
-            tone="good"
+            note={`Ceiling ${RATE_CEILING}% · ${Math.max(0, 100 - headroom)}% of allowance unused`}
+            tone={rate <= RATE_CEILING ? 'good' : 'bad'}
           />
           <Rule label="Twelve months" />
-          <Columns
-            values={[34, 32, 36, 31, 33, 30, 30, 27, 26, 29, 25, 23]}
-            labels={['A', 'S', 'O', 'N', 'D', 'J', 'F', 'M', 'A', 'M', 'J', 'J']}
-            unit="Deaths · per month"
+          <Columns values={monthly} labels={monthLabels} unit="Deaths · per month" />
+        </Section>
+
+        {/* Pareto, because the point of cause analysis is which two causes account for most of it
+            — and the cumulative line is the only mark that says so. Grouped from the window's own
+            events, so the bars sum to the hero above. */}
+        <Section icon={Skull} label="Cause analysis" aside={`${fmt(deaths.value)} deaths`}>
+          {causes.length > 0 ? (
+            <Pareto items={causes.map((c) => ({ label: c.label, value: c.value }))} />
+          ) : (
+            <Empty window={scope.win.window} />
+          )}
+        </Section>
+
+        <Section icon={ClipboardList} label="Where they died" aside={`${fmt(deaths.value)} deaths`}>
+          {where.length > 0 ? (
+            <StatusList
+              items={where.map((c) => ({
+                label: c.label,
+                value: fmt(c.value),
+                tone: c.percent > 40 ? ('bad' as const) : c.percent > 20 ? ('warn' as const) : undefined,
+              }))}
+            />
+          ) : (
+            <Empty window={scope.win.window} />
+          )}
+        </Section>
+
+        <Section icon={MapPin} label="Concentration" aside="tap to drill">
+          <SiteSplit
+            slug="mortality"
+            onOpenSite={(_, name) => open({ title: name, eyebrow: 'Mortality', body: <MetricPanel metric="mortality" /> })}
+          />
+          {siteRows.length > 1 && leader && (
+            <>
+              <Rule label="Leading" />
+              <Ladder
+                leader={{
+                  label: leader.label,
+                  sub: `${fmt(leader.value)} of ${fmt(deaths.value)}${topCause ? ` · ${topCause.label.toLowerCase()}` : ''}`,
+                  value: `${Math.round(leader.percent)}%`,
+                }}
+                rest={siteRows.slice(1, 5).map((r) => ({
+                  label: r.label,
+                  sub: `${fmt(r.value)} deaths`,
+                  value: `${Math.round(r.percent)}%`,
+                }))}
+              />
+            </>
+          )}
+        </Section>
+
+        <Section icon={TrendingDown} label="Top mortality species" aside={`${speciesRows.length} species`}>
+          {speciesRows.length > 0 ? (
+            <Bars
+              items={speciesRows.slice(0, 6).map((r) => ({ label: r.label, value: r.value, sub: r.sub }))}
+              unit="deaths"
+              showShare
+            />
+          ) : (
+            <Empty window={scope.win.window} />
+          )}
+        </Section>
+
+        <Section icon={Skull} label="Records" aside={`${fmt(recent.total)} in window`}>
+          {recent.rows.length > 0 ? (
+            <Records
+              items={recent.rows.map((ev) => ({
+                label: `${ev.animalId} · ${ev.speciesName}`,
+                sub: `${ev.detail}`,
+                value: shortDate(ev.day),
+                tone: ev.tone === 'neutral' ? undefined : ev.tone,
+              }))}
+            />
+          ) : (
+            <Empty window={scope.win.window} />
+          )}
+        </Section>
+
+        <Section icon={Activity} label="Highlights">
+          <Highlights
+            items={[
+              { tag: 'Deaths', value: fmt(deaths.value), label: scope.win.label, tone: 'good' },
+              { tag: 'Rate', value: rate.toFixed(3), unit: '%', label: 'Of collection', tone: rate <= RATE_CEILING ? 'good' : 'bad' },
+              ...(leader ? [{ tag: 'Top site', value: fmt(leader.value), label: leader.label, tone: 'warn' as const }] : []),
+              ...(topCause ? [{ tag: 'Top cause', value: fmt(topCause.value), label: topCause.label, tone: 'warn' as const }] : []),
+            ]}
           />
         </Section>
 
-        {/* Regulatory first. A Schedule I death is notifiable within 24 hours; an
-            aquarium fish is a husbandry note. Splitting them is the difference. */}
-        <Section icon={ScrollText} label="Regulatory standing" aside="23 deaths">
+        {/*
+          The two cards below are the page's authored remainder, and they say so.
+
+          Regulatory instrument and necropsy bench are not attributes the event data carries. The
+          alternative to stating that plainly would be apportioning 23 collection-wide deaths
+          across Schedule I and II per site — which would put a number on screen that no record
+          anywhere supports. `aside` names the scope these are actually true at.
+        */}
+        <Section icon={ScrollText} label="Regulatory standing" aside="collection · July 2025">
           <Snapshot
             cols={2}
             items={[
@@ -144,20 +293,7 @@ export default function Mortality() {
           />
         </Section>
 
-        <Section icon={ClipboardList} label="Where they died" aside="23 deaths">
-          <StatusList
-            items={[
-              { label: 'In hospital', value: '4', tone: 'bad' },
-              { label: 'In enclosure', value: '16' },
-              { label: 'In quarantine', value: '2', tone: 'warn' },
-              { label: 'In transit', value: '1', tone: 'warn' },
-            ]}
-          />
-        </Section>
-
-        {/* Necropsy Centre → Species → Case. A pathologist's queue is organised by
-            bench and specimen, not by the site the animal came from. */}
-        <Section icon={FileSearch} label="Necropsy" aside="5 pending">
+        <Section icon={FileSearch} label="Necropsy" aside="collection · 5 pending">
           <DrillList>
             {NECROPSY.map((n) => (
               <DrillRow
@@ -179,79 +315,7 @@ export default function Mortality() {
           </DrillList>
         </Section>
 
-        {/* Pareto, because the point of cause analysis is which two causes account for
-            most of it — and the cumulative line is the only mark that says so. */}
-        <Section icon={Skull} label="Cause analysis" aside="23 deaths">
-          <Pareto
-            items={[
-              { label: 'Water quality', value: 7 },
-              { label: 'Age-related', value: 5 },
-              { label: 'Infection', value: 4 },
-              { label: 'Trauma', value: 3 },
-              { label: 'Parasitic', value: 2 },
-              { label: 'Undetermined', value: 2 },
-            ]}
-          />
-        </Section>
-
-        <Section icon={MapPin} label="Concentration" aside="tap to drill">
-          <SiteSplit
-            slug="mortality"
-            onOpenSite={(_, name) => open({ title: name, eyebrow: 'Mortality', body: <MetricPanel metric="mortality" /> })}
-          />
-          <Rule label="Leading" />
-          <Ladder
-            leader={{ label: 'Aquatic Halls', sub: '11 of 23 · water quality', value: '48%' }}
-            rest={[
-              { label: 'Aviary Complex', sub: '5 deaths', value: '22%' },
-              { label: 'Savanna', sub: '3 deaths', value: '13%' },
-              { label: 'Reptile House', sub: '2 deaths', value: '9%' },
-              { label: 'Primate Forest', sub: '2 deaths', value: '9%' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={TrendingDown} label="Top mortality species" aside="9 species">
-          <Bars
-            items={[
-              { label: 'Nile Tilapia', value: 6, sub: 'Aquatic Halls' },
-              { label: 'Common Carp', value: 5, sub: 'Aquatic Halls' },
-              { label: 'Grey Francolin', value: 3, sub: 'Aviary Complex' },
-              { label: 'Chital', value: 2, sub: 'Savanna' },
-              { label: 'Rose Shrimp', value: 2, sub: 'Aquatic Halls' },
-              { label: 'Five others', value: 5, sub: 'One each' },
-            ]}
-            unit="deaths"
-            showShare
-          />
-        </Section>
-
-        <Section icon={Skull} label="Records" aside="most recent">
-          <Records
-            items={[
-              { label: 'ANM-22140 · Chital', sub: 'Savanna · Zone A · necropsy due', value: '01 Aug', tone: 'bad' },
-              { label: 'ANM-50771 · Nile Tilapia', sub: 'Aquatic Halls · AQ-11 · fungal', value: '29 Jul', tone: 'bad' },
-              { label: 'ANM-41902 · Grey Francolin', sub: 'Aviary Complex · aspergillosis', value: '26 Jul', tone: 'warn' },
-              { label: 'ANM-31140 · Bengal Fox', sub: 'Carnivore Ridge · age-related', value: '21 Jul' },
-              { label: 'ANM-50440 · Common Carp', sub: 'Aquatic Halls · AQ-14 · water quality', value: '18 Jul', tone: 'warn' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Activity} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Deaths', value: '23', label: 'This month', tone: 'good' },
-              { tag: 'Rate', value: '0.011', unit: '%', label: 'Of collection', tone: 'good' },
-              { tag: 'Top site', value: '11', label: 'Aquatic Halls', tone: 'warn' },
-              { tag: 'Top cause', value: '7', label: 'Water quality', tone: 'warn' },
-              { tag: 'Notifiable', value: '6', label: 'Regulatory', tone: 'bad' },
-              { tag: 'Pending', value: '5', label: 'Necropsy', tone: 'bad' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={ScrollText} label="Reporting">
+        <Section icon={ScrollText} label="Reporting" aside="collection">
           <Facts
             items={[
               { label: 'Notified within 24 h', value: '6 of 6', tone: 'good' },
@@ -263,5 +327,20 @@ export default function Mortality() {
         </Section>
       </Stack>
     </>
+  )
+}
+
+/**
+ * What a card shows when the scope has nothing in it.
+ *
+ * Deliberately not a zero and not a hidden card. Carnivore Ridge recorded no deaths in the last
+ * seven days, and that is a fact worth stating plainly — an empty Pareto or a silently dropped
+ * section would leave the reader unsure whether they had found good news or a broken page.
+ */
+function Empty({ window }: { window: string }) {
+  return (
+    <p className="py-2 text-[12.5px] text-[#9b958b]">
+      No deaths recorded in {window} for this scope.
+    </p>
   )
 }

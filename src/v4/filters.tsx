@@ -1,66 +1,60 @@
 /**
- * GLOBAL FILTERS — one date range, one site, one species search, everywhere.
+ * GLOBAL FILTERS — date, site, search. Three, as the brief specifies, and no more.
  *
- * The chip row this replaces held five windows and worked because five is a number of
- * chips that fits. The brief asks for nine plus a custom range, and a nine-chip row is
- * a horizontal scroll where the option you want is always the one off-screen.
+ * WHAT CHANGED BENEATH THEM. The controls look much as they did; what they do is different in
+ * three ways that matter.
  *
- * So the filters become two pills that open sheets — which is also what the brief says
- * to do with filters ("Bottom Sheets should still be used for Search, Filters…"). It
- * costs one tap to change a window and gains: room for nine windows and a date picker,
- * a site selector that would never have fitted beside them, and the same control on
- * every surface rather than a chip row on the home and something else in a module.
+ * THE DATE RANGE IS NO LONGER AN ESTIMATE. This sheet used to end with a note explaining that a
+ * custom range was "estimated from the nearest reported grain and scaled to the days you pick".
+ * That note was honest about a dishonest number. `core/series.ts` now derives a real daily
+ * series, so 12–19 May sums the actual days 12–19 May and the disclaimer is deleted rather than
+ * reworded. The inputs are bounded to the ledger, so a range with no data behind it cannot be
+ * requested in the first place — which is the brief's "if custom date ranges are unsupported,
+ * disable them", satisfied by supporting them properly.
  *
- * THE SITE FILTER IS THE ONE WITH TEETH. Picking Aquatic Halls re-cuts the home's
- * headline KPIs, pre-selects the facet in every drill sheet, and scopes the module
- * pages' hero and site card. Where a figure has no site model behind it — a welfare
- * score, a food-wastage percentage — the tile says "zoo-wide" rather than quietly
- * showing an unscoped number under a scoped heading.
+ * THE SCOPE OUTLIVES NAVIGATION. Both filters read and write the one scope in `scope.tsx`,
+ * which lives in the URL above the router. Previously the window sat in a provider that `App`
+ * re-keyed per route, so it silently reset every time the reader opened a different module.
+ *
+ * SEARCH IS A FILTER NOW, not just a way to jump to a module. It searches entities and animals
+ * as well as modules, because the brief makes entities the thing the product is organised
+ * around — and a search that only finds modules cannot find an animal.
  */
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { CalendarRange, Check, MapPin, Search, X } from 'lucide-react'
-import { PERIODS, usePeriod, type PeriodKey } from '../exec/period'
-import { SITES, siteCut, type Site } from '../exec/sites'
-import { ACCENT, ACCENT_INK, FAINT, Facts, Section, Stack, TONE, fmt, mix } from '../exec/system'
+import { WINDOWS } from '../core/calendar'
+import { figure } from '../core/query'
+import { SITES, type Site } from '../core/world'
+import { ACCENT, ACCENT_INK, FAINT, Facts, Section, Stack, fmt, mix } from '../exec/system'
+import { useScope } from './scope'
 import { useSheet } from './sheet'
 
-/* ── the site scope ──────────────────────────────────────────────────────── */
-
-interface SiteCtx {
-  /** `null` is the whole collection, and is the default. */
-  site: Site | null
-  set: (s: Site | null) => void
-}
-
-const SiteContext = createContext<SiteCtx>({ site: null, set: () => {} })
-
-export function SiteProvider({ children }: { children: ReactNode }) {
-  const [site, set] = useState<Site | null>(null)
-  const value = useMemo(() => ({ site, set }), [site])
-  return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>
-}
-
-export const useSite = () => useContext(SiteContext)
+/* ── the site scope, for the call sites that still ask for it directly ────── */
 
 /**
- * A module's figure under the current window AND the current site scope.
+ * Kept as an adapter over the one scope, because `kit.tsx` and `panels.tsx` call it. It used to
+ * own a `useState`, which is why the site filter and the window filter had different lifetimes
+ * for a while — one survived navigation and the other did not, for no reason anybody chose.
+ */
+export function useSite(): { site: Site | null; set: (s: Site | null) => void } {
+  const { scope, setSite } = useScope()
+  return { site: scope.site, set: setSite }
+}
+
+/**
+ * A module's figure under the current window AND site scope.
  *
- * Returns `undefined` when the module has no site model, which is the caller's signal
- * to keep showing the zoo-wide figure and label it as such. A silent fallback would be
- * the worse behaviour: a KPI grid where two tiles are scoped to Aquatic Halls and four
- * are not, with nothing on screen saying which is which.
+ * Now a one-line call into `core/query.ts`. It previously returned `undefined` for a module with
+ * no site model, and callers were expected to notice and print "zoo-wide" — every metric has a
+ * site model now, so the exception path is gone. `known: false` remains for a slug that names no
+ * metric at all, which is a programming error rather than a data gap.
  */
 export function useScoped(slug: string): { value: number; of?: number; rate: boolean } | undefined {
-  const { cut } = usePeriod()
-  const { site } = useSite()
-  const split = siteCut(slug, cut)
-  if (!split) return undefined
-  const rate = split.kind === 'rate'
-  if (!site) return { value: split.overall, of: split.overallOf, rate }
-  const row = split.rows.find((r) => r.site.key === site.key)
-  if (!row) return { value: 0, of: 0, rate }
-  return { value: rate ? row.percent : row.value, of: row.of, rate }
+  const { scope } = useScope()
+  const f = figure(scope, slug)
+  if (!f.known) return undefined
+  return { value: f.kind === 'rate' ? (f.percent ?? 0) : f.value, of: f.of, rate: f.kind === 'rate' }
 }
 
 /* ── the bar ─────────────────────────────────────────────────────────────── */
@@ -68,13 +62,12 @@ export function useScoped(slug: string): { value: number; of?: number; rate: boo
 /**
  * Two pills — window and site — pinned wherever figures are shown.
  *
- * `tone="home"` only changes the gutter so the bar lines up with the greeting above
- * it; the pills themselves are identical on every surface, because a control that
- * looks different in two places is read as two controls.
+ * `tone="home"` only changes the gutter so the bar lines up with the greeting above it; the
+ * pills themselves are identical on every surface, because a control that looks different in two
+ * places is read as two controls.
  */
 export function FilterBar({ tone = 'sheet' }: { tone?: 'sheet' | 'home' }) {
-  const { period } = usePeriod()
-  const { site } = useSite()
+  const { scope } = useScope()
   const { open } = useSheet()
   const gutter = tone === 'home' ? 'px-5' : 'px-6'
 
@@ -82,14 +75,16 @@ export function FilterBar({ tone = 'sheet' }: { tone?: 'sheet' | 'home' }) {
     <div className={`flex items-center gap-2 ${gutter} pb-3`}>
       <Pill
         icon={CalendarRange}
-        label={period.label}
-        onClick={() => open({ title: 'Date range', eyebrow: period.window, body: <DateRangePanel /> })}
+        label={scope.win.label}
+        onClick={() => open({ title: 'Date range', eyebrow: scope.win.window, body: <DateSheet /> })}
       />
       <Pill
         icon={MapPin}
-        label={site ? site.name : 'All sites'}
-        on={Boolean(site)}
-        onClick={() => open({ title: 'Site', eyebrow: site ? site.name : 'All sites', body: <SitePanel /> })}
+        label={scope.site ? scope.site.name : 'All sites'}
+        on={Boolean(scope.site)}
+        onClick={() =>
+          open({ title: 'Site', eyebrow: scope.site ? scope.site.name : 'All sites', body: <SiteSheet /> })
+        }
       />
     </div>
   )
@@ -125,44 +120,64 @@ function Pill({
 
 /* ── the date-range sheet ────────────────────────────────────────────────── */
 
-function DateRangePanel() {
-  const { period, set, custom, setCustom } = usePeriod()
+export function DateSheet() {
+  const { scope, windowKey, setWindow, custom, setCustom, bounds } = useScope()
   const { back } = useSheet()
+  const [draft, setDraft] = useState(custom)
+
+  const span = useMemo(() => {
+    const a = Date.parse(draft.from)
+    const b = Date.parse(draft.to)
+    if (Number.isNaN(a) || Number.isNaN(b)) return 0
+    return Math.abs(Math.round((b - a) / 86_400_000)) + 1
+  }, [draft])
 
   return (
     <Stack>
-      <Section icon={CalendarRange} label="Window" aside={period.window}>
+      <Section icon={CalendarRange} label="Window" aside={scope.win.window}>
         <ul className="flex flex-col">
-          {PERIODS.map((p) => (
+          {WINDOWS.map((w) => (
             <Option
-              key={p.key}
-              label={p.label}
-              sub={p.key === 'custom' ? 'Pick two dates below' : p.window}
-              on={p.key === period.key}
+              key={w.key}
+              label={w.label}
+              sub={w.window}
+              value={w.days > 1 ? `${w.days} d` : undefined}
+              on={w.key === windowKey}
               onClick={() => {
-                set(p.key)
-                /* A window is a one-tap decision, so the sheet closes itself rather
-                   than making the reader dismiss a list they have finished with. The
-                   custom range is the exception — it needs the dates below. */
-                if (p.key !== 'custom') back()
+                setWindow(w.key)
+                /* A window is a one-tap decision, so the sheet closes itself rather than making
+                   the reader dismiss a list they have finished with. */
+                back()
               }}
             />
           ))}
         </ul>
       </Section>
 
-      <Section icon={CalendarRange} label="Custom range">
+      <Section icon={CalendarRange} label="Custom range" aside={span ? `${span} days` : undefined}>
         <div className="flex items-center gap-3">
-          <DateField label="From" value={custom.from} onChange={(from) => setCustom({ ...custom, from })} />
+          <DateField
+            label="From"
+            value={draft.from}
+            min={bounds.min}
+            max={bounds.max}
+            onChange={(from) => setDraft({ ...draft, from })}
+          />
           <span className="mt-4 shrink-0 text-[13px]" style={{ color: FAINT }} aria-hidden>
             →
           </span>
-          <DateField label="To" value={custom.to} onChange={(to) => setCustom({ ...custom, to })} />
+          <DateField
+            label="To"
+            value={draft.to}
+            min={bounds.min}
+            max={bounds.max}
+            onChange={(to) => setDraft({ ...draft, to })}
+          />
         </div>
         <button
           type="button"
           onClick={() => {
-            set('custom')
+            setCustom(draft)
             back()
           }}
           className="card-press mt-4 w-full rounded-[11px] py-2.5 text-[13px] font-semibold text-white"
@@ -170,12 +185,13 @@ function DateRangePanel() {
         >
           Apply range
         </button>
-        {/* Stated, not hidden. The demo set is authored at five grains, so a custom
-            range is read off the nearest of them and scaled by how long it is — an
-            estimate, and one the reader is entitled to know is an estimate. */}
+        {/* The old note here said a custom range was an estimate. It is not any more: every
+            figure is summed over the days the reader picked, from the same daily series every
+            preset above reads. What the inputs still can't offer is a date the ledger has no
+            data for, which is why they are bounded rather than free. */}
         <p className="mt-3 text-[11px] leading-[15px]" style={{ color: FAINT }}>
-          A custom range is estimated from the nearest reported grain and scaled to the
-          days you pick.
+          Any range inside {bounds.min.slice(0, 4)}–{bounds.max.slice(0, 4)} is summed from daily
+          records. Dates outside the ledger are not offered.
         </p>
       </Section>
     </Stack>
@@ -185,10 +201,14 @@ function DateRangePanel() {
 function DateField({
   label,
   value,
+  min,
+  max,
   onChange,
 }: {
   label: string
   value: string
+  min: string
+  max: string
   onChange: (v: string) => void
 }) {
   return (
@@ -199,6 +219,8 @@ function DateField({
       <input
         type="date"
         value={value}
+        min={min}
+        max={max}
         onChange={(e) => onChange(e.target.value)}
         className="mt-1 w-full rounded-[10px] bg-[#f7f6f3] px-3 py-2 text-[13px] tabular-nums text-[#1c1a16] outline-none focus:ring-2 focus:ring-[#37bd69]/35"
       />
@@ -209,23 +231,19 @@ function DateField({
 /* ── the site sheet ──────────────────────────────────────────────────────── */
 
 /**
- * Every site, with the collection headcount beside it so the choice is informed —
- * "Carnivore Ridge" means something different when you can see it holds 1,892 animals
- * against Aquatic Halls' 178,400.
+ * Every site, with its headcount beside it so the choice is informed — "Carnivore Ridge" means
+ * something different once you can see it holds 1,892 animals against Aquatic Halls' 178,400.
  */
-function SitePanel() {
-  const { cut } = usePeriod()
-  const { site, set } = useSite()
+export function SiteSheet() {
+  const { scope, setSite } = useScope()
   const { back } = useSheet()
   const [query, setQuery] = useState('')
-  const split = siteCut('animals', cut)
 
   const q = query.trim().toLowerCase()
-  const rows = SITES.filter(
-    (s) => !q || s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q),
-  )
+  const rows = SITES.filter((s) => !q || s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q))
 
-  const headcount = (key: string) => split?.rows.find((r) => r.site.key === key)?.value ?? 0
+  const overall = figure({ site: null, win: scope.win }, 'animals')
+  const headcount = (site: Site) => figure({ site, win: scope.win }, 'animals').value
 
   return (
     <Stack>
@@ -235,10 +253,10 @@ function SitePanel() {
           <Option
             label="All sites"
             sub="The whole collection"
-            value={split ? fmt(split.overall) : undefined}
-            on={!site}
+            value={fmt(Math.round(overall.value))}
+            on={!scope.site}
             onClick={() => {
-              set(null)
+              setSite(null)
               back()
             }}
           />
@@ -247,10 +265,10 @@ function SitePanel() {
               key={s.key}
               label={s.name}
               sub={`${s.code} · ${s.enclosures} enclosures`}
-              value={fmt(headcount(s.key))}
-              on={site?.key === s.key}
+              value={fmt(Math.round(headcount(s)))}
+              on={scope.site?.key === s.key}
               onClick={() => {
-                set(s)
+                setSite(s)
                 back()
               }}
             />
@@ -262,13 +280,18 @@ function SitePanel() {
           </p>
         )}
       </Section>
+
+      {/* The honest version of this card used to have a fourth row reading "Scores and rates ·
+          zoo-wide", because four home KPIs had no site model. They do now, so the exception is
+          gone and this card says so without qualification. */}
       <Section icon={MapPin} label="What the scope reaches">
         <Facts
           items={[
             { label: 'Executive KPIs', value: 'Scoped' },
-            { label: 'Drill-downs', value: 'Scoped' },
-            { label: 'Module heroes', value: 'Scoped' },
-            { label: 'Scores and rates', sub: 'No site model behind them', value: 'Zoo-wide' },
+            { label: 'Charts and trends', value: 'Scoped' },
+            { label: 'Module pages', value: 'Scoped' },
+            { label: 'Tables and records', value: 'Scoped' },
+            { label: 'Entity pages', sub: 'Own figures, plus a warning if outside scope', value: 'Scoped' },
           ]}
         />
       </Section>
@@ -303,7 +326,11 @@ function Option({
       >
         <span className="min-w-0 flex-1">
           <span className={`block truncate text-[13.5px] ${on ? 'font-semibold' : ''} text-[#1c1a16]`}>{label}</span>
-          {sub && <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>{sub}</span>}
+          {sub && (
+            <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+              {sub}
+            </span>
+          )}
         </span>
         {value && (
           <span className="shrink-0 text-[13px] font-medium tabular-nums" style={{ color: FAINT }}>
@@ -353,29 +380,29 @@ export function FindField({
 }
 
 /**
- * The banner every scoped surface carries when a site is picked.
+ * Kept for the surfaces that render their own header — the phone home, mainly.
  *
- * Without it a page headed "Mortality · 23" that is actually showing five is simply
- * wrong. One line, dismissible by clearing the scope from where you are.
+ * The router now renders `ScopeHeader` on every module and entity page, which states the scope
+ * whether or not it is narrowed. This remains for the one surface above the router, and it
+ * returns nothing when the scope is Overall so the two do not stack.
  */
 export function ScopeNote() {
-  const { site, set } = useSite()
-  if (!site) return null
+  const { scope, setSite } = useScope()
+  if (!scope.site) return null
+  /* The bleed lives here rather than on a wrapper at the call site, so that when this
+     returns null there is no empty flex child left behind holding a gap. */
   return (
-    <div className="px-[var(--gutter-lg)] pb-2">
-      <div
-        className="flex items-center gap-2 rounded-[12px] px-3 py-2"
-        style={{ backgroundColor: mix(TONE.warn, 0.1) }}
-      >
-        <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: TONE.warn }} aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium" style={{ color: TONE.warn }}>
-          Scoped to {site.name}
+    <div className="-mx-[var(--gutter)] px-[var(--gutter-lg)] pb-2">
+      <div className="flex items-center gap-2 rounded-[12px] px-3 py-2" style={{ backgroundColor: mix('#b45309', 0.1) }}>
+        <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: '#b45309' }} aria-hidden />
+        <span className="min-w-0 flex-1 truncate text-[12px] font-medium" style={{ color: '#b45309' }}>
+          Scoped to {scope.site.name} · {scope.win.window}
         </span>
         <button
           type="button"
-          onClick={() => set(null)}
+          onClick={() => setSite(null)}
           className="shrink-0 rounded-full px-2 py-[2px] text-[11px] font-semibold"
-          style={{ backgroundColor: mix(TONE.warn, 0.18), color: TONE.warn }}
+          style={{ backgroundColor: mix('#b45309', 0.18), color: '#b45309' }}
         >
           Clear
         </button>
@@ -384,7 +411,5 @@ export function ScopeNote() {
   )
 }
 
-/** For a KPI whose figure has no site model — states the exception rather than hiding it. */
 export const ZOO_WIDE_NOTE = 'zoo-wide'
-
-export type { PeriodKey }
+export type { Site }

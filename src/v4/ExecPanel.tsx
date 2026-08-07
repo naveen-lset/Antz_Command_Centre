@@ -19,7 +19,7 @@
  */
 
 import { ChevronRight, CloudSun, Thermometer } from 'lucide-react'
-import { TONE } from '../exec/system'
+import { TONE, fmt } from '../exec/system'
 import {
   activity,
   approvals,
@@ -29,6 +29,8 @@ import {
   site,
 } from './data'
 import { useSheet } from './sheet'
+import { useScope } from './scope'
+import { figure } from '../core/query'
 import { AlertPanel, ApprovalPanel, RiskPanel } from './panels'
 import { titleOf } from './nav'
 
@@ -92,39 +94,68 @@ function Queues() {
     <section className={`${CARD} px-5 py-4`} aria-label="Queues">
       <h2 className="pb-1 text-[10.5px] font-semibold tracking-[0.09em] text-[#9b958b] uppercase">Needs attention</h2>
       <ul className="divide-y divide-[#f0efec]">
-        {railQueues.map((q) => {
-          const onOpen = openFor(q.slug)
-          const inner = (
-            <>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium text-[#1c1a16]">{q.label}</span>
-                <span className="mt-0.5 block truncate text-[11.5px] text-[#9b958b]">{q.note}</span>
-              </span>
-              <span
-                className="shrink-0 font-display text-[19px] leading-none font-bold tabular-nums"
-                style={{ color: TONE[q.tone] }}
-              >
-                {q.value}
-              </span>
-              <ChevronRight size={14} strokeWidth={2} className="shrink-0 text-[#c9c4bb]" aria-hidden />
-            </>
-          )
-          return (
-            <li key={q.slug}>
-              {onOpen ? (
-                <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3 text-left last:pb-0">
-                  {inner}
-                </button>
-              ) : (
-                <a href={`#/${q.slug}`} className="flex items-center gap-3 py-3 last:pb-0">
-                  {inner}
-                </a>
-              )}
-            </li>
-          )
-        })}
+        {railQueues.map((q) => (
+          <QueueRow key={q.slug} queue={q} onOpen={openFor(q.slug)} />
+        ))}
       </ul>
     </section>
+  )
+}
+
+/**
+ * One queue row, reading its own metric under the scope in force.
+ *
+ * A hook per row rather than one call for all four, because the rows are a list and React does
+ * not allow a hook per iteration in the parent. The cost is one component; the gain is that the
+ * rail narrows with the rest of the screen instead of contradicting it.
+ */
+function QueueRow({
+  queue,
+  onOpen,
+}: {
+  queue: (typeof railQueues)[number]
+  onOpen?: () => void
+}) {
+  const { scope } = useScope()
+  const f = figure(scope, queue.metric)
+
+  /* A rate states its denominator; a level states the window is now. Composed from the metric
+     rather than authored, so "of 312 on site" cannot survive a site being picked. */
+  const note =
+    f.kind === 'rate' && f.of
+      ? `${fmt(Math.round(f.value))} of ${fmt(f.of)} ${queue.note}`
+      : `${queue.note}${scope.site ? ` · ${scope.site.name}` : ''}`
+
+  const value = f.kind === 'rate' ? `${Math.round(f.percent ?? 0)}%` : fmt(Math.round(f.value))
+
+  const inner = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium text-[#1c1a16]">{queue.label}</span>
+        <span className="mt-0.5 block truncate text-[11.5px] text-[#9b958b]">{note}</span>
+      </span>
+      <span
+        className="shrink-0 font-display text-[19px] leading-none font-bold tabular-nums"
+        style={{ color: TONE[queue.tone] }}
+      >
+        {value}
+      </span>
+      <ChevronRight size={14} strokeWidth={2} className="shrink-0 text-[#c9c4bb]" aria-hidden />
+    </>
+  )
+
+  return (
+    <li>
+      {onOpen ? (
+        <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3 text-left last:pb-0">
+          {inner}
+        </button>
+      ) : (
+        <a href={`#/${queue.slug}`} className="flex items-center gap-3 py-3 last:pb-0">
+          {inner}
+        </a>
+      )}
+    </li>
   )
 }
 

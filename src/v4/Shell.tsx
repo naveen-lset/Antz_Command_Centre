@@ -19,6 +19,7 @@ import type { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { ExecutivePanel } from './ExecPanel'
+import { Landscape } from './landscape'
 
 export function AppShell({
   route,
@@ -35,7 +36,10 @@ export function AppShell({
       <div className="flex items-start gap-[var(--shell-gap)] p-[var(--shell-pad)]">
         <Sidebar route={route} />
 
-        <div className="content-box min-w-0 flex-1 overflow-hidden rounded-[22px] bg-[#e7f0ea]">
+        {/* `relative isolate` so the landscape can sit on its own layer behind the
+            column's content without escaping the rounded clip. */}
+        <div className="content-box relative isolate min-w-0 flex-1 overflow-hidden rounded-[22px] bg-[#e7f0ea]">
+          <Landscape />
           <div className="tier">{children}</div>
         </div>
 
@@ -94,6 +98,26 @@ export function ModulePane({ children }: { children: ReactNode }) {
 }
 
 /**
+ * The phone's frame — the page background and the container query context.
+ *
+ * The header used to live in here, which meant the phone and the shell rendered two different
+ * headers with two different sets of things in them. The router now renders one `ScopeHeader`
+ * for both tiers, so this is just the frame: the gradient ground, the `content-box` container
+ * and the safe-area padding. One header, two frames — rather than two of each.
+ */
+export function PhoneFrame({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="content-box relative isolate min-h-dvh font-sans"
+      style={{ background: 'linear-gradient(180deg, #ddeae3 0%, #c6ddd1 100%)' }}
+    >
+      <Landscape />
+      <div className="tier pb-[max(48px,env(safe-area-inset-bottom))]">{children}</div>
+    </div>
+  )
+}
+
+/**
  * The phone's module page.
  *
  * V3 rendered a module as a bottom sheet over the home. V4 cannot: the sheet layer is
@@ -102,6 +126,9 @@ export function ModulePane({ children }: { children: ReactNode }) {
  * same gesture and the same geometry. So on a phone a module is a page, with a back
  * chevron to the home, and the sheet stays the thing you open on top of wherever
  * you are.
+ *
+ * Retained for any surface that still wants its own header; the router uses `PhoneFrame` plus
+ * the shared `ScopeHeader` instead.
  */
 export function PhonePage({
   title,

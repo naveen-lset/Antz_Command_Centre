@@ -15,13 +15,14 @@ import {
   Bars,
   FAINT,
   Figure,
+  fmt,
+  HERO_INK,
   RED_LIST,
   Section,
   Snapshot,
   Stack,
-  TONE,
   Table,
-  fmt,
+  TONE,
   type RedListCode,
 } from '../../exec/system'
 import { RED_LIST_COUNTS, RED_LIST_SPECIES, listedTotal, speciesCount } from './conservation'
@@ -67,7 +68,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
               {cat.code}
             </span>
             <div className="min-w-0">
-              <Figure value={fmt(stated)} size={44} />
+              <Figure value={fmt(stated)} size={44} color={HERO_INK} />
               <p className="mt-0.5 text-[13px] text-[#3d3a34]">animals</p>
             </div>
           </div>

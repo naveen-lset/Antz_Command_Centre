@@ -11,12 +11,30 @@
  * "vaccine" has to find Vaccination, "sign off" has to find Approvals. Ranking puts
  * title hits above keyword hits so typing a real title never buries it under a
  * synonym match somewhere else.
+ *
+ * IT SEARCHES ENTITIES AND ANIMALS TOO, and that is the part the brief requires. A product
+ * organised around entities cannot have a search that only finds modules: "Aquatic Halls",
+ * "Asiatic Lion", "Raja" and a pasted accession id are all things a director types, and none of
+ * them is a module name. Modules still rank first — they are how you get to a question — with
+ * entities and then individual animals under their own headings, because a result that jumps
+ * straight to one lion when you meant the species would be a worse answer than an ordered list.
+ *
+ * The entity and animal scans honour the SITE FILTER. Searching inside Carnivore Ridge and being
+ * offered a carp would contradict the scope the reader set, which is the whole thing the scope
+ * layer exists to prevent.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, Search, X } from 'lucide-react'
 import { execPages, type ExecPage } from '../exec/pages'
-import { GROUND_GRADIENT } from '../exec/system'
+import { FAINT, GROUND_GRADIENT } from '../exec/system'
+import { searchEntities, type Entity } from '../core/entities'
+import { searchAnimals } from '../core/animals'
+import { animalTitle } from '../core/animals'
+import { KIND_ICON } from './entity'
+import { KIND_ONE } from '../core/entities'
+import { useScope } from './scope'
+import { siteKeyOf } from '../core/scope'
 
 interface Hit {
   slug: string
@@ -86,9 +104,31 @@ function Row({ hit, onGo, meta = false }: { hit: Hit; onGo: (slug: string) => vo
   )
 }
 
+/** An entity or animal result. Rendered like a module row, with its kind as the second line. */
+function EntityResult({ entity, sub, onGo }: { entity: Entity; sub?: string; onGo: (href: string) => void }) {
+  const Glyph = KIND_ICON[entity.kind]
+  return (
+    <button
+      type="button"
+      onClick={() => onGo(`e/${entity.kind}/${encodeURIComponent(entity.id)}`)}
+      className="card-press flex w-full items-center gap-3 rounded-[14px] bg-white px-4 py-3 text-left"
+    >
+      <Glyph size={17} strokeWidth={1.75} className="shrink-0 text-[#2f9e5b]" aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14.5px] font-medium text-[#1c1a16]">{entity.name}</span>
+        <span className="mt-0.5 block truncate text-[11.5px]" style={{ color: FAINT }}>
+          {sub ?? `${KIND_ONE[entity.kind]}${entity.sub ? ` · ${entity.sub}` : ''}`}
+        </span>
+      </span>
+      <ChevronRight size={16} strokeWidth={2} className="shrink-0 text-[#c8c3ba]" aria-hidden />
+    </button>
+  )
+}
+
 export function ModuleSearch({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState('')
   const field = useRef<HTMLInputElement>(null)
+  const { scope, href } = useScope()
 
   useEffect(() => {
     field.current?.focus()
@@ -112,8 +152,19 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
     }).sort((a, b) => a.rank - b.rank || a.page.title.localeCompare(b.page.title))
   }, [query])
 
-  const go = (slug: string) => {
-    window.location.hash = `#/${slug}`
+  /* Entities and animals, narrowed to the site scope in force. Both scans are bounded — see
+     `core/animals.ts` for why scanning 215,432 derived records on every keystroke is not a
+     search — so a long query returns fast or returns nothing. */
+  const entities = useMemo(() => searchEntities(query, siteKeyOf(scope), 8), [query, scope])
+  const animals = useMemo(
+    () => searchAnimals(query, siteKeyOf(scope), scope.win, 6),
+    [query, scope],
+  )
+
+  const go = (path: string) => {
+    /* Through `href` so the reader's window and site survive the jump — a search result that
+       silently resets the scope would answer a different question from the one asked. */
+    window.location.hash = href(path)
     onClose()
   }
 
@@ -121,14 +172,17 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
      reaching for the list. */
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    /* A module beats an entity beats an animal, which is the order they are offered in. */
     if (hits[0]) go(hits[0].slug)
+    else if (entities[0]) go(`e/${entities[0].kind}/${encodeURIComponent(entities[0].id)}`)
+    else if (animals[0]) go(`e/animal/${animals[0].id}`)
   }
 
   const report = ALL.filter((m) => !m.page.ops)
   const ops = ALL.filter((m) => m.page.ops)
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col font-sans" style={{ background: GROUND_GRADIENT }} role="dialog" aria-modal="true" aria-label="Search modules">
+    <div className="fixed inset-0 z-50 flex flex-col font-sans" style={{ background: GROUND_GRADIENT }} role="dialog" aria-modal="true" aria-label="Search">
       <div className="mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col">
         <form
           onSubmit={onSubmit}
@@ -140,8 +194,8 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
               ref={field}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search modules"
-              aria-label="Search modules"
+              placeholder="Search modules, sites, species, animals"
+              aria-label="Search modules, sites, species and animals"
               autoComplete="off"
               className="min-w-0 flex-1 bg-transparent text-[15px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
             />
@@ -158,18 +212,54 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] scrollbar-hidden">
           {query ? (
-            hits.length > 0 ? (
-              <ul className="flex flex-col gap-2">
-                {hits.map((h) => (
-                  <li key={h.slug}>
-                    <Row hit={h} onGo={go} meta />
-                  </li>
-                ))}
-              </ul>
+            hits.length + entities.length + animals.length > 0 ? (
+              <>
+                {hits.length > 0 && (
+                  <>
+                    <ResultHead label="Modules" count={hits.length} />
+                    <ul className="mb-2 flex flex-col gap-2">
+                      {hits.map((h) => (
+                        <li key={h.slug}>
+                          <Row hit={h} onGo={go} meta />
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {entities.length > 0 && (
+                  <>
+                    <ResultHead label={scope.site ? `In ${scope.site.name}` : 'Sites, species and places'} count={entities.length} />
+                    <ul className="mb-2 flex flex-col gap-2">
+                      {entities.map((e) => (
+                        <li key={`${e.kind}-${e.id}`}>
+                          <EntityResult entity={e} onGo={go} />
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {animals.length > 0 && (
+                  <>
+                    <ResultHead label="Animals" count={animals.length} />
+                    <ul className="mb-2 flex flex-col gap-2">
+                      {animals.map((a) => (
+                        <li key={a.id}>
+                          <EntityResult
+                            entity={{ kind: 'animal', id: a.id, name: animalTitle(a) }}
+                            sub={`${a.id} · ${a.siteName} · ${a.enclosureId}`}
+                            onGo={go}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
             ) : (
               <p className="px-1 pt-6 text-[13.5px] text-[#6d6860]">
-                Nothing matches “{q.trim()}”. Try a word from the figure you're after — “death”,
-                “vaccine”, “intake”, “sign off”.
+                Nothing matches “{q.trim()}”
+                {scope.site ? ` in ${scope.site.name}` : ''}. Try a word from the figure you're after
+                — “death”, “vaccine”, “intake” — or a site, a species, or an animal's id.
               </p>
             )
           ) : (
@@ -182,6 +272,19 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+/** One heading over a group of results. Counts, so a short group is visibly short. */
+function ResultHead({ label, count }: { label: string; count: number }) {
+  return (
+    <div className="flex items-center gap-2 px-1 pt-2 pb-2">
+      <h2 className="text-[11px] font-semibold tracking-[0.09em] text-[#6d6860] uppercase">{label}</h2>
+      <span className="h-px flex-1 bg-[#1c1a16]/8" aria-hidden />
+      <span className="text-[11px] tabular-nums" style={{ color: FAINT }}>
+        {count}
+      </span>
     </div>
   )
 }

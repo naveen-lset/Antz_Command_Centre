@@ -25,7 +25,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, MapPin, Search } from 'lucide-react'
+import { ChevronRight, Eye, MapPin, Search } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
 import forestScene from '../assets/forest-scene.webp'
@@ -38,6 +38,7 @@ import {
   AccentProvider,
   FAINT,
   Figure,
+  HERO_INK,
   MUTED,
   Spark,
   SparkBars,
@@ -69,7 +70,10 @@ import {
   type Kpi,
 } from './data'
 import { useSheet } from './sheet'
-import { FilterBar, ScopeNote, useScoped, useSite } from './filters'
+import { FilterBar, ScopeNote } from './filters'
+import { useScope } from './scope'
+import { useKpi, useMovement, useTrendCard } from './kpi'
+import { figure as figureOf } from '../core/query'
 import {
   AlertPanel,
   ApprovalPanel,
@@ -84,8 +88,13 @@ import {
 const CARD = 'rounded-[var(--radius-card)] bg-white'
 const TAP = 'card-press block w-full text-left'
 
-const HERO_GRADIENT =
-  'bg-[linear-gradient(180deg,#20291f_0%,#0a4d3c_62%,#034739_100%)] bg-clip-text text-transparent'
+/*
+ * The home hero was a clipped three-stop gradient from #20291f through #0a4d3c to #034739. It read
+ * well on its own and made the largest figure in the product the one that matched nothing else:
+ * every other hero on every other page was `Figure`'s default warm near-black. One hero ink now
+ * covers all of them — see `HERO_INK` in `exec/system.tsx`. `#08100C` is close to the gradient's
+ * own dark end, so the hero keeps its weight and loses the special case.
+ */
 
 /* ── the banner ──────────────────────────────────────────────────────────── */
 
@@ -200,15 +209,25 @@ function ForestBand() {
           down into the illustration: on a 716px desktop column the giraffe and the hut
           ended up directly behind "Total Animals", which is dark type on mid-green.
           A shorter image sits the horizon lower, and the mask now clears the top 42%
-          rather than 30% so the hero has flat ground under it at every width. */}
+          rather than 30% so the hero has flat ground under it at every width.
+
+          THE MASK NOW CLOSES AT THE BOTTOM TOO. The artwork's last row averages
+          rgb(118,164,141) and the page ground under it is around rgb(219,233,226) — a
+          hundred levels in every channel, landing as a ruler-straight line across the
+          screen. That line is what the vector seam below it was really trying to hide,
+          and hiding a bad edge with a second drawing is how the page ended up with a
+          hundred pixels of blank green under the illustration.
+          Eight per cent, and eight only: the foreground plants dissolve at their base,
+          which is what mist does, while the elephants' feet sit just clear of it. Any
+          longer and the animals go with the grass. */}
       <img
         src={forestScene}
         alt=""
         aria-hidden
         className="pointer-events-none absolute bottom-0 left-0 max-h-[clamp(230px,34cqw,340px)] w-full object-cover object-bottom select-none"
         style={{
-          maskImage: 'linear-gradient(to bottom, transparent 0%, #000 50%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 50%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, #000 50%, #000 92%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 50%, #000 92%, transparent 100%)',
         }}
       />
     </div>
@@ -219,11 +238,12 @@ function ForestBand() {
  * The four composite scores, kept at the top of the screen.
  *
  * They used to live under the hero, as the breakdown of a Zoo Health headline. The
- * headline is the collection total again, so the scores need their own place — and
- * above the hero rather than below it is the right one: they are the standing answer
- * to "is anything wrong", read once on arrival, while the hero and the KPI row are
- * what a director actually came to read. A strip of four small figures reads in about
- * a second and then gets out of the way.
+ * headline is the collection total again, so the scores need their own place.
+ *
+ * THAT PLACE IS DOWN THE PAGE, NOT IN THE BANNER. It sat directly under the greeting, which put
+ * four composite indices above the figure the screen exists to show — and a composite is the one
+ * kind of number nobody acts on directly. It now has its own section beside Executive Health,
+ * where the other scores-against-target live, and the banner opens on the hero.
  *
  * One word each. Four cells share ~350px at 390px wide, which leaves ~78px a cell —
  * "Animal health" truncated to "Animal heal…" there, and a clipped label in the first
@@ -235,34 +255,34 @@ function ScoreStrip() {
   const delta = useFigure(zooHealth.delta)
 
   return (
-    <div className="px-[var(--gutter-lg)] pb-1">
-      <button
-        type="button"
-        onClick={() =>
-          open({
-            title: 'Zoo Health',
-            eyebrow: period.window,
-            body: <ZooHealthPanel score={zooHealthScore} parts={zooHealth.parts} delta={delta} />,
-          })
-        }
-        className="card-press flex w-full items-stretch rounded-[14px] bg-white/70 px-3 py-2.5 backdrop-blur-sm"
-        aria-label={`Zoo health ${Math.round(zooHealthScore)} out of 100`}
-      >
-        {zooHealth.parts.map((p, i) => (
-          <span
-            key={p.label}
-            className={`min-w-0 flex-1 ${i ? 'border-l border-[#1c1a16]/8 pl-3' : ''} ${
-              i < zooHealth.parts.length - 1 ? 'pr-3' : ''
-            }`}
-          >
-            <span className="block font-display text-[18px] leading-none font-bold tabular-nums text-[#2f2424]">
-              {p.score}
-            </span>
-            <span className="mt-1 block truncate text-[10.5px] text-[#3d3a34]">{p.label}</span>
+    <button
+      type="button"
+      onClick={() =>
+        open({
+          title: 'Zoo Health',
+          eyebrow: period.window,
+          body: <ZooHealthPanel score={zooHealthScore} parts={zooHealth.parts} delta={delta} />,
+        })
+      }
+      className={`${TAP} ${CARD} flex w-full items-stretch p-[var(--pad-card-sm)]`}
+      aria-label={`Zoo health ${Math.round(zooHealthScore)} out of 100`}
+    >
+      {zooHealth.parts.map((p, i) => (
+        <span
+          key={p.label}
+          className={`min-w-0 flex-1 ${i ? 'border-l border-[#1c1a16]/8 pl-3' : ''} ${
+            i < zooHealth.parts.length - 1 ? 'pr-3' : ''
+          }`}
+        >
+          <span className="block font-display text-[20px] leading-none font-bold tabular-nums" style={{ color: HERO_INK }}>
+            {p.score}
           </span>
-        ))}
-      </button>
-    </div>
+          {/* One word each. Four cells share ~350px at 390px wide, which leaves ~78px a cell —
+              "Animal health" truncated to "Animal heal…" there. The sheet spells them out. */}
+          <span className="mt-1 block truncate text-[11.5px] text-[#6d6860]">{p.label}</span>
+        </span>
+      ))}
+    </button>
   )
 }
 
@@ -281,15 +301,18 @@ function ScoreStrip() {
 function HeroBlock() {
   const { period } = usePeriod()
   const { open } = useSheet()
-  const { site: scope } = useSite()
-  const scoped = useScoped('animals')
+  const { scope } = useScope()
   const animals = headlineKpis[0]
-  const gain = useFigure(animals.delta ?? '')
   /* The hero scopes with everything else. It briefly did not, and the result was a
      screen headed 215,432 Total Animals above a KPI row reading 178K for Aquatic
      Halls — the single worst thing this app can do, which is state two different
-     answers to one question on one screen. */
-  const headcount = scope && scoped ? Math.round(scoped.value) : 215432
+     answers to one question on one screen.
+
+     The collection total is no longer hardcoded here either. It was, as the fallback for
+     the unscoped case, which meant the largest number on the screen was the one figure on
+     it that could not respond to anything. */
+  const headcount = Math.round(figureOf(scope, 'animals').value)
+  const gain = useMovement('animals')
   const total = useCountUp(headcount, { format: (v) => Math.round(v).toLocaleString('en-US') })
 
   return (
@@ -306,21 +329,46 @@ function HeroBlock() {
         className="card-press block w-full"
       >
         <p
-          className={`${HERO_GRADIENT} text-center font-display text-[length:var(--fs-hero)] leading-none font-bold tracking-[-0.02em]`}
+          className="text-center font-display text-[length:var(--fs-hero)] leading-none font-bold tracking-[-0.02em]"
+          style={{ color: HERO_INK }}
         >
           {total}
         </p>
         <p className="mt-2 text-center text-[16px] text-[#1c1a16] @[900px]:text-[18px]">
-          {scope ? `Animals · ${scope.name}` : 'Total Animals'}
+          {scope.site ? `Animals · ${scope.site.name}` : 'Total Animals'}
         </p>
-        {/* The total above is a standing figure; only this gain is cut by the window —
-            and the gain is a COLLECTION movement, so it is dropped under a site scope
-            rather than being attached to one site's headcount. */}
-        {!scope && (
-          <p className="mt-1.5 text-center text-[length:var(--fs-cap)] font-semibold text-[#37bd69]">
-            ▲ {gain} {period.noun}
-          </p>
-        )}
+        {/* The total above is a standing figure; the gain is the same population read on the
+            window's first and last day, so it is genuinely the scoped movement — Aquatic Halls'
+            gain when Aquatic Halls is picked.
+
+            THE LINE ALSO HAD TO SAY IT WAS A DOOR. The whole hero has always been tappable and
+            nothing on it said so, so the drill-down behind the largest number on the screen was
+            invisible. The movement and the affordance share one row: the figure earns the tap and
+            the eye names it. */}
+        {/* ONE BACKDROP FOR BOTH, because of what is behind them. The row sits over the top of the
+            forest illustration, and a green movement figure on green foliage is the one place on
+            this screen where the ink and the ground are the same colour. A single translucent pill
+            carries the pair clear of it and reads as one control rather than a figure with a button
+            beside it. */}
+        <span className="mt-2 flex justify-center">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-[5px] backdrop-blur-sm">
+            {gain !== undefined && gain !== 0 && (
+              <>
+                <span
+                  className="text-[length:var(--fs-cap)] font-semibold tabular-nums"
+                  style={{ color: gain > 0 ? '#1e7a44' : TONE.bad }}
+                >
+                  {gain > 0 ? '▲' : '▼'} {Math.abs(gain).toLocaleString('en-US')} {period.noun}
+                </span>
+                <span className="h-[11px] w-px bg-[#16150f]/15" aria-hidden />
+              </>
+            )}
+            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: ACCENT_INK }}>
+              <Eye size={12} strokeWidth={2.25} aria-hidden />
+              View breakdown
+            </span>
+          </span>
+        </span>
       </button>
     </section>
   )
@@ -334,13 +382,20 @@ export function HomeBanner({ onSearch }: { onSearch: () => void }) {
         aria-hidden
       />
       <GreetingHeader onSearch={onSearch} />
-      <ScoreStrip />
       <StickyPeriod />
       <HeroBlock />
       <ForestBand />
     </div>
   )
 }
+
+/**
+ * Delta colour, by whether the movement is GOOD NEWS rather than by its sign.
+ *
+ * A rising death count is red and a falling one green, which is the opposite of what colouring
+ * by sign gives. `useKpi` decides which from the metric; this only maps the verdict to ink.
+ */
+const MOOD = { good: '#1e7a44', bad: TONE.bad, flat: FAINT } as const
 
 /* ── section chrome ──────────────────────────────────────────────────────── */
 
@@ -408,128 +463,116 @@ function LevelChip({ level }: { level: keyof typeof LEVEL_TONE }) {
 function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
   const { open } = useSheet()
   const { period } = usePeriod()
-  const { site: scope } = useSite()
-  const scoped = useScoped(kpi.drill ?? '')
-  const zooWide = useFigure(kpi.value)
-  const delta = useFigure(kpi.delta ?? '')
-  const colour = kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : ACCENT
+  const colour = kpi.accent ?? (kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : ACCENT)
 
-  /* With a site picked the card states THAT SITE'S figure, and its note says so. A
-     KPI whose figure has no site model behind it keeps the collection number and is
-     labelled "zoo-wide" — a grid where half the tiles are scoped and half are not,
-     with nothing saying which, is worse than not scoping at all. */
-  const value = scope && scoped ? (scoped.rate ? `${Math.round(scoped.value)}` : compact(scoped.value)) : zooWide
-  const note = scope ? (scoped ? scope.name : `${kpi.note} · zoo-wide`) : kpi.note
+  /* Figure, note, movement and curve all from the one metric under the one scope — so the
+     card cannot state a site's figure beside the collection's movement, which is exactly
+     what it did when these came from four separate places. */
+  const { value, note, delta, mood, series, known } = useKpi(kpi)
+
+  if (!known) return <EmptyCard label={kpi.label} icon={kpi.icon} />
 
   return (
     <button
       type="button"
       onClick={() => open({ title: kpi.label, eyebrow: period.window, body: <MetricPanel metric={kpi.drill!} /> })}
-      className={`${TAP} ${CARD} flex min-w-0 shrink-0 basis-[78%] snap-start flex-col p-[var(--pad-card)] @[640px]:basis-auto`}
+      className={`${TAP} ${CARD} flex min-w-0 items-center gap-4 p-[var(--pad-card)] @[640px]:flex-col @[640px]:items-stretch @[640px]:gap-0`}
     >
-      {/* The label WRAPS rather than truncates. Four cards across a 716px content
-          column leaves each about 113px of inner width, and "Animal Population" needs
-          ~131px with its glyph — truncated to "Animal Popu…" it names nothing. Grid
-          rows size to the tallest card, so a second line stays aligned. */}
-      <span className="flex items-start gap-1.5">
-        <kpi.icon size={15} strokeWidth={1.75} className="mt-[2px] shrink-0" style={{ color: colour }} aria-hidden />
-        <span className="min-w-0 text-[length:var(--fs-label)] leading-[17px] font-medium text-balance text-[#1c1a16]">
-          {kpi.label}
+      {/* The left block: what it is, what it reads, how it moved. Sits beside the curve on a
+          phone and above it past 640px, which is the whole of the two layouts. */}
+      <span className="flex min-w-0 flex-1 flex-col">
+        {/* The label WRAPS rather than truncates. Four cards across a 716px content column
+            leaves each about 113px of inner width, and "Animal Population" needs ~131px with
+            its glyph — truncated to "Animal Popu…" it names nothing. */}
+        <span className="flex items-center gap-2">
+          {/* The glyph sits on a tinted chip of the card's own hue. Four cards drawn in one
+              green read as four copies of the same card; the chip is what makes the row
+              scannable before a single label is read. */}
+          <span
+            className="grid size-6 shrink-0 place-items-center rounded-[8px]"
+            style={{ backgroundColor: mix(colour, 0.12) }}
+            aria-hidden
+          >
+            <kpi.icon size={13} strokeWidth={2} style={{ color: colour }} />
+          </span>
+          <span className="min-w-0 text-[length:var(--fs-label)] leading-[17px] font-medium text-balance text-[#1c1a16]">
+            {kpi.label}
+          </span>
+        </span>
+        <span className="mt-2 block">
+          <Figure value={value} size={34} color={HERO_INK} />
+        </span>
+        <span className="mt-1 flex items-baseline gap-2">
+          <span className="min-w-0 truncate text-[12px] text-[#9b958b]">{note}</span>
+          {delta && (
+            <span className="shrink-0 text-[11.5px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+              {delta}
+            </span>
+          )}
         </span>
       </span>
-      <span className="mt-2.5 block">
-        <Figure value={value} size={34} color={kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : undefined} />
-      </span>
-      <span className="mt-1 flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate text-[11px] text-[#9b958b]">{note}</span>
-        {delta && !scope && (
-          <span className="shrink-0 text-[11.5px] font-semibold tabular-nums" style={{ color: signTone(delta) ?? FAINT }}>
-            {delta}
-          </span>
-        )}
-      </span>
-      {/* Tinted by putting the tone on the accent context rather than by threading a
-          colour prop through two shared marks.
 
-          Always twelve months, whatever the window chip above says. The graph is the
-          long view, and a backdrop that re-cut every time the figure did would leave
-          nothing stable to read the figure against. */}
-      <span className="mt-3.5 block" aria-hidden>
+      {/* Tinted by putting the tone on the accent context rather than by threading a colour prop
+          through two shared marks.
+
+          The curve is the WINDOW, bucketed — the same daily series the figure beside it sums, so
+          the two cannot disagree. It used to be a fixed twelve months whatever the chip said,
+          which left a seven-day figure sitting on a year of shape.
+
+          NO CAPTION UNDER IT. It used to print the window — "JULY 2025" — under all four curves,
+          which is the period chip at the top of the page restated four times in the same eyeline.
+          The window is stated once, where it is set. */}
+      <span className="w-[104px] shrink-0 @[640px]:mt-3.5 @[640px]:w-auto" aria-hidden>
         <AccentProvider value={colour}>
-          {kpi.chart === 'bars' ? <SparkBars values={[...kpi.series]} /> : <Spark values={[...kpi.series]} h={34} />}
+          {kpi.chart === 'bars' ? <SparkBars values={series} /> : <Spark values={series} h={34} />}
         </AccentProvider>
       </span>
-      <span className="mt-1.5 block text-[10px] tracking-[0.06em] text-[#b3aea6] uppercase">12 months</span>
     </button>
   )
 }
 
 /**
- * ONE ROW, as Apple Health's Highlights are one row.
+ * A card whose metric has nothing to say for the current scope.
  *
- * Four cards will not fit legibly across 390px — that is 97px each, narrower than
- * "215,432" — so on a phone the row scrolls sideways with snap points and the next
- * card peeking, with dots underneath saying how many there are. The peek is the whole
- * affordance: a row that ends flush at the screen edge looks finished, and nobody
- * swipes something that looks finished.
+ * Deliberately not a zero. "0 deaths in Carnivore Ridge" and "deaths are not modelled for
+ * Carnivore Ridge" are different statements, and printing the first when the second is true
+ * is the kind of confident wrong number that costs a director's trust in the whole screen.
+ */
+function EmptyCard({ label, icon: Glyph }: { label: string; icon: HeadlineKpi['icon'] }) {
+  return (
+    <div className={`${CARD} flex min-w-0 flex-col p-[var(--pad-card)]`}>
+      <span className="flex items-start gap-1.5">
+        <Glyph size={15} strokeWidth={1.75} className="mt-[2px] shrink-0" style={{ color: FAINT }} aria-hidden />
+        <span className="min-w-0 text-[length:var(--fs-label)] leading-[17px] font-medium text-balance text-[#6d6860]">
+          {label}
+        </span>
+      </span>
+      <span className="mt-2.5 block font-display text-[34px] leading-none font-bold" style={{ color: '#c9c4bb' }}>
+        —
+      </span>
+      <span className="mt-1 block text-[11px] text-[#9b958b]">Not reported for this scope</span>
+    </div>
+  )
+}
+
+/**
+ * A COLUMN ON A PHONE, A ROW ABOVE IT.
  *
- * Past 640px of column the scroll is dropped and all four sit in a static row.
- * Measured off the COLUMN, not the window — see the note in `index.css`.
+ * This was a horizontal snap-scroller with peek and dots, on the reasoning that four cards will not
+ * fit legibly across 390px. The premise was right and the conclusion was wrong: a sideways row hides
+ * three of the four most important figures on the screen behind a gesture, and the dots admit it.
+ * A director scrolling down a phone should not have to also scroll sideways to find Mortality.
+ *
+ * So on a phone the four stack, and each card turns on its side to earn the width — label and figure
+ * on the left, the curve on the right, at about half the height a stacked card would need. Past
+ * 640px of column they return to a four-across row, where they fit as drawn.
  */
 function KpiRail() {
-  const rail = useRef<HTMLDivElement>(null)
-  const [active, setActive] = useState(0)
-  const [scrollable, setScrollable] = useState(false)
-
-  useEffect(() => {
-    const el = rail.current
-    if (!el) return
-    /* The dots are shown only when the row can actually move. Past the breakpoint it
-       is a grid, and four dots under a static row would be an affordance for a gesture
-       that does nothing. */
-    const measure = () => setScrollable(el.scrollWidth > el.clientWidth + 4)
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    let raf = 0
-    const onScroll = () => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() =>
-        setActive(Math.round(el.scrollLeft / (el.scrollWidth / headlineKpis.length))),
-      )
-    }
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      ro.disconnect()
-      el.removeEventListener('scroll', onScroll)
-      cancelAnimationFrame(raf)
-    }
-  }, [])
-
   return (
-    <div>
-      {/* Negative margin then matching padding, so the row bleeds to the screen edge
-          while the first card still starts on the stack's gutter. Without it the last
-          card stops 16px short and the row reads as ending there. */}
-      <div
-        ref={rail}
-        className="-mx-[var(--gutter)] flex snap-x snap-mandatory gap-[var(--gap)] overflow-x-auto px-[var(--gutter)] pb-1 scrollbar-hidden @[640px]:mx-0 @[640px]:grid @[640px]:snap-none @[640px]:grid-cols-4 @[640px]:overflow-visible @[640px]:px-0"
-      >
-        {headlineKpis.map((k) => (
-          <HeadlineCard key={k.key} kpi={k} />
-        ))}
-      </div>
-      {scrollable && (
-        <div className="mt-2.5 flex justify-center gap-1.5" aria-hidden>
-          {headlineKpis.map((k, i) => (
-            <span
-              key={k.key}
-              className="size-[5px] rounded-full transition-colors duration-200"
-              style={{ backgroundColor: i === active ? ACCENT : 'rgba(28,26,22,0.16)' }}
-            />
-          ))}
-        </div>
-      )}
+    <div className="grid gap-[var(--gap)] @[640px]:grid-cols-4">
+      {headlineKpis.map((k) => (
+        <HeadlineCard key={k.key} kpi={k} />
+      ))}
     </div>
   )
 }
@@ -538,13 +581,9 @@ function KpiRail() {
 function KpiTile({ kpi }: { kpi: Kpi }) {
   const { open } = useSheet()
   const { period } = usePeriod()
-  const { site: scope } = useSite()
-  const scoped = useScoped(kpi.drill ?? '')
-  const zooWide = useFigure(kpi.value)
-  const delta = useFigure(kpi.delta ?? '')
   const measure = executiveHealth.find((m) => m.key === kpi.measure)
-  const value = scope && scoped ? (scoped.rate ? `${Math.round(scoped.value)}` : compact(scoped.value)) : zooWide
-  const note = scope ? (scoped ? scope.name : `${kpi.note ?? ''} · zoo-wide`) : kpi.note
+  const { value, unit, note, delta, mood } = useKpi(kpi)
+  const accent = kpi.accent ?? ACCENT
 
   const onOpen = kpi.drill
     ? () => open({ title: kpi.label, eyebrow: period.window, body: <MetricPanel metric={kpi.drill!} /> })
@@ -554,29 +593,34 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
 
   const inner = (
     <>
-      <span className="flex items-center gap-1.5">
-        <kpi.icon size={14} strokeWidth={1.75} style={{ color: ACCENT }} aria-hidden />
-        <span className="min-w-0 truncate text-[length:var(--fs-micro)] font-medium text-[#6d6860]">{kpi.label}</span>
+      {/* A tinted chip of the tile's own hue, not the one product green every tile used to draw.
+          Six identical cards meant finding "Vaccination" required reading all six labels; colour
+          and position now do that work before the label is read. The hue is the module's own, so
+          the tile and the page behind it match. */}
+      <span className="flex items-center gap-2">
+        <span
+          className="grid size-6 shrink-0 place-items-center rounded-[8px]"
+          style={{ backgroundColor: mix(accent, 0.12) }}
+          aria-hidden
+        >
+          <kpi.icon size={13} strokeWidth={2} style={{ color: accent }} />
+        </span>
+        <span className="min-w-0 truncate text-[length:var(--fs-label)] font-medium text-[#3d3a34]">{kpi.label}</span>
       </span>
       {/* 26, not 30. At six columns a KPI cell is ~125px of inner width and
           "215,432" is about 3.8em wide — at 30pt with the tier multiplier on top it
           printed straight over the card's own edge. The scale variable still grows it
           per tier; this is the base it grows from. */}
       <span className="mt-2 flex items-baseline gap-1">
-        <Figure
-          value={value}
-          unit={kpi.unit}
-          size={26}
-          color={kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : undefined}
-        />
+        <Figure value={value} unit={unit} size={26} color={HERO_INK} />
       </span>
       <span className="mt-1.5 flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate text-[10.5px] text-[#9b958b]">{note ?? ' '}</span>
-        {/* Dropped under a site scope: the delta is a month-on-month change for
-            the COLLECTION, and printing it beside one site's figure would attach the
-            zoo's movement to that site. */}
-        {delta && !scope && (
-          <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: signTone(delta) ?? FAINT }}>
+        <span className="min-w-0 truncate text-[12px] text-[#9b958b]">{note || ' '}</span>
+        {/* Shown under a site scope now, because it IS that site's movement — the delta
+            is read from the same scoped series as the figure beside it. It had to be
+            hidden before, when it was the collection's change beside a site's figure. */}
+        {delta && (
+          <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
             {delta}
           </span>
         )}
@@ -643,7 +687,11 @@ function AlertTile({ alert }: { alert: (typeof criticalAlerts)[number] }) {
           <span className="min-w-0 truncate text-[11px] text-[#9b958b]">{alert.note}</span>
         </span>
       </span>
-      <span className="shrink-0 font-display text-[24px] leading-none font-bold tabular-nums" style={{ color: TONE[tone] }}>
+      {/* The count is INK, not the severity colour. The severity is already said twice on this
+          row — by the chip under the title and by the glyph beside it — and a third statement of
+          it in the largest mark on the card left ten alert tiles reading as a wall of red and
+          amber numbers. The number is a quantity; the chip is the judgement. */}
+      <span className="shrink-0 font-display text-[24px] leading-none font-bold tabular-nums" style={{ color: HERO_INK }}>
         {alert.count}
       </span>
       <ChevronRight size={14} strokeWidth={2} className="shrink-0" style={{ color: '#c9c4bb' }} aria-hidden />
@@ -679,7 +727,7 @@ function ApprovalTile({ group }: { group: (typeof approvals)[number] }) {
         <span className="min-w-0 truncate text-[length:var(--fs-label)] font-medium text-[#1c1a16]">{group.label}</span>
       </span>
       <span className="mt-2.5 flex items-baseline justify-between gap-2">
-        <Figure value={String(group.requests.length)} size={26} />
+        <Figure value={String(group.requests.length)} size={26} color={HERO_INK} />
         {overdue > 0 && (
           <span className="shrink-0 text-[11px] font-semibold" style={{ color: TONE.warn }}>
             {overdue} late
@@ -775,7 +823,9 @@ function Upcoming() {
                     </span>
                   </span>
                 </span>
-                <span className="shrink-0 text-[14px] font-medium tabular-nums text-[#2f2424]">{compact(count)}</span>
+                <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: HERO_INK }}>
+                  {compact(count)}
+                </span>
                 <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
               </button>
             </li>
@@ -806,7 +856,7 @@ function MeasureTile({ measure }: { measure: (typeof executiveHealth)[number] })
         </span>
       </span>
       <span className="mt-2 block">
-        <Figure value={measure.value} unit={measure.unit} size={34} color={TONE[measure.tone]} />
+        <Figure value={measure.value} unit={measure.unit} size={34} color={HERO_INK} />
       </span>
       {/* Bar, target tick, sparkline — the same three facts `Bullet` carries, laid
           out for a tile rather than a card row. A full bar always means good: the
@@ -869,7 +919,9 @@ function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
           </span>
           <span className="mt-0.5 block truncate text-[11px] text-[#9b958b]">{risk.note}</span>
         </span>
-        <span className="shrink-0 text-[16px] font-semibold tabular-nums" style={{ color: TONE[tone] }}>
+        {/* Ink, for the same reason as the alert count above — the icon and the chip carry the
+            level, so the figure carries only the figure. */}
+        <span className="shrink-0 text-[16px] font-semibold tabular-nums" style={{ color: HERO_INK }}>
           {risk.value}
         </span>
         <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
@@ -880,42 +932,143 @@ function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
 
 /* ── 7 · trends ──────────────────────────────────────────────────────────── */
 
+/**
+ * A TREND CARD DRAWS ITSELF FROM WHAT ITS FIGURE IS.
+ *
+ * All eight used to be the same tile with the same sparkline, which made the section a wall of
+ * identical cards and — worse — drew four different kinds of number the same way. See
+ * `TrendCard.shape` in `data.ts` for the reasoning; this is where it lands:
+ *
+ *   `area`    a level over time. Continuous, so a line is honest and the shape is the point.
+ *   `columns` discrete monthly counts. A line between two months implies a value that isn't there.
+ *   `meter`   a rate against a published target. The gap to target is the story, not the wiggle.
+ *   `range`   a level read against its own floor and ceiling, where twelve marks say less than
+ *             "64.2 in a band of 58–72" does.
+ *
+ * Each also carries its own hue, so the section can be navigated by colour before it is read.
+ */
 function TrendTile({ card }: { card: (typeof trends)[number] }) {
   const { open } = useSheet()
-  const colour = card.tone === 'neutral' ? '#6d6860' : TONE[card.tone]
+  const accent = card.accent ?? (card.tone === 'neutral' ? MUTED : TONE[card.tone])
+  const { value, delta, values, mood, scopedNote } = useTrendCard(card)
+  const shape = card.shape ?? 'area'
+
+  const low = values.length ? Math.min(...values) : 0
+  const high = values.length ? Math.max(...values) : 0
+
   return (
     <button
       type="button"
       onClick={() => open({ title: card.label, eyebrow: '12 months', body: <TrendPanel card={card} /> })}
-      className={`${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card-sm)]`}
+      className={`${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card-sm)] ${
+        card.wide ? '@[520px]:col-span-2' : ''
+      }`}
     >
-      <span className="flex items-center gap-1.5">
-        <card.icon size={14} strokeWidth={1.75} style={{ color: ACCENT }} aria-hidden />
-        <span className="min-w-0 truncate text-[length:var(--fs-micro)] font-medium text-[#6d6860]">{card.label}</span>
-      </span>
-      <span className="mt-2 flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate font-display text-[length:var(--fs-fig-xs)] leading-none font-bold tabular-nums text-[#2f2424]">
-          {card.value}
+      <span className="flex items-center gap-2">
+        <span
+          className="grid size-6 shrink-0 place-items-center rounded-[8px]"
+          style={{ backgroundColor: mix(accent, 0.12) }}
+          aria-hidden
+        >
+          <card.icon size={13} strokeWidth={2} style={{ color: accent }} />
         </span>
-        <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: colour }}>
-          {card.delta}
+        <span className="min-w-0 truncate text-[length:var(--fs-label)] font-medium text-[#3d3a34]">
+          {card.label}
         </span>
       </span>
-      {/* `Spark` from the design system, tinted by putting the tone on the accent
-          context rather than by adding a colour prop to a shared component.
 
-          It scales to the SERIES' OWN RANGE, unlike the `Trend` in the sheet which is
-          zero-based with a real axis — and that difference is deliberate. Animal
-          population runs 212,040 → 215,432; zero-based, that is a dead flat line
-          under a large filled slab, which is a truthful chart and a useless glyph.
-          A sparkline's job beside a stated number is shape; the readable scale
-          belongs on the chart that carries an axis to read it against. */}
-      <span className="mt-2.5 block" aria-hidden>
-        <AccentProvider value={colour}>
-          <Spark values={card.values} />
+      <span className="mt-2 flex items-baseline justify-between gap-2">
+        <span
+          className="min-w-0 truncate font-display text-[length:var(--fs-fig-xs)] leading-none font-bold tabular-nums"
+          style={{ color: HERO_INK }}
+        >
+          {value}
+        </span>
+        {delta && (
+          <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+            {delta}
+          </span>
+        )}
+      </span>
+
+      {/* The mark. Tinted by putting the hue on the accent context rather than by threading a
+          colour prop through four shared components.
+
+          `Spark` and `SparkBars` scale to the SERIES' OWN RANGE, unlike the `Trend` in the sheet
+          which is zero-based with a real axis — and that difference is deliberate. Animal
+          population runs 212,040 → 215,432; zero-based, that is a dead flat line under a large
+          filled slab, which is a truthful chart and a useless glyph. A sparkline's job beside a
+          stated number is shape; the readable scale belongs on the chart that carries an axis. */}
+      <span className="mt-2.5 block w-full" aria-hidden>
+        <AccentProvider value={accent}>
+          {shape === 'columns' ? (
+            <SparkBars values={values} />
+          ) : shape === 'meter' ? (
+            <TargetMeter value={values[values.length - 1] ?? 0} target={card.target ?? 0} accent={accent} />
+          ) : shape === 'range' ? (
+            <RangeBand low={low} high={high} at={values[values.length - 1] ?? 0} accent={accent} />
+          ) : (
+            <Spark values={values} h={34} />
+          )}
         </AccentProvider>
       </span>
+
+      <span className="mt-1.5 block truncate text-[10px] tracking-[0.06em] text-[#b3aea6] uppercase">
+        {shape === 'meter' ? `Target ${(card.target ?? 0).toFixed(1)}%` : shape === 'range' ? `Band ${low}–${high}` : card.unitNote}
+        {scopedNote && shape !== 'meter' ? ` · ${scopedNote}` : ''}
+      </span>
     </button>
+  )
+}
+
+/**
+ * A rate against its published target.
+ *
+ * The bar is the target's width, and the fill is the reading. Over target the fill turns red and
+ * runs past the notch — which is the one thing a sparkline of the same series cannot show, because
+ * the target does not appear in the series at all.
+ */
+function TargetMeter({ value, target, accent }: { value: number; target: number; accent: string }) {
+  const over = target > 0 && value > target
+  /* Scaled so the target notch sits at three-quarters, leaving room for an overshoot to be visibly
+     an overshoot rather than a bar that is simply full. */
+  const scale = target > 0 ? target / 0.75 : Math.max(value, 1)
+  const width = Math.max(3, Math.min(100, (value / scale) * 100))
+
+  return (
+    <span className="block h-[34px] pt-3">
+      <span className="relative block h-[8px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+        <span
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{ width: `${width}%`, backgroundColor: over ? TONE.bad : accent }}
+        />
+        {/* The notch. Drawn over the fill so it stays visible when the bar runs past it. */}
+        <span className="absolute inset-y-[-3px] w-[2px] rounded-full bg-[#16150f]/45" style={{ left: '75%' }} />
+      </span>
+    </span>
+  )
+}
+
+/**
+ * A level in its own twelve-month band.
+ *
+ * For a money figure the useful question is not the wiggle, it is whether this month is near the
+ * floor or the ceiling of the year — so the mark is the band with the reading on it, and the floor
+ * and ceiling are stated under the card.
+ */
+function RangeBand({ low, high, at, accent }: { low: number; high: number; at: number; accent: string }) {
+  const span = high - low
+  const pos = span > 0 ? ((at - low) / span) * 100 : 50
+
+  return (
+    <span className="block h-[34px] pt-3">
+      <span className="relative block h-[8px] w-full rounded-full" style={{ backgroundColor: mix(accent, 0.16) }}>
+        <span
+          className="absolute top-1/2 size-[12px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
+          style={{ left: `${Math.max(4, Math.min(96, pos))}%`, backgroundColor: accent }}
+        />
+      </span>
+    </span>
   )
 }
 
@@ -923,16 +1076,39 @@ function TrendTile({ card }: { card: (typeof trends)[number] }) {
 
 export function HomeSections() {
   return (
-    <main className="flex flex-col gap-[var(--gap)] px-[var(--gutter)] pt-3 pb-[max(40px,env(safe-area-inset-bottom))]">
-      <div className="-mx-[var(--gutter)]">
-        <ScopeNote />
-      </div>
+    /* `pt-4`, and that is the whole distance between the illustration and the first
+       heading. The negative margin that used to be here existed to claw back part of the
+       seam strip below the banner; with the seam gone there is nothing to claw back and a
+       negative margin would push uppercase micro-type onto the photo's grass. 8px, not 16:
+       the illustration's own bottom eighth is now a fade, so the light band above this
+       heading is already there — measured from where the artwork stops READING, the
+       breath is about 25px. Everything else that used to sit here was an artefact. */
+    <main className="flex flex-col gap-[var(--gap)] px-[var(--gutter)] pt-2 pb-[max(40px,env(safe-area-inset-bottom))]">
+      {/* `ScopeNote` renders nothing when the scope is Overall — which is the default — but it
+          used to be wrapped in a full-bleed div that rendered regardless. An empty flex child
+          still takes a `gap`, and it still holds the `:first-child` slot, so the first
+          SectionHead fell back to its `mt-5`. 32px of nothing on the screen's opening gap, in
+          the state the screen is almost always in. The bleed moved onto the note itself. */}
+      <ScopeNote />
       <SectionHead icon={SECTION_ICONS.kpis} title="Executive KPIs" aside="10 measures" />
       <Reveal>
         <KpiRail />
       </Reveal>
       <Reveal>
         <KpiGrid />
+      </Reveal>
+
+      {/* TRENDS MOVED UP, to directly under the figures it is the shape of.
+          It was the last section on the page, seven scroll-screens below the KPIs — which put "are
+          we improving?" after every operational queue, and in practice out of reach. The figures
+          and their twelve-month shape now read as one block: what it is, then where it is going. */}
+      <SectionHead icon={SECTION_ICONS.trends} title="Trends" aside="12 months" />
+      <Reveal>
+        <div className="grid grid-cols-2 gap-[var(--gap)] @[520px]:grid-cols-4">
+          {trends.map((t) => (
+            <TrendTile key={t.key} card={t} />
+          ))}
+        </div>
       </Reveal>
 
       <SectionHead
@@ -970,6 +1146,14 @@ export function HomeSections() {
         <Upcoming />
       </Reveal>
 
+      {/* The composite, in its own section beside the other scores rather than above the hero.
+          Four indices are the standing answer to "is anything wrong" — worth reading, and not worth
+          the first screen, which belongs to the figure the app is opened for. */}
+      <SectionHead icon={SECTION_ICONS.zooHealth} title="Zoo Health" aside={`${zooHealthScore} / 100`} />
+      <Reveal>
+        <ScoreStrip />
+      </Reveal>
+
       <SectionHead icon={SECTION_ICONS.health} title="Executive Health" aside="against target" />
       <Reveal>
         <div className="grid gap-[var(--gap)] @[460px]:grid-cols-2 @[820px]:grid-cols-3">
@@ -990,14 +1174,6 @@ export function HomeSections() {
         </div>
       </Reveal>
 
-      <SectionHead icon={SECTION_ICONS.trends} title="Trends" aside="12 months" />
-      <Reveal>
-        <div className="grid grid-cols-2 gap-[var(--gap)] @[520px]:grid-cols-4">
-          {trends.map((t) => (
-            <TrendTile key={t.key} card={t} />
-          ))}
-        </div>
-      </Reveal>
     </main>
   )
 }

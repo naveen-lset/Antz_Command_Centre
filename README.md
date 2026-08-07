@@ -1,5 +1,14 @@
 # ANTZ Command Centre — V4
 
+**Live:** <https://antz-command-centre-v4.vercel.app>
+
+That is the project's stable production alias, so it always points at the most recent
+`vercel --prod`. The per-deployment URLs that `vercel ls` prints are immutable snapshots —
+useful for comparing two builds, wrong for sharing.
+
+Local dev runs on **port 5202**; V1 owns 5199, V2 5200 and V3 5201, one port each so all
+four can run at once.
+
 An **Executive Wildlife Command Centre**, not an analytics dashboard.
 
 The readers are the Chairman, the CEO, the Zoo Director, the Curator and senior

@@ -28,7 +28,10 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { resolveWindow } from '../core/calendar'
+import { series } from '../core/series'
 import { usePeriod } from '../exec/period'
+import { useTrendCard } from './kpi'
 import {
   ACCENT_INK,
   Bars,
@@ -36,6 +39,7 @@ import {
   FAINT,
   Facts,
   Figure,
+  HERO_INK,
   Highlights,
   MUTED,
   Section,
@@ -275,6 +279,13 @@ export function MetricPanel({ metric }: { metric: string }) {
   const widestSpecies = Math.max(...speciesRows.map((r) => r.percent), 1)
   const classes = new Set(speciesRows.map((r) => r.cls)).size
   const kpi = headlineKpis.find((k) => k.drill === metric)
+  /* The twelve-month curve for whichever site the panel is focused on — the panel's own
+     facet if one is picked, else the global scope's. Read from the metric rather than from
+     the KPI's authored array, so it responds to both. */
+  const yearSeries = useMemo(
+    () => series(metric, site?.key ?? scope?.key ?? null, resolveWindow('year'), 12),
+    [metric, site?.key, scope?.key],
+  )
   /* How many sites hold the selected species — counted from the same per-site cuts
      the rows below are built from, so it cannot disagree with them. */
   const speciesSites = species
@@ -286,7 +297,7 @@ export function MetricPanel({ metric }: { metric: string }) {
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={headline} unit={rate ? '%' : undefined} size={52} />
+          <Figure value={headline} unit={rate ? '%' : undefined} size={52} color={HERO_INK} />
           {/* The UNIT here, not the module name — the sheet header two inches above
               already says "Health & Medical", and repeating it under the figure spends
               the one line that could say what the figure counts and what it is scoped
@@ -312,13 +323,13 @@ export function MetricPanel({ metric }: { metric: string }) {
 
       <Stack>
         {kpi && (
-          <Section icon={TrendingUp} label="Twelve months" aside="zoo-wide">
-            {/* Always the collection's own series, whatever is selected. There is no
-                twelve-month history at species grain in this data, and drawing the
-                zoo-wide curve under a species heading would be the kind of quiet lie
-                this system is built to avoid — so it says which it is. */}
+          <Section icon={TrendingUp} label="Twelve months" aside={site ? site.name : 'zoo-wide'}>
+            {/* The site scope's own twelve months, not the collection's. There is still no
+                twelve-month history at SPECIES grain, so selecting a species leaves this
+                card at site level — and the `aside` says which level it is, rather than
+                letting a species heading imply the curve underneath belongs to it. */}
             <Trend
-              values={[...kpi.series]}
+              values={yearSeries}
               labels={['Aug 24', 'Nov 24', 'Feb 25', 'Jul 25']}
               unit={`${def.unit} · per month`}
               height={132}
@@ -654,7 +665,7 @@ export function ApprovalPanel({ group }: { group: ApprovalGroup }) {
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={String(pending.length)} size={52} />
+          <Figure value={String(pending.length)} size={52} color={HERO_INK} />
           <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
             <group.icon size={15} strokeWidth={1.75} aria-hidden />
             {group.label} · waiting on you
@@ -755,7 +766,7 @@ export function UpcomingPanel({ group, horizon }: { group: UpcomingGroup; horizo
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={fmt(total)} size={52} />
+          <Figure value={fmt(total)} size={52} color={HERO_INK} />
           <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
             <group.icon size={15} strokeWidth={1.75} aria-hidden />
             {group.label} · next {horizon} days
@@ -882,16 +893,17 @@ export function MeasurePanel({ measure }: { measure: Measure }) {
 /* ── trends ──────────────────────────────────────────────────────────────── */
 
 export function TrendPanel({ card }: { card: TrendCard }) {
-  const peak = Math.max(...card.values)
-  const trough = Math.min(...card.values)
-  const last = card.values[card.values.length - 1]
-  const first = card.values[0]
+  const { value, delta, values, scopedNote } = useTrendCard(card)
+  const peak = Math.max(...values, 0)
+  const trough = Math.min(...values, 0)
+  const last = values[values.length - 1] ?? 0
+  const first = values[0] ?? 0
 
   return (
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={card.value} size={52} />
+          <Figure value={value} size={52} color={HERO_INK} />
           <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
             <card.icon size={15} strokeWidth={1.75} aria-hidden />
             {card.label}
@@ -906,7 +918,7 @@ export function TrendPanel({ card }: { card: TrendCard }) {
               className="text-[13px] font-medium"
               style={{ color: TONE[card.tone === 'neutral' ? 'neutral' : card.tone] }}
             >
-              {card.delta} · 12 months
+              {delta} · 12 months{scopedNote ? ` · ${scopedNote}` : ''}
             </span>
           </p>
         </section>
@@ -914,7 +926,7 @@ export function TrendPanel({ card }: { card: TrendCard }) {
       <Stack>
         <Section icon={TrendingUp} label="Twelve months" aside={card.unitNote}>
           <Trend
-            values={card.values}
+            values={values}
             labels={card.labels}
             unit={card.unitNote}
             tone={card.tone === 'neutral' ? undefined : card.tone}
@@ -952,7 +964,7 @@ export function ZooHealthPanel({
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)] text-center">
-          <Figure value={String(score)} unit="/ 100" size={58} />
+          <Figure value={String(score)} unit="/ 100" size={58} color={HERO_INK} />
           <p className="mt-1 text-[15px] text-[#3d3a34]">Zoo Health</p>
           <p className="mt-3 flex items-center justify-center gap-2">
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE.good }} aria-hidden />

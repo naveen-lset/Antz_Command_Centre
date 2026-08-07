@@ -342,44 +342,17 @@ export function Landscape({ bands = 14 }: { bands?: number }) {
   )
 }
 
-/**
- * The strip that joins the hero illustration to the page beneath it.
+/*
+ * THERE WAS A `LandscapeSeam` HERE. It was a denser copy of this same art in a band
+ * immediately under the hero photo, added when the illustration appeared to "stop" into
+ * flat gradient. It was answering the wrong question. `Landscape` above already runs
+ * behind the whole page on both tiers, so the environment never stopped — what stopped
+ * was the photo, and no amount of vector foliage under it makes a photographic edge
+ * read as continuous. All the strip actually did was push the first section down by a
+ * width-proportional, uncapped amount (93px on a phone, 132px on a desktop column) and
+ * put a second, heavier drawing register between the artwork and the cards.
  *
- * The complaint this answers is that the artwork stopped and left a flat gradient. It
- * sits immediately under the hero band at roughly double the layer's weight and fades
- * to nothing within its own height, so the drawn horizon hands over to the drawn
- * environment rather than to an empty field of colour.
+ * The handover is now the photo's own bottom eighth, masked to transparent, so the
+ * artwork dissolves into the ground it is standing on. Soften the edge; do not draw a
+ * bridge over it.
  */
-export function LandscapeSeam() {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none relative -z-10 -mt-px w-full select-none"
-      style={{
-        opacity: 0.18,
-        maskImage: 'linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.46) 58%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.46) 58%, transparent 100%)',
-      }}
-    >
-      <svg viewBox={`0 0 ${W} 260`} className="w-full" focusable="false">
-        <FarTree x={110} y={62} s={1.05} />
-        <FarTree x={250} y={44} s={0.85} />
-        <FarTree x={980} y={58} s={1} />
-        <FarTree x={1110} y={40} s={0.8} />
-        <Bush x={150} y={128} s={1.1} />
-        <Bush x={214} y={140} />
-        <Tree x={420} y={150} s={0.72} />
-        <Tree x={900} y={136} s={0.64} />
-        <Bush x={700} y={132} s={0.95} />
-        <Bush x={1090} y={146} s={1.05} />
-        <Fence x={480} y={188} w={330} s={0.85} />
-        <Tuft x={60} y={196} s={1.1} />
-        <Tuft x={318} y={206} />
-        <Tuft x={1010} y={200} s={1.1} />
-        <Plant x={560} y={236} />
-        <Plant x={848} y={244} s={1.1} />
-        <Rock x={236} y={244} s={0.9} />
-      </svg>
-    </div>
-  )
-}

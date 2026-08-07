@@ -36,6 +36,23 @@ export const GROUND = '#e7f0ea'
 export const GROUND_GRADIENT = 'linear-gradient(180deg, #ddeae3 0%, #c6ddd1 100%)'
 export const INK = '#1c1a16'
 export const VALUE = '#2f2424'
+/**
+ * The ink every HERO figure is set in.
+ *
+ * Its own constant rather than `VALUE`, because a hero is doing a different job from a table cell.
+ * `VALUE`'s warm near-black sits correctly among body copy; at 52–58pt on a white card it reads
+ * brown. `#08100C` is a near-black with the ground's green in it, so the largest figure on a page
+ * belongs to the same palette as the sage it sits on rather than looking like borrowed body type.
+ *
+ * ONE CONSTANT, NOT A COLOUR PER CALL SITE. Fourteen heroes across nine files were each taking
+ * `Figure`'s default, so changing the hero ink meant finding all fourteen.
+ *
+ * IT NOW CARRIES THE HOME CARDS TOO, severity counts included. A tinted figure was meant to make
+ * the bad ones findable, and at ten alert tiles and six risk rows it did the opposite — most of
+ * the numbers on the page were red or amber, so none of them stood out. The level chip and the
+ * glyph state severity on those rows already; the number states the quantity.
+ */
+export const HERO_INK = '#08100C'
 export const INK2 = '#3d3a34'
 export const MUTED = '#6d6860'
 export const FAINT = '#9b958b'
@@ -138,6 +155,16 @@ export const compact = (n: number) => {
   if (a >= 10_000) return `${(n / 1000).toFixed(1)}K`
   return fmt(n)
 }
+/**
+ * First letter up, the rest left alone.
+ *
+ * The caption under a figure is assembled from a metric's own unit noun — "animals",
+ * "under care", "deaths" — which reads as an unfinished sentence under a 34pt number.
+ * Sentence case, NOT title case: half these lines start with a fraction ("2,184 of
+ * 2,374 covered") and title-casing that gives "2,184 Of 2,374 Covered".
+ */
+export const sentenceCase = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s)
+
 export const signTone = (s: string) => {
   const t = s.trim()
   if (t.startsWith('+')) return '#37bd69'
@@ -299,7 +326,7 @@ export function Hero({
         className={`animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)] ${centred ? 'text-center' : ''}`}
         aria-label={label}
       >
-        <Figure value={value} unit={unit} size={58} />
+        <Figure value={value} unit={unit} size={58} color={HERO_INK} />
         <p
           className={`mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34] ${centred ? 'justify-center' : ''}`}
         >

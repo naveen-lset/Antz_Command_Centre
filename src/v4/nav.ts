@@ -22,7 +22,7 @@
  * `titleOf` survives as the single place any future exception would go.
  */
 
-import { Settings, type LucideIcon } from 'lucide-react'
+import { Boxes, Settings, type LucideIcon } from 'lucide-react'
 import { execPages } from '../exec/pages'
 
 export const titleOf = (slug: string): string => execPages[slug]?.title ?? slug
@@ -77,6 +77,15 @@ export const navGroups: NavGroup[] = [
 ]
 
 export const SETTINGS: NavItem = { slug: 'settings', label: 'Settings', icon: Settings }
+
+/**
+ * The entity index — the way in that is not a module.
+ *
+ * Placed beside Home rather than inside the module groups, because it is not a module: it is the
+ * other axis the product is organised on. A director looking for "the quarantine block" should not
+ * have to work out which module mentions it.
+ */
+export const EVERYTHING: NavItem = { slug: 'entities', label: 'Everything', icon: Boxes }
 
 /**
  * Which sidebar entry to light up. A record page (`mortality/records`) highlights its

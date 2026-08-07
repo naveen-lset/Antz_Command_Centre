@@ -144,13 +144,55 @@ export interface Kpi {
   key: string
   /** One or two words. Names the number, never explains it. */
   label: string
-  value: Figure
+  /**
+   * Only for a KPI with no metric behind it. Where `metric` is set the value is READ from
+   * `core/query.ts` and authoring one here would be a second source of truth for the same
+   * figure — which is how "215,432" ended up hardcoded on a card that also had a live
+   * population query behind it.
+   */
+  value?: Figure
   unit?: string
-  /** Short qualifier under the number — a denominator or a target, never a sentence. */
+  /** Short qualifier under the number — the unit or the denominator's noun, never a sentence. */
   note?: string
+  /**
+   * A published target, stated separately from the note.
+   *
+   * It used to be typed INTO the note ("Target 90"), which worked while the note was authored and
+   * broke as soon as the note began carrying the metric's own fraction — the tile then read
+   * "564 of 600 Target 90", two unrelated facts run together. Separate fields, joined by the
+   * renderer.
+   */
+  target?: string
+  /**
+   * Suppress the "n of m" fraction the note otherwise composes.
+   *
+   * For a rate whose denominator is an ARTEFACT rather than a population. The health index is an
+   * unweighted mean of six site scores, so its internal fraction is 564 of 600 — arithmetically how
+   * the mean is computed, and meaningless as a statement about the zoo. Vaccination's 2,184 of 2,374
+   * is the opposite: there the fraction IS the fact.
+   */
+  hideFraction?: true
   delta?: Figure
   icon: LucideIcon
   tone?: 'good' | 'warn' | 'bad'
+  /**
+   * The tile's own identity colour.
+   *
+   * Every tile used to draw its glyph in the one product green, so ten KPIs read as ten copies of
+   * the same card and the eye had nothing to navigate by — finding "Vaccination" meant reading all
+   * six labels. A hue per measure makes the grid scannable by position and colour before the label
+   * is read at all.
+   *
+   * These are the module accents from `index.css`, not new colours: the tile and the page it opens
+   * are the same hue, so the colour is a wayfinding cue rather than decoration.
+   */
+  accent?: string
+  /**
+   * The metric this KPI states, in `core/metrics.ts`. Drives the value, the delta against
+   * the preceding window, the sparkline and the site scoping — all four from one key, so
+   * they cannot disagree with each other or with the module page that shares the metric.
+   */
+  metric?: string
   /** Metric key for the Overall → Site → Species → Animal drill. */
   drill?: string
   /**
@@ -165,8 +207,13 @@ export interface Kpi {
 }
 
 export interface HeadlineKpi extends Kpi {
-  /** Twelve monthly readings, oldest first. */
-  series: readonly number[]
+  /**
+   * Only for a KPI with no metric. A metric-backed sparkline is bucketed from the same daily
+   * series its own figure sums, so the curve and the number are guaranteed to agree — and
+   * the curve re-cuts itself when the reader changes the window, which a fixed twelve-month
+   * array cannot.
+   */
+  series?: readonly number[]
   /**
    * A stock gets a line, a flow gets columns. Not a style choice: a line through
    * "births per month" implies a value between the months and there isn't one — 11
@@ -193,51 +240,47 @@ export const headlineKpis: HeadlineKpi[] = [
   {
     key: 'animals',
     label: 'Animal Population',
-    value: '215,432',
     note: 'animals',
-    delta: { today: '+4', week: '+11', month: '+43', sixMonths: '+218', all: '+7,942' },
     icon: PawPrint,
+    accent: '#2f9e5b',
+    metric: 'animals',
     drill: 'animals',
     href: '#/animals',
-    series: SERIES.population,
     chart: 'line',
   },
   {
     key: 'treatment',
     label: 'Health & Medical',
-    value: '124',
-    note: 'under care · 7 critical',
-    delta: { today: '+2', week: '+6', month: '−8', sixMonths: '−22', all: '—' },
+    note: 'under care',
     icon: Stethoscope,
+    accent: '#e93353',
     tone: 'warn',
+    metric: 'health',
     drill: 'health',
     href: '#/health',
-    series: SERIES.caseload,
     chart: 'line',
   },
   {
     key: 'births',
     label: 'Natality',
-    value: { today: '3', week: '11', month: '45', sixMonths: '264', all: '9,412' },
     note: 'births',
-    delta: { today: '+1', week: '+9%', month: '+12%', sixMonths: '+7%', all: '—' },
     icon: Sparkles,
+    accent: '#e8590c',
     tone: 'good',
+    metric: 'births',
     drill: 'births',
     href: '#/births',
-    series: SERIES.natality,
     chart: 'bars',
   },
   {
     key: 'deaths',
     label: 'Mortality',
-    value: { today: '0', week: '5', month: '23', sixMonths: '160', all: '4,870' },
     note: 'deaths',
-    delta: { today: '−1', week: '−14%', month: '−18%', sixMonths: '−6%', all: '—' },
     icon: Activity,
+    accent: '#9d174d',
+    metric: 'mortality',
     drill: 'mortality',
     href: '#/mortality',
-    series: SERIES.mortality,
     chart: 'bars',
   },
 ]
@@ -252,69 +295,76 @@ export const supportingKpis: Kpi[] = [
   {
     key: 'breeding',
     label: 'Breeding Success',
-    value: '78',
     unit: '%',
-    note: '45 of 58 pairings',
-    delta: '+4',
+    note: 'pairings',
     icon: Dna,
+    accent: '#0f766e',
     tone: 'good',
+    metric: 'breeding',
     measure: 'breeding',
     href: '#/births',
   },
   {
     key: 'vaccination',
     label: 'Vaccination',
-    value: '92',
     unit: '%',
-    note: '2,184 of 2,374',
-    delta: '+1',
+    note: 'covered',
     icon: Syringe,
+    accent: '#2563eb',
+    metric: 'vaccination',
     drill: 'vaccination',
     href: '#/vaccination',
   },
   {
     key: 'tasks',
     label: 'Tasks',
-    value: '18',
-    note: 'high priority · of 76',
-    delta: '+3',
+    note: 'done',
     icon: ListTodo,
+    accent: '#ea580c',
     tone: 'warn',
+    metric: 'tasks',
     href: '#/tasks',
   },
   {
     key: 'welfare',
     label: 'Welfare Audits',
-    value: '4.6',
-    unit: '/ 5',
-    note: '12 due',
-    delta: '+0.1',
+    unit: '%',
+    note: 'audits passed',
     icon: ShieldCheck,
+    accent: '#db2777',
     tone: 'good',
+    metric: 'welfare',
     measure: 'welfare',
     href: '#/welfare',
   },
   {
     key: 'health-score',
     label: 'Health Score',
-    value: '94',
-    unit: '/ 100',
-    note: 'Target 90',
-    delta: '+2',
+    unit: '%',
+    note: 'site average',
+    target: '90',
+    hideFraction: true,
     icon: HeartPulse,
+    accent: '#be123c',
     tone: 'good',
+    metric: 'healthScore',
     measure: 'health',
     href: '#/health',
   },
   {
     key: 'wastage',
     label: 'Food Wastage',
-    value: '3.4',
     unit: '%',
-    note: 'Target 3.0',
-    delta: '+0.3',
+    /* The fraction is suppressed here not because 34 of 1,000 kg is meaningless — it isn't — but
+       because the target is the more useful of the two facts and both will not fit on one line in a
+       two-column phone grid. The fraction is one tap away in the measure panel. */
+    note: 'of feed',
+    target: '3.0%',
+    hideFraction: true,
     icon: Utensils,
+    accent: '#b45309',
     tone: 'warn',
+    metric: 'wastage',
     measure: 'wastage',
     href: '#/tasks',
   },
@@ -1045,19 +1095,61 @@ export const risks: Risk[] = [
 export interface TrendCard {
   key: string
   label: string
-  value: string
+  /** Only where there is no metric. See `Kpi.value`. */
+  value?: string
   unit?: string
-  delta: string
+  delta?: string
   /** Judged direction — a rising mortality trend is bad, a rising population is not. */
   tone: 'good' | 'warn' | 'bad' | 'neutral'
   icon: LucideIcon
-  /** Twelve monthly readings, oldest first. */
-  values: number[]
+  /** The card's identity hue. See `Kpi.accent`. */
+  accent?: string
+  /**
+   * HOW THE CARD DRAWS ITSELF, and why this is not decoration.
+   *
+   * Eight identical sparkline tiles was the wrong answer twice over. It made the section a wall of
+   * the same card, so nothing in it could be found by eye — and more seriously it drew four
+   * different KINDS of number the same way. A population is a level that moves continuously; births
+   * are discrete monthly events with no value between them; wastage is a rate with a published
+   * target it is either under or over; procurement spend is read as a level within a range.
+   *
+   * A line through "births per month" implies a value between the months and there isn't one, and a
+   * sparkline beside "3.4% against a 3.0% target" hides the only fact that matters. So the mark is
+   * chosen from what the figure IS:
+   *
+   *   `area`    a level over time — the shape is continuous and worth reading as one
+   *   `columns` discrete monthly counts — each month stands alone
+   *   `meter`   a rate against a stated target — the gap to target is the whole story
+   *   `range`   a level read against its own twelve-month floor and ceiling
+   */
+  shape?: 'area' | 'columns' | 'meter' | 'range'
+  /**
+   * The published target, for a `meter` card. Stated rather than derived — it is a policy number,
+   * not a measurement, and the card says so.
+   */
+  target?: number
+  /** Spans two columns. For the one card whose shape is worth the width. */
+  wide?: true
+  /** The metric behind it, when one exists. Then the value, delta and curve are all read. */
+  metric?: string
+  /** Twelve monthly readings, oldest first. Only for a card with no metric. */
+  values?: number[]
   /** Axis labels for the expanded chart — four quarters across twelve months. */
   labels: string[]
   /** Stated under the expanded chart. */
   unitNote: string
   href: string
+  /**
+   * `false` for a figure with no site dimension at all — visitors through the gate,
+   * procurement spend, rupees of medicine.
+   *
+   * These are not gaps to be filled with an apportionment. A visitor is not attributable to
+   * Carnivore Ridge, and inventing a split so the card keeps working under a site filter
+   * would be exactly the fabrication the brief rules out. So the home screen moves them into
+   * their own labelled group when a site is picked, rather than showing collection-wide
+   * numbers inside a scoped view.
+   */
+  scoped?: false
 }
 
 const MONTHS = ['Aug 24', 'Nov 24', 'Feb 25', 'Jul 25']
@@ -1074,11 +1166,13 @@ export const trends: TrendCard[] = [
   {
     key: 'population',
     label: 'Animal Population',
-    value: '215,432',
-    delta: '+1.6%',
     tone: 'good',
     icon: PawPrint,
-    values: [...SERIES.population],
+    accent: '#2f9e5b',
+    metric: 'animals',
+    /* A level, and the only card whose shape is worth two columns — it is the collection itself. */
+    shape: 'area',
+    wide: true,
     labels: MONTHS,
     unitNote: 'Animals · monthly close',
     href: '#/animals',
@@ -1086,11 +1180,11 @@ export const trends: TrendCard[] = [
   {
     key: 'births',
     label: 'Birth Trend',
-    value: '45',
-    delta: '+12%',
     tone: 'good',
     icon: Sparkles,
-    values: [...SERIES.natality],
+    accent: '#e8590c',
+    metric: 'births',
+    shape: 'columns',
     labels: MONTHS,
     unitNote: 'Births · per month',
     href: '#/births',
@@ -1098,11 +1192,11 @@ export const trends: TrendCard[] = [
   {
     key: 'mortality',
     label: 'Mortality Trend',
-    value: '23',
-    delta: '−18%',
     tone: 'good',
     icon: Activity,
-    values: [...SERIES.mortality],
+    accent: '#9d174d',
+    metric: 'mortality',
+    shape: 'columns',
     labels: MONTHS,
     unitNote: 'Deaths · per month',
     href: '#/mortality',
@@ -1110,35 +1204,40 @@ export const trends: TrendCard[] = [
   {
     key: 'disease',
     label: 'Disease Trend',
-    value: '112',
-    delta: '+6%',
     tone: 'warn',
     icon: Biohazard,
-    values: [86, 94, 88, 92, 101, 96, 104, 99, 108, 106, 112, 112],
+    accent: '#b91c1c',
+    metric: 'disease',
+    shape: 'columns',
     labels: MONTHS,
-    unitNote: 'Cases reported · per month',
+    unitNote: 'Flagged · per month',
     href: '#/disease',
   },
   {
     key: 'medicine',
-    label: 'Medicine Consumption',
+    label: 'Medicine Spend',
     value: '₹9.8L',
     delta: '+4%',
     tone: 'neutral',
     icon: Pill,
+    accent: '#0284c7',
+    shape: 'range',
     values: [8.2, 8.6, 8.4, 8.9, 9.1, 8.8, 9.2, 9.4, 9.1, 9.6, 9.4, 9.8],
     labels: MONTHS,
     unitNote: '₹ lakh · per month',
     href: '#/health',
+    scoped: false,
   },
   {
     key: 'wastage',
     label: 'Food Wastage',
-    value: '3.4%',
-    delta: '+0.3',
     tone: 'warn',
     icon: Utensils,
-    values: [2.6, 2.7, 2.8, 2.8, 2.9, 3.1, 3.0, 3.0, 3.1, 3.2, 3.2, 3.4],
+    accent: '#b45309',
+    metric: 'wastage',
+    /* The one card with a published target, so the gap to it is the mark. */
+    shape: 'meter',
+    target: 3.0,
     labels: MONTHS,
     unitNote: '% of feed issued',
     href: '#/tasks',
@@ -1150,10 +1249,13 @@ export const trends: TrendCard[] = [
     delta: '−3%',
     tone: 'good',
     icon: Truck,
+    accent: '#4f46e5',
+    shape: 'range',
     values: [58, 61, 66, 72, 69, 63, 60, 67, 71, 68, 66, 64],
     labels: MONTHS,
     unitNote: '₹ lakh · per month',
     href: '#/approvals',
+    scoped: false,
   },
   {
     key: 'visitors',
@@ -1162,26 +1264,35 @@ export const trends: TrendCard[] = [
     delta: '+9%',
     tone: 'good',
     icon: Ticket,
+    accent: '#7c3aed',
+    shape: 'area',
     values: [122, 138, 164, 191, 210, 186, 148, 132, 141, 158, 171, 186],
     labels: MONTHS,
-    unitNote: 'Thousand visitors · per month',
+    unitNote: 'Thousands · per month',
     href: '#/attendance',
+    scoped: false,
   },
 ]
 
 /* ── the executive rail ──────────────────────────────────────────────────── */
 
 /**
- * The desktop right rail's queues, DERIVED from the sections above rather than
- * restated. In V3 these four figures were typed into `panel.ts` beside a comment
- * asking that they be kept in step with the home screen by hand; here the request
- * that gets approved on the home is the request that disappears from the rail.
+ * The desktop right rail's queues — now four METRIC KEYS rather than four numbers.
+ *
+ * They were derived from the authored sections above, which was better than V3's hand-typed
+ * copies but still left two problems. The rail was unscoped, so picking Carnivore Ridge left
+ * four collection-wide figures in the third column of a scoped screen. And the lab and
+ * attendance rows were literals — 31 and 243 — typed beside the modules that state the same
+ * two numbers, which is exactly the arrangement the comment above used to warn about.
+ *
+ * Naming the metric instead means the rail reads the same series the module does, under the
+ * same scope, and the note beside each figure is composed from the metric's own denominator.
  */
 export const railQueues = [
-  { slug: 'alerts', label: 'Alerts', value: alertsCritical, note: `critical · ${alertsUrgent} urgent`, tone: 'bad' as const },
-  { slug: 'approvals', label: 'Approvals', value: approvalsPending, note: `pending · ${approvalsOverdue} past SLA`, tone: 'warn' as const },
-  { slug: 'lab', label: 'Lab Requests', value: 31, note: 'open · 9 overdue', tone: 'warn' as const },
-  { slug: 'attendance', label: 'Staff Attendance', value: 243, note: 'of 312 on site', tone: 'good' as const },
+  { slug: 'alerts', label: 'Alerts', metric: 'alertsCritical', note: 'critical', tone: 'bad' as const },
+  { slug: 'approvals', label: 'Approvals', metric: 'approvals', note: 'pending', tone: 'warn' as const },
+  { slug: 'lab', label: 'Lab Requests', metric: 'labOpen', note: 'open', tone: 'warn' as const },
+  { slug: 'attendance', label: 'Staff Attendance', metric: 'attendance', note: 'on site', tone: 'good' as const },
 ]
 
 export interface Activity {
@@ -1210,6 +1321,9 @@ export const SECTION_ICONS = {
   health: ShieldPlus,
   risks: Bug,
   trends: Footprints,
+  /* Zoo Health and Executive Health are two sections and were one glyph, which made the page look
+     as though it repeated itself. */
+  zooHealth: ScanHeart,
   bell: BellRing,
   users: Users,
   baby: Baby,

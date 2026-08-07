@@ -18,17 +18,18 @@ import { siteCut } from '../../exec/sites'
 import {
   ACCENT_INK,
   Bars,
+  compact,
   FAINT,
   Figure,
+  fmt,
+  HERO_INK,
+  mix,
   Section,
   Stack,
   TONE,
   TRACK,
-  VALUE,
-  compact,
-  fmt,
-  mix,
   useAccent,
+  VALUE,
 } from '../../exec/system'
 import { useSheet } from '../sheet'
 import { useSite } from '../filters'
@@ -88,7 +89,7 @@ export function ModuleHero({
   return (
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-        <Figure value={shown} unit={unit ?? (split?.kind === 'rate' ? '%' : undefined)} size={58} />
+        <Figure value={shown} unit={unit ?? (split?.kind === 'rate' ? '%' : undefined)} size={58} color={HERO_INK} />
         <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
           {Glyph && <Glyph size={15} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
           {label}
@@ -246,7 +247,7 @@ export function NodePanel({
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={fmt(total)} size={48} />
+          <Figure value={fmt(total)} size={48} color={HERO_INK} />
           <p className="mt-1 text-[15px] text-[#3d3a34]">
             {title}
             {unit ? ` · ${unit}` : ''}
@@ -298,7 +299,7 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={fmt(node.value)} unit={node.unit} size={48} color={node.tone ? TONE[node.tone] : undefined} />
+          <Figure value={fmt(node.value)} unit={node.unit} size={48} color={node.tone ? TONE[node.tone] : HERO_INK} />
           <p className="mt-1 text-[15px] text-[#3d3a34]">{node.label}</p>
           {node.sub && <p className="mt-2.5 text-[12px] text-[#9b958b]">{node.sub}</p>}
         </section>

@@ -14,7 +14,6 @@
  * The split is about the reading occasion, not importance. An overdue approval
  * matters more today than last month's hatch rate; it just isn't a monthly figure.
  */
-import type { ComponentType } from 'react'
 import {
   Activity,
   ArrowLeftRight,
@@ -39,31 +38,19 @@ import {
   Warehouse,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import Animals from '../../v4/modules/animals'
-import Pharmacy from '../../v4/modules/pharmacy'
-import UsersPage from '../../v4/modules/users'
-import Accession from './accession'
-import Health from '../../v4/modules/medical'
-import Births from './births'
-import Eggs from '../../v4/modules/eggs'
-import Discarded from './discarded'
-import Fetal from './fetal'
-import Mortality from '../../v4/modules/mortality'
-import Disease from './disease'
-import Transfers from './transfers'
-import Preventive from '../../v4/modules/preventive'
-import Vaccination from './vaccination'
-import Deworming from './deworming'
-import Trends from './trends'
-import Lab from '../../v4/modules/lab'
-import Welfare from './welfare'
-import Approvals from './approvals'
-import Tasks from './tasks'
-import Attendance from './attendance'
-import Alerts from './alerts'
+import type { ComponentType } from 'react'
+import { lazyPage } from '../../v4/perf'
 
 export interface ExecPage {
   title: string
+  /**
+   * A lazily-loaded chunk, not a statically imported component.
+   *
+   * All twenty-three pages plus the design system used to be one bundle, so opening the home
+   * parsed the pharmacy page. Each is now fetched when its route is first visited and cached
+   * by the browser after that — the home gets smaller and no module gets slower twice.
+   * `lazyPage` supplies the skeleton, so a page cannot ship without a loading state.
+   */
   Page: ComponentType
   /**
    * Report-track pages are cut against a reporting period and say so in the sheet
@@ -90,105 +77,105 @@ export const execPages: Record<string, ExecPage> = {
   /* report track */
   animals: {
     title: 'Animal Population',
-    Page: Animals,
+    Page: lazyPage(() => import('../../v4/modules/animals')),
     icon: PawPrint,
     periods: true,
     keywords: ['inventory', 'headcount', 'census', 'stock', 'species', 'classes', 'collection'],
   },
   accession: {
     title: 'Accession',
-    Page: Accession,
+    Page: lazyPage(() => import('./accession')),
     icon: Rabbit,
     periods: true,
     keywords: ['intake', 'arrivals', 'acquired', 'new animals', 'rescue', 'received'],
   },
   births: {
     title: 'Birth Analytics',
-    Page: Births,
+    Page: lazyPage(() => import('./births')),
     icon: Sparkles,
     periods: true,
     keywords: ['natality', 'newborn', 'breeding', 'calves', 'litters', 'birth rate'],
   },
   eggs: {
     title: 'Eggs & Incubation',
-    Page: Eggs,
+    Page: lazyPage(() => import('../../v4/modules/eggs')),
     icon: Egg,
     periods: true,
     keywords: ['hatch', 'hatchery', 'clutch', 'incubator', 'fertile'],
   },
   discarded: {
     title: 'Eggs Discarded',
-    Page: Discarded,
+    Page: lazyPage(() => import('./discarded')),
     icon: EggOff,
     periods: true,
     keywords: ['infertile', 'unhatched', 'spoiled', 'rejected eggs'],
   },
   mortality: {
     title: 'Mortality',
-    Page: Mortality,
+    Page: lazyPage(() => import('../../v4/modules/mortality')),
     icon: Activity,
     periods: true,
     keywords: ['death', 'deaths', 'died', 'necropsy', 'postmortem', 'cause of death'],
   },
   fetal: {
     title: 'Fetal Death',
-    Page: Fetal,
+    Page: lazyPage(() => import('./fetal')),
     icon: Baby,
     periods: true,
     keywords: ['stillbirth', 'miscarriage', 'abortion', 'prenatal loss'],
   },
   health: {
     title: 'Health & Medical',
-    Page: Health,
+    Page: lazyPage(() => import('../../v4/modules/medical')),
     icon: HeartPulse,
     periods: true,
     keywords: ['clinical', 'treatment', 'vet', 'veterinary', 'medical', 'under care', 'recovery'],
   },
   disease: {
     title: 'Disease & Outbreak',
-    Page: Disease,
+    Page: lazyPage(() => import('./disease')),
     icon: Biohazard,
     periods: true,
     keywords: ['infection', 'epidemic', 'quarantine', 'contagion', 'pathogen', 'zoonotic'],
   },
   preventive: {
     title: 'Preventive Care',
-    Page: Preventive,
+    Page: lazyPage(() => import('../../v4/modules/preventive')),
     icon: ShieldPlus,
     periods: true,
     keywords: ['prophylaxis', 'protection', 'coverage', 'routine care', 'screening'],
   },
   pharmacy: {
     title: 'Pharmacy',
-    Page: Pharmacy,
+    Page: lazyPage(() => import('../../v4/modules/pharmacy')),
     icon: Warehouse,
     periods: true,
     keywords: ['medicine', 'stock', 'dispensary', 'store', 'procurement', 'expiry', 'consumables', 'drugs'],
   },
   vaccination: {
     title: 'Vaccination',
-    Page: Vaccination,
+    Page: lazyPage(() => import('./vaccination')),
     icon: Syringe,
     periods: true,
     keywords: ['vaccine', 'immunisation', 'immunization', 'jab', 'dose', 'booster'],
   },
   deworming: {
     title: 'Deworming',
-    Page: Deworming,
+    Page: lazyPage(() => import('./deworming')),
     icon: Pill,
     periods: true,
     keywords: ['parasite', 'anthelmintic', 'worming', 'faecal', 'fecal', 'load'],
   },
   transfers: {
     title: 'Animal Movement',
-    Page: Transfers,
+    Page: lazyPage(() => import('./transfers')),
     icon: ArrowLeftRight,
     periods: true,
     keywords: ['transfer', 'transport', 'loan', 'exchange', 'in transit', 'shifted', 'relocation'],
   },
   trends: {
     title: '30-Day Trends',
-    Page: Trends,
+    Page: lazyPage(() => import('./trends')),
     icon: TrendingUp,
     periods: true,
     keywords: ['trend', 'over time', 'chart', 'graph', 'series', 'trajectory'],
@@ -197,49 +184,49 @@ export const execPages: Record<string, ExecPage> = {
   /* operations track */
   approvals: {
     title: 'Approvals',
-    Page: Approvals,
+    Page: lazyPage(() => import('./approvals')),
     ops: true,
     icon: CheckCircle2,
     keywords: ['sign off', 'authorise', 'authorize', 'pending', 'sanction', 'permission'],
   },
   tasks: {
     title: 'Tasks',
-    Page: Tasks,
+    Page: lazyPage(() => import('./tasks')),
     ops: true,
     icon: ListTodo,
     keywords: ['todo', 'to do', 'assignments', 'work orders', 'overdue', 'checklist'],
   },
   lab: {
     title: 'Lab Requests',
-    Page: Lab,
+    Page: lazyPage(() => import('../../v4/modules/lab')),
     ops: true,
     icon: FlaskConical,
     keywords: ['laboratory', 'samples', 'pathology', 'histopathology', 'test', 'panel', 'results'],
   },
   attendance: {
     title: 'Staff Attendance',
-    Page: Attendance,
+    Page: lazyPage(() => import('./attendance')),
     ops: true,
     icon: Users,
     keywords: ['staffing', 'roster', 'shift', 'keepers', 'headcount', 'present', 'leave'],
   },
   welfare: {
     title: 'Animal Welfare',
-    Page: Welfare,
+    Page: lazyPage(() => import('./welfare')),
     ops: true,
     icon: ShieldCheck,
     keywords: ['audit', 'enrichment', 'wellbeing', 'five domains', 'inspection', 'score'],
   },
   users: {
     title: 'Users',
-    Page: UsersPage,
+    Page: lazyPage(() => import('../../v4/modules/users')),
     ops: true,
     icon: Users,
     keywords: ['accounts', 'access', 'login', 'active', 'adoption', 'permissions', 'staff accounts'],
   },
   alerts: {
     title: 'Alerts',
-    Page: Alerts,
+    Page: lazyPage(() => import('./alerts')),
     ops: true,
     icon: BellRing,
     keywords: ['alarm', 'critical', 'incident', 'escalation', 'notification', 'warning'],

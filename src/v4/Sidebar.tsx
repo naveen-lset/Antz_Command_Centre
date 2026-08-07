@@ -18,7 +18,7 @@
 
 import { useMemo, useState } from 'react'
 import { LayoutGrid, Search, X } from 'lucide-react'
-import { SETTINGS, activeSlug, filterNav } from './nav'
+import { EVERYTHING, SETTINGS, activeSlug, filterNav } from './nav'
 import { site } from './data'
 import { useSheet } from './sheet'
 import { SettingsPanel } from './Settings'
@@ -64,6 +64,14 @@ export function Sidebar({ route }: { route: string }) {
 
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden px-3 pb-2">
         <SidebarLink href="#/" icon={LayoutGrid} label="Home" active={onHome} />
+        {/* The entity index. Beside Home rather than in a module group, because browsing things is
+            the other axis of the product — see `nav.ts`. */}
+        <SidebarLink
+          href={`#/${EVERYTHING.slug}`}
+          icon={EVERYTHING.icon}
+          label={EVERYTHING.label}
+          active={active === EVERYTHING.slug || active === 'browse' || active === 'e'}
+        />
 
         {groups.map((group) => (
           <div key={group.name} className="mt-4 first:mt-3">
