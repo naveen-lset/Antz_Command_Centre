@@ -1,22 +1,101 @@
-# ANTZ Command Centre
+# ANTZ Command Centre — V4
 
-Flagship executive home screen for the ANTZ Wildlife Management Platform — a calm,
-data-first operational control centre that answers "How is my zoo today?" in seconds.
+An **Executive Wildlife Command Centre**, not an analytics dashboard.
 
-Implemented from the Figma design
-[Antz Command Center · node 188-70](https://www.figma.com/design/WvxVp4VXLXD5JwMFlYehjR/Antz-Command-Center?node-id=188-70).
+The readers are the Chairman, the CEO, the Zoo Director, the Curator and senior
+management. The home screen has ten seconds to answer five questions:
+
+1. What is the overall zoo health?
+2. What needs my attention?
+3. What approvals are waiting on me?
+4. What is due soon?
+5. Are we improving?
+
+Everything else on the home screen is out of scope by design.
+
+## What changed from V3
+
+V3's home screen was the monthly board report's table of contents rendered as cards —
+population, life events, veterinary, preventive care, movement, trends. That is the
+right shape for *reading a report* and the wrong shape for the ten seconds between
+meetings: "45 births" is a fact, not a decision.
+
+V4 keeps the entire design language — the sage ground, the white `rounded-[16px]`
+cards, DM Sans with rounded numerals, the single accent, the 12px rhythm, the
+reveal-on-scroll motion — and every mark on the home screen is a component from
+`src/exec/system.tsx`. Nothing was redesigned. What changed is **what the home screen
+is**: seven executive sections instead of twenty module doors, with the modules
+reached from the sidebar, from search, and from the foot of every sheet.
+
+## The home screen
+
+| # | Section | Answers |
+|---|---------|---------|
+| — | Zoo Health hero | overall health, as one composite of four weighted parts |
+| 1 | Executive KPIs | ten numbers, minimal labels, no charts |
+| 2 | Critical Alerts | the ten queues that can start a phone call today |
+| 3 | Needs My Approval | six decision types, each with Approve / Reject |
+| 4 | Upcoming | nine date-driven groups under a 7 / 30-day switch |
+| 5 | Executive Health | six board measures, each against its stated target |
+| 6 | Risk Indicators | seven exposures, named and sized — no suggestions |
+| 7 | Trends | eight twelve-month series as compact sparklines |
+
+## Two layers: routes and sheets
+
+**Routes are places.** The home and the twenty module pages each have a URL.
+
+**Sheets are looks at things.** Tapping any card on the home opens a sheet — a bottom
+sheet on a phone, a side sheet on tablet and desktop — and closing it returns you
+exactly where you were. This is the brief's "never navigate unnecessarily".
+
+A sheet nests to any depth without stacking panels: the sheet stays put and its
+content swaps, with a back chevron and a breadcrumb in the eyebrow. Each level pushes
+a history entry carrying its own depth, so the browser/Android back button, Escape,
+the chevron and swipe-down are all one behaviour.
+
+### The drill: Overall → Site → Species → Animal
+
+Four levels, and no fifth. The animal record is the bottom — everything below it
+(samples, doses, keeper notes) is the working screen of the person who owns the
+animal, not the executive question that opened the drill.
+
+Site totals come from `src/exec/sites.ts` untouched, where Overall is defined as the
+sum of its rows rather than authored. Species and animal rows are **derived** from
+those totals by weighted apportionment, so a species split always sums to its site and
+a site split always sums to Overall, at every reporting window, by construction.
+Per-animal attributes come from a seeded hash of the animal's own id, so a given
+animal reads identically on every visit without a row being stored.
+
+## Responsive
+
+Three tiers. The boundary is one number shared by the shell and the sheet, so the
+sidebar and the sheet geometry can never disagree about which tier the app is in.
+
+| Tier | Width | Layout | Sheets |
+|------|-------|--------|--------|
+| Phone | `< 768px` | single column, one scroll; modules are pages with a back chevron | bottom sheet, swipe-down to dismiss |
+| Tablet | `768–1279px` | permanent sidebar + content; 2-column grids | side sheet from the right |
+| Desktop | `≥ 1280px` | sidebar + content + executive panel | side sheet from the right |
+
+**Sizes are keyed to the content column, not the window** (`@container` in
+`src/index.css`). This is load-bearing: a 1280px desktop hands the content column
+~600px once the rail and the panel take their share, while a 1194px tablet landscape
+hands it ~900px. Sizing off the window would put desktop type into the narrower of the
+two columns.
 
 ## Stack
 
-- React 19 + TypeScript + Vite
-- Tailwind CSS v4 (design tokens declared in `@theme`, `src/index.css`)
-- Inter Variable + Space Grotesk Variable (self-hosted via Fontsource)
+- React 19 + TypeScript + Vite 7
+- Tailwind CSS v4 — design tokens in `@theme`, responsive scale in `:root` /
+  `@container` (`src/index.css`)
+- DM Sans Variable + Nunito Variable (self-hosted via Fontsource); SF Pro Rounded for
+  numerals where the OS has it
 
 ## Run
 
 ```sh
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:5202  — V4 owns 5202, V1 5199, V2 5200, V3 5201
 npm run build    # typecheck + production build
 ```
 
@@ -24,117 +103,37 @@ npm run build    # typecheck + production build
 
 ```
 src/
-  data.ts                 # Typed Command Centre snapshot (demo data → API payload)
-  index.css               # MD3_Antz design tokens, motion, utilities
-  hooks/
-    useNow.ts             # Live clock + time-of-day greeting
-    useCountUp.ts         # Metric count-up (respects prefers-reduced-motion)
-  components/
-    TopBar.tsx            # Fixed brand bar: logo, live date/time
-    HeroHeader.tsx        # Wildlife hero + greeting
-    WeatherCard.tsx       # Site weather summary
-    PopulationCard.tsx    # Flagship KPI: population + M/F/U split
-    MiniStatCard.tsx      # Compact KPI with tiny bar sparkline
-    ModuleRow.tsx         # Module summary row (Health & Medical, Eggs)
-    ApprovalsCard.tsx     # Pending approvals, reviewers, progress ring
-    QuickActions.tsx      # Horizontal module shortcuts
+  App.tsx                 # routes + the two layouts (phone / shell)
+  index.css               # design tokens, responsive scale, motion
+  motion.tsx              # Reveal, AnimatedValue, CountUp, usePlay
+  hooks/                  # useNow, useCountUp, useInView, useTween, useMediaQuery
+  v4/
+    data.ts               # the executive model — KPIs, alerts, approvals,
+                          #   upcoming, health measures, risks, trends
+    drill.ts              # Overall → Site → Species → Animal derivation
+    sheet.tsx             # the responsive, nestable sheet + history integration
+    Home.tsx              # the seven sections
+    panels.tsx            # what goes inside a sheet
+    Shell.tsx             # sidebar + content + executive panel; phone module page
+    Sidebar.tsx           # permanent module rail (tablet and up)
+    ExecPanel.tsx         # desktop right rail — queues derived from the same data
+    Settings.tsx          # settings, as a sheet
+    nav.ts                # module list + executive renaming, derived from execPages
+    search.tsx            # global module search
+  exec/
+    system.tsx            # THE DESIGN SYSTEM — every card, mark and figure
+    pages/                # 20 hand-composed module pages, one per module
+    records.tsx           # the record tier under a module page
+    sites.ts              # the six sites and every module's split across them
+    period.ts(x)          # the five reporting windows and the switcher
 ```
 
-## Drill-down pages
+## Modules
 
-Three tiers. A card on the home screen opens a module page at `#/<slug>`; a module
-page's `View details →` opens its record page at `#/<slug>/records`. Nothing goes
-deeper — the record layer is the animals themselves.
+Every module keeps its own dedicated, hand-composed page — no two share a layout.
 
-Modules split into two tracks. **Report** is what the monthly board report is made
-of, in its table-of-contents order; those pages carry the reporting period in the
-sheet eyebrow and a provenance stamp at the foot. **Operations** is live-ops with no
-presence in that report, so it carries neither and sits below the fold at home.
+**Named in the brief:** Animals, Health, Natality, Mortality, Transfers, Vaccination,
+Deworming, Lab, Approvals, Attendance, Tasks, Alerts, Welfare.
 
-| # | Report track | Record page |
-| --- | --- | --- |
-| 01 | `#/animals` Animal Population | — |
-| 02 | `#/births` Birth Analytics | `#/births/records` |
-| 02 | `#/accession` Accession | `#/accession/records` |
-| 02 | `#/eggs` Eggs & Incubation | `#/eggs/records` |
-| 02 | `#/discarded` Eggs Discarded | `#/discarded/records` |
-| 02 | `#/mortality` Mortality | `#/mortality/records` |
-| 02 | `#/fetal` Fetal Death | `#/fetal/records` |
-| 03 | `#/health` Health & Medical | `#/health/records` |
-| 04 | `#/preventive` Preventive Care | — |
-| 04 | `#/vaccination` Vaccination | `#/vaccination/records` |
-| 04 | `#/deworming` Deworming | `#/deworming/records` |
-| 05 | `#/transfers` Animal Movement | `#/transfers/in`, `#/transfers/out` |
-| 06 | `#/trends` 30-Day Trends | — |
-| 07 | `#/disease` Disease & Outbreak | `#/disease/records` |
-
-| Operations | | |
-| --- | --- | --- |
-| `#/approvals` Approvals | `#/tasks` Tasks | `#/lab` Lab Requests |
-| `#/attendance` Staff Attendance | `#/welfare` Animal Welfare | `#/alerts` Alerts |
-
-```
-src/exec/
-  system.tsx      # The composition primitives — 43 of them, one accent
-  Sheet.tsx       # Two-level shell: module page, and one step down to records
-  report.ts       # The reporting period, in one place
-  pages/          # Per-module content, hand-composed; no two share a structure
-  records.tsx     # The record layer: 12 rosters + the one renderer they share
-
-src/detail/       # Older generic renderer, now unreachable from a module route
-  motion.tsx      # Reveal, AnimatedValue, usePlay, useScrolledPast — still shared
-```
-
-### Motion
-
-One easing family (`cubic-bezier(0.22, 1, 0.36, 1)`), nothing over a second, and
-every animation explains something rather than decorating:
-
-| Moment | What moves |
-| --- | --- |
-| Sheet open | Slides up over the home screen behind a scrim; hero figure settles in and counts up; label/sub/status and the header stagger behind it |
-| Sheet close | Slides back down; drag the grabber and it tracks the finger, springing back under 110px and dismissing past it |
-| Card arrives | Fades up on first scroll into view (`Reveal`), grids staggering 60–80ms per child |
-| Marks | Lines draw left→right (`pathLength={1}` + dashoffset), area washes up from the baseline, bars grow from their baseline, share segments grow left→right, arcs sweep 0→target |
-| Every number | Counts to its target — hero, tiles, bar rows, share values *and* their percentages, arc labels, the trend readout, the column label. `AnimatedValue` keeps prefix/suffix ("1.4 d", "0.011%", "243 / 312"); `CountUp` takes its trigger from the parent so a value lands with its own mark |
-| Range chips | Segmented control with an indicator that slides and resizes between segments; picking one zooms the series to a real trailing window (`points`) and the line redraws |
-| Tabs | Bars re-grow and re-count into the new dimension |
-| Module switch | Content slides in from the right inside the open sheet and every reveal replays |
-| Scroll | Hero sinks, dims and scales as it leaves, handing off to the header eyebrow collapsing to the hero figure; a hairline under the bar tracks reading depth |
-| Scrub | Crosshair dot glides between samples (and the readout stops counting so it tracks the finger exactly) |
-
-Two rules the numbers follow, both learned the hard way: a tween is **snapped to its
-target's precision** (an un-snapped one prints `54,852.757` animals), and staggered
-rows **all start together and finish in cascade order** — a row held at `0` while its
-neighbours count reads as a real zero, not as motion.
-
-Charts animate off their own `IntersectionObserver`, so a chart never plays while
-off-screen. Everything collapses under `prefers-reduced-motion` — CSS animations
-via the global media query, the JS tweens via explicit guards in `motion.tsx`.
-
-The pages speak the home screen's UI language exactly — same warm canvas gradient,
-same floating white `rounded-[24px]` cards, 15px card titles, 30px values, the same
-dashed `ArcGauge` and tinted icon chips. Only the accent hue changes per module.
-
-All fourteen follow the same flow so the product feels like one thing:
-hero KPI → trend → quick summary → category breakdown → distribution →
-performance → recent activity → AI insight → quick actions. Each page carries a
-single accent hue; multi-category series are lightness steps of that one hue with
-direct labels, never cycled categorical colors. Adding a module means adding one
-file under `pages/` and one entry in `pages/index.ts` — no new components.
-
-## Design system notes
-
-- Palette comes from the Figma `MD3_Antz` variables (`--color-antz-*` tokens).
-- Every card is tappable (`onPress`) and ready to route to its drill-down page;
-  the home screen stays lightweight — detailed analytics belong in drill-downs.
-- Motion is deliberately calm: 250ms-class easing, staggered section reveal,
-  metric count-up, sparkline rise — all disabled under `prefers-reduced-motion`.
-- The mobile canvas is fluid up to 430px and centred on larger viewports.
-
-## Known design-inherited issue
-
-The classic concept's white-on-teal KPI text (Natality card, `#00d6c9`) measures
-1.83:1 contrast — a WCAG failure inherited from the Figma design itself, kept
-here for pixel fidelity. Flagged for a design-side decision (darker text token
-or darker card fill) rather than silently deviating from the source design.
+**Report detail:** Accession, Eggs & Incubation, Eggs Discarded, Fetal Death, Disease,
+Preventive, Trends.

@@ -130,6 +130,189 @@
   }
 }
 
+/**
+ * RESPONSIVE SCALE — the single place any tier-dependent size is decided.
+ *
+ * The app was drawn at one width (390px) and every size in it was a literal
+ * pixel. Rather than sprinkling variants across three hundred call sites, each
+ * size that should grow is named here once and referenced as `var(--…)`. A
+ * component then says *what* a value is — card padding, the hero figure — and
+ * this file says how big that is. Retuning a whole tier is an edit to this
+ * block, not a sweep.
+ *
+ * THE TIERS ARE KEYED TO THE CONTENT COLUMN, NOT THE WINDOW, and that is the
+ * central decision of the responsive system rather than a detail of it. Once a
+ * permanent sidebar and an executive panel flank the content, window width stops
+ * predicting how much room the content actually has:
+ *
+ *   1280px window − 280 sidebar − 340 panel − gutters  ≈  600px of content
+ *   1024px window − 280 sidebar                        ≈  700px of content
+ *
+ * A desktop window therefore hands the cards LESS width than a tablet landscape
+ * one. Sizing type and columns off the window would put desktop figures into a
+ * column narrower than the tablet's — which is exactly the collision this system
+ * exists to prevent. `@container` asks the column how wide it is and is right in
+ * every configuration, including ones not yet designed.
+ *
+ * Base values below are the phone's — every one is the literal it replaced, so
+ * the phone rendering is unchanged by construction. `.tier` picks up the wider
+ * steps; it is applied to a descendant of a `content-box` container.
+ *
+ * Display type scales harder than body type on purpose. A reader at a desk is
+ * further from the screen but not 1.3× further, so lifting 11px captions to 14px
+ * would only cost lines of text; the hero, read across a room, earns the step.
+ */
+:root {
+  /* Layout */
+  --gutter: 16px; /* card-stack side padding */
+  --gutter-lg: 20px; /* header side padding — wider than the stack, by design */
+  --gap: 12px; /* gap between cards */
+  --pad-card: 20px;
+  --pad-card-sm: 16px;
+  --radius-card: 16px;
+
+  /* Type — display */
+  --fs-hero: 58px; /* the population total */
+  --fs-name: 30px; /* greeting */
+  --fs-fig-lg: 38px; /* prominent daily card */
+  --fs-fig: 30px;
+  --fs-fig-md: 28px;
+  --fs-fig-sm: 26px;
+  --fs-fig-xs: 22px;
+
+  /* Type — text */
+  --fs-title: 15px;
+  --fs-body: 14px;
+  --fs-label: 13px;
+  --fs-cap: 12px;
+  --fs-micro: 11px;
+
+  /* Multiplier for the module pages' big numbers. Those are passed as a `size`
+     prop in points — `<Figure size={58}>` — chosen per page rather than drawn
+     from the scale above, so they need a factor rather than a replacement. One
+     lever here scales every headline figure across all twenty-two pages. */
+  --fig-scale: 1;
+
+  /* Marks */
+  --gauge: 84px; /* arc gauge / ring diameter */
+  --viz-h: 44px; /* sparkline + area strip height */
+  --bars-h: 52px; /* dot-bar and mini-column height */
+}
+
+/* Sidebar and executive-panel widths. Declared here so the shell, the content
+   container queries and the scroll offsets all read the same numbers. */
+:root {
+  /* THESE ARE CALIBRATED AGAINST REAL DEVICE WIDTHS, NOT ROUND NUMBERS.
+     An iPad Pro 11" reports 834px in portrait, an iPad 10.9" 820px, an iPad mini
+     744px — none of them 768. The rail and the padding are sized so that what is
+     left over on the narrowest of them still clears the two-column threshold
+     below, because a rail chosen for 768 leaves 834 six pixels short of it and
+     the whole tablet layout silently falls back to the phone's. */
+  --rail: 244px; /* permanent module sidebar */
+  --panel: 320px; /* executive panel */
+  /* Deliberately small. The content column is the same colour as the page it
+     sits on, so this padding buys no visual separation — it only decides how far
+     the cards start from the screen edge, and it stacks with the card gutter
+     inside. Two paddings doing one job is how a 16px inset became 40px of dead
+     rail on a tablet. */
+  --shell-pad: 12px; /* page padding around the whole three-column shell */
+  --shell-gap: 12px; /* space between sidebar, content and panel */
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --rail: 300px;
+    --shell-pad: 16px;
+    --shell-gap: 16px;
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --rail: 316px;
+    --panel: 352px;
+    --shell-pad: 20px;
+    --shell-gap: 18px;
+  }
+}
+
+/**
+ * Marks an element as the measuring stick for the scale below. Put it on the
+ * content column; put `.tier` on a child, because a container query matches
+ * against an ANCESTOR container and can never restyle the container itself.
+ */
+@utility content-box {
+  container-type: inline-size;
+}
+
+/* One roomy step, taken when the content column is wider than a large phone.
+   460px is chosen so every tablet portrait clears it: the narrowest target,
+   an iPad mini at 744px, leaves 472px of content. */
+@container (min-width: 460px) {
+  .tier {
+    --gutter: 18px;
+    --gutter-lg: 22px;
+    --gap: 14px;
+    --pad-card: 22px;
+    --pad-card-sm: 18px;
+    --radius-card: 18px;
+
+    --fs-hero: 72px;
+    --fs-name: 34px;
+    --fs-fig-lg: 42px;
+    --fs-fig: 33px;
+    --fs-fig-md: 31px;
+    --fs-fig-sm: 28px;
+    --fs-fig-xs: 24px;
+
+    --fs-title: 16px;
+    --fs-body: 15px;
+    --fs-label: 14px;
+    --fs-cap: 12.5px;
+    --fs-micro: 11.5px;
+
+    --fig-scale: 1.12;
+
+    --gauge: 92px;
+    --viz-h: 52px;
+    --bars-h: 60px;
+  }
+}
+
+/* The second step waits for 900px of CONTENT. On a 1280px desktop the panel and
+   sidebar hold the column near 600px, so a desktop window legitimately stays on
+   the step above — the figures only grow once there is column to put them in. */
+@container (min-width: 900px) {
+  .tier {
+    --gutter: 20px;
+    --gutter-lg: 26px;
+    --gap: 16px;
+    --pad-card: 24px;
+    --pad-card-sm: 20px;
+    --radius-card: 20px;
+
+    --fs-hero: 84px;
+    --fs-name: 38px;
+    --fs-fig-lg: 46px;
+    --fs-fig: 36px;
+    --fs-fig-md: 34px;
+    --fs-fig-sm: 30px;
+    --fs-fig-xs: 26px;
+
+    --fs-title: 17px;
+    --fs-body: 16px;
+    --fs-label: 14px;
+    --fs-cap: 13px;
+    --fs-micro: 12px;
+
+    --fig-scale: 1.22;
+
+    --gauge: 100px;
+    --viz-h: 58px;
+    --bars-h: 66px;
+  }
+}
+
 /* SVG marks scale from their own box, not the viewBox origin. */
 @utility origin-fill-bottom {
   transform-box: fill-box;

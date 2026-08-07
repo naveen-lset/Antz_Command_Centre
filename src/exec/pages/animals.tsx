@@ -10,25 +10,16 @@
  * useless for a collection plan — those are three husbandry systems.
  */
 
-import {
-  Layers,
-  ListOrdered,
-  MapPin,
-  PawPrint,
-  Scale,
-  ShieldAlert,
-  Sparkles,
-  TrendingUp,
-  Venus,
-} from 'lucide-react'
+import { Layers, ListOrdered, MapPin, PawPrint, ShieldAlert, Sparkles, TrendingUp, Venus } from 'lucide-react'
 import { CLASS_ICONS } from '../classIcons'
 import {
+  Bridge,
   Composition,
   Facts,
   Filter,
+  More,
   Movers,
   PeriodHero,
-  Poles,
   Records,
   RedList,
   Rule,
@@ -88,7 +79,7 @@ export default function Animals() {
             "Sexed" sub-block that used to restate that as 35,084 and a 1.08:1 ratio is
             gone — the three figures are the answer, and two derivations of them were
             the card's whole second half. */}
-        <Section icon={Venus} label="Sex">
+        <Section icon={Venus} label="Gender">
           <Scoreboard
             items={[
               { value: '18,204', label: 'Male' },
@@ -101,28 +92,40 @@ export default function Animals() {
         {/* Overall stated above the six sites it is the sum of, with a find-a-site
             field. Six rows fit on screen, so the field is not for discovery — it is for
             going straight to the site you came to read. Overall does not re-total while
-            filtering; the count beside it says how many rows are showing. */}
-        <Section icon={MapPin} label="Sites">
+            filtering; the count beside it says how many rows are showing.
+
+            The bars answer "which site holds most"; they cannot answer "what is IN
+            Aquatic Halls", which is the next question every time. That is a different
+            grain — species within a site — so it goes to the record tier rather than
+            being crammed under six bars. */}
+        <Section icon={MapPin} label="Sites" aside={<More href="#/animals/sites" label="All sites" />}>
           <Sites slug="animals" />
         </Section>
 
-        {/* Nine classes as counts, three to a row — the report's own grid. A stacked
-            bar for nine segments produced four slivers with no readable share.
-            Each class wears its own glyph: nine scientific names in a 3×3 grid are
-            nine similar-length words, and the icon is what makes a row findable
-            without reading it. */}
+        {/* Nine classes as counts, TWO to a row, then their share as one stacked bar.
+
+            Two columns rather than three: at three, a cell was ~95px, which is where
+            "Chondrichthyes" and "Euchelicerata" stopped fitting on one line and the
+            figure above them had to shrink to ~25px to stay inside its column. At two,
+            a cell is ~150px — every Latin name sits on one line, the figures get their
+            full size back, and there is room for the common name under every one of
+            them rather than only the four that used to fit.
+
+            Each class wears its own glyph: nine scientific names in a grid are nine
+            similar-length words, and the icon is what makes a row findable without
+            reading it. */}
         <Section icon={Layers} label="Class composition" aside="9 classes">
           <Snapshot
-            cols={3}
+            cols={2}
             items={[
               { label: 'Actinopterygii', value: '77,840', note: 'Ray-finned fish', icon: CLASS_ICONS.Actinopterygii },
               { label: 'Aves', value: '38,600', note: 'Birds', icon: CLASS_ICONS.Aves },
               { label: 'Malacostraca', value: '34,180', note: 'Crustaceans', icon: CLASS_ICONS.Malacostraca },
-              { label: 'Mammalia', value: '21,900', icon: CLASS_ICONS.Mammalia },
-              { label: 'Reptilia', value: '12,850', icon: CLASS_ICONS.Reptilia },
-              { label: 'Insecta', value: '12,220', icon: CLASS_ICONS.Insecta },
+              { label: 'Mammalia', value: '21,900', note: 'Mammals', icon: CLASS_ICONS.Mammalia },
+              { label: 'Reptilia', value: '12,850', note: 'Reptiles', icon: CLASS_ICONS.Reptilia },
+              { label: 'Insecta', value: '12,220', note: 'Insects', icon: CLASS_ICONS.Insecta },
               { label: 'Chondrichthyes', value: '8,120', note: 'Sharks, rays', icon: CLASS_ICONS.Chondrichthyes },
-              { label: 'Amphibia', value: '5,482', icon: CLASS_ICONS.Amphibia },
+              { label: 'Amphibia', value: '5,482', note: 'Amphibians', icon: CLASS_ICONS.Amphibia },
               { label: 'Euchelicerata', value: '4,240', note: 'Arachnids', icon: CLASS_ICONS.Euchelicerata },
             ]}
           />
@@ -139,26 +142,17 @@ export default function Animals() {
           />
         </Section>
 
-        {/* Renamed from "Extremes", which read as body size — the figures are
-            headcounts, so the caption now says so. The site pair that used to sit
-            underneath is gone twice over: the Sites card above is sorted, so its first
-            and last rows ARE the extremes, and the pair named two sites
-            ("Jamnagar Core", "Quarantine") that contradicted it — claiming a 78,420
-            leader at 36% where Sites states 178,400 at 83%. */}
-        <Section icon={Scale} label="Most & fewest animals" aside="by species">
-          <Poles
-            caption={['Most', 'Fewest']}
-            high={{ value: '12,400', label: 'Common Carp', sub: 'Actinopterygii' }}
-            low={{ value: '4', label: 'Sangai Deer', sub: 'Critically Endangered' }}
-          />
-        </Section>
-
         {/* The published Red List badges, grouped into IUCN's own three tiers so the
             at-risk tail leads and Least Concern — much the largest number and much the
             least interesting — sits under it. Same ten categories, same counts; they
             partition the collection and sum to 215,432, the hero's own figure. */}
+        {/* Every non-empty badge opens the species behind it — the count answers "how
+            many Endangered animals", and the only useful next question is "which ones,
+            and where". Empty categories stay inert rather than opening a page that says
+            nothing. */}
         <Section icon={ShieldAlert} label="Conservation" aside="IUCN">
           <RedList
+            hrefFor={(code) => `#/animals/conservation/${code}`}
             counts={{
               NC: 80,
               DD: 1640,
@@ -233,15 +227,23 @@ export default function Animals() {
           * added up would break the bridge.
           */}
         <Section icon={Sparkles} label="Month">
-          <Facts
-            size="lg"
-            items={[
-              { label: 'Opening', sub: '30 Jun', value: '215,389' },
-              { label: 'Births', sub: '24 species', value: '+45', delta: '+12%' },
-              { label: 'Accessions', sub: '6 sources', value: '+18', delta: '+6' },
-              { label: 'Deaths', sub: '0.011% of collection', value: '−23', delta: '−18%' },
-              { label: 'Transfers', sub: '12 in · 9 out · 7 internal', value: '+3', delta: '+8' },
-              { label: 'Closing', sub: '31 Jul', value: '215,432', delta: '+43', tone: 'good' },
+          {/* The four flows open their own records; the two balances do not.
+              Opening and Closing are positions — a headcount on a date — and there is
+              no list of animals behind "215,389", so a chevron there would promise one.
+              Each flow's records are animal-level and already grouped by site, which is
+              the "which species, where" the figure prompts.
+
+              Values are signed numbers, not strings, so `Bridge` can add them up and
+              check its own invariant rather than trusting the closing figure typed
+              beside it. */}
+          <Bridge
+            opening={{ label: 'Opening', sub: '30 Jun', value: 215389 }}
+            closing={{ label: 'Closing', sub: '31 Jul', value: 215432, delta: '+43' }}
+            flows={[
+              { label: 'Births', sub: '24 species', value: 45, href: '#/births/records' },
+              { label: 'Accessions', sub: '6 sources', value: 18, href: '#/accession/records' },
+              { label: 'Deaths', sub: '0.011% of collection', value: -23, href: '#/mortality/records' },
+              { label: 'Transfers', sub: '12 in · 9 out · 7 internal', value: 3, href: '#/transfers/in' },
             ]}
           />
           {/* The two growth rates that used to sit in a "Scale" card alongside

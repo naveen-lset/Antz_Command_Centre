@@ -15,7 +15,7 @@
 
 import { createContext, useContext, useState, type ComponentType, type ReactNode } from 'react'
 import { Search, X } from 'lucide-react'
-import { AnimatedValue, Reveal, usePlay } from '../detail/motion'
+import { AnimatedValue, Reveal, usePlay } from '../motion'
 import { usePeriod } from './period'
 import { siteCut } from './sites'
 
@@ -172,7 +172,7 @@ export function Section({
     /* Each card fades up as it scrolls in; the marks inside read the same signal
        through their own observer, so a card and its data animate together. */
     <Reveal>
-      <section className={`rounded-[16px] bg-white ${tight ? 'p-4' : 'p-5'}`} aria-label={label}>
+      <section className={`rounded-[var(--radius-card)] bg-white ${tight ? 'p-[var(--pad-card-sm)]' : 'p-[var(--pad-card)]'}`} aria-label={label}>
         {label && (
           <header className={`flex items-center justify-between gap-3 ${tight ? 'mb-3' : 'mb-4'}`}>
             <span className="flex min-w-0 items-center gap-2">
@@ -197,12 +197,31 @@ export function Section({
 
 /** The card stack — sage ground and 12px gaps, same rhythm as the home main. */
 export function Stack({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col gap-3 px-5 pb-2">{children}</div>
+  /* Where every module and record page becomes responsive. None of the twenty
+     pages sets a width, a column count or a type size of its own — each is a
+     list of `Section`s handed to this component — so widening the stack here
+     widens all of them, and no page had to be touched to gain a tablet layout.
+
+     Two columns only past 760px of STACK, not of window. These cards pack three
+     and four figures into a row and those figures grow a step per tier; halving
+     a 600px column while the numbers grow puts a six-digit figure into a 90px
+     cell, where it collides with its neighbour rather than merely overflowing.
+     And the measurement has to be of the column: with a sidebar and an executive
+     panel flanking it, a 1280 desktop hands this stack less width than a 1194
+     tablet landscape does. See the note in `index.css`. */
+  return (
+    <div className="flex w-full flex-col gap-[var(--gap)] px-[var(--gutter-lg)] pb-2 @[760px]:grid @[760px]:grid-cols-2 @[760px]:items-start">
+      {children}
+    </div>
+  )
 }
 
 /** Two half-width cards on one line — breaks the single-column drumbeat. */
 export function Duo({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-2 items-start gap-3">{children}</div>
+  /* Inside a two-column `Stack` this would nest a pair inside a half, giving four
+     cards across and none of them legible, so past the break it spans the full
+     stack width and keeps its own two-up split. */
+  return <div className="grid grid-cols-2 items-start gap-[var(--gap)] @[760px]:col-span-2">{children}</div>
 }
 
 /** Subhead inside a card, so one card can carry two grouped fact sets. */
@@ -232,7 +251,7 @@ export function Figure({
       <AnimatedValue
         value={value}
         className="font-display font-bold tabular-nums"
-        style={{ fontSize: size, lineHeight: 1.05, letterSpacing: '-0.025em', color }}
+        style={{ fontSize: `calc(${size}px * var(--fig-scale))`, lineHeight: 1.05, letterSpacing: '-0.025em', color }}
       />
       {unit && <span className="text-[13px] text-[#9b958b]">{unit}</span>}
     </span>
@@ -275,9 +294,9 @@ export function Hero({
   return (
     /* The hero is a card like every other section — sitting bare on the sage
        ground left it reading as page chrome rather than as the module's headline. */
-    <div className="px-5 pb-3">
+    <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section
-        className={`animate-hero-in rounded-[16px] bg-white p-5 ${centred ? 'text-center' : ''}`}
+        className={`animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)] ${centred ? 'text-center' : ''}`}
         aria-label={label}
       >
         <Figure value={value} unit={unit} size={58} />
@@ -589,6 +608,16 @@ export function Tray({
 }) {
   const accent = useAccent()
   const { ref, animate } = usePlay()
+  /* The figure has to fit the CHIP, not the grid cell. Each chip carries 10px of
+     padding either side and the grid 8px between them, so at four up "215,432" has
+     ~51px to live in — at a fixed 18px it needs ~72px and printed straight over its
+     own rounded edge, crowding the label under it at the same time. `Snapshot` and
+     `Scoreboard` already fit their figures; this one was the outlier. */
+  const chip = (310 - (cols - 1) * 8) / cols - 20
+  const size = Math.min(
+    18,
+    Math.max(13, Math.floor(chip / Math.max(...cells.map((c) => figureEm(c.value)), 0.6))),
+  )
   return (
     <div ref={ref}>
       <div className={`grid ${cols === 3 ? 'grid-cols-3' : 'grid-cols-4'} gap-2`}>
@@ -604,7 +633,7 @@ export function Tray({
               {c.tone && c.tone !== 'neutral' && (
                 <span className="size-[6px] shrink-0 rounded-full" style={{ backgroundColor: TONE[c.tone] }} aria-hidden />
               )}
-              <Figure value={c.value} size={18} />
+              <Figure value={c.value} size={size} />
             </div>
             {/* Wraps to a second line rather than clipping — "Savanna 1" and
                 "Savanna 3" both truncate to "Savanna…" at four columns. */}
@@ -973,35 +1002,224 @@ export function Facts({
   items,
   size = 'md',
 }: {
-  items: { label: string; value: string; sub?: string; delta?: string; tone?: Tone }[]
+  /**
+   * `href` turns the row into a link to its record set. Only some rows earn one —
+   * a bridge's opening and closing balances are positions, not events, and have no
+   * list behind them, so the chevron is per-row rather than per-card.
+   */
+  items: { label: string; value: string; sub?: string; delta?: string; tone?: Tone; href?: string }[]
   size?: 'md' | 'lg'
 }) {
   const lg = size === 'lg'
+  const accent = useAccent()
   return (
     <ul className="divide-y divide-[#f0efec]">
-      {items.map((it) => (
-        <li key={it.label} className={`flex items-baseline gap-3 ${lg ? 'py-3.5' : 'py-2.5'} first:pt-0 last:pb-0`}>
-          <span className="min-w-0 flex-1">
-            <span className={`block ${lg ? 'text-[14px]' : 'text-[13.5px]'} text-[#1c1a16]`}>{it.label}</span>
-            {it.sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>}
-          </span>
-          {it.delta && (
-            <span
-              className="shrink-0 text-[11px] font-medium tabular-nums"
-              style={{ color: signTone(it.delta) ?? FAINT }}
-            >
-              {it.delta}
+      {items.map((it, i) => {
+        const row = (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className={`block ${lg ? 'text-[14px]' : 'text-[13.5px]'} text-[#1c1a16]`}>{it.label}</span>
+              {it.sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>}
             </span>
-          )}
-          <span
-            className={`shrink-0 font-medium tabular-nums ${lg ? 'text-[18px]' : 'text-[14px]'}`}
-            style={{ color: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : VALUE }}
-          >
-            {it.value}
-          </span>
-        </li>
-      ))}
+            {it.delta && (
+              <span
+                className="shrink-0 text-[11px] font-medium tabular-nums"
+                style={{ color: signTone(it.delta) ?? FAINT }}
+              >
+                {it.delta}
+              </span>
+            )}
+            <span
+              className={`shrink-0 font-medium tabular-nums ${lg ? 'text-[18px]' : 'text-[14px]'}`}
+              style={{ color: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : VALUE }}
+            >
+              {it.value}
+            </span>
+            {/* Reserved on every row of a card that has any link, so the figures stay
+                in one column instead of stepping in and out by 14px. */}
+            <span className="w-[9px] shrink-0 text-[12px] leading-none" style={{ color: it.href ? accent : 'transparent' }} aria-hidden>
+              ›
+            </span>
+          </>
+        )
+        /* Index-based rather than `first:`/`last:`, because those variants would key
+           off the anchor — the only child of its <li> — and so fire on every row. */
+        const pad = [
+          lg ? 'py-3.5' : 'py-2.5',
+          i === 0 ? 'pt-0' : '',
+          i === items.length - 1 ? 'pb-0' : '',
+        ].join(' ')
+        return (
+          <li key={it.label}>
+            {it.href ? (
+              <a href={it.href} className={`card-press -mx-2 flex items-baseline gap-3 rounded-[10px] px-2 ${pad}`}>
+                {row}
+              </a>
+            ) : (
+              <div className={`flex items-baseline gap-3 ${pad}`}>{row}</div>
+            )}
+          </li>
+        )
+      })}
     </ul>
+  )
+}
+
+/**
+ * BRIDGE — an opening balance, the flows that move it, and the closing balance.
+ *
+ * `Facts` could hold these six rows, and did, but it rendered them as six unrelated
+ * figures in a column: nothing about that shape said the middle four ADD UP to the
+ * difference between the outer two, which is the only reason the card exists. A
+ * reader had to be told in a caption to do arithmetic the layout was hiding.
+ *
+ * So this is a waterfall, the form built for exactly this data — with one departure
+ * that matters. A true-to-scale waterfall of 215,389 → 215,432 is six bars of
+ * identical height and no information: the flows are 0.02% of the base. The bars
+ * here are therefore scaled to the FLOWS, not the balance, and the balances are set
+ * as bookends rather than as bars. Signed bars grow from a centre axis, so the shape
+ * of the month reads before any number does — two gains, one loss, one nearly flat.
+ *
+ * The running balance down the right is what makes it verifiable: 215,389 → 215,434
+ * → 215,452 → 215,429 → 215,432, each row showing where the collection stood after
+ * that flow, and the last of them landing on the closing figure or visibly not.
+ */
+export function Bridge({
+  opening,
+  closing,
+  flows,
+}: {
+  opening: { label: string; sub?: string; value: number }
+  closing: { label: string; sub?: string; value: number; delta?: string }
+  /** Signed. A net, never a volume — see the note on Transfers at the call site. */
+  flows: { label: string; sub?: string; value: number; delta?: string; href?: string }[]
+}) {
+  const accent = useAccent()
+  /* Scaled to the biggest flow, so the smallest one is still a visible mark rather
+     than a rounding error against a six-figure balance. */
+  const peak = Math.max(...flows.map((f) => Math.abs(f.value)), 1)
+
+  let running = opening.value
+  const rows = flows.map((f) => {
+    running += f.value
+    return { ...f, running }
+  })
+  /* The bridge's own invariant. If the flows stop reconciling the balances, the card
+     says so rather than presenting a total that quietly disagrees with its parts. */
+  const closes = running === closing.value
+
+  const Bookend = ({
+    label,
+    sub,
+    value,
+    delta,
+    lead,
+  }: {
+    label: string
+    sub?: string
+    value: number
+    delta?: string
+    lead?: boolean
+  }) => (
+    <div
+      className="flex items-end justify-between gap-3 rounded-[10px] px-3 py-2.5"
+      style={{ backgroundColor: lead ? mix(accent, 0.1) : '#f7f6f3' }}
+    >
+      <span className="min-w-0">
+        <span className="block text-[10px] font-medium tracking-[0.09em] uppercase" style={{ color: MUTED }}>
+          {label}
+        </span>
+        {sub && <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>{sub}</span>}
+      </span>
+      <span className="flex shrink-0 items-baseline gap-2">
+        {delta && (
+          <span className="text-[11px] font-medium tabular-nums" style={{ color: signTone(delta) ?? FAINT }}>
+            {delta}
+          </span>
+        )}
+        <span
+          className="font-display text-[19px] leading-none font-bold tabular-nums"
+          style={{ color: lead ? ACCENT_INK : VALUE }}
+        >
+          {fmt(value)}
+        </span>
+      </span>
+    </div>
+  )
+
+  return (
+    <div>
+      <Bookend label={opening.label} sub={opening.sub} value={opening.value} />
+
+      <ul className="my-1.5">
+        {rows.map((r) => {
+          const up = r.value >= 0
+          const row = (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] text-[#1c1a16]">{r.label}</span>
+                {r.sub && (
+                  <span className="mt-0.5 block text-[11px] leading-[15px]" style={{ color: FAINT }}>
+                    {r.sub}
+                  </span>
+                )}
+              </span>
+              {/* Signed figure, then the bar it describes, then where the collection
+                  stood after it — cause, shape, consequence, left to right. */}
+              <span
+                className="w-[42px] shrink-0 text-right text-[15px] font-medium tabular-nums"
+                style={{ color: up ? TONE.good : TONE.bad }}
+              >
+                {up ? '+' : '−'}
+                {Math.abs(r.value)}
+              </span>
+              <span className="relative h-[16px] w-[44px] shrink-0" aria-hidden>
+                <span className="absolute inset-y-0 left-1/2 w-px" style={{ backgroundColor: '#e4e2dc' }} />
+                <span
+                  className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full"
+                  style={{
+                    /* Floor of 3% so a +3 net beside a +45 is still a mark. */
+                    width: `${Math.max(3, (Math.abs(r.value) / peak) * 50)}%`,
+                    left: up ? '50%' : undefined,
+                    right: up ? undefined : '50%',
+                    backgroundColor: up ? TONE.good : TONE.bad,
+                  }}
+                />
+              </span>
+              <span className="w-[58px] shrink-0 text-right text-[11px] tabular-nums" style={{ color: FAINT }}>
+                {fmt(r.running)}
+              </span>
+              <span
+                className="w-[8px] shrink-0 text-[12px] leading-none"
+                style={{ color: r.href ? ACCENT_INK : 'transparent' }}
+                aria-hidden
+              >
+                ›
+              </span>
+            </>
+          )
+          return (
+            <li key={r.label} className="border-b border-[#f0efec] last:border-0">
+              {r.href ? (
+                <a href={r.href} className="card-press -mx-2 flex items-center gap-2 rounded-[10px] px-2 py-2.5">
+                  {row}
+                </a>
+              ) : (
+                <div className="flex items-center gap-2 py-2.5">{row}</div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+
+      <Bookend label={closing.label} sub={closing.sub} value={closing.value} delta={closing.delta} lead />
+
+      {!closes && (
+        <p className="mt-2.5 text-[11px]" style={{ color: TONE.bad }}>
+          Flows sum to {fmt(running)}, not {fmt(closing.value)} — this bridge does not close.
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -2045,8 +2263,35 @@ function SexChip({ sex }: { sex: 'M' | 'F' | 'U' }) {
  * repeats the header per site — one long table with occasional site rows loses
  * the column names as soon as the first group scrolls off.
  */
-export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[] }) {
+export function Roster({
+  head,
+  groups,
+  widths,
+  align,
+}: {
+  head: string[]
+  groups: RosterGroup[]
+  /**
+   * Explicit column widths, one per `head` entry. Without them every column after the
+   * subject shares the remaining 66% equally, which is right when the cells hold
+   * comparable prose and wrong when they don't: a count column needs ~50px and was
+   * getting 102, while the class beside it needed ~90 and broke "Chondrichthyes"
+   * across two lines to fit the same 102.
+   */
+  widths?: string[]
+  /**
+   * Per-column alignment. Figures belong right-aligned — left-aligned, a 6 sits under
+   * the 1 of 12,400 and the column stops reading as a quantity at all. Right-aligned
+   * cells also get tabular figures so the digits stack.
+   */
+  align?: ('left' | 'right')[]
+}) {
   const accent = useAccent()
+  /* `head` carries '' for the sex column, so a cell's column index is offset by the
+     subject plus that column when it exists. Read off `head` rather than off each
+     row, so a group whose first row happens to omit `sex` still lines up. */
+  const offset = head.indexOf('') >= 0 ? 2 : 1
+  const alignOf = (cellIndex: number) => align?.[cellIndex + offset] ?? 'left'
   return (
     <div className="flex flex-col gap-5">
       {groups.map((g) => (
@@ -2074,9 +2319,10 @@ export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[]
                        "Age", "Qty" and "Organization". */
                     <th
                       key={h}
-                      className={`px-2.5 py-2 text-left text-[10px] font-medium tracking-[0.05em] text-white/85 uppercase ${
-                        i === 0 ? 'w-[34%]' : ''
-                      } ${h === '' ? 'w-[34px] px-0' : ''}`}
+                      style={widths?.[i] ? { width: widths[i] } : undefined}
+                      className={`px-2.5 py-2 text-[10px] font-medium tracking-[0.05em] text-white/85 uppercase ${
+                        align?.[i] === 'right' ? 'text-right' : 'text-left'
+                      } ${!widths && i === 0 ? 'w-[34%]' : ''} ${h === '' ? 'w-[34px] px-0' : ''}`}
                     >
                       {h}
                     </th>
@@ -2108,7 +2354,9 @@ export function Roster({ head, groups }: { head: string[]; groups: RosterGroup[]
                          but printing over the next column is wrong. */
                       <td
                         key={ci}
-                        className="px-2.5 py-2.5 align-top text-[12px] leading-[16px] break-words whitespace-pre-line text-[#6d6860]"
+                        className={`px-2.5 py-2.5 align-top text-[12px] leading-[16px] break-words whitespace-pre-line text-[#6d6860] ${
+                          alignOf(ci) === 'right' ? 'text-right tabular-nums' : ''
+                        }`}
                       >
                         {cell}
                       </td>
@@ -2285,7 +2533,18 @@ export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }
  * has left only 80 unchecked is a statement about the completeness of its assessment,
  * and it can only be read if the empty categories are present to be read as empty.
  */
-export function RedList({ counts }: { counts: Partial<Record<RedListCode, number>> }) {
+export function RedList({
+  counts,
+  hrefFor,
+}: {
+  counts: Partial<Record<RedListCode, number>>
+  /**
+   * Per-category drill-down. Returning `undefined` leaves that row inert, which is
+   * what an empty category needs — a chevron into a list of nothing is a dead end,
+   * and Extinct reading as tappable would imply there is something to open.
+   */
+  hrefFor?: (code: RedListCode) => string | undefined
+}) {
   return (
     <div className="flex flex-col gap-5">
       {RED_LIST_TIERS.map((tier) => {
@@ -2311,8 +2570,16 @@ export function RedList({ counts }: { counts: Partial<Record<RedListCode, number
             <ul>
               {rows.map((c) => {
                 const n = counts[c.code] ?? 0
+                const href = n > 0 ? hrefFor?.(c.code) : undefined
+                const Row = href ? 'a' : 'div'
                 return (
-                  <li key={c.code} className="flex items-center gap-2.5 py-[5px]">
+                  <li key={c.code}>
+                  <Row
+                    href={href}
+                    className={`flex items-center gap-2.5 py-[5px] ${
+                      href ? 'card-press -mx-2 rounded-[10px] px-2' : ''
+                    }`}
+                  >
                     {/* 22px, down from 40. The badge is an identifier now, not the
                         subject — the published silhouette and exact fill are kept so it
                         is still the Red List badge, at a size that lets the number lead.
@@ -2343,6 +2610,16 @@ export function RedList({ counts }: { counts: Partial<Record<RedListCode, number
                     >
                       {fmt(n)}
                     </span>
+                    {/* Reserved on every row, linked or not, so ten figures stay in one
+                        column rather than stepping in and out by 9px down the card. */}
+                    <span
+                      className="w-[9px] shrink-0 text-[12px] leading-none"
+                      style={{ color: href ? ACCENT_INK : 'transparent' }}
+                      aria-hidden
+                    >
+                      ›
+                    </span>
+                  </Row>
                   </li>
                 )
               })}

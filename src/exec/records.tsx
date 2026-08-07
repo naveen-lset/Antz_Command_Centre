@@ -25,12 +25,25 @@ import {
   Bug,
   Egg,
   EggOff,
+  MapPin,
   Pill,
   Rabbit,
+  ShieldAlert,
   Stethoscope,
   Syringe,
 } from 'lucide-react'
-import { Filter, Roster, Section, Stack, Stamp, Tray, type RosterGroup, type Tone } from './system'
+import {
+  Filter,
+  RED_LIST,
+  Roster,
+  Section,
+  Stack,
+  Stamp,
+  Tray,
+  type RedListCode,
+  type RosterGroup,
+  type Tone,
+} from './system'
 import { report } from './report'
 
 type Icon = ComponentType<{ size?: number | string; strokeWidth?: number; style?: object }>
@@ -46,6 +59,9 @@ export interface RecordPage {
   stats: { value: string; label: string; tone?: Tone }[]
   /** Column heads. `''` is the sex column, which has no head in the report. */
   head: string[]
+  /** Optional per-column widths and alignment — see `Roster`. */
+  widths?: string[]
+  align?: ('left' | 'right')[]
   /** What the groups are — "5 sites", "3 diseases". */
   groupsLabel: string
   groups: RosterGroup[]
@@ -601,12 +617,211 @@ const transferOut: RecordPage = {
   ],
 }
 
+/* ── holdings: the register behind Animal Population ─────────────────────── */
+
+/**
+ * WHAT the collection is made of, species by species and site by site.
+ *
+ * The other twelve record sets on this tier are *events* — a death, a hatch, a
+ * transfer, each one animal on one date. Holdings are a standing position instead,
+ * so a row is a species at a site with a headcount, not an individual with an id.
+ * That is why these rows carry no `id` and no `sex`: there is no single animal
+ * being described, and a fabricated identifier would imply there was.
+ *
+ * ONE dataset, two pages. "All sites" groups it by site; the conservation
+ * drill-downs filter it by Red List code and group the remainder the same way.
+ * Authoring them separately would let the two disagree about the same animals, and
+ * the whole point of the register is that they cannot.
+ *
+ * Counts tie back to the module page above: the ten species in its "Top species"
+ * table appear here with the same figures, and each site's total is the one
+ * `sites.ts` publishes. This is an EXTRACT — 27 named species of 428 — and every
+ * surface that shows it says so rather than implying the sum is the whole.
+ */
+interface Holding {
+  species: string
+  cls: string
+  site: string
+  count: number
+  iucn: RedListCode
+}
+
+const HOLDINGS: Holding[] = [
+  // Aquatic Halls — 178,400. Four of the module page's top ten live here.
+  { species: 'Common Carp', cls: 'Actinopterygii', site: 'Aquatic Halls', count: 12400, iucn: 'VU' },
+  { species: 'Nile Tilapia', cls: 'Actinopterygii', site: 'Aquatic Halls', count: 5940, iucn: 'LC' },
+  { species: 'Rose Shrimp', cls: 'Malacostraca', site: 'Aquatic Halls', count: 3880, iucn: 'NE' },
+  { species: 'Silver Barb', cls: 'Actinopterygii', site: 'Aquatic Halls', count: 2940, iucn: 'LC' },
+  { species: 'Giant Prawn', cls: 'Malacostraca', site: 'Aquatic Halls', count: 2180, iucn: 'LC' },
+  { species: 'Mrigal Carp', cls: 'Actinopterygii', site: 'Aquatic Halls', count: 1960, iucn: 'NT' },
+  { species: 'Ganges Shark', cls: 'Chondrichthyes', site: 'Aquatic Halls', count: 6, iucn: 'CR' },
+  // Aviary Complex — 21,300.
+  { species: 'Zebra Finch', cls: 'Aves', site: 'Aviary Complex', count: 6820, iucn: 'LC' },
+  { species: 'Indian Peafowl', cls: 'Aves', site: 'Aviary Complex', count: 4310, iucn: 'LC' },
+  { species: 'Rock Pigeon', cls: 'Aves', site: 'Aviary Complex', count: 2210, iucn: 'LC' },
+  { species: 'Grey Francolin', cls: 'Aves', site: 'Aviary Complex', count: 1640, iucn: 'LC' },
+  { species: 'Painted Stork', cls: 'Aves', site: 'Aviary Complex', count: 640, iucn: 'NT' },
+  { species: 'Indian Skimmer', cls: 'Aves', site: 'Aviary Complex', count: 6, iucn: 'EN' },
+  { species: 'Great Indian Bustard', cls: 'Aves', site: 'Aviary Complex', count: 3, iucn: 'CR' },
+  // Savanna — 6,240.
+  { species: 'Chital', cls: 'Mammalia', site: 'Savanna', count: 1420, iucn: 'LC' },
+  { species: 'Blackbuck', cls: 'Mammalia', site: 'Savanna', count: 980, iucn: 'LC' },
+  { species: 'Nilgai', cls: 'Mammalia', site: 'Savanna', count: 610, iucn: 'LC' },
+  { species: 'Sangai Deer', cls: 'Mammalia', site: 'Savanna', count: 4, iucn: 'EN' },
+  // Reptile House — 5,120.
+  { species: 'Flapshell Turtle', cls: 'Reptilia', site: 'Reptile House', count: 1090, iucn: 'VU' },
+  { species: 'Indian Rock Python', cls: 'Reptilia', site: 'Reptile House', count: 210, iucn: 'NT' },
+  { species: 'Mugger Crocodile', cls: 'Reptilia', site: 'Reptile House', count: 64, iucn: 'VU' },
+  { species: 'Malabar Pit Viper', cls: 'Reptilia', site: 'Reptile House', count: 3, iucn: 'LC' },
+  // Primate Forest — 2,480.
+  { species: 'Rhesus Macaque', cls: 'Mammalia', site: 'Primate Forest', count: 480, iucn: 'LC' },
+  { species: 'Lion-tailed Macaque', cls: 'Mammalia', site: 'Primate Forest', count: 38, iucn: 'EN' },
+  { species: 'Hoolock Gibbon', cls: 'Mammalia', site: 'Primate Forest', count: 12, iucn: 'EN' },
+  // Carnivore Ridge — 1,892.
+  { species: 'Bengal Fox', cls: 'Mammalia', site: 'Carnivore Ridge', count: 1280, iucn: 'LC' },
+  { species: 'Leopard', cls: 'Mammalia', site: 'Carnivore Ridge', count: 18, iucn: 'VU' },
+  { species: 'Asiatic Lion', cls: 'Mammalia', site: 'Carnivore Ridge', count: 21, iucn: 'EN' },
+  { species: 'Bengal Tiger', cls: 'Mammalia', site: 'Carnivore Ridge', count: 14, iucn: 'EN' },
+  { species: 'Fishing Cat', cls: 'Mammalia', site: 'Carnivore Ridge', count: 2, iucn: 'VU' },
+]
+
+/** Site order is the collection's own — biggest first, as everywhere else. */
+const SITE_ORDER = [
+  'Aquatic Halls',
+  'Aviary Complex',
+  'Savanna',
+  'Reptile House',
+  'Primate Forest',
+  'Carnivore Ridge',
+]
+
+/** The month headcount `sites.ts` publishes, so a group total is never re-derived. */
+const SITE_TOTAL: Record<string, number> = {
+  'Aquatic Halls': 178400,
+  'Aviary Complex': 21300,
+  Savanna: 6240,
+  'Reptile House': 5120,
+  'Primate Forest': 2480,
+  'Carnivore Ridge': 1892,
+}
+
+const n = (v: number) => v.toLocaleString('en-US')
+
+/**
+ * Table shape shared by both holdings pages.
+ *
+ * The three columns cannot all fit on one line at 390px, so the widths decide WHICH
+ * one wraps, and they are measured rather than guessed. At 12px: "Chondrichthyes" is
+ * 88.5pt wide, "178,400" is ~46 in tabular figures, and the longest species name
+ * ("Great Indian Bustard") is ~123.
+ *
+ * Class wins its full width because it is a closed vocabulary of nine Latin words
+ * with no spaces in them — starved of a few pixels it breaks mid-word into
+ * "Chondrichthye / es", which reads as a rendering fault. Species names are several
+ * words, so when they wrap they wrap at a space and stay legible; that is the column
+ * that gives. Animals gets just enough for the widest count plus its padding.
+ *
+ * 36% of the 310pt card interior is 111.6, less 20 of cell padding = 91.6 for
+ * Chondrichthyes' 88.5. 22% leaves 48.2 for the counts' 46.
+ */
+const HOLDINGS_HEAD = ['Species', 'Class', 'Animals']
+const HOLDINGS_WIDTHS = ['42%', '36%', '22%']
+const HOLDINGS_ALIGN: ('left' | 'right')[] = ['left', 'left', 'right']
+
+/** Group holdings by site, biggest species first inside each. */
+const bySite = (rows: Holding[], total?: (site: string) => string): RosterGroup[] =>
+  SITE_ORDER.filter((s) => rows.some((r) => r.site === s)).map((site) => {
+    const held = rows.filter((r) => r.site === site).sort((a, b) => b.count - a.count)
+    const sum = held.reduce((t, r) => t + r.count, 0)
+    return {
+      group: site,
+      count: total?.(site) ?? `${held.length} species · ${n(sum)} animals`,
+      rows: held.map((r) => ({ name: r.species, cells: [r.cls, n(r.count)] })),
+    }
+  })
+
+/**
+ * ALL SITES — what each of the six holds.
+ *
+ * The group note states the site's full headcount and how many species are named
+ * under it, because those two are different scopes: 178,400 is the whole site, the
+ * six rows beneath it are the extract. Printing only one of them would let the
+ * reader add the rows up and conclude the site holds 29,306 animals.
+ */
+const sitesHoldings: RecordPage = {
+  title: 'All Sites',
+  icon: MapPin,
+  parent: 'animals',
+  parentTitle: 'Animal Population',
+  stats: [
+    { value: '215,432', label: 'Animals' },
+    { value: '428', label: 'Species' },
+    { value: '6', label: 'Sites' },
+    { value: '96', label: 'Enclosures' },
+  ],
+  head: HOLDINGS_HEAD,
+  widths: HOLDINGS_WIDTHS,
+  align: HOLDINGS_ALIGN,
+  groupsLabel: '6 sites',
+  groups: bySite(HOLDINGS, (site) => `${n(SITE_TOTAL[site])} animals`),
+}
+
+/**
+ * CONSERVATION — one page per Red List code, built rather than authored.
+ *
+ * Ten hand-written near-identical pages would be ten chances for the Endangered
+ * page to disagree with the Endangered row that opened it. The category total comes
+ * from the same `counts` the module page publishes; the rows come from `HOLDINGS`.
+ *
+ * The stat strip carries BOTH totals on purpose. 2,984 animals are Endangered and
+ * this extract names 95 of them, and a page showing only the second figure would
+ * read as the collection holding 95 — while one showing only the first would leave
+ * a reader wondering why the rows fall so far short.
+ */
+const IUCN_TOTAL: Record<string, number> = {
+  NC: 80,
+  DD: 1640,
+  NE: 316,
+  LC: 176180,
+  NT: 24180,
+  VU: 9640,
+  EN: 2984,
+  CR: 388,
+  EW: 24,
+  EX: 0,
+}
+
+const conservationPage = (code: RedListCode): RecordPage | undefined => {
+  const meta = RED_LIST.find((c) => c.code === code)
+  if (!meta) return undefined
+  const rows = HOLDINGS.filter((h) => h.iucn === code)
+  const named = rows.reduce((t, r) => t + r.count, 0)
+  return {
+    title: meta.name,
+    icon: ShieldAlert,
+    parent: 'animals',
+    parentTitle: 'Animal Population',
+    stats: [
+      { value: n(IUCN_TOTAL[code] ?? 0), label: 'In collection' },
+      { value: n(named), label: 'Named below' },
+      { value: String(rows.length), label: 'Species' },
+      { value: String(new Set(rows.map((r) => r.site)).size), label: 'Sites' },
+    ],
+    head: HOLDINGS_HEAD,
+    widths: HOLDINGS_WIDTHS,
+    align: HOLDINGS_ALIGN,
+    groupsLabel: `${meta.code} · ${new Set(rows.map((r) => r.site)).size} sites`,
+    groups: bySite(rows),
+  }
+}
+
 /**
  * Keyed by full route path, so a module can own more than one record set —
  * transfers has two, because "12 came in" and "9 went out" are different lists
  * and merging them would need a direction column to undo the merge.
  */
 export const recordPages: Record<string, RecordPage> = {
+  'animals/sites': sitesHoldings,
   'mortality/records': mortality,
   'births/records': natality,
   'accession/records': accession,
@@ -621,7 +836,19 @@ export const recordPages: Record<string, RecordPage> = {
   'transfers/out': transferOut,
 }
 
-export const findRecordPage = (slug: string) => recordPages[slug]
+/**
+ * Static table first, then the one built family.
+ *
+ * `animals/conservation/EN` is resolved rather than registered — see
+ * `conservationPage`. An unknown code falls through to `undefined`, which the
+ * router already treats as "no such page".
+ */
+export const findRecordPage = (slug: string): RecordPage | undefined => {
+  const fixed = recordPages[slug]
+  if (fixed) return fixed
+  const code = slug.startsWith('animals/conservation/') ? slug.slice('animals/conservation/'.length) : undefined
+  return code ? conservationPage(code as RedListCode) : undefined
+}
 
 /** One renderer for all twelve — see the note at the top of this file. */
 export function RecordsView({ page }: { page: RecordPage }) {
@@ -647,7 +874,9 @@ export function RecordsView({ page }: { page: RecordPage }) {
             match={(g, option) => g.group === option}
             count={(gs) => gs.reduce((n, g) => n + g.rows.length, 0)}
           >
-            {(visible) => <Roster head={page.head} groups={visible} />}
+            {(visible) => (
+              <Roster head={page.head} groups={visible} widths={page.widths} align={page.align} />
+            )}
           </Filter>
         </Section>
       </Stack>

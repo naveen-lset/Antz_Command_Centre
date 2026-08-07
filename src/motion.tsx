@@ -9,8 +9,8 @@
  */
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
-import { useInView } from '../hooks/useInView'
-import { useTween } from '../hooks/useTween'
+import { useInView } from './hooks/useInView'
+import { useTween } from './hooks/useTween'
 
 /**
  * One scroll threshold for a card, its marks and its numbers, so all three fire on

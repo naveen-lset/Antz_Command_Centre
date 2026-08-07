@@ -23,6 +23,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "agentation": "^3.0.2",
+    "puppeteer-core": "^23.11.1",
     "tailwindcss": "^4.1.11",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
