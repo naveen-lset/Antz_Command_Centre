@@ -2571,6 +2571,7 @@ export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }
 export function RedList({
   counts,
   hrefFor,
+  onOpen,
 }: {
   counts: Partial<Record<RedListCode, number>>
   /**
@@ -2579,6 +2580,12 @@ export function RedList({
    * and Extinct reading as tappable would imply there is something to open.
    */
   hrefFor?: (code: RedListCode) => string | undefined
+  /**
+   * The same drill-down as a HANDLER rather than a route, for the surfaces that open a
+   * sheet instead of navigating. A category with no animals in it stays inert either
+   * way — the guard is on the count, not on which of the two is supplied.
+   */
+  onOpen?: (code: RedListCode) => void
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -2606,13 +2613,17 @@ export function RedList({
               {rows.map((c) => {
                 const n = counts[c.code] ?? 0
                 const href = n > 0 ? hrefFor?.(c.code) : undefined
-                const Row = href ? 'a' : 'div'
+                const tap = n > 0 && onOpen ? () => onOpen(c.code) : undefined
+                const Row = href ? 'a' : tap ? 'button' : 'div'
+                const live = Boolean(href || tap)
                 return (
                   <li key={c.code}>
                   <Row
                     href={href}
-                    className={`flex items-center gap-2.5 py-[5px] ${
-                      href ? 'card-press -mx-2 rounded-[10px] px-2' : ''
+                    type={tap ? 'button' : undefined}
+                    onClick={tap}
+                    className={`flex w-full items-center gap-2.5 py-[5px] text-left ${
+                      live ? 'card-press -mx-2 rounded-[10px] px-2' : ''
                     }`}
                   >
                     {/* 22px, down from 40. The badge is an identifier now, not the
@@ -2649,7 +2660,7 @@ export function RedList({
                         column rather than stepping in and out by 9px down the card. */}
                     <span
                       className="w-[9px] shrink-0 text-[12px] leading-none"
-                      style={{ color: href ? ACCENT_INK : 'transparent' }}
+                      style={{ color: live ? ACCENT_INK : 'transparent' }}
                       aria-hidden
                     >
                       ›

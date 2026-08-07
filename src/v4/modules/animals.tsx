@@ -1,13 +1,17 @@
 /**
- * ANIMALS — the register, organised by what the collection is ANSWERABLE for.
+ * ANIMAL POPULATION — five questions, in the order a curator asks them.
  *
- * The page's spine is regulatory status, not taxonomy. A curator's first question of a
- * collection this size is not "how many birds" — it is "how many of these animals does
- * a permit, a schedule or a CITES appendix apply to", because that is the number that
- * carries a legal obligation. Taxonomy is one card down; the drill to a named animal
- * is one tap further.
+ *   How many species?          → Species
+ *   How is it sexed?           → Gender distribution
+ *   Where is it?               → Site-wise population
+ *   What is it made of?        → Class composition
+ *   What are we answerable for? → Regulatory standing and Conservation
  *
- * Every string here names a number. There is no prose.
+ * Conservation is the only card on the page whose rows open something, and that is
+ * deliberate: "388 Critically Endangered" is the one figure here that is useless
+ * without the names behind it. Tapping a category opens the species and their counts.
+ *
+ * Every string on this page names a number. There is no prose.
  */
 
 import {
@@ -22,35 +26,35 @@ import {
   ShieldAlert,
   Sparkles,
   Activity,
+  Venus,
 } from 'lucide-react'
+import { CLASS_ICONS } from '../../exec/classIcons'
 import {
   Bars,
   Composition,
   Facts,
   Filter,
+  RED_LIST,
   RedList,
   Rule,
+  Scoreboard,
   Section,
   Snapshot,
   Stack,
   Table,
   fmt,
+  type RedListCode,
 } from '../../exec/system'
 import { DrillList, DrillRow, ModuleHero, NodePanel, SiteSplit, useSheet } from './kit'
 import { MetricPanel } from '../panels'
+import { ConservationPanel } from './conservationPanel'
+import { RED_LIST_COUNTS, speciesCount } from './conservation'
 
 const TOTAL = 215432
 const REGULATORY = 37122
+const SPECIES_TOTAL = 428
 const share = (n: number) => `${((n / TOTAL) * 100).toFixed(1)}%`
 
-/**
- * The regulated tail, by instrument.
- *
- * CITES and the Wildlife Protection Act schedules are different instruments over
- * overlapping animals, so they are stated as two lists rather than summed into one —
- * a Schedule I tiger listed on Appendix I is one animal with two obligations, and a
- * combined total would count it twice.
- */
 const CITES: [string, number][] = [
   ['Appendix I', 4180],
   ['Appendix II', 12640],
@@ -70,16 +74,28 @@ const NON_REGULATORY: [string, number][] = [
 ]
 
 /**
- * The six flows that move the headcount, each opening its own records.
+ * The nine classes, with their counts and their species tallies.
  *
- * Signed, so the column adds up in the reader's head: +45 +18 −23 −5 −1 +3 = +37 net
- * of the escapes and fetal losses that the bridge on the old page silently omitted.
+ * Counts sum to 215,432 and species to 428 — the two figures the hero states — so the
+ * card cannot drift from the page it sits on.
  */
+const CLASSES: { name: keyof typeof CLASS_ICONS; common: string; count: number; species: number }[] = [
+  { name: 'Actinopterygii', common: 'Ray-finned fish', count: 77840, species: 96 },
+  { name: 'Aves', common: 'Birds', count: 38600, species: 112 },
+  { name: 'Malacostraca', common: 'Crustaceans', count: 34180, species: 38 },
+  { name: 'Mammalia', common: 'Mammals', count: 21900, species: 74 },
+  { name: 'Reptilia', common: 'Reptiles', count: 12850, species: 48 },
+  { name: 'Insecta', common: 'Insects', count: 12220, species: 26 },
+  { name: 'Chondrichthyes', common: 'Sharks, rays', count: 8120, species: 12 },
+  { name: 'Amphibia', common: 'Amphibians', count: 5482, species: 14 },
+  { name: 'Euchelicerata', common: 'Arachnids', count: 4240, species: 8 },
+]
+
 const EVENTS = [
   { key: 'birth', label: 'Birth', sub: '24 species', value: 45, tone: 'good' as const, icon: Sparkles },
   { key: 'mortality', label: 'Mortality', sub: '0.011% of collection', value: -23, tone: 'bad' as const, icon: Activity },
   { key: 'external', label: 'External transfer', sub: '12 in · 9 out', value: 3, icon: ArrowLeftRight },
-  { key: 'internal', label: 'Internal transfer', sub: 'Between sites', value: 0, sublabel: '7 moves, no net change', icon: ArrowLeftRight },
+  { key: 'internal', label: 'Internal transfer', sub: '7 moves, no net change', value: 0, icon: ArrowLeftRight },
   { key: 'escaped', label: 'Escaped animals', sub: '1 recaptured', value: -1, tone: 'warn' as const, icon: Footprints },
   { key: 'fetal', label: 'Fetal death', sub: '3 species', value: -5, tone: 'bad' as const, icon: Baby },
 ]
@@ -107,6 +123,16 @@ export default function Animals() {
   const drill = (title: string) =>
     open({ title, eyebrow: 'Animal Population', body: <MetricPanel metric="animals" /> })
 
+  const openCategory = (code: RedListCode) => {
+    const cat = RED_LIST.find((c) => c.code === code)
+    if (!cat) return
+    open({
+      title: cat.name,
+      eyebrow: `${fmt(RED_LIST_COUNTS[code] ?? 0)} animals · ${speciesCount(code)} species`,
+      body: <ConservationPanel code={code} />,
+    })
+  }
+
   return (
     <>
       <ModuleHero
@@ -117,14 +143,99 @@ export default function Animals() {
         status="+37 net · month"
         tone="good"
         stats={[
-          { value: '428', label: 'Species' },
+          { value: String(SPECIES_TOTAL), label: 'Species' },
           { value: '6', label: 'Sites' },
           { value: '96', label: 'Enclosures' },
         ]}
       />
       <Stack>
-        {/* Regulatory status leads. It is the split that carries an obligation, and it
-            is the one a director is asked about by an inspector. */}
+        {/* 1 · SPECIES. How many kinds of animal, and how that is moving. */}
+        <Section icon={ListOrdered} label="Species" aside={`${SPECIES_TOTAL} held`}>
+          <Snapshot
+            cols={4}
+            items={[
+              { label: 'Species', value: String(SPECIES_TOTAL) },
+              { label: 'Classes', value: String(CLASSES.length) },
+              { label: 'New', value: '+6', note: 'this quarter', tone: 'good' },
+              { label: 'Lost', value: '−1', note: 'this quarter', tone: 'bad' },
+            ]}
+          />
+          <Rule label="Species per class" />
+          <Bars
+            items={CLASSES.map((c) => ({ label: c.name, value: c.species, sub: c.common }))}
+            unit="species"
+            showShare
+          />
+        </Section>
+
+        {/* 2 · GENDER. Undetermined is the majority ANSWER, not missing data: most of a
+            collection this size is fish and invertebrates that are never sexed. The
+            sexed ratio is stated separately because that is the only part a breeding
+            programme can act on. */}
+        <Section icon={Venus} label="Gender distribution" aside="215,432 animals">
+          <Scoreboard
+            items={[
+              { value: '18,204', label: 'Male' },
+              { value: '16,880', label: 'Female' },
+              { value: '180,348', label: 'Undetermined' },
+            ]}
+          />
+          <Rule label="Share" />
+          <Composition
+            items={[
+              { label: 'Undetermined', value: 180348 },
+              { label: 'Male', value: 18204 },
+              { label: 'Female', value: 16880 },
+            ]}
+            unit="animals"
+          />
+          <Rule label="Of the sexed" />
+          <Snapshot
+            cols={3}
+            items={[
+              { label: 'Sexed', value: '35,084', note: '16% of collection' },
+              { label: 'Ratio', value: '1.08', note: 'male per female' },
+              { label: 'Breeding pairs', value: '58', note: '45 productive' },
+            ]}
+          />
+        </Section>
+
+        {/* 3 · SITE-WISE POPULATION. Honours the global site filter — with one picked
+            this shows that site alone. Each row drills to its species and animals. */}
+        <Section icon={MapPin} label="Site-wise population" aside="tap to drill">
+          <SiteSplit slug="animals" onOpenSite={(_, name) => drill(name)} />
+        </Section>
+
+        {/* 4 · CLASS COMPOSITION, each class wearing its own glyph. Nine scientific
+            names in a grid are nine similar-length words, and the icon is what makes a
+            row findable without reading it. */}
+        <Section icon={Layers} label="Class composition" aside={`${CLASSES.length} classes`}>
+          <Snapshot
+            cols={2}
+            items={CLASSES.map((c) => ({
+              label: c.name,
+              value: fmt(c.count),
+              note: `${c.common} · ${c.species} species`,
+              icon: CLASS_ICONS[c.name],
+            }))}
+          />
+          <Rule label="Share" />
+          <Composition
+            items={[
+              ...CLASSES.slice(0, 5).map((c) => ({ label: c.name, value: c.count })),
+              { label: 'Other · 4 classes', value: CLASSES.slice(5).reduce((n, c) => n + c.count, 0) },
+            ]}
+            unit="animals"
+          />
+        </Section>
+
+        {/* 5 · CONSERVATION, and every non-empty badge opens its species.
+            The count answers "how many Endangered animals"; the only useful next
+            question is "which ones", and it is now one tap rather than a phone call. */}
+        <Section icon={ShieldAlert} label="Conservation" aside="IUCN · tap a category">
+          <RedList counts={RED_LIST_COUNTS} onOpen={openCategory} />
+        </Section>
+
         <Section icon={ScrollText} label="Regulatory standing" aside={share(REGULATORY)}>
           <Snapshot
             cols={2}
@@ -137,8 +248,6 @@ export default function Animals() {
           <Bars items={CITES.map(([label, value]) => ({ label, value }))} unit="animals" showShare />
           <Rule label="Wildlife Protection Act" />
           <Bars items={SCHEDULES.map(([label, value]) => ({ label, value }))} unit="animals" showShare />
-          {/* Stated because the two lists overlap and a reader will otherwise add
-              them. Six numbers that cannot be summed have to say so. */}
           <p className="mt-3 text-[11px] text-[#9b958b]">
             The two instruments overlap — an animal can carry both, so the lists do not sum.
           </p>
@@ -148,10 +257,6 @@ export default function Animals() {
           <Composition items={NON_REGULATORY.map(([label, value]) => ({ label, value }))} unit="animals" />
         </Section>
 
-        {/* Population events: the six flows, each opening its records. Internal
-            transfers are listed at a net of zero on purpose — seven animals moved and
-            the collection did not change, which is exactly the fact a director needs
-            when the transfer count looks alarming. */}
         <Section icon={Sparkles} label="Population events" aside="this month">
           <DrillList>
             {EVENTS.map((e) => (
@@ -159,7 +264,7 @@ export default function Animals() {
                 key={e.key}
                 lead={e.icon}
                 label={e.label}
-                sub={e.sublabel ?? e.sub}
+                sub={e.sub}
                 value={`${e.value > 0 ? '+' : e.value < 0 ? '−' : ''}${Math.abs(e.value)}`}
                 tone={e.tone}
                 onOpen={() => drill(e.label)}
@@ -175,38 +280,7 @@ export default function Animals() {
           />
         </Section>
 
-        <Section
-          icon={MapPin}
-          label="Sites"
-          aside="tap to drill"
-        >
-          <SiteSplit slug="animals" onOpenSite={(_, name) => drill(name)} />
-        </Section>
-
-        <Section icon={Layers} label="Class composition" aside="9 classes">
-          <Snapshot
-            cols={2}
-            items={[
-              { label: 'Actinopterygii', value: '77,840', note: 'Ray-finned fish' },
-              { label: 'Aves', value: '38,600', note: 'Birds' },
-              { label: 'Malacostraca', value: '34,180', note: 'Crustaceans' },
-              { label: 'Mammalia', value: '21,900', note: 'Mammals' },
-              { label: 'Reptilia', value: '12,850', note: 'Reptiles' },
-              { label: 'Insecta', value: '12,220', note: 'Insects' },
-              { label: 'Chondrichthyes', value: '8,120', note: 'Sharks, rays' },
-              { label: 'Amphibia', value: '5,482', note: 'Amphibians' },
-              { label: 'Euchelicerata', value: '4,240', note: 'Arachnids' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={ShieldAlert} label="Conservation" aside="IUCN">
-          <RedList
-            counts={{ NC: 80, DD: 1640, NE: 316, LC: 176180, NT: 24180, VU: 9640, EN: 2984, CR: 388, EW: 24, EX: 0 }}
-          />
-        </Section>
-
-        <Section icon={ListOrdered} label="Top species" aside="10 of 428">
+        <Section icon={ListOrdered} label="Top species" aside={`10 of ${SPECIES_TOTAL}`}>
           <Filter
             options={['All', 'Actinopterygii', 'Aves', 'Malacostraca', 'Mammalia', 'Reptilia']}
             items={TOP_SPECIES}
