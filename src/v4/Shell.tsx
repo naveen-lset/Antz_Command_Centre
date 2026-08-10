@@ -15,7 +15,7 @@
  * narrower of the two columns.
  */
 
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { ExecutivePanel } from './ExecPanel'
@@ -94,7 +94,64 @@ export function ModuleHeader({
  * under a page that never announced it had changed.
  */
 export function ModulePane({ children }: { children: ReactNode }) {
-  return <div className="animate-swap-in pt-1 pb-10">{children}</div>
+  /**
+   * THE PANE NO LONGER SLIDES IN AS A BLOCK.
+   *
+   * It carried `animate-swap-in` — the whole page translating 16px sideways and fading
+   * — which was the only page transition there was. Now that the route change itself is
+   * animated (`runPageTransition`), a pane that also slid would be two transitions on
+   * one navigation: the page arriving, and then the page arriving again inside itself.
+   *
+   * What replaces it is finer-grained and does the job the block slide was standing in
+   * for. `.page-enter` in `index.css` brings the header in first and steps the page's
+   * own cards 40ms apart behind it, so a page assembles in the order a reader reads it.
+   *
+   * THE CLASS TAKES ITSELF OFF. Those stagger delays live on the same `Reveal` elements
+   * that fade a card up when it scrolls into view — every `Section` on the page mounts
+   * at once and merely waits, held at `opacity-0`, for its turn to be scrolled to. Leave
+   * the class on and the delay meant for the entrance is still there twenty seconds
+   * later, in front of a card the reader has just scrolled down to.
+   *
+   * THE CLOCK STARTS WHEN THE CONTENT ARRIVES, NOT WHEN THE PANE DOES, and that
+   * distinction is the whole reason this is a poll rather than a `setTimeout` in mount.
+   * Module pages are lazily loaded: measured against a cold chunk, the pane mounted at
+   * 0ms and the first card appeared at 450ms. A fixed 600ms from mount left the
+   * entrance 150ms of overlap on a good day and none at all on a slow network — the
+   * stagger would simply not happen, intermittently, which is worse than not having it.
+   */
+  const pane = useRef<HTMLDivElement>(null)
+  const [entering, setEntering] = useState(true)
+
+  useEffect(() => {
+    let raf = 0
+    let timer = 0
+    /* Give up after ~3s. A page that has rendered nothing by then has a problem the
+       motion layer should not be waiting on. */
+    const deadline = performance.now() + 3000
+    const look = () => {
+      if (pane.current?.querySelector('.page-stack')) {
+        /* 160ms of stagger plus a 320ms animation, and a little air. */
+        timer = window.setTimeout(() => setEntering(false), 600)
+        return
+      }
+      if (performance.now() > deadline) {
+        setEntering(false)
+        return
+      }
+      raf = requestAnimationFrame(look)
+    }
+    raf = requestAnimationFrame(look)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(timer)
+    }
+  }, [])
+
+  return (
+    <div ref={pane} className={`${entering ? 'page-enter' : ''} pt-1 pb-10`}>
+      {children}
+    </div>
+  )
 }
 
 /**

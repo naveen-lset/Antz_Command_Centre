@@ -389,6 +389,17 @@ export function HomeBanner({ onSearch }: { onSearch: () => void }) {
  */
 const MOOD = { good: '#1e7a44', bad: TONE.bad, flat: FAINT } as const
 
+/**
+ * Whether a delta is worth printing on a card.
+ *
+ * `phrase` in `kpi.ts` renders a sub-half-point change as the word "flat", which is honest and,
+ * on a card, is a line of grey text that says nothing happened. Under a short window — Today,
+ * Yesterday — that is nearly every card at once, so the whole grid grows a column of "flat".
+ * The absence of movement is better said by the absence of a chip. The word survives where it
+ * reads as a sentence rather than a chip — the trend panel's "flat · 12 months".
+ */
+const hasMovement = (delta?: string) => !!delta && delta !== 'flat'
+
 /* ── section chrome ──────────────────────────────────────────────────────── */
 
 /**
@@ -494,16 +505,28 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
             {kpi.label}
           </span>
         </span>
-        <span className="mt-2 block">
+        {/* ONE BASELINE: the figure, the word that names it, and how it moved.
+            These were three stacked lines — number, then a caption row under it — which put
+            "−0.5%" a line away from the 215K it is a change in, and made a reader's eye travel
+            down to find out whether a number they had just read was good news. On one baseline
+            the three read as a sentence: what it is, what it reads, which way it is going.
+
+            WRAPS RATHER THAN TRUNCATES. Past 640px these four cards turn back into a row of
+            four, where a card is about 120px of inner width and "215K Animals −0.5%" is not
+            going to fit on it. `flex-wrap` sends the note and the delta down together — the
+            old two-line form, reached by not fitting rather than by a breakpoint — instead of
+            truncating "Animals" to "Ani…". The pair is nested so they wrap as one unit; two
+            bare items would leave the note stranded beside the figure with the delta below. */}
+        <span className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <Figure value={value} size={34} color={HERO_INK} />
-        </span>
-        <span className="mt-1 flex items-baseline gap-2">
-          <span className="min-w-0 truncate text-[12px] text-[#9b958b]">{note}</span>
-          {delta && (
-            <span className="shrink-0 text-[11.5px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
-              {delta}
-            </span>
-          )}
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="min-w-0 truncate text-[12px] text-[#9b958b]">{note}</span>
+            {hasMovement(delta) && (
+              <span className="shrink-0 text-[11.5px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+                {delta}
+              </span>
+            )}
+          </span>
         </span>
       </span>
 
@@ -594,31 +617,51 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
           "215,432" is about 3.8em wide — at 30pt with the tier multiplier on top it
           printed straight over the card's own edge. The scale variable still grows it
           per tier; this is the base it grows from. */}
-      <span className="mt-2 flex items-baseline gap-1">
+      {/* Same one baseline as the headline card above, and the same wrap: figure, the note that
+          qualifies it, then the movement. These six run two, three and six across, so the note —
+          "2,171 of 2,374", "Site average · target 90" — almost always wants the second line and
+          takes it, which is the layout this always had. Where it fits, as on the wide closing
+          tile, the three read as one line rather than as a figure with a caption under it.
+
+          `note || ' '` STAYS. Six tiles in a row are equal height, but the meter under each is
+          not — a tile whose text wraps to two lines sits its bar 17px below a tile whose text
+          did not, and a row of bars at two heights reads as a bug. The nbsp keeps a tile with
+          no note wrapping like its neighbours. */}
+      <span className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1.5">
         <Figure value={value} unit={unit} size={26} color={HERO_INK} />
-      </span>
-      <span className="mt-1.5 flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate text-[12px] text-[#9b958b]">{note || ' '}</span>
-        {/* Shown under a site scope now, because it IS that site's movement — the delta
-            is read from the same scoped series as the figure beside it. It had to be
-            hidden before, when it was the collection's change beside a site's figure. */}
-        {delta && (
-          <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
-            {delta}
-          </span>
-        )}
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="min-w-0 truncate text-[12px] text-[#9b958b]">{note || ' '}</span>
+          {/* Shown under a site scope now, because it IS that site's movement — the delta
+              is read from the same scoped series as the figure beside it. It had to be
+              hidden before, when it was the collection's change beside a site's figure. */}
+          {hasMovement(delta) && (
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+              {delta}
+            </span>
+          )}
+        </span>
       </span>
       {/* THE ONE MARK THESE SIX TILES DID NOT HAVE. All six are rates, and a rate stated as
           a number and drawn as nothing makes 92% and 86% look identical until both are read.
           Five pixels answer "how far along" before either number is. Drawn only where there
           is a percentage to draw, so a tile can never show a bar it invented. */}
       {percent !== undefined && (
-        /* The tile's own hue, not the product green. `SparkMeter` reads the accent from
-           context like every other mark, and this tile sets its accent per KPI rather than
-           on a provider — so the provider goes here, around the one mark that needs it. */
-        <AccentProvider value={accent}>
-          <SparkMeter percent={percent} target={target} inverse={inverse} />
-        </AccentProvider>
+        /* PUSHED TO THE FLOOR OF THE CARD, not stacked under the text.
+           Now that the figure row wraps only when it has to, two tiles beside each other can
+           carry one line of text and two — "78 % 45 of 58 pairings" fits, "91 % 2,171 of 2,374
+           −0.9 pts" does not — and a bar that follows its own text lands 17px lower on one tile
+           than on its neighbour. A row of grid cells is equal height, so `mt-auto` takes that
+           difference into the gap above the bar instead, and the row's bars all sit on one line.
+           `pt-0.5` is there to stop `SparkMeter`'s own top margin collapsing through the
+           wrapper, which would drag the bar back off the floor. */
+        <span className="mt-auto block pt-0.5">
+          {/* The tile's own hue, not the product green. `SparkMeter` reads the accent from
+             context like every other mark, and this tile sets its accent per KPI rather than
+             on a provider — so the provider goes here, around the one mark that needs it. */}
+          <AccentProvider value={accent}>
+            <SparkMeter percent={percent} target={target} inverse={inverse} />
+          </AccentProvider>
+        </span>
       )}
     </>
   )
@@ -951,7 +994,7 @@ function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
 function TrendTile({ card }: { card: (typeof trends)[number] }) {
   const { open } = useSheet()
   const accent = card.accent ?? (card.tone === 'neutral' ? MUTED : TONE[card.tone])
-  const { value, delta, values, mood, scopedNote } = useTrendCard(card)
+  const { value, delta, values, mood } = useTrendCard(card)
   const shape = card.shape ?? 'area'
 
   const low = values.length ? Math.min(...values) : 0
@@ -985,7 +1028,7 @@ function TrendTile({ card }: { card: (typeof trends)[number] }) {
         >
           {value}
         </span>
-        {delta && (
+        {hasMovement(delta) && (
           <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
             {delta}
           </span>
@@ -1014,10 +1057,15 @@ function TrendTile({ card }: { card: (typeof trends)[number] }) {
         </AccentProvider>
       </span>
 
-      <span className="mt-1.5 block truncate text-[10px] tracking-[0.06em] text-[#b3aea6] uppercase">
-        {shape === 'meter' ? `Target ${(card.target ?? 0).toFixed(1)}%` : shape === 'range' ? `Band ${low}–${high}` : card.unitNote}
-        {scopedNote && shape !== 'meter' ? ` · ${scopedNote}` : ''}
-      </span>
+      {/* NO CAPTION UNDER THE MARK. It printed "Animals · monthly close" beneath a card already
+          titled "Animal Population" — the label restated in smaller grey type, on all twelve
+          tiles at once, which is a band of noise across the section for no fact you did not
+          already have. The bucketing it named is a property of the section, not of each tile.
+
+          The two shapes whose caption carried a real number — the meter's target and the
+          range's band — lose those figures here. Both are still DRAWN: the meter's notch sits
+          at its target and the band's dot at its position, and the exact numbers are one tap
+          away in the trend panel this card opens. */}
     </button>
   )
 }
@@ -1091,13 +1139,11 @@ export function HomeSections() {
           SectionHead fell back to its `mt-5`. 32px of nothing on the screen's opening gap, in
           the state the screen is almost always in. The bleed moved onto the note itself. */}
       <ScopeNote />
-      {/* The count is derived. Typed, it stated ten while eleven tiles rendered under it the
-          moment a KPI was added. */}
-      <SectionHead
-        icon={SECTION_ICONS.kpis}
-        title="Executive KPIs"
-        aside={`${headlineKpis.length + supportingKpis.length} measures`}
-      />
+      {/* NO COUNT ON THE RIGHT. "11 measures" is the number of tiles you are about to scroll
+          past, which the tiles state better by being there. The rule earns its keep as a
+          divider; the aside is kept for sections where the summary is a fact you cannot get
+          by looking — "3 urgent", "82 / 100". */}
+      <SectionHead icon={SECTION_ICONS.kpis} title="Executive KPIs" />
       <Reveal>
         <KpiRail />
       </Reveal>
@@ -1109,7 +1155,9 @@ export function HomeSections() {
           It was the last section on the page, seven scroll-screens below the KPIs — which put "are
           we improving?" after every operational queue, and in practice out of reach. The figures
           and their twelve-month shape now read as one block: what it is, then where it is going. */}
-      <SectionHead icon={SECTION_ICONS.trends} title="Trends" aside="12 months" />
+      {/* The window is stated on the tile you open, not twice on the way to it — see the
+          panel's own "· 12 months" line. */}
+      <SectionHead icon={SECTION_ICONS.trends} title="Trends" />
       <Reveal>
         <div className="grid grid-cols-2 gap-[var(--gap)] @[520px]:grid-cols-4">
           {trends.map((t) => (

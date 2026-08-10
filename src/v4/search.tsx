@@ -24,7 +24,7 @@
  * layer exists to prevent.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, Search, X } from 'lucide-react'
 import { execPages, type ExecPage } from '../exec/pages'
 import { ACCENT, FAINT, GROUND_GRADIENT } from '../exec/system'
@@ -132,17 +132,45 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
   const field = useRef<HTMLInputElement>(null)
   const { scope, href } = useScope()
 
+  /**
+   * SEARCH OPENS AND CLOSES; IT DOES NOT APPEAR AND DISAPPEAR.
+   *
+   * It was mounted and unmounted on a boolean, so a full-screen surface replaced the
+   * home between two frames in both directions — the most abrupt thing in the product
+   * after the sheet, and reached from a button that sits two centimetres from the
+   * reader's thumb.
+   *
+   * The exit is owned HERE rather than by the caller. `onClose` unmounts this
+   * component, so anything that wants to animate out has to delay that call by its own
+   * duration; pushing that requirement onto every caller is how one of them forgets.
+   * `dismiss` is the only thing wired to Escape and to the close button.
+   */
+  const [entered, setEntered] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+
   useEffect(() => {
     field.current?.focus()
+    const raf = requestAnimationFrame(() => setEntered(true))
+    return () => cancelAnimationFrame(raf)
   }, [])
+
+  const dismiss = useCallback(() => {
+    setLeaving(true)
+    /* Matches `--dur-emphasis-out`. A timer rather than `transitionend`, which does not
+       fire at all for a reader on reduced motion — where the whole thing is 0.01ms and
+       the surface is already gone. */
+    setTimeout(onClose, 260)
+  }, [onClose])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') dismiss()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [dismiss])
+
+  const open = entered && !leaving
 
   const query = q.trim().toLowerCase()
 
@@ -184,13 +212,38 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
   const ops = ALL.filter((m) => m.page.ops)
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col font-sans" style={{ background: GROUND_GRADIENT }} role="dialog" aria-modal="true" aria-label="Search">
+    <div
+      className="fixed inset-0 z-50 flex flex-col font-sans"
+      style={{
+        background: GROUND_GRADIENT,
+        opacity: open ? 1 : 0,
+        transition: `opacity ${open ? 'var(--dur-emphasis) var(--ease-out)' : 'var(--dur-emphasis-out) var(--ease-in)'}`,
+        pointerEvents: leaving ? 'none' : undefined,
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search"
+    >
       <div className="mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col">
         <form
           onSubmit={onSubmit}
           className="shrink-0 px-4 pt-[max(14px,env(safe-area-inset-top))] pb-3"
         >
-          <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5">
+          {/* THE FIELD UNROLLS FROM WHERE THE BUTTON WAS.
+              A `clip-path` inset from the right, not an animated `width`: the pill is
+              laid out at its final size from the first frame, so the placeholder and
+              the icons never reflow or squash on the way out — the reveal is a mask
+              moving across finished type. It also costs no layout, which an animated
+              width on a full-bleed element would on every frame.
+              The 44px start is the search button's own size, so what expands is
+              visibly the control that was tapped rather than a new thing. */}
+          <div
+            className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5"
+            style={{
+              clipPath: open ? 'inset(0 0 0 0 round 999px)' : 'inset(0 0 0 calc(100% - 44px) round 999px)',
+              transition: `clip-path ${open ? 'var(--dur-emphasis) var(--ease-out)' : 'var(--dur-emphasis-out) var(--ease-in)'}`,
+            }}
+          >
             <Search size={17} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
             <input
               ref={field}
@@ -203,16 +256,25 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
             />
             <button
               type="button"
-              onClick={() => (q ? setQ('') : onClose())}
+              onClick={() => (q ? setQ('') : dismiss())}
               aria-label={q ? 'Clear' : 'Close search'}
-              className="-mr-1 grid size-7 shrink-0 place-items-center rounded-full active:bg-[#f2f1ed]"
+              className="-mr-1 grid size-7 shrink-0 place-items-center rounded-full transition-colors active:bg-[#f2f1ed]"
             >
               <X size={15} strokeWidth={2} className="text-[#6d6860]" aria-hidden />
             </button>
           </div>
         </form>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] scrollbar-hidden">
+        {/* The results arrive just behind the field rather than with it — the reader is
+            looking at what they are typing into, and the list settling a beat later is
+            what makes the field feel like the thing that opened. */}
+        {/* NOT KEYED ON THE QUERY. Re-mounting this on every keystroke would replay the
+            entrance sixteen times while someone types "mortality" — a list flashing
+            under a moving cursor. Results update in place; only the opening animates. */}
+        <div
+          className="animate-section-in min-h-0 flex-1 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))] scrollbar-hidden"
+          style={{ animationDelay: '60ms' }}
+        >
           {query ? (
             hits.length + entities.length + animals.length > 0 ? (
               <>

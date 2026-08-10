@@ -128,7 +128,11 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
           title: page.title,
           eyebrow: page.parentTitle,
           moduleTitle: page.parentTitle,
-          onBack: () => go(page.parent),
+          /* `{ back: true }` on every one of these. It does not change where the chevron
+             goes — that is still the computed parent rather than the previous history
+             entry — only which half of the page transition plays, so climbing out of a
+             record reads as climbing out rather than as opening the module afresh. */
+          onBack: () => go(page.parent, { back: true }),
           body: <RecordsView page={page} />,
         }
       }
@@ -142,7 +146,7 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
              reader happened to arrive from — so the back button is the same from a search hit,
              a module row and a pasted link. */
           onBack: entity?.parent
-            ? () => go(`e/${entity.parent!.kind}/${encodeURIComponent(entity.parent!.id)}`)
+            ? () => go(`e/${entity.parent!.kind}/${encodeURIComponent(entity.parent!.id)}`, { back: true })
             : phone
               ? home
               : undefined,
@@ -155,7 +159,7 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
         return {
           title: KIND_ONE[route.entity],
           eyebrow: 'Browse',
-          onBack: () => go('entities'),
+          onBack: () => go('entities', { back: true }),
           body: <EntityBrowser kind={route.entity} />,
         }
 
@@ -218,7 +222,9 @@ function Router() {
      because an effect lands a render late and the chevron would point at the previous page. */
   const lastHome = useRef('')
   if (atHome) lastHome.current = path
-  const home = useMemo(() => () => go(lastHome.current), [go])
+  /* The home is always a step OUT of wherever you are, so it takes the back half of
+     the page transition — the home grows back from 0.98 rather than rising from below. */
+  const home = useMemo(() => () => go(lastHome.current, { back: true }), [go])
 
   /* Every page starts at the top of the window. Without this, opening Vaccination from halfway
      down the home leaves you halfway down Vaccination. Keyed on the path rather than the route

@@ -29,9 +29,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
+import { runPageTransition } from './transition'
 import {
   DEFAULT_WINDOW,
   MAX_INPUT,
@@ -114,8 +116,15 @@ interface ScopeApi {
   custom: { from: string; to: string }
   setCustom: (c: { from: string; to: string }) => void
   setSite: (s: Site | null) => void
-  /** Navigate, keeping the scope. Prefer this to assigning `location.hash`. */
-  go: (path: string) => void
+  /**
+   * Navigate, keeping the scope. Prefer this to assigning `location.hash`.
+   *
+   * `back` does not change WHERE this goes — an in-app back chevron climbs to a
+   * computed parent, which is often not the entry the browser would return to. It
+   * changes only how the change is animated, so that stepping up out of a species
+   * reads as stepping up rather than as opening something new.
+   */
+  go: (path: string, opts?: { back?: boolean }) => void
   /** A link that carries the scope explicitly — for anchors, which cannot call `go`. */
   href: (path: string) => string
   /** Bounds for the date inputs. There is no data outside the ledger. */
@@ -141,8 +150,68 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
     ...fromParams(parseHash(window.location.hash).params),
   }))
 
+  /**
+   * WHICH WAY THE READER IS GOING, decided here because this is the only place that
+   * sees every navigation.
+   *
+   * NOT FROM `popstate`. The obvious implementation — "a popstate just fired, so this
+   * is a back" — is wrong, and wrong in a way that tests clean on the case you think
+   * to check. Chrome fires `popstate` for *any* same-document fragment navigation,
+   * including an ordinary `<a href="#/animals">` click. Measured: click at 2809ms,
+   * popstate at 2811ms, hashchange at 2813ms. Every forward navigation in the product
+   * would have played the back animation.
+   *
+   * So the history entries are NUMBERED instead, which is the only thing that actually
+   * distinguishes a step back from a step onward. Each new entry is stamped with the
+   * next index as it arrives; a later `hashchange` that lands on a LOWER index is the
+   * reader going back, whether by the browser button, the Android gesture or a swipe.
+   * An entry with no stamp has never been visited, so it is new, so it is forward.
+   *
+   * `goingBack` overrides all of it for the in-app back chevron, which creates a NEW
+   * (higher) entry — it climbs to a computed parent rather than returning to wherever
+   * the reader came from — and so is indistinguishable from a forward step by index.
+   */
+  const goingBack = useRef(false)
+  const navIndex = useRef<number>((window.history.state?.antzNav as number | undefined) ?? 0)
+  /* The path as the LISTENER last saw it. Not derived from `hash` state: the listener
+     is registered once and would close over the first render's value forever. */
+  const seenPath = useRef(parseHash(window.location.hash).path)
+
   useEffect(() => {
-    const onChange = () => setHash(window.location.hash)
+    /* Stamp the entry we started on, so the first back has something to compare to. */
+    if (typeof window.history.state?.antzNav !== 'number') {
+      window.history.replaceState({ ...window.history.state, antzNav: navIndex.current }, '')
+    }
+
+    const onChange = () => {
+      const next = window.location.hash
+
+      const landed = window.history.state?.antzNav as number | undefined
+      let back = goingBack.current
+      if (typeof landed === 'number') {
+        if (!back) back = landed < navIndex.current
+        navIndex.current = landed
+      } else {
+        /* A brand-new entry — a link, or `go()`. Number it now; `replaceState` keeps
+           whatever else lives in the entry's state, which is where the sheet records
+           its own depth. */
+        navIndex.current += 1
+        window.history.replaceState({ ...window.history.state, antzNav: navIndex.current }, '')
+      }
+      goingBack.current = false
+
+      /* A SCOPE CHANGE IS NOT A NAVIGATION. Picking a window rewrites the hash to
+         `#/mortality?w=last7`, and animating the page out and back in for it would
+         answer "show me the same page over seven days" by making the same page
+         leave. Only a change of PATH is a change of screen. */
+      const nextPath = parseHash(next).path
+      const moved = nextPath !== seenPath.current
+      seenPath.current = nextPath
+
+      if (moved) runPageTransition(back ? 'back' : 'forward', () => setHash(next))
+      else setHash(next)
+    }
+
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)
   }, [])
@@ -207,7 +276,8 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
       setWindow: (k) => write({ ...filters, windowKey: k }),
       setCustom: (c) => write({ ...filters, windowKey: 'custom', custom: c }),
       setSite: (s) => write({ ...filters, siteKey: s?.key ?? null }),
-      go: (to) => {
+      go: (to, opts) => {
+        if (opts?.back) goingBack.current = true
         window.location.hash = buildHash(to.replace(/^#\/?/, ''), filters)
       },
       href: (to) => buildHash(to.replace(/^#\/?/, ''), filters),

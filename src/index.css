@@ -52,6 +52,12 @@
 
   --animate-rise: rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-up: fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Page and sheet entrances run on the emphasis tier below, not the 500ms
+     reveal tier — a screen you asked for should be there before you wonder. */
+  --animate-section-in: section-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-swap-fwd: swap-fwd 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-swap-back: swap-back 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-refresh: refresh 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 
   /* Drill-down motion set — one easing family (0.22, 1, 0.36, 1), 500–1000ms,
      every animation earns its keep by explaining where a value came from. */
@@ -131,6 +137,76 @@
       transform: translateX(16px);
     }
   }
+  /* A major block arriving with the page it belongs to. Deliberately the same
+     shape as `fade-up` and 200ms shorter: one is a reward for scrolling, the
+     other is the answer to a tap and must not keep the reader waiting. */
+  @keyframes section-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+  /* Stepping a level INSIDE the sheet — Site → Species → Animal. 8px, not the
+     16px of `swap-in`: the sheet has not moved, only what is written in it, and
+     a large slide would claim otherwise. Mirrored so back reads as back. */
+  @keyframes swap-fwd {
+    from {
+      opacity: 0;
+      transform: translateX(8px);
+    }
+  }
+  @keyframes swap-back {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+  }
+  /* Data answering a filter. FROM 0.4, NOT FROM 0 — a list that fades from nothing
+     reads as the list being rebuilt, and it is the same list with fewer rows in it.
+     Starting part-lit says "these changed", which is all a filter needs to say. */
+  @keyframes refresh {
+    from {
+      opacity: 0.4;
+    }
+  }
+}
+
+/**
+ * THE MOTION SCALE — three durations and two curves, for the whole product.
+ *
+ * Before this there were durations at 250, 300, 320, 360, 380, 460, 500, 620 and
+ * 1000ms across six files, each chosen on its own and none of them wrong on its
+ * own. Read together they are the reason the app felt assembled rather than
+ * designed: a sheet that took 360ms to arrive and a press that took 250ms to
+ * acknowledge belong to two different products.
+ *
+ * The tiers are chosen by WHAT THE MOTION IS FOR, not by how far the thing moves:
+ *
+ *   FAST      a press, a hover, an icon changing state. Feedback that a finger
+ *             landed. Any slower and the surface feels like it is deciding.
+ *   STANDARD  content changing inside a surface that is already there — a swap
+ *             of sheet levels, a filter chip, a figure re-counting.
+ *   EMPHASIS  a surface arriving or leaving. A page, a sheet, the search. The
+ *             only tier allowed to move something the width of the screen.
+ *
+ * ONE CURVE FOR ARRIVALS. `--ease-out` is the house's (0.22, 1, 0.36, 1): fast
+ * from the start, settling long. It is what every existing animation already
+ * used, kept, and now named. `--ease-in` is its opposite and is used ONLY for
+ * things leaving, where a slow start would read as hesitation.
+ *
+ * Nothing here is a spring with overshoot. A sheet that bounces past its resting
+ * position is the single most "animated dashboard" gesture available, and this
+ * product is meant to read as quiet.
+ */
+:root {
+  --dur-fast: 130ms;
+  --dur-standard: 220ms;
+  --dur-emphasis: 320ms;
+  /* Leaving is quicker than arriving — the reader has already decided. */
+  --dur-emphasis-out: 260ms;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
 
 /**
@@ -334,12 +410,127 @@
   }
 }
 
-/* Tap affordance shared by every card (250ms premium easing, no flashy motion) */
+/**
+ * Tap affordance shared by every card, row and chip.
+ *
+ * ASYMMETRIC ON PURPOSE. It was one 250ms curve in both directions, which meant a
+ * quarter of a second passed between a finger landing and the card admitting it —
+ * long enough on a list of rows to tap the next one before the first responded.
+ * The press now lands on the fast tier and the release takes the standard one:
+ * acknowledge immediately, relax unhurriedly. That ordering is the whole feel of a
+ * physical button, and it is two lines of CSS.
+ *
+ * `will-change` is deliberately NOT set. It would promote every card on the home to
+ * its own compositor layer — eleven KPI tiles, twelve trend tiles, thirty rows — to
+ * save a few milliseconds on a transform that is already composited when it runs.
+ */
 @utility card-press {
-  transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--dur-standard) var(--ease-out);
   &:active {
     transform: scale(0.98);
+    transition-duration: var(--dur-fast);
   }
+}
+
+/**
+ * PAGE TRANSITIONS — home ⇄ module, via the browser's own view transitions.
+ *
+ * The alternative was keeping the outgoing page's React tree mounted for the length
+ * of the animation so it had something to animate out. That works and it costs a
+ * second copy of a module page — every chart, every observer, every count-up — alive
+ * on the same frame the incoming page is mounting on. `startViewTransition` hands the
+ * compositor a snapshot of the old page instead, so the outgoing half costs one
+ * texture rather than one React tree, and neither page can be seen to be doing work
+ * behind the other. It also removes the whole class of "the old page is still
+ * clickable" bug that a mounted-but-leaving copy creates.
+ *
+ * Unsupported browsers and reduced-motion readers get the swap with no animation,
+ * which is exactly what they get today — see `runPageTransition` in `v4/transition.ts`.
+ *
+ * FORWARD AND BACK ARE THE SAME MOTION, MIRRORED. Going in, the new page rises 12px
+ * into place over the old one shrinking away. Coming back, the page you are returning
+ * to grows from 0.98 rather than rising — because it was never below, it was behind.
+ * A reader should not have to think about that for it to read correctly.
+ */
+::view-transition-group(root) {
+  animation-duration: var(--dur-emphasis);
+}
+
+::view-transition-old(root) {
+  animation: page-out var(--dur-emphasis-out) var(--ease-in) both;
+}
+
+::view-transition-new(root) {
+  animation: page-in var(--dur-emphasis) var(--ease-out) both;
+}
+
+:root[data-nav='back']::view-transition-new(root) {
+  animation: page-in-back var(--dur-emphasis) var(--ease-out) both;
+}
+
+@keyframes page-out {
+  /* Gone by 60% of its own duration. Two full-page snapshots cross-fading at equal
+     opacity both stay partly visible through the middle of the transition, and over
+     a light sage ground that middle reads as a wash rather than as a change. The
+     outgoing page clears out early and lets the incoming one arrive on its own. */
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  60%,
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes page-in-back {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/**
+ * PAGE ENTRY, STAGGERED — the header, then the page's own cards.
+ *
+ * Every `Section` in the product is already wrapped in `Reveal`, so a module page
+ * arrives with all of its cards fading up at once on the same frame: correct, and
+ * flat. A 40ms step down the stack is enough to read as a sequence and short enough
+ * that the fourth card is on screen 160ms after the first — nobody is waiting on it.
+ *
+ * ONLY THE FIRST FEW ARE STEPPED. Past the fourth the delay stops growing, because a
+ * page with fourteen sections would otherwise take half a second to finish arriving
+ * and the cards at the bottom are below the fold regardless.
+ *
+ * `.page-enter` is removed from the pane once the entrance is over (see `ModulePane`),
+ * so these delays apply to the arrival and never to a card revealed later by scrolling.
+ */
+.page-enter > *:first-child {
+  animation: var(--animate-section-in);
+}
+
+.page-enter .page-stack > * {
+  animation-duration: var(--dur-emphasis);
+}
+.page-enter .page-stack > *:nth-child(1) {
+  animation-delay: 40ms;
+}
+.page-enter .page-stack > *:nth-child(2) {
+  animation-delay: 80ms;
+}
+.page-enter .page-stack > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.page-enter .page-stack > *:nth-child(n + 4) {
+  animation-delay: 160ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -349,5 +540,14 @@
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* The rule above cannot reach a view transition's pseudo-elements in every engine,
+     and a 0.01ms page swap is not the point anyway — `runPageTransition` skips the
+     transition entirely when this query matches. This is the belt to that braces. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

@@ -55,11 +55,16 @@ export function Reveal({
   const reduce = usePrefersReducedMotion()
   const play = inView || reduce
 
+  /* NO INLINE DELAY WHEN THERE IS NO DELAY. It used to write `animationDelay: 0ms`
+     unconditionally, and an inline declaration beats any stylesheet — which meant the
+     page-entrance stagger in `index.css` could set a delay on these elements and be
+     silently overruled on every one of them. A prop-driven delay still wins, as it
+     should; the default now simply leaves the property alone for CSS to decide. */
   return (
     <div
       ref={ref}
       className={`${play ? 'animate-fade-up' : 'opacity-0'} ${className}`}
-      style={play && !reduce ? { animationDelay: `${delay}ms` } : undefined}
+      style={play && !reduce && delay ? { animationDelay: `${delay}ms` } : undefined}
     >
       {children}
     </div>

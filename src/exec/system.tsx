@@ -374,8 +374,12 @@ export function Stack({ children }: { children: ReactNode }) {
      And the measurement has to be of the column: with a sidebar and an executive
      panel flanking it, a 1280 desktop hands this stack less width than a 1194
      tablet landscape does. See the note in `index.css`. */
+  /* `page-stack` carries no styling. It is the hook `.page-enter` in `index.css` needs
+     to find a page's own top-level cards and step their entrance 40ms apart — the one
+     class name that tells the motion layer "these are the sections". Every module and
+     record page renders through here, so marking it once marks all of them. */
   return (
-    <div className="flex w-full flex-col gap-[var(--gap)] px-[var(--gutter-lg)] pb-2 @[760px]:grid @[760px]:grid-cols-2 @[760px]:items-start">
+    <div className="page-stack flex w-full flex-col gap-[var(--gap)] px-[var(--gutter-lg)] pb-2 @[760px]:grid @[760px]:grid-cols-2 @[760px]:items-start">
       {children}
     </div>
   )
@@ -3132,7 +3136,7 @@ export function Filter<T>({
               type="button"
               aria-pressed={on}
               onClick={() => setActive(o)}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+              className={`card-press shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
                 on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
               }`}
             >
@@ -3144,11 +3148,18 @@ export function Filter<T>({
           )
         })}
       </div>
-      {visible.length > 0 ? (
-        children(visible, active)
-      ) : (
-        <p className="py-3 text-[12.5px] text-[#9b958b]">Nothing under {active} in this window.</p>
-      )}
+      {/* Keyed on the chip so the rows under it acknowledge the tap. Without this the
+          list simply IS different on the next frame, and on a filter that removes two
+          rows out of nine there is nothing on screen to say the tap registered.
+          `refresh` is a 200ms lift from part-opacity — the standard tier, no movement,
+          because nothing has moved: it is the same list, narrowed. */}
+      <div key={active} className="animate-refresh">
+        {visible.length > 0 ? (
+          children(visible, active)
+        ) : (
+          <p className="py-3 text-[12.5px] text-[#9b958b]">Nothing under {active} in this window.</p>
+        )}
+      </div>
     </div>
   )
 }
