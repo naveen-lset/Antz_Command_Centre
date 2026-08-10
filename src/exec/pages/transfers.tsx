@@ -23,6 +23,7 @@ import {
   Truck,
 } from 'lucide-react'
 import { report } from '../report'
+import { useSiteDrill } from '../../v4/panels'
 import {
   Band,
   Bullet,
@@ -41,6 +42,10 @@ import {
 } from '../system'
 
 export default function Transfers() {
+  /* The page a KPI card lands on is where the drill is entered: a site row opens the
+     existing sheet, scoped to that site. */
+  const openSite = useSiteDrill('transfers', 'Animal Movement')
+
   return (
     <>
       <PeriodHero
@@ -79,8 +84,8 @@ export default function Transfers() {
         </Section>
 
         {/* Overall stated above the six sites it is the sum of. */}
-        <Section icon={MapPin} label="Sites">
-          <Sites slug="transfers" />
+        <Section icon={MapPin} label="Sites" aside="tap to drill">
+          <Sites slug="transfers" onOpenSite={openSite} />
         </Section>
 
         <Section icon={ArrowLeftRight} label="Movements" aside="July">

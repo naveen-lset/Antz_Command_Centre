@@ -196,6 +196,47 @@ export const METRICS: Record<string, Metric> = {
     ],
   },
 
+  /*
+   * ESCAPES — animals that left their enclosure, and the ones still out.
+   *
+   * TWO METRICS, NOT ONE, because "how many escaped in July" and "how many are loose right
+   * now" are different questions and only the second one wakes anybody up. A flow summed over
+   * a window answers the first; a level read on its last day answers the second. Collapsing
+   * them — which is what a single figure would do — gives a card that reads "6 escaped" and
+   * cannot say whether that is six animals at large or six recovered the same afternoon.
+   *
+   * The distribution is the one a keeper would recognise: aviaries and primate islands account
+   * for most of it, aquatic systems almost none.
+   */
+  escaped: {
+    unit: 'escapes',
+    kind: 'flow',
+    grain: 'event',
+    flows: [
+      { site: 'aviary', v: [0, 1, 3, 14, 168] },
+      { site: 'primate', v: [0, 0, 1, 6, 74] },
+      { site: 'savanna', v: [0, 0, 1, 5, 61] },
+      { site: 'reptile', v: [0, 0, 1, 4, 47] },
+      { site: 'carnivore', v: [0, 0, 0, 2, 22] },
+      { site: 'aquatic', v: [0, 0, 0, 1, 14] },
+    ],
+  },
+
+  /* Still at large. Three animals, which is why the page shows a critical treatment. */
+  escapedOpen: {
+    unit: 'at large',
+    kind: 'level',
+    grain: 'event',
+    levels: [
+      { site: 'aviary', now: 2, then: 3 },
+      { site: 'primate', now: 1, then: 1 },
+      { site: 'savanna', now: 0, then: 1 },
+      { site: 'reptile', now: 0, then: 0 },
+      { site: 'carnivore', now: 0, then: 0 },
+      { site: 'aquatic', now: 0, then: 0 },
+    ],
+  },
+
   /* ── clinical ───────────────────────────────────────────────────────────── */
 
   /*
@@ -298,6 +339,75 @@ export const METRICS: Record<string, Metric> = {
       { site: 'reptile', v: [0, 2, 8, 48, 576] },
       { site: 'primate', v: [0, 1, 6, 38, 458] },
       { site: 'carnivore', v: [0, 1, 5, 30, 362] },
+    ],
+  },
+
+  /*
+   * ── preventive medication ──────────────────────────────────────────────
+   *
+   * THREE PROGRAMMES, AND EACH NEEDS TWO METRICS RATHER THAN ONE. Coverage answers "how
+   * much of the herd is protected right now" and is a reading; activity answers "how many
+   * were done in July" and is a flow. `vaccination` above has only ever been the first
+   * kind, which is why the preventive page could show a coverage percentage and could not
+   * show a vaccination count over time — there was no series of doses to sum. These are
+   * the missing halves, in the same shape as everything else here.
+   *
+   * OVERDUE IS NOT AUTHORED ANYWHERE, deliberately. It is the coverage gap — `of` minus
+   * `now` — so the overdue count, the site distribution and the individual records are all
+   * the same statement as the coverage rate rather than a second one that can drift from
+   * it. See `v4/modules/preventiveData.ts`.
+   */
+
+  /* Doses administered — the activity behind the `vaccination` coverage rate above.
+     The month column sums to 806, which is the figure the module has always stated for
+     vaccinations completed this month, split across sites by their eligible herd. */
+  vaccinations: {
+    unit: 'vaccinations',
+    kind: 'flow',
+    grain: 'event',
+    flows: [
+      { site: 'aquatic', v: [8, 53, 234, 1340, 14620] },
+      { site: 'aviary', v: [6, 41, 181, 1035, 11280] },
+      { site: 'savanna', v: [5, 34, 151, 866, 9450] },
+      { site: 'reptile', v: [3, 23, 101, 578, 6310] },
+      { site: 'primate', v: [3, 18, 81, 462, 5040] },
+      { site: 'carnivore', v: [2, 13, 58, 330, 3600] },
+    ],
+  },
+
+  /* Deworming COVERAGE, against the herd on an anthelmintic protocol — the counterpart to
+     `vaccination`, and what makes "overdue deworming" a derived figure rather than a typed
+     one. Sums to 1,946 of 2,190, the 89% the module states. The protocol herd is smaller
+     than the vaccination herd because not every vaccinated species is wormed. */
+  dewormingCover: {
+    unit: 'dewormed',
+    kind: 'rate',
+    grain: 'member',
+    levels: [
+      { site: 'aquatic', now: 573, then: 556, of: 636 },
+      { site: 'aviary', now: 442, then: 428, of: 491 },
+      { site: 'savanna', now: 359, then: 348, of: 411 },
+      { site: 'reptile', now: 236, then: 228, of: 275 },
+      { site: 'primate', now: 199, then: 192, of: 220 },
+      { site: 'carnivore', now: 137, then: 132, of: 157 },
+    ],
+  },
+
+  /* Supplement administrations. A flow and only a flow: a mineral mix given with feed has
+     no "covered / not covered" state to be overdue against, which is why the supplement
+     section shows activity and distribution and states no overdue figure. Month sums to
+     1,408 — the administrations the module has always stated. */
+  supplement: {
+    unit: 'administrations',
+    kind: 'flow',
+    grain: 'event',
+    flows: [
+      { site: 'aquatic', v: [15, 93, 410, 2390, 26200] },
+      { site: 'aviary', v: [12, 71, 316, 1840, 20200] },
+      { site: 'savanna', v: [10, 60, 264, 1540, 16900] },
+      { site: 'reptile', v: [6, 40, 176, 1025, 11250] },
+      { site: 'primate', v: [5, 32, 141, 820, 9000] },
+      { site: 'carnivore', v: [4, 22, 101, 585, 6450] },
     ],
   },
 

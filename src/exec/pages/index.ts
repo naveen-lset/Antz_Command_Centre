@@ -111,7 +111,7 @@ export const execPages: Record<string, ExecPage> = {
     keywords: ['infertile', 'unhatched', 'spoiled', 'rejected eggs'],
   },
   mortality: {
-    title: 'Mortality',
+    title: 'Mortality & Necropsy',
     Page: lazyPage(() => import('../../v4/modules/mortality')),
     icon: Activity,
     periods: true,
@@ -139,11 +139,17 @@ export const execPages: Record<string, ExecPage> = {
     keywords: ['infection', 'epidemic', 'quarantine', 'contagion', 'pathogen', 'zoonotic'],
   },
   preventive: {
-    title: 'Preventive Care',
+    /* "Preventive Medication", not "Preventive Care" — the module is vaccination, deworming
+       and supplements, and care is the clinical module next door. The route is unchanged. */
+    title: 'Preventive Medication',
     Page: lazyPage(() => import('../../v4/modules/preventive')),
     icon: ShieldPlus,
     periods: true,
-    keywords: ['prophylaxis', 'protection', 'coverage', 'routine care', 'screening'],
+    keywords: [
+      'prophylaxis', 'protection', 'coverage', 'routine care', 'screening',
+      'vaccine', 'vaccination', 'booster', 'deworming', 'anthelmintic', 'wormer',
+      'supplement', 'vitamin', 'mineral', 'overdue', 'due',
+    ],
   },
   pharmacy: {
     title: 'Pharmacy',

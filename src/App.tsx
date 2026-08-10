@@ -36,6 +36,7 @@ import { ScopeHeader } from './v4/ScopeHeader'
 import { ScopeProvider, useScope } from './v4/scope'
 import { EntityBrowser, EntityIndex, EntityPage } from './v4/entity'
 import { titleOf } from './v4/nav'
+import { SubModules } from './v4/SubModules'
 import { KIND_ONE, resolve, type EntityKind } from './core/entities'
 import { parseEntityRoute } from './core/scope'
 import { findExecPage } from './exec/pages'
@@ -108,7 +109,16 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
           eyebrow: page.ops ? 'Operations' : 'Monthly report',
           moduleTitle: titleOf(route.slug),
           onBack: phone ? home : undefined,
-          body: <page.Page />,
+          /* The module, then its chapters. `SubModules` renders nothing for a module that
+             has none, and it is here rather than in the pages so that folding a page into
+             a parent in `nav.ts` is the only edit that folding it ever needs — see the note
+             in that file about pages that become unreachable. */
+          body: (
+            <>
+              <page.Page />
+              <SubModules slug={route.slug} />
+            </>
+          ),
         }
       }
 

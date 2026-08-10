@@ -127,6 +127,14 @@ const DETAILS: Record<string, Detail[]> = {
     ['Early resorption', 20, 'warn'],
     ['Dystocia', 12, 'bad'],
   ],
+  /* An escape's classifying dimension is its OUTCOME, because that is the only thing anyone
+     asks about one. Most are back the same day; the tail is what the escape card counts. */
+  escaped: [
+    ['Recovered · same day', 54, 'warn'],
+    ['Recovered · within 7 days', 26, 'warn'],
+    ['Recovered · off site', 9, 'warn'],
+    ['Not recovered', 11, 'bad'],
+  ],
   lab: [
     ['Blood panel', 22, 'neutral'],
     ['Faecal float', 20, 'neutral'],
@@ -142,6 +150,36 @@ const DETAILS: Record<string, Detail[]> = {
     ['Fenbendazole', 28, 'good'],
     ['Praziquantel', 22, 'good'],
     ['Albendazole', 16, 'good'],
+  ],
+  /* A dose's classifying dimension is the VACCINE, which is what makes
+     Vaccination → Vaccine → Site → Species → Animal a real drill rather than a label.
+
+     The list spans the classes the collection actually vaccinates, because a zoo whose
+     headcount is four fifths fish runs an immersion programme as well as a needle one.
+     Which vaccine can reach which class is declared in `AGENT_CLASSES` below — without it
+     the weighted draw hands a shrimp a canine distemper booster, and one line like that on
+     an executive page costs the reader's trust in every other line. */
+  vaccinations: [
+    ['Rabies', 16, 'good'],
+    ['Foot-and-mouth', 13, 'good'],
+    ['Newcastle disease', 12, 'good'],
+    ['Aeromonas · immersion', 14, 'good'],
+    ['Columnaris · immersion', 10, 'good'],
+    ['Clostridial 7-in-1', 9, 'good'],
+    ['Avian pox', 8, 'good'],
+    ['Canine distemper', 7, 'good'],
+    ['Reptile core panel', 6, 'good'],
+    ['Brucellosis', 5, 'good'],
+    ['Tetanus toxoid', 4, 'good'],
+  ],
+  supplement: [
+    ['Calcium + D3', 26, 'neutral'],
+    ['Multivitamin', 22, 'neutral'],
+    ['Vitamin A', 16, 'neutral'],
+    ['Mineral mix', 14, 'neutral'],
+    ['Omega-3', 10, 'neutral'],
+    ['Vitamin E + selenium', 7, 'neutral'],
+    ['Probiotic', 5, 'neutral'],
   ],
   eggs: [
     ['Clutch set', 62, 'neutral'],
@@ -168,6 +206,88 @@ const DETAILS: Record<string, Detail[]> = {
 }
 
 const FALLBACK: Detail[] = [['Recorded', 1, 'neutral']]
+
+/**
+ * WHICH CLASSES AN AGENT CAN REACH.
+ *
+ * Only the preventive vocabularies need this, and they need it badly: every other metric's
+ * dimension is a fact about the event (a cause of death, a sample type) and applies to any
+ * animal, while a vaccine, an anthelmintic and a supplement each apply to some animals and
+ * not others. A name absent from this map reaches everything.
+ *
+ * Declared beside the vocabulary it constrains, and read by both the record stream and the
+ * overdue roster — so the vaccine an animal is overdue for is drawn from the same rule as
+ * the vaccine it would have been given.
+ */
+const AGENT_CLASSES: Record<string, string[]> = {
+  /* vaccines */
+  Rabies: ['Mammalia'],
+  'Foot-and-mouth': ['Mammalia'],
+  'Clostridial 7-in-1': ['Mammalia'],
+  'Canine distemper': ['Mammalia'],
+  Brucellosis: ['Mammalia'],
+  'Tetanus toxoid': ['Mammalia'],
+  'Newcastle disease': ['Aves'],
+  'Avian pox': ['Aves'],
+  'Aeromonas · immersion': ['Actinopterygii', 'Chondrichthyes'],
+  'Columnaris · immersion': ['Actinopterygii'],
+  'Reptile core panel': ['Reptilia', 'Amphibia'],
+  /* anthelmintics — praziquantel is the fluke drug and reaches the water classes too */
+  Ivermectin: ['Mammalia', 'Aves', 'Reptilia'],
+  Fenbendazole: ['Mammalia', 'Aves', 'Reptilia'],
+  Albendazole: ['Mammalia', 'Aves'],
+  /* supplements */
+  'Vitamin E + selenium': ['Mammalia', 'Aves'],
+  'Omega-3': ['Actinopterygii', 'Chondrichthyes', 'Mammalia'],
+}
+
+const reaches = (label: string, cls?: string): boolean => {
+  const only = AGENT_CLASSES[label]
+  return !only || !cls || only.includes(cls)
+}
+
+/**
+ * The classifying values a metric draws from, in weight order, narrowed to a class.
+ *
+ * Exported so a caller that needs the vocabulary without walking the events — the overdue
+ * roster needs a vaccine name per animal, and no event exists for a dose that was never
+ * given — draws from the same table under the same rule the records do.
+ */
+/**
+ * The agents that reach a class — EMPTY where none do, unlike `tableFor` below.
+ *
+ * The difference is the point. An event must land in some bucket, so the event stream falls
+ * back to the whole vocabulary; a protocol roster must not, because "this shrimp is overdue
+ * for its avian pox vaccine" is worse than saying nothing. A caller building a roster reads
+ * the empty list as "this class is not on the protocol" and leaves the species out.
+ */
+export const detailsFor = (kind: string, cls?: string): { label: string; weight: number }[] =>
+  (DETAILS[kind] ?? FALLBACK).filter(([label]) => reaches(label, cls)).map(([label, weight]) => ({ label, weight }))
+
+/** Whether a class is on a metric's protocol at all. */
+export const onProtocol = (kind: string, cls: string): boolean => detailsFor(kind, cls).length > 0
+
+/**
+ * The vocabulary for one (metric, class), cached.
+ *
+ * Cached rather than filtered per call because `tally` asks for it once per event, and a
+ * six-year pharmacy window is 89,000 events — an array allocation each would turn a
+ * grouping pass into garbage collection.
+ */
+const tableCache = new Map<string, Detail[]>()
+
+function tableFor(kind: string, cls?: string): Detail[] {
+  const key = `${kind}:${cls ?? ''}`
+  const hit = tableCache.get(key)
+  if (hit) return hit
+  const all = DETAILS[kind] ?? FALLBACK
+  const narrowed = all.filter(([label]) => reaches(label, cls))
+  /* A class no agent reaches falls back to the full table rather than to nothing — an event
+     with no detail would break the invariant that every event lands in exactly one bucket. */
+  const out = narrowed.length ? narrowed : all
+  tableCache.set(key, out)
+  return out
+}
 
 /* ── weighted draw ───────────────────────────────────────────────────────── */
 
@@ -199,16 +319,48 @@ function indexFrom(cum: number[], t: number): number {
   return lo
 }
 
-/** Which species an event in this site belongs to. Weighted by the site's own composition. */
-function speciesFor(siteKey: string, seed: string): Species {
-  const list = speciesIn(siteKey)
-  const cum = cumulative(`sp:${siteKey}`, list.map((s) => s.weight))
+/**
+ * Which species an event in this site belongs to. Weighted by the site's own composition.
+ *
+ * NARROWED WHERE THE METRIC HAS A PROTOCOL. A death, a transfer and a lab sample can happen
+ * to anything the site holds. A vaccination cannot: the preventive vocabularies declare
+ * which classes each agent reaches, so for those metrics the draw is over the species on the
+ * protocol rather than over the whole site. Without it a tenth of Aquatic Halls' doses land
+ * on prawns and snails.
+ *
+ * The narrowed list is cached per (site, metric), and the cumulative weights are keyed the
+ * same way — `tally` and `eventAt` must make the identical draw or a grouping and its
+ * records would name different species for the same event.
+ */
+const speciesCache = new Map<string, Species[]>()
+
+function speciesPool(siteKey: string, kind?: string): Species[] {
+  const key = `${siteKey}:${kind ?? ''}`
+  const hit = speciesCache.get(key)
+  if (hit) return hit
+  const all = speciesIn(siteKey)
+  const pool = kind && HAS_PROTOCOL.has(kind) ? all.filter((s) => onProtocol(kind, s.cls)) : all
+  const out = pool.length ? pool : all
+  speciesCache.set(key, out)
+  return out
+}
+
+/** The metrics whose vocabulary is class-restricted, and therefore whose species pool is too. */
+const HAS_PROTOCOL = new Set(['vaccinations', 'deworming', 'supplement'])
+
+function speciesFor(siteKey: string, seed: string, kind?: string): Species {
+  const list = speciesPool(siteKey, kind)
+  const cum = cumulative(`sp:${siteKey}:${kind ?? ''}`, list.map((s) => s.weight))
   return list[indexFrom(cum, draw(seed))] ?? list[0]
 }
 
-function detailFor(kind: string, seed: string): Detail {
-  const table = DETAILS[kind] ?? FALLBACK
-  const cum = cumulative(`dt:${kind}`, table.map((d) => d[1]))
+/** The species a metric's protocol covers at a site — what a roster is apportioned across. */
+export const protocolSpecies = (siteKey: string, kind: string): Species[] => speciesPool(siteKey, kind)
+
+/** The classifying value for one event. `cls` narrows the vocabulary where an agent needs it. */
+function detailFor(kind: string, seed: string, cls?: string): Detail {
+  const table = tableFor(kind, cls)
+  const cum = cumulative(`dt:${kind}:${cls ?? ''}`, table.map((d) => d[1]))
   return table[indexFrom(cum, draw(seed))] ?? table[0]
 }
 
@@ -223,8 +375,9 @@ function detailFor(kind: string, seed: string): Detail {
  */
 export function eventAt(kind: string, siteKey: string, day: number, i: number): Ev {
   const seed = `${kind}:${siteKey}:${day}:${i}`
-  const species = speciesFor(siteKey, `${seed}:sp`)
-  const [detail, , tone] = detailFor(kind, `${seed}:dt`)
+  const species = speciesFor(siteKey, `${seed}:sp`, kind)
+  /* The species is drawn first so the detail can be narrowed to what reaches its class. */
+  const [detail, , tone] = detailFor(kind, `${seed}:dt`, species.cls)
   const r = rng(seed)
 
   /* The subject animal. Drawn from the species' real population so the id decodes to a
@@ -334,10 +487,13 @@ export function tally(
         }
         const seed = `${slug}:${key}:${day}:${i}`
         if (by === 'detail') {
-          add(detailFor(slug, `${seed}:dt`)[0], detailFor(slug, `${seed}:dt`)[0])
+          /* Same two draws the event itself makes, in the same order, so a grouping by
+             detail and the records it groups cannot disagree. */
+          const label = detailFor(slug, `${seed}:dt`, speciesFor(key, `${seed}:sp`, slug).cls)[0]
+          add(label, label)
           continue
         }
-        const sp = speciesFor(key, `${seed}:sp`)
+        const sp = speciesFor(key, `${seed}:sp`, slug)
         if (by === 'species') add(sp.name, sp.name)
         else if (by === 'class') add(sp.cls, sp.cls)
         else {

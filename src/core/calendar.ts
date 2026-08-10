@@ -78,6 +78,7 @@ export type WindowKey =
   | 'month'
   | 'lastMonth'
   | 'quarter'
+  | 'half'
   | 'year'
   | 'all'
   | 'custom'
@@ -126,6 +127,19 @@ const SPECS: { key: Exclude<WindowKey, 'custom'>; label: string; noun: string; f
   { key: 'month', label: 'This month', noun: 'this month', from: monthStart(0), to: monthEnd(0) },
   { key: 'lastMonth', label: 'Last month', noun: 'last month', from: monthStart(1), to: monthEnd(1) },
   { key: 'quarter', label: 'Last 3 months', noun: 'this quarter', from: monthStart(2), to: monthEnd(0) },
+  /*
+   * SIX MONTHS LANDS EXACTLY ON AN AUTHORED COLUMN, which is why it belongs in this list rather
+   * than being approximated by a custom range.
+   *
+   * `metrics.ts` states five nested totals per site and the fourth is "last 6 months";
+   * `series.ts` carves its segments on the first day of the month five back, so a window from
+   * `monthStart(5)` to `monthEnd(0)` sums to that authored figure to the unit. Today, last 7
+   * days and this month already had presets on their authored columns; this was the one that
+   * did not, so the filter could not ask for a figure the data states directly.
+   *
+   * `core/checks.ts` asserts it on every dev boot alongside the other three.
+   */
+  { key: 'half', label: 'Last 6 months', noun: 'in six months', from: monthStart(5), to: monthEnd(0) },
   { key: 'year', label: 'Last 12 months', noun: 'this year', from: monthStart(11), to: monthEnd(0) },
   { key: 'all', label: 'All time', noun: 'all time', from: 0, to: TODAY },
 ]

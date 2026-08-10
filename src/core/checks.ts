@@ -91,12 +91,16 @@ export function runChecks(): void {
     ['today', resolveWindow('today')],
     ['last7', resolveWindow('last7')],
     ['month', month],
+    /* The six-month preset sits on the fourth authored column, so it is checked like the other
+       three rather than trusted — if the segment boundaries in `series.ts` ever move, this is
+       the assertion that says so. */
+    ['half', resolveWindow('half')],
   ]
 
   for (const [slug, metric] of Object.entries(METRICS)) {
     if (metric.kind !== 'flow') continue
     for (const row of metric.flows ?? []) {
-      const want = { today: row.v[0], last7: row.v[1], month: row.v[2] }
+      const want = { today: row.v[0], last7: row.v[1], month: row.v[2], half: row.v[3] }
       for (const [name, win] of authored) {
         const got = sumIn(slug, row.site, win.from, win.to)
         const expected = want[name as keyof typeof want]

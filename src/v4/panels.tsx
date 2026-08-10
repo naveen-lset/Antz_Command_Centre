@@ -30,6 +30,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { resolveWindow } from '../core/calendar'
 import { series } from '../core/series'
+import { siteOf } from '../core/world'
 import { usePeriod } from '../exec/period'
 import { useTrendCard } from './kpi'
 import {
@@ -192,6 +193,33 @@ export function TapRow({
 
 export const TapList = ({ children }: { children: ReactNode }) => <ul className="flex flex-col">{children}</ul>
 
+/* ── entering the drill from a module page ───────────────────────────────── */
+
+/**
+ * Tap a site row → that site's drill, as a sheet.
+ *
+ * THE KPI CARD NO LONGER OPENS THIS. A card on the home used to be the first door to the
+ * Overall → Site → Species → Animal drill, which meant the deepest analytical view in the
+ * product arrived over a home screen, with the module page it belongs to never visited. The
+ * card now opens the module's detail page and the page's own site list is where the drill is
+ * entered — so the sheet is a drill-down from the page that explains it rather than the first
+ * destination from a tile.
+ *
+ * Declared once, because six module pages need exactly this handler and a hand-composed
+ * `open({ title, eyebrow, body })` at each call site is six chances for one of them to open a
+ * sheet titled for a site it did not scope to.
+ */
+export function useSiteDrill(metric: string, eyebrow?: string) {
+  const { open } = useSheet()
+  return (key: string, name: string) =>
+    open({
+      title: name,
+      eyebrow: eyebrow ?? DRILL[metric]?.title ?? 'Breakdown',
+      /* The KEY, not just the name — the panel opens on the site that was tapped. */
+      body: <MetricPanel metric={metric} siteKey={key} />,
+    })
+}
+
 /* ── the detail page ─────────────────────────────────────────────────────── */
 
 /**
@@ -214,16 +242,23 @@ export const TapList = ({ children }: { children: ReactNode }) => <ul className=
  * There is no link out to the module, deliberately. This page is the detail; a button
  * that leaves it was an admission that it wasn't.
  */
-export function MetricPanel({ metric }: { metric: string }) {
+export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: string }) {
   const { period, cut } = usePeriod()
   const { open } = useSheet()
   const { site: scope } = useSite()
-  /* Opens on whatever the global site filter is set to. A director who has scoped the
-     whole home to Aquatic Halls and then taps a KPI is asking about Aquatic Halls; the
-     sheet starting zoo-wide would make them pick it a second time. */
-  const [site, setSite] = useState<{ key: string; name: string } | null>(
-    scope ? { key: scope.key, name: scope.name } : null,
-  )
+  /* WHERE THE PANEL OPENS.
+     `siteKey` is the row that was tapped — the sheet is now reached by drilling a site on a
+     module page, and arriving unscoped would make the reader pick the site they just picked.
+     Absent one it falls back to the global site filter, for the same reason: a director who has
+     scoped the whole app to Aquatic Halls is asking about Aquatic Halls.
+     Memoised on the KEY rather than the object, so a caller passing a fresh literal each render
+     cannot restart the reset effect below. */
+  const opening = useMemo(() => {
+    const picked = siteKey ? siteOf(siteKey) : undefined
+    if (picked) return { key: picked.key, name: picked.name }
+    return scope ? { key: scope.key, name: scope.name } : null
+  }, [siteKey, scope])
+  const [site, setSite] = useState<{ key: string; name: string } | null>(opening)
   const [species, setSpecies] = useState<string | null>(null)
   const speciesCard = useRef<HTMLDivElement>(null)
   const animalsCard = useRef<HTMLDivElement>(null)
@@ -235,9 +270,9 @@ export function MetricPanel({ metric }: { metric: string }) {
      reported nothing last week would leave the page filtered to an empty list with no
      visible cause. Clearing on the window is the honest reset. */
   useEffect(() => {
-    setSite(scope ? { key: scope.key, name: scope.name } : null)
+    setSite(opening)
     setSpecies(null)
-  }, [period.key, scope])
+  }, [period.key, opening])
 
   const speciesRows = useMemo(
     () => (site ? speciesFor(metric, site.key, cut) : speciesForAll(metric, cut)),

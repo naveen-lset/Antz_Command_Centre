@@ -74,19 +74,49 @@ export function Sidebar({ route }: { route: string }) {
         />
 
         {groups.map((group) => (
-          <div key={group.name} className="mt-4 first:mt-3">
-            <h2 className="px-3 pb-1.5 text-[10.5px] font-semibold tracking-[0.09em] text-[#9b958b] uppercase">
+          /* 14px between groups and 4px under a heading, down from 16 and 6. Four headings
+             instead of two cost about a row and a half of height, and the rail is worth
+             keeping inside a 13-inch laptop — this is where that comes back from. */
+          <div key={group.name} className="mt-3.5 first:mt-3">
+            <h2 className="px-3 pb-1 text-[10.5px] font-semibold tracking-[0.09em] text-[#9b958b] uppercase">
               {group.name}
             </h2>
-            {group.items.map((item) => (
-              <SidebarLink
-                key={item.slug}
-                href={`#/${item.slug}`}
-                icon={item.icon}
-                label={item.label}
-                active={active === item.slug}
-              />
-            ))}
+            {group.items.map((item) => {
+              /* Children appear while you are inside the module and while you are on one of
+                 them, and at no other time. That is what keeps the rail at sixteen rows: the
+                 chapters of a module are context, not destinations you scan past on the way
+                 to something else. Search overrides it — a filtered list shows what matched. */
+              const inside = active === item.slug || (item.children ?? []).some((c) => c.slug === active)
+              const kids = query ? (item.children ?? []) : inside ? (item.children ?? []) : []
+              return (
+                <div key={item.slug}>
+                  <SidebarLink
+                    href={`#/${item.slug}`}
+                    icon={item.icon}
+                    label={item.label}
+                    active={active === item.slug}
+                    count={!inside && !query ? (item.children?.length ?? 0) : 0}
+                  />
+                  {kids.length > 0 && (
+                    /* Indented against a hairline rather than merely padded, so two levels
+                       are legible at a glance instead of reading as a slightly-offset flat
+                       list. */
+                    <div className="mt-0.5 mb-1 ml-[22px] border-l border-[#eceae5] pl-2">
+                      {kids.map((child) => (
+                        <SidebarLink
+                          key={child.slug}
+                          href={`#/${child.slug}`}
+                          icon={child.icon}
+                          label={child.label}
+                          active={active === child.slug}
+                          small
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         ))}
 
@@ -122,22 +152,37 @@ function SidebarLink({
   icon: Glyph,
   label,
   active,
+  count = 0,
+  small,
 }: {
   href: string
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
   label: string
   active: boolean
+  /** How many chapters are folded under this row while it is closed. 0 prints nothing. */
+  count?: number
+  /** A child row — quieter, and no glyph tile competing with its parent's. */
+  small?: boolean
 }) {
   return (
     <a
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex items-center gap-2.5 rounded-[10px] px-3 py-[9px] text-[13.5px] transition-colors duration-200 ${
-        active ? 'bg-[#e7f0ea] font-semibold text-[#0a4d3c]' : 'font-medium text-[#3d3a34] hover:bg-[#f6f7f6]'
-      }`}
+      className={`flex items-center gap-2.5 rounded-[10px] px-3 transition-colors duration-200 ${
+        small ? 'py-[6px] text-[12.5px]' : 'py-2 text-[13.5px]'
+      } ${active ? 'bg-[#e7f0ea] font-semibold text-[#0a4d3c]' : 'font-medium text-[#3d3a34] hover:bg-[#f6f7f6]'}`}
     >
-      <Glyph size={16} strokeWidth={1.75} className={active ? 'text-[#0a4d3c]' : 'text-[#9b958b]'} />
+      <Glyph
+        size={small ? 14 : 16}
+        strokeWidth={1.75}
+        className={active ? 'text-[#0a4d3c]' : 'text-[#9b958b]'}
+      />
       <span className="min-w-0 flex-1 truncate">{label}</span>
+      {/* The count is what makes folding honest: a row that hides two pages says so, so the
+          reader knows there is something under it rather than discovering it by accident. */}
+      {count > 0 && (
+        <span className="shrink-0 text-[10.5px] font-semibold tabular-nums text-[#b3aea6]">{count}</span>
+      )}
     </a>
   )
 }

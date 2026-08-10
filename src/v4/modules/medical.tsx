@@ -1,294 +1,1117 @@
 /**
- * MEDICAL & HOSPITAL — a caseload, and the building that holds it.
+ * MEDICAL & HOSPITALS — hospital-based.
  *
- * Two different questions live on this page and the layout keeps them apart. The
- * caseload is clinical: how many animals are under treatment, how sick, recovering or
- * not. The hospital is physical: which department, which ward, how full, how long a
- * stay. A director asks the first; a hospital manager asks the second; the page
- * answers them in that order.
+ * TWO CLOCKS, AND THE PAGE NEVER MIXES THEM. A medical case is an EVENT — it opened on a
+ * day, and how many opened is a question about a window. Being in hospital is a STATUS —
+ * an animal admitted three weeks ago is in a bed tonight whatever dates the reader picked.
+ * So every activity card carries the window in its aside and every status card says "now",
+ * and changing the date filter moves the first kind and not the second. A page that let
+ * the date range empty the ward would be telling a director the animals had gone home.
  *
- * The drill is Hospital → Department → Ward → Animal, which is four levels rather than
- * the animal modules' three, because a ward is a real place with its own occupancy.
+ * EVERYTHING IS ONE STREAM. `admissions` in `core/metrics.ts` is already hospital- and
+ * ward-attributed with a presenting complaint on every event — that is a medical case. So
+ * cases, in-patients, discharges, length of stay, recovery, hospital deaths, surgeries and
+ * active medications are all that one stream read differently, and they cannot contradict
+ * each other because there is nothing for them to contradict. See `medicalData.ts`.
+ *
+ * WHAT IS NOT HERE. No medicine stock, cost or reorder level — that is Pharmacy. No cause
+ * of death analysis — that is Mortality; this page carries only the deaths that happened
+ * in care, because a hospital's own mortality is a hospital fact. No recommendation, no
+ * "needs attention", no forecast.
+ *
+ * THE HOSPITAL FILTER IS THIS PAGE'S OWN. The global scope is site and window, as it is
+ * everywhere; a hospital is a level below a site and only this module has one, so it is a
+ * contextual filter here rather than a fourth thing in the global header.
  */
 
+import { useMemo, useState } from 'react'
 import {
   Activity,
   BedDouble,
   Building2,
   ClipboardList,
+  Dna,
   HeartPulse,
   Hourglass,
-  MapPin,
+  Pill,
   Scissors,
+  Search,
   Stethoscope,
+  TriangleAlert,
 } from 'lucide-react'
+import { TODAY, shortDate } from '../../core/calendar'
+import { decodeAnimalId } from '../../core/animals'
+import { figure } from '../../core/query'
+import { siteKeyOf } from '../../core/scope'
+import { HOSPITALS, hospitalOf } from '../../core/world'
 import {
+  ACCENT_INK,
+  AccentProvider,
   Bars,
-  Dial,
-  Events,
-  Facts,
-  Highlights,
-  Pareto,
-  Poles,
-  Records,
+  FAINT,
+  Figure,
+  HERO_INK,
   Rule,
   Section,
   Snapshot,
   Stack,
-  StatusList,
+  TONE,
+  fmt,
+  mix,
 } from '../../exec/system'
-import { DrillList, DrillRow, ModuleHero, NodePanel, SiteSplit, useSheet } from './kit'
-import { MetricPanel } from '../panels'
+import { MoreRows, usePaged } from '../perf'
+import { FindField } from '../filters'
+import { useScope } from '../scope'
+import { useSheet } from '../sheet'
+import { DrillList, DrillRow } from './kit'
+import { ScheduleGrid, SortableList, gridCells, type Column } from './preventiveMarks'
+import {
+  MEDICAL_ACCENT,
+  OUTCOME_TONE,
+  SEVERITY_TONE,
+  byComplaintSlice,
+  bySeveritySlice,
+  casesBetween,
+  casesIn,
+  daysIn,
+  dischargedIn,
+  medicationSlices,
+  openCases,
+  hospitalLines,
+  scopeLine,
+  speciesLines,
+  summarise,
+  type HospitalLine,
+  type MedCase,
+  type SpeciesLine,
+} from './medicalData'
+import {
+  AnimalMedicalSheet,
+  CaseListSheet,
+  CaseSheet,
+  HospitalSheet,
+  PeriodSheet,
+  RecoverySheet,
+} from './medicalSheets'
 
-const ANIMAL = (id: string, species: string, day: string) => ({
-  id,
-  label: id,
-  sub: species,
-  value: 1,
-  facts: [
-    { label: 'Species', value: species },
-    { label: 'Admitted', value: day },
-    { label: 'Presenting sign', value: 'Inappetence' },
-    { label: 'Treatment', value: 'Fluids · antibiotics' },
-    { label: 'Status', value: 'Stable' },
-  ],
-})
-
-/**
- * Hospital → Department → Ward → Animal.
- *
- * The wards carry occupancy rather than a headcount, because "Ward 2: 8" is ambiguous
- * and "Ward 2: 8 of 10" is a decision about whether the next admission has anywhere
- * to go.
- */
-const HOSPITAL = [
-  {
-    id: 'internal',
-    label: 'Internal medicine',
-    sub: '3 wards · 22 animals',
-    value: 22,
-    unit: 'animals',
-    children: [
-      { id: 'w1', label: 'Ward 1 · general', sub: '8 of 10 beds', value: 8, unit: 'animals', children: [ANIMAL('ANM-19043', 'Indian Rock Python', '29 Jul'), ANIMAL('ANM-30115', 'Rhesus Macaque', '28 Jul'), ANIMAL('ANM-28450', 'Blackbuck', '26 Jul')] },
-      { id: 'w2', label: 'Ward 2 · isolation', sub: '9 of 10 beds', value: 9, unit: 'animals', tone: 'warn' as const, children: [ANIMAL('ANM-50882', 'Nile Tilapia stock', '30 Jul'), ANIMAL('ANM-41266', 'Painted Stork', '27 Jul')] },
-      { id: 'w3', label: 'Ward 3 · recovery', sub: '5 of 12 beds', value: 5, unit: 'animals', children: [ANIMAL('ANM-22771', 'Chital', '25 Jul')] },
-    ],
-  },
-  {
-    id: 'surgery',
-    label: 'Surgery',
-    sub: '2 wards · 14 animals',
-    value: 14,
-    unit: 'animals',
-    children: [
-      { id: 'w4', label: 'Theatre recovery', sub: '6 of 8 beds', value: 6, unit: 'animals', children: [ANIMAL('ANM-22771', 'Chital', '25 Jul'), ANIMAL('ANM-40218', 'Asiatic Lion', '30 Jul')] },
-      { id: 'w5', label: 'Post-op ward', sub: '8 of 14 beds', value: 8, unit: 'animals', children: [ANIMAL('ANM-31904', 'Bengal Fox', '21 Jul')] },
-    ],
-  },
-  {
-    id: 'quarantine',
-    label: 'Quarantine',
-    sub: '2 wards · 12 animals · full',
-    value: 12,
-    unit: 'animals',
-    tone: 'bad' as const,
-    children: [
-      { id: 'w6', label: 'Quarantine A', sub: '6 of 6 beds', value: 6, unit: 'animals', tone: 'bad' as const, children: [ANIMAL('ANM-41266', 'Painted Stork', '27 Jul')] },
-      { id: 'w7', label: 'Quarantine B', sub: '6 of 6 beds', value: 6, unit: 'animals', tone: 'bad' as const, children: [ANIMAL('ANM-19043', 'Indian Rock Python', '29 Jul')] },
-    ],
-  },
-  {
-    id: 'nursery',
-    label: 'Neonatal',
-    sub: '1 ward · 9 animals',
-    value: 9,
-    unit: 'animals',
-    children: [
-      { id: 'w8', label: 'Hand-rearing', sub: '9 of 16 cots', value: 9, unit: 'animals', children: [ANIMAL('ANM-15011', 'Rock Pigeon', '31 Jul')] },
-    ],
-  },
-]
+/* ── the page ────────────────────────────────────────────────────────────── */
 
 export default function Medical() {
-  const { open } = useSheet()
+  /* The page's own filter. The window and the site stay in the global scope, so this page
+     cannot hold a second opinion about either. */
+  const [hospital, setHospital] = useState<string | undefined>(undefined)
 
   return (
-    <>
-      <ModuleHero
-        icon={Stethoscope}
-        slug="health"
-        value="124"
-        label="Animals under treatment"
-        status="7 critical · 57 hospitalised"
-        tone="warn"
-        stats={[
-          { value: '50', label: 'New cases' },
-          { value: '38', label: 'Discharged' },
-          { value: '8.4', unit: 'd', label: 'Average stay' },
+    <AccentProvider value={MEDICAL_ACCENT}>
+      <MedicalHero hospitalId={hospital} />
+      <Stack>
+        <Toolbar hospitalId={hospital} onHospital={setHospital} />
+        <CaseTrend hospitalId={hospital} />
+        <ActiveCases hospitalId={hospital} />
+        <HospitalTable onOpenHospital={setHospital} />
+        <Hospitalisation hospitalId={hospital} />
+        <StayComparison hospitalId={hospital} />
+        <Recovery hospitalId={hospital} />
+        <Surgeries hospitalId={hospital} />
+        <HospitalMortality hospitalId={hospital} />
+        <ActiveMedications hospitalId={hospital} />
+        <SpeciesWorkload hospitalId={hospital} />
+        <CaseRecords hospitalId={hospital} />
+      </Stack>
+    </AccentProvider>
+  )
+}
+
+/**
+ * A section that keeps the whole column past the two-column break.
+ *
+ * `Stack` splits at 760px of column and a container query inside a section still measures
+ * the column, so a table told to appear at 720 would appear inside a 455px half. The
+ * data-dense sections say so; the compact ones stay half-width, where they read better
+ * paired than stretched.
+ */
+const Wide = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-w-0 @[760px]:col-span-2">{children}</div>
+)
+
+/* ── 1 · hero ────────────────────────────────────────────────────────────── */
+
+/**
+ * Three figures large, five small, one card.
+ *
+ * NOT EIGHT KPI CARDS. Eight cards of equal weight say these are eight equally important
+ * numbers, and they are not: a director opens this page to learn how many animals are sick
+ * and how many are in a bed. Those two and the case count lead; the other five sit under a
+ * rule, where they are read second because they are read second.
+ *
+ * The status figures and the activity figures are separated by that rule too, and captioned
+ * differently — "now" against the window — because they answer on different clocks.
+ */
+function MedicalHero({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const s = useMemo(() => summarise(scope, hospitalId), [scope, hospitalId])
+
+  /* Animals under care is the CASELOAD metric, not the case model: it counts every animal
+     under treatment including the out-patients a hospital never admits. Stated at the site
+     grain it has, and suppressed under a hospital filter rather than silently widened. */
+  const underCare = Math.round(figure(scope, 'health').value)
+
+  return (
+    <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
+        <div className="flex items-end justify-between gap-4">
+          <span>
+            <Figure value={fmt(s.cases)} size={52} color={HERO_INK} />
+            <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+              <Stethoscope size={15} strokeWidth={1.75} style={{ color: MEDICAL_ACCENT }} aria-hidden />
+              Medical cases · {scope.win.label.toLowerCase()}
+            </p>
+          </span>
+          <span className="shrink-0 pb-1 text-right text-[11px] leading-[15px]" style={{ color: FAINT }}>
+            {scopeLine(scope, hospitalId)}
+            <br />
+            {hospitalId ? '1 hospital' : `${HOSPITALS.length} hospitals`} · {s.discharges} discharged
+          </span>
+        </div>
+
+        <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
+          <span className="min-w-0 flex-1 pr-4">
+            <Figure value={hospitalId ? '—' : fmt(underCare)} size={26} />
+            {/* Wraps rather than truncates. The caption is the clock the figure is read on —
+                "Animals sick · no…" has thrown away the only word that was doing work. */}
+            <span className="mt-0.5 block text-[12px] leading-[15px] text-[#6d6860]">
+              {hospitalId ? 'Sick · site level' : 'Animals sick · now'}
+            </span>
+          </span>
+          <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
+            <Figure value={fmt(s.inHospital)} size={26} color={TONE.warn} />
+            <span className="mt-0.5 block text-[12px] leading-[15px]" style={{ color: TONE.warn }}>
+              In hospital · now
+            </span>
+          </span>
+          <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
+            <Figure value={fmt(s.medications)} size={26} />
+            <span className="mt-0.5 block text-[12px] leading-[15px] text-[#6d6860]">Medications · now</span>
+          </span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[#f0efec] pt-4 @[520px]:grid-cols-4">
+          {[
+            { label: 'Surgeries', value: fmt(s.surgeries) },
+            { label: 'Died in care', value: fmt(s.deaths), tone: s.deaths ? TONE.bad : undefined },
+            {
+              label: 'Recovery rate',
+              value: s.recovery === undefined ? '—' : `${Math.round(s.recovery)}%`,
+              tone: s.recovery === undefined ? undefined : '#1e7a44',
+            },
+            { label: 'Average stay', value: s.averageStay === undefined ? '—' : `${s.averageStay.toFixed(1)} d` },
+          ].map((f) => (
+            <span key={f.label} className="min-w-0">
+              <span
+                className="block font-display text-[19px] leading-none font-bold tabular-nums"
+                style={{ color: f.tone ?? HERO_INK }}
+              >
+                {f.value}
+              </span>
+              <span className="mt-1 block truncate text-[11.5px]" style={{ color: FAINT }}>
+                {f.label}
+              </span>
+            </span>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+/* ── 2 · the toolbar ─────────────────────────────────────────────────────── */
+
+/** The hospital filter and search — what belongs to this page rather than to every page. */
+function Toolbar({ hospitalId, onHospital }: { hospitalId?: string; onHospital: (id?: string) => void }) {
+  const [query, setQuery] = useState('')
+
+  return (
+    <Section
+      icon={Building2}
+      label="Hospital"
+      aside={hospitalId ? (hospitalOf(hospitalId)?.name ?? '') : 'All hospitals'}
+    >
+      <div className="flex flex-wrap gap-1.5">
+        {[undefined, ...HOSPITALS.map((h) => h.id)].map((id) => {
+          const on = hospitalId === id
+          const h = id ? hospitalOf(id) : undefined
+          return (
+            <button
+              key={id ?? 'all'}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onHospital(id)}
+              className="card-press shrink-0 rounded-full px-3 py-[6px] text-[12px] font-medium whitespace-nowrap transition-colors"
+              style={
+                on
+                  ? { backgroundColor: MEDICAL_ACCENT, color: '#ffffff' }
+                  : { backgroundColor: mix(MEDICAL_ACCENT, 0.09), color: '#8a1430' }
+              }
+              title={h?.name}
+            >
+              {h ? h.code : 'All'}
+              {h && <span className="ml-1.5 opacity-70">{h.beds}b</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      <Rule label="Find" />
+      <FindField value={query} onChange={setQuery} placeholder="Animal ID, species, case ID, hospital, medicine" />
+      <SearchResults query={query} hospitalId={hospitalId} onHospital={onHospital} />
+    </Section>
+  )
+}
+
+/**
+ * What the search finds, while something is typed and not before.
+ *
+ * Bounded by construction: hospitals and medicines are short registries, species come from
+ * the window's own cases, an animal id is decoded rather than searched, and a case id is
+ * matched against the window's cases. Nothing here loads a population.
+ */
+function SearchResults({
+  query,
+  hospitalId,
+  onHospital,
+}: {
+  query: string
+  hospitalId?: string
+  onHospital: (id?: string) => void
+}) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+  const q = query.trim().toLowerCase()
+
+  const hits = useMemo(() => {
+    if (q.length < 2) return []
+    const cases = casesIn(scope, hospitalId)
+    const out: { key: string; label: string; sub: string; onOpen: () => void }[] = []
+
+    const id = q.toUpperCase().startsWith('ANM-') ? q.toUpperCase() : `ANM-${q.toUpperCase()}`
+    if (decodeAnimalId(id)) {
+      out.push({
+        key: id,
+        label: id,
+        sub: 'Animal',
+        onOpen: () =>
+          open({
+            title: id,
+            eyebrow: 'Animal',
+            body: <AnimalMedicalSheet animalId={id} cases={casesBetween(siteKeyOf(scope), 0, TODAY).filter((c) => c.animalId === id)} />,
+          }),
+      })
+    }
+
+    for (const h of HOSPITALS) {
+      if (!h.name.toLowerCase().includes(q) && !h.code.toLowerCase().includes(q)) continue
+      out.push({
+        key: h.id,
+        label: h.name,
+        sub: `Hospital · ${h.beds} beds`,
+        onOpen: () => onHospital(h.id),
+      })
+    }
+
+    for (const c of cases) {
+      if (out.length >= 14) break
+      if (!c.id.toLowerCase().includes(q)) continue
+      out.push({
+        key: c.id,
+        label: c.id,
+        sub: `Case · ${c.speciesName} · ${c.hospitalName}`,
+        onOpen: () => open({ title: c.id, eyebrow: 'Medical case', body: <CaseSheet c={c} /> }),
+      })
+    }
+
+    const seen = new Set<string>()
+    for (const c of cases) {
+      if (out.length >= 18 || seen.has(c.speciesName) || !c.speciesName.toLowerCase().includes(q)) continue
+      seen.add(c.speciesName)
+      const rows = cases.filter((x) => x.speciesName === c.speciesName)
+      out.push({
+        key: c.speciesId,
+        label: c.speciesName,
+        sub: `Species · ${rows.length} cases`,
+        onOpen: () =>
+          open({
+            title: c.speciesName,
+            eyebrow: 'Species',
+            body: <CaseListSheet title={c.speciesName} cases={rows} label="Medical cases" />,
+          }),
+      })
+    }
+
+    for (const m of medicationSlices(siteKeyOf(scope), hospitalId)) {
+      if (out.length >= 22 || !m.label.toLowerCase().includes(q)) continue
+      out.push({
+        key: m.id,
+        label: m.label,
+        sub: `Medicine · ${m.value} active`,
+        onOpen: () =>
+          open({
+            title: m.label,
+            eyebrow: 'Active medication',
+            body: (
+              <CaseListSheet
+                title={m.label}
+                cases={openCases(siteKeyOf(scope), hospitalId).filter((c) => c.medications.some((x) => x.id === m.id))}
+                label={`Animals on ${m.label}`}
+                note="Active today"
+              />
+            ),
+          }),
+      })
+    }
+
+    return out
+  }, [q, scope, hospitalId, open, onHospital])
+
+  if (q.length < 2) return null
+  if (hits.length === 0) {
+    return (
+      <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+        Nothing matches “{query.trim()}”.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-3">
+      <DrillList>
+        {hits.map((h) => (
+          <DrillRow key={h.key} label={h.label} sub={h.sub} value="" lead={Search} onOpen={h.onOpen} />
+        ))}
+      </DrillList>
+    </div>
+  )
+}
+
+/* ── 3 · the case trend ──────────────────────────────────────────────────── */
+
+/**
+ * Cases opened over the window, as a schedule grid.
+ *
+ * The grid is the module's shared calendar mark, and it is the right one here for the same
+ * reason it suits vaccination: an admission happens on a day, days cluster into bad weeks,
+ * and "which week was the hospital busiest" is answered by looking rather than by tracing a
+ * curve. Tap a square for the cases in it.
+ */
+function CaseTrend({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+  const site = siteKeyOf(scope)
+
+  const cells = useMemo(() => {
+    const rows = casesBetween(site, scope.win.from, scope.win.to).filter(
+      (c) => !hospitalId || c.hospitalId === hospitalId,
+    )
+    const byDay = new Map<number, number>()
+    for (const c of rows) byDay.set(c.day, (byDay.get(c.day) ?? 0) + 1)
+    return gridCells(scope.win, (from, to) => {
+      let n = 0
+      for (let d = from; d <= to; d++) n += byDay.get(d) ?? 0
+      return n
+    })
+  }, [scope.win, site, hospitalId])
+
+  const total = cells.cells.reduce((n, c) => n + c.value, 0)
+
+  return (
+    <Section icon={ClipboardList} label="Medical case trend" aside={`${fmt(total)} · ${scope.win.window}`}>
+      <ScheduleGrid
+        cells={cells.cells}
+        grain={cells.grain}
+        onOpen={(cell) =>
+          open({
+            title: `Cases · ${cell.label}`,
+            eyebrow: scopeLine(scope, hospitalId),
+            body: (
+              <PeriodSheet
+                label={cell.label}
+                from={cell.from}
+                to={cell.to}
+                cases={casesBetween(site, cell.from, cell.to).filter((c) => !hospitalId || c.hospitalId === hospitalId)}
+              />
+            ),
+          })
+        }
+      />
+    </Section>
+  )
+}
+
+/* ── 4 · active cases ────────────────────────────────────────────────────── */
+
+/** The current workload, and the one card on the page where every figure is read today. */
+function ActiveCases({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+  const site = siteKeyOf(scope)
+
+  const inHospital = useMemo(() => openCases(site, hospitalId), [site, hospitalId])
+  const severity = useMemo(() => bySeveritySlice(inHospital), [inHospital])
+  const underCare = Math.round(figure(scope, 'health').value)
+
+  return (
+    <Section icon={HeartPulse} label="Active medical workload" aside="now, not the window">
+      <Snapshot
+        cols={3}
+        items={[
+          /* Two different grains, and both are labelled. "Under care" is the clinical
+             caseload metric and includes animals treated in their own enclosure; "in
+             hospital" is the case model and counts beds. One is not a subset the page can
+             compute from the other, so it never implies it is. */
+          { label: 'Animals sick', value: hospitalId ? '—' : fmt(underCare), note: 'under care · site' },
+          { label: 'In hospital', value: fmt(inHospital.length), note: 'admitted', tone: 'warn' },
+          {
+            label: 'Active medications',
+            value: fmt(inHospital.reduce((n, c) => n + c.medications.length, 0)),
+            note: 'courses',
+          },
         ]}
       />
-      <Stack>
-        {/* Clinical read first — nothing here is about the building. */}
-        <Section icon={HeartPulse} label="Caseload" aside="this month">
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Medical cases', value: '186', note: 'opened this month' },
-              { label: 'Under treatment', value: '124', note: 'standing' },
-              { label: 'Hospitalised', value: '57', note: 'of 124' },
-              { label: 'Surgeries', value: '22', note: '3 emergency' },
-              { label: 'Hospital mortality', value: '4', note: '2.2% of admissions', tone: 'bad' },
-              { label: 'Recovery rate', value: '91%', tone: 'good' },
-            ]}
+      <Rule label="Severity in hospital" />
+      <DrillList>
+        {severity.map((r) => (
+          <DrillRow
+            key={r.id}
+            label={r.label}
+            value={fmt(r.value)}
+            unit={`${Math.round(r.percent)}%`}
+            bar={r.percent}
+            tone={SEVERITY_TONE[r.label as keyof typeof SEVERITY_TONE]}
+            onOpen={() =>
+              open({
+                title: r.label,
+                eyebrow: 'In hospital › Severity',
+                body: (
+                  <CaseListSheet
+                    title={r.label}
+                    cases={inHospital.filter((c) => c.severity === r.label)}
+                    label={`${r.label} · in hospital`}
+                    note="Read today"
+                    tone={r.label === 'Critical' ? 'bad' : r.label === 'Serious' ? 'warn' : undefined}
+                  />
+                ),
+              })
+            }
           />
-        </Section>
+        ))}
+      </DrillList>
+    </Section>
+  )
+}
 
-        <Section icon={Activity} label="Severity" aside="124 animals">
-          <StatusList
-            items={[
-              { label: 'Critical · continuous care', value: '7', tone: 'bad' },
-              { label: 'Serious · twice daily', value: '19', tone: 'warn' },
-              { label: 'Stable · daily', value: '58' },
-              { label: 'Recovering · weekly', value: '40', tone: 'good' },
-            ]}
+/* ── 5 · the hospital table ──────────────────────────────────────────────── */
+
+const H_SORTS: Record<string, (r: HospitalLine) => number> = {
+  cases: (r) => r.cases,
+  inHospital: (r) => r.inHospital,
+  medications: (r) => r.medications,
+  surgeries: (r) => r.surgeries,
+  deaths: (r) => r.deaths,
+  recovery: (r) => r.recovery ?? -1,
+  stay: (r) => r.averageStay ?? -1,
+}
+
+function HospitalTable({ onOpenHospital }: { onOpenHospital: (id: string) => void }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+  const [sortKey, setSortKey] = useState('cases')
+
+  const rows = useMemo(() => {
+    const by = H_SORTS[sortKey] ?? H_SORTS.cases
+    return [...hospitalLines(scope)].sort((a, b) => by(b) - by(a))
+  }, [scope, sortKey])
+
+  const columns: Column<HospitalLine>[] = [
+    { key: 'cases', head: 'Cases', cell: (r) => fmt(r.cases), sort: H_SORTS.cases },
+    { key: 'inHospital', head: 'In hosp', cell: (r) => fmt(r.inHospital), sort: H_SORTS.inHospital, tone: () => 'warn' },
+    { key: 'medications', head: 'Meds', cell: (r) => fmt(r.medications), sort: H_SORTS.medications },
+    { key: 'surgeries', head: 'Surgery', cell: (r) => fmt(r.surgeries), sort: H_SORTS.surgeries },
+    { key: 'deaths', head: 'Deaths', cell: (r) => fmt(r.deaths), sort: H_SORTS.deaths, tone: (r) => (r.deaths ? 'bad' : undefined) },
+    {
+      key: 'recovery',
+      head: 'Recovery',
+      cell: (r) => (r.recovery === undefined ? '—' : `${Math.round(r.recovery)}%`),
+      sort: H_SORTS.recovery,
+      tone: (r) => (r.recovery === undefined ? undefined : 'good'),
+    },
+    {
+      key: 'stay',
+      head: 'Avg stay',
+      cell: (r) => (r.averageStay === undefined ? '—' : `${r.averageStay.toFixed(1)} d`),
+      sort: H_SORTS.stay,
+    },
+  ]
+
+  return (
+    <Wide>
+      <Section icon={Building2} label="Hospital-wise overview" aside={`${rows.length} · sortable`}>
+        <SortableList
+          rows={rows}
+          columns={columns}
+          sortKey={sortKey}
+          onSort={setSortKey}
+          name={(r) => r.hospital.name}
+          sub={(r) => `${r.hospital.code} · ${r.hospital.beds} beds · ${Math.round(r.occupancy)}% occupied`}
+          onOpen={(r) => {
+            onOpenHospital(r.hospital.id)
+            open({
+              title: r.hospital.name,
+              eyebrow: `Hospital · ${scope.win.window}`,
+              body: <HospitalSheet hospitalId={r.hospital.id} />,
+            })
+          }}
+        />
+      </Section>
+    </Wide>
+  )
+}
+
+/* ── 6 · hospitalisation ─────────────────────────────────────────────────── */
+
+/** Who is in a bed tonight, where, and how the beds are filling. */
+function Hospitalisation({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+  const site = siteKeyOf(scope)
+
+  const inHospital = useMemo(() => openCases(site, hospitalId), [site, hospitalId])
+  const admitted = useMemo(() => casesIn(scope, hospitalId), [scope, hospitalId])
+  const discharged = useMemo(() => dischargedIn(scope, hospitalId), [scope, hospitalId])
+
+  const rows = useMemo(
+    () =>
+      HOSPITALS.filter((h) => !hospitalId || h.id === hospitalId).map((h) => ({
+        hospital: h,
+        n: inHospital.filter((c) => c.hospitalId === h.id).length,
+      })),
+    [inHospital, hospitalId],
+  )
+
+  return (
+    <Section icon={BedDouble} label="Hospitalisation" aside="in hospital · now">
+      <div className="flex items-end gap-4">
+        <span>
+          <Figure value={fmt(inHospital.length)} size={44} color={TONE.warn} />
+          <p className="mt-1 text-[13px]" style={{ color: TONE.warn }}>
+            currently hospitalised
+          </p>
+        </span>
+        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+          {admitted.length} admitted · {discharged.length} discharged
+          <br />
+          {scope.win.window}
+        </span>
+      </div>
+
+      <Rule label="By hospital" />
+      <DrillList>
+        {rows.map((r) => (
+          <DrillRow
+            key={r.hospital.id}
+            label={r.hospital.name}
+            sub={`${r.hospital.code} · ${r.hospital.beds} beds · ${Math.round((r.n / r.hospital.beds) * 100)}% occupied`}
+            value={fmt(r.n)}
+            bar={(r.n / r.hospital.beds) * 100}
+            tone={r.n / r.hospital.beds > 0.85 ? 'bad' : undefined}
+            onOpen={() =>
+              open({
+                title: r.hospital.name,
+                eyebrow: 'Hospitalisation › Hospital',
+                body: (
+                  <CaseListSheet
+                    title={r.hospital.name}
+                    cases={inHospital.filter((c) => c.hospitalId === r.hospital.id)}
+                    label={`In hospital · ${r.hospital.name}`}
+                    note={`${r.hospital.beds} beds · read today`}
+                    tone="warn"
+                  />
+                ),
+              })
+            }
           />
-        </Section>
+        ))}
+      </DrillList>
+    </Section>
+  )
+}
 
-        {/* Hospital → Department → Ward → Animal. Four levels, because a ward is a
-            place with its own capacity and the level above cannot express that. */}
-        <Section icon={Building2} label="Veterinary Hospital" aside="8 wards">
+/* ── 7 · average stay ────────────────────────────────────────────────────── */
+
+/**
+ * Average days in hospital, per hospital, against the collection's own mean.
+ *
+ * Read from the cases that CLOSED in the window — a case still open has no length of stay
+ * yet, and averaging the days-so-far of open cases with the full stays of closed ones would
+ * pull the figure down every time a ward filled. Hospitals with nothing discharged in the
+ * window state a dash rather than a zero.
+ */
+function StayComparison({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+
+  const overall = useMemo(() => summarise(scope, hospitalId), [scope, hospitalId])
+  const rows = useMemo(
+    () =>
+      HOSPITALS.map((h) => ({ hospital: h, ...summarise(scope, h.id) }))
+        .filter((r) => r.discharges > 0)
+        .sort((a, b) => (b.averageStay ?? 0) - (a.averageStay ?? 0)),
+    [scope],
+  )
+  const longest = Math.max(...rows.map((r) => r.averageStay ?? 0), 1)
+
+  return (
+    <Section icon={Hourglass} label="Average days in hospital" aside={scope.win.window}>
+      <div className="flex items-end gap-4">
+        <span>
+          <Figure
+            value={overall.averageStay === undefined ? '—' : overall.averageStay.toFixed(1)}
+            unit={overall.averageStay === undefined ? undefined : 'd'}
+            size={44}
+            color={HERO_INK}
+          />
+          <p className="mt-1 text-[13px] text-[#3d3a34]">
+            {hospitalId ? (hospitalOf(hospitalId)?.name ?? '') : 'across all hospitals'}
+          </p>
+        </span>
+        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+          over {overall.discharges} discharged
+        </span>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+          Nothing discharged in {scope.win.window}.
+        </p>
+      ) : (
+        <>
+          <Rule label="By hospital" />
           <DrillList>
-            <DrillRow
-              label="Veterinary Hospital"
-              sub="4 departments · 57 in-patients"
-              value="57"
-              unit="animals"
-              onOpen={() =>
-                open({
-                  title: 'Veterinary Hospital',
-                  eyebrow: 'Health & Medical',
-                  body: <NodePanel title="Departments" unit="animals" nodes={HOSPITAL} trail={['Veterinary Hospital']} />,
-                })
-              }
-            />
+            {rows.map((r) => (
+              <DrillRow
+                key={r.hospital.id}
+                label={r.hospital.name}
+                sub={`${r.discharges} discharged`}
+                value={(r.averageStay ?? 0).toFixed(1)}
+                unit="d"
+                bar={((r.averageStay ?? 0) / longest) * 100}
+                onOpen={() =>
+                  open({
+                    title: r.hospital.name,
+                    eyebrow: 'Average stay › Hospital',
+                    body: (
+                      <CaseListSheet
+                        title={r.hospital.name}
+                        cases={dischargedIn(scope, r.hospital.id)}
+                        label={`Discharged · ${(r.averageStay ?? 0).toFixed(1)} d average`}
+                        note={`${r.hospital.name} · ${scope.win.window}`}
+                      />
+                    ),
+                  })
+                }
+              />
+            ))}
           </DrillList>
-          <Rule label="Occupancy" />
+        </>
+      )}
+    </Section>
+  )
+}
+
+/* ── 8 · recovery ────────────────────────────────────────────────────────── */
+
+/** Recovered ÷ discharged, per hospital. The outcomes are the data; there is no formula. */
+function Recovery({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+
+  const closed = useMemo(() => dischargedIn(scope, hospitalId), [scope, hospitalId])
+  const overall = closed.length
+    ? (closed.filter((c) => c.outcome === 'Recovered').length / closed.length) * 100
+    : undefined
+
+  const rows = useMemo(
+    () =>
+      HOSPITALS.map((h) => {
+        const rows = dischargedIn(scope, h.id)
+        return {
+          hospital: h,
+          n: rows.length,
+          rate: rows.length ? (rows.filter((c) => c.outcome === 'Recovered').length / rows.length) * 100 : undefined,
+        }
+      })
+        .filter((r) => r.n > 0)
+        .sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0)),
+    [scope],
+  )
+
+  return (
+    <Section icon={Activity} label="Recovery rate" aside={`${closed.length} discharged · ${scope.win.window}`}>
+      <div className="flex items-end gap-4">
+        <span>
+          <Figure
+            value={overall === undefined ? '—' : String(Math.round(overall))}
+            unit={overall === undefined ? undefined : '%'}
+            size={44}
+            color={overall === undefined ? HERO_INK : '#1e7a44'}
+          />
+          <p className="mt-1 text-[13px] text-[#3d3a34]">discharged recovered</p>
+        </span>
+        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+          {closed.filter((c) => c.outcome === 'Recovered').length} of {closed.length}
+        </span>
+      </div>
+
+      {rows.length > 0 && (
+        <>
+          <Rule label="By hospital" />
+          {/* Bars against 100, not against the best hospital: a recovery rate is measured
+              against everyone recovering, and scaling to the leader would make 84% look
+              like a failure next to 94%. */}
           <Bars
-            items={[
-              { label: 'Quarantine', value: 100, sub: '12 of 12' },
-              { label: 'Isolation', value: 90, sub: '9 of 10' },
-              { label: 'General', value: 80, sub: '8 of 10' },
-              { label: 'Theatre recovery', value: 75, sub: '6 of 8' },
-              { label: 'Neonatal', value: 56, sub: '9 of 16' },
-              { label: 'Post-op', value: 57, sub: '8 of 14' },
-              { label: 'Recovery', value: 42, sub: '5 of 12' },
-            ]}
+            items={rows.map((r) => ({
+              label: r.hospital.name,
+              value: Math.round(r.rate ?? 0),
+              sub: `${r.n} discharged`,
+            }))}
             unit="%"
           />
-          <p className="mt-3 text-[11px] text-[#9b958b]">
-            Quarantine is full — the next isolation case has nowhere to go.
-          </p>
-        </Section>
+          <Rule label="Outcomes" />
+          <DrillList>
+            {rows.map((r) => (
+              <DrillRow
+                key={r.hospital.id}
+                label={r.hospital.name}
+                value={`${Math.round(r.rate ?? 0)}%`}
+                onOpen={() =>
+                  open({
+                    title: r.hospital.name,
+                    eyebrow: 'Recovery › Hospital',
+                    body: <RecoverySheet cases={dischargedIn(scope, r.hospital.id)} title={r.hospital.name} />,
+                  })
+                }
+              />
+            ))}
+          </DrillList>
+        </>
+      )}
+    </Section>
+  )
+}
 
-        <Section icon={Hourglass} label="Length of stay" aside="discharged this month">
-          <Poles
-            caption={['Shortest', 'Longest']}
-            high={{ label: 'Neonatal', sub: '14 discharged', value: '3.2 d' }}
-            low={{ label: 'Quarantine', sub: '6 discharged', value: '21.4 d' }}
-            lowTone="warn"
-          />
-          <Rule label="Distribution" />
-          <Bars
-            items={[
-              { label: '1–3 days', value: 14 },
-              { label: '4–7 days', value: 11 },
-              { label: '8–14 days', value: 8 },
-              { label: '15 days +', value: 5 },
-            ]}
-            unit="animals"
-            showShare
-          />
-        </Section>
+/* ── 9 · surgeries ───────────────────────────────────────────────────────── */
 
-        <Section icon={ClipboardList} label="Presenting causes" aside="186 cases">
-          <Pareto
-            items={[
-              { label: 'Gastrointestinal', value: 52 },
-              { label: 'Trauma', value: 41 },
-              { label: 'Respiratory', value: 34 },
-              { label: 'Parasitic', value: 26 },
-              { label: 'Dermatological', value: 18 },
-              { label: 'Other', value: 15 },
-            ]}
-          />
-        </Section>
+/** Compact by design — the brief's "do not turn this into a surgical dashboard". */
+function Surgeries({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
 
-        <Section icon={Scissors} label="Surgery" aside="22 this month">
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Elective', value: '19', tone: 'good' },
-              { label: 'Emergency', value: '3', tone: 'warn' },
-              { label: 'Complications', value: '1', tone: 'bad' },
-            ]}
-          />
-          <Rule label="Recent" />
-          <Records
-            items={[
-              { label: 'Fracture pinning · ANM-41266', sub: 'Painted Stork · 27 Jul', value: 'Recovered', tone: 'good' },
-              { label: 'Laparotomy · ANM-22771', sub: 'Chital · 25 Jul', value: 'In recovery', tone: 'warn' },
-              { label: 'Dental extraction · ANM-40218', sub: 'Asiatic Lion · 22 Jul', value: 'Recovered', tone: 'good' },
-              { label: 'Wound debridement · ANM-31904', sub: 'Bengal Fox · 21 Jul', value: 'Recovered', tone: 'good' },
-            ]}
-          />
-        </Section>
+  const rows = useMemo(() => casesIn(scope, hospitalId).filter((c) => c.surgery), [scope, hospitalId])
+  const procedures = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of rows) m.set(c.surgery!.procedure, (m.get(c.surgery!.procedure) ?? 0) + 1)
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+  }, [rows])
 
-        <Section icon={Activity} label="Recovery rate">
-          <Dial percent={91} value="91" unit="%" label="Discharged recovered" benchmark={85} benchmarkLabel="Target 85% · 38 discharged" />
-        </Section>
+  return (
+    <Section icon={Scissors} label="Surgeries" aside={scope.win.window}>
+      <div className="flex items-end gap-4">
+        <span>
+          <Figure value={fmt(rows.length)} size={40} color={HERO_INK} />
+          <p className="mt-1 text-[13px] text-[#3d3a34]">procedures performed</p>
+        </span>
+        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+          {new Set(rows.map((c) => c.hospitalName)).size} hospitals · {new Set(rows.map((c) => c.speciesName)).size}{' '}
+          species
+        </span>
+      </div>
 
-        <Section icon={MapPin} label="Caseload by site" aside="tap to drill">
-          <SiteSplit
-            slug="health"
-            onOpenSite={(_, name) => open({ title: name, eyebrow: 'Health & Medical', body: <MetricPanel metric="health" /> })}
-          />
-        </Section>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+          No procedures in {scope.win.window}.
+        </p>
+      ) : (
+        <>
+          <Rule label="Procedures" />
+          <DrillList>
+            {procedures.map(([name, n]) => (
+              <DrillRow
+                key={name}
+                label={name}
+                value={fmt(n)}
+                bar={(n / procedures[0][1]) * 100}
+                onOpen={() =>
+                  open({
+                    title: name,
+                    eyebrow: 'Surgery › Procedure',
+                    body: (
+                      <CaseListSheet
+                        title={name}
+                        cases={rows.filter((c) => c.surgery?.procedure === name)}
+                        label={`${name} · procedures`}
+                      />
+                    ),
+                  })
+                }
+              />
+            ))}
+          </DrillList>
+        </>
+      )}
+    </Section>
+  )
+}
 
-        <Section icon={BedDouble} label="Admissions" aside="today">
-          <Events
-            items={[
-              { when: '11:40', label: 'ANM-15011 · Rock Pigeon', sub: 'Neonatal · hand-rearing', tone: 'warn' },
-              { when: '09:20', label: 'ANM-40218 · Asiatic Lion', sub: 'Theatre recovery · respiratory', tone: 'bad' },
-              { when: '08:05', label: 'ANM-50882 · Nile Tilapia stock', sub: 'Isolation · fungal', tone: 'warn' },
-              { when: '07:15', label: 'Discharged · ANM-28450 Blackbuck', sub: 'Ward 1 · lameness resolved', tone: 'good' },
-            ]}
-          />
-        </Section>
+/* ── 10 · hospital mortality ─────────────────────────────────────────────── */
 
-        <Section icon={HeartPulse} label="Highlights">
-          <Highlights
-            items={[
-              { tag: 'Caseload', value: '124', label: 'Under treatment', tone: 'warn' },
-              { tag: 'Critical', value: '7', label: 'Continuous care', tone: 'bad' },
-              { tag: 'Recovery', value: '91', unit: '%', label: 'Discharged well', tone: 'good' },
-              { tag: 'Stay', value: '8.4', unit: 'd', label: 'Average' },
-              { tag: 'Capacity', value: '100', unit: '%', label: 'Quarantine full', tone: 'bad' },
-              { tag: 'Surgery', value: '22', label: '3 emergency' },
-            ]}
-          />
-        </Section>
+/**
+ * Deaths in care — and only those.
+ *
+ * This is not the Mortality module and does not try to be: no cause analysis, no species
+ * ranking beyond the hospital context, no trend. It is the `Died in care` outcome of the
+ * discharge stream, which is the only mortality a hospital owns.
+ */
+function HospitalMortality({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
 
-        <Section icon={Stethoscope} label="Establishment">
-          <Facts
-            items={[
-              { label: 'Veterinarians', value: '9', sub: '2 locum posts pending' },
-              { label: 'Veterinary nurses', value: '14' },
-              { label: 'Beds', value: '72', sub: 'across 8 wards' },
-              { label: 'Theatres', value: '2' },
-            ]}
+  const closed = useMemo(() => dischargedIn(scope, hospitalId), [scope, hospitalId])
+  const deaths = useMemo(() => closed.filter((c) => c.outcome === 'Died in care'), [closed])
+  const rate = closed.length ? (deaths.length / closed.length) * 100 : undefined
+
+  const byHospital = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of deaths) m.set(c.hospitalName, (m.get(c.hospitalName) ?? 0) + 1)
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+  }, [deaths])
+
+  return (
+    <Section icon={TriangleAlert} label="Hospital mortality" aside={`${scope.win.window} · in care only`}>
+      <Snapshot
+        cols={3}
+        items={[
+          { label: 'Died in care', value: fmt(deaths.length), tone: deaths.length ? 'bad' : 'neutral' },
+          { label: 'Of discharges', value: rate === undefined ? '—' : `${rate.toFixed(1)}`, unit: rate === undefined ? undefined : '%' },
+          { label: 'Species affected', value: String(new Set(deaths.map((c) => c.speciesName)).size) },
+        ]}
+      />
+      {deaths.length > 0 && (
+        <>
+          <Rule label="By hospital" />
+          <DrillList>
+            {byHospital.map(([name, n]) => (
+              <DrillRow
+                key={name}
+                label={name}
+                value={fmt(n)}
+                tone="bad"
+                bar={(n / byHospital[0][1]) * 100}
+                onOpen={() =>
+                  open({
+                    title: name,
+                    eyebrow: 'Hospital mortality › Hospital',
+                    body: (
+                      <CaseListSheet
+                        title={name}
+                        cases={deaths.filter((c) => c.hospitalName === name)}
+                        label="Died in care"
+                        tone="bad"
+                        note={`${name} · ${scope.win.window}`}
+                      />
+                    ),
+                  })
+                }
+              />
+            ))}
+          </DrillList>
+        </>
+      )}
+    </Section>
+  )
+}
+
+/* ── 11 · active medications ─────────────────────────────────────────────── */
+
+/** Courses running on the animals in hospital right now — not stock, not requests. */
+function ActiveMedications({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+  const site = siteKeyOf(scope)
+
+  const slices = useMemo(() => medicationSlices(site, hospitalId), [site, hospitalId])
+  const total = slices.reduce((n, s) => n + s.value, 0)
+  const inHospital = useMemo(() => openCases(site, hospitalId), [site, hospitalId])
+
+  return (
+    <Section icon={Pill} label="Active medications" aside="now, not the window">
+      <div className="flex items-end gap-4">
+        <span>
+          <Figure value={fmt(total)} size={40} color={HERO_INK} />
+          <p className="mt-1 text-[13px] text-[#3d3a34]">courses running</p>
+        </span>
+        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+          {inHospital.filter((c) => c.medications.length > 0).length} animals · {slices.length} medicines
+        </span>
+      </div>
+      <Rule label="By medicine" />
+      <DrillList>
+        {slices.slice(0, 10).map((m) => (
+          <DrillRow
+            key={m.id}
+            label={m.label}
+            sub={m.sub}
+            value={fmt(m.value)}
+            bar={m.percent}
+            onOpen={() =>
+              open({
+                title: m.label,
+                eyebrow: 'Active medication › Medicine',
+                body: (
+                  <CaseListSheet
+                    title={m.label}
+                    cases={inHospital.filter((c) => c.medications.some((x) => x.id === m.id))}
+                    label={`Animals on ${m.label}`}
+                    note="Active today"
+                  />
+                ),
+              })
+            }
           />
-        </Section>
-      </Stack>
-    </>
+        ))}
+      </DrillList>
+    </Section>
+  )
+}
+
+/* ── 12 · species workload ───────────────────────────────────────────────── */
+
+const S_SORTS: Record<string, (r: SpeciesLine) => number> = {
+  cases: (r) => r.cases,
+  inHospital: (r) => r.inHospital,
+  surgeries: (r) => r.surgeries,
+  deaths: (r) => r.deaths,
+}
+
+function SpeciesWorkload({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+  const [query, setQuery] = useState('')
+  const [sortKey, setSortKey] = useState('cases')
+
+  const all = useMemo(() => speciesLines(scope, hospitalId), [scope, hospitalId])
+  const q = query.trim().toLowerCase()
+  const filtered = useMemo(() => {
+    const by = S_SORTS[sortKey] ?? S_SORTS.cases
+    const rows = q ? all.filter((r) => r.name.toLowerCase().includes(q) || r.siteName.toLowerCase().includes(q)) : all
+    return [...rows].sort((a, b) => by(b) - by(a))
+  }, [all, q, sortKey])
+
+  const page = usePaged<SpeciesLine>(
+    (offset, limit) => ({ rows: filtered.slice(offset, offset + limit), total: filtered.length }),
+    20,
+    [filtered.length, q, sortKey, hospitalId],
+  )
+
+  const columns: Column<SpeciesLine>[] = [
+    { key: 'cases', head: 'Cases', cell: (r) => fmt(r.cases), sort: S_SORTS.cases },
+    { key: 'inHospital', head: 'In hosp', cell: (r) => fmt(r.inHospital), sort: S_SORTS.inHospital, tone: () => 'warn' },
+    { key: 'surgeries', head: 'Surgery', cell: (r) => fmt(r.surgeries), sort: S_SORTS.surgeries },
+    { key: 'deaths', head: 'Deaths', cell: (r) => fmt(r.deaths), sort: S_SORTS.deaths, tone: (r) => (r.deaths ? 'bad' : undefined) },
+    { key: 'medications', head: 'Meds', cell: (r) => fmt(r.medications), compact: false },
+  ]
+
+  return (
+    <Wide>
+      <Section icon={Dna} label="Species-wise medical workload" aside={`${all.length} species`}>
+        <FindField value={query} onChange={setQuery} placeholder="Find a species" />
+        <div className="mt-3">
+          <SortableList
+            rows={page.rows}
+            columns={columns}
+            sortKey={sortKey}
+            onSort={setSortKey}
+            name={(r) => r.name}
+            sub={(r) => r.siteName}
+            onOpen={(r) =>
+              open({
+                title: r.name,
+                eyebrow: 'Species › Medical',
+                body: (
+                  <CaseListSheet
+                    title={r.name}
+                    cases={casesIn(scope, hospitalId).filter((c) => c.speciesName === r.name)}
+                    label="Medical cases"
+                    note={`${r.name} · ${scope.win.window}`}
+                  />
+                ),
+              })
+            }
+            empty={
+              <p className="text-[12.5px]" style={{ color: FAINT }}>
+                No species matches “{query.trim()}”.
+              </p>
+            }
+          />
+          <MoreRows page={page} noun="species" />
+        </div>
+      </Section>
+    </Wide>
+  )
+}
+
+/* ── 13 · the records ────────────────────────────────────────────────────── */
+
+/** The case list itself, paged — the bottom of the page and the top of the drill. */
+function CaseRecords({ hospitalId }: { hospitalId?: string }) {
+  const { scope } = useScope()
+  const { open } = useSheet()
+
+  const rows = useMemo(() => casesIn(scope, hospitalId), [scope, hospitalId])
+  const complaints = useMemo(() => byComplaintSlice(rows), [rows])
+  const page = usePaged<MedCase>(
+    (offset, limit) => ({ rows: rows.slice(offset, offset + limit), total: rows.length }),
+    15,
+    [rows.length, hospitalId, scope.win.key, scope.win.from],
+  )
+
+  return (
+    <Wide>
+      <Section icon={ClipboardList} label="Medical cases" aside={`${fmt(rows.length)} · ${scope.win.window}`}>
+        {complaints.length > 0 && (
+          <>
+            <Bars
+              items={complaints.map((c) => ({ label: c.label, value: c.value }))}
+              unit="cases"
+              showShare
+            />
+            <Rule label="Records" />
+          </>
+        )}
+        <DrillList>
+          {page.rows.map((c) => (
+            <DrillRow
+              key={c.id}
+              label={`${c.speciesName} · ${c.complaint}`}
+              sub={`${c.id} · ${c.animalId} · ${c.hospitalName} · ${shortDate(c.day)}`}
+              value={c.open ? `${daysIn(c)} d` : (c.outcome ?? '—')}
+              tone={c.open ? SEVERITY_TONE[c.severity] : OUTCOME_TONE[c.outcome ?? 'Recovered']}
+              onOpen={() => open({ title: c.id, eyebrow: 'Medical case', body: <CaseSheet c={c} /> })}
+            />
+          ))}
+        </DrillList>
+        <MoreRows page={page} noun="cases" />
+        <p className="pt-3 text-[11px]" style={{ color: ACCENT_INK }}>
+          Cases opened in {scope.win.window} · an open case keeps its bed whatever the window says
+        </p>
+      </Section>
+    </Wide>
   )
 }

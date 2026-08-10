@@ -82,7 +82,10 @@
       transform: translateY(14px) scale(0.96);
     }
   }
-  /* Paired with pathLength={1} + strokeDasharray={1} so length is irrelevant. */
+  /* Kept for a scaling stroke that needs a true draw-on. NOT usable with
+     `vector-effect: non-scaling-stroke`: the dash pattern is then resolved in device space,
+     `pathLength` normalisation does not apply, and the line renders permanently dotted.
+     `Spark` and `Trend` both hit that and both now fade instead. */
   @keyframes draw {
     from {
       stroke-dashoffset: 1;

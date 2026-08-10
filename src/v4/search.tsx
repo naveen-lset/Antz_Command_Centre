@@ -27,7 +27,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, Search, X } from 'lucide-react'
 import { execPages, type ExecPage } from '../exec/pages'
-import { FAINT, GROUND_GRADIENT } from '../exec/system'
+import { ACCENT, FAINT, GROUND_GRADIENT } from '../exec/system'
 import { searchEntities, type Entity } from '../core/entities'
 import { searchAnimals } from '../core/animals'
 import { animalTitle } from '../core/animals'
@@ -94,7 +94,8 @@ function Row({ hit, onGo, meta = false }: { hit: Hit; onGo: (slug: string) => vo
       onClick={() => onGo(hit.slug)}
       className="card-press flex w-full items-center gap-3 rounded-[14px] bg-white px-4 py-3 text-left"
     >
-      <Glyph size={17} strokeWidth={1.75} className="shrink-0 text-[#2f9e5b]" aria-hidden />
+      <Glyph size={17} strokeWidth={1.75} style={{ color: ACCENT }}
+        className="shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[14.5px] font-medium text-[#1c1a16]">{hit.page.title}</span>
         {meta && <span className="mt-0.5 block truncate text-[11.5px] text-[#9b958b]">{sub}</span>}
@@ -113,7 +114,8 @@ function EntityResult({ entity, sub, onGo }: { entity: Entity; sub?: string; onG
       onClick={() => onGo(`e/${entity.kind}/${encodeURIComponent(entity.id)}`)}
       className="card-press flex w-full items-center gap-3 rounded-[14px] bg-white px-4 py-3 text-left"
     >
-      <Glyph size={17} strokeWidth={1.75} className="shrink-0 text-[#2f9e5b]" aria-hidden />
+      <Glyph size={17} strokeWidth={1.75} style={{ color: ACCENT }}
+        className="shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[14.5px] font-medium text-[#1c1a16]">{entity.name}</span>
         <span className="mt-0.5 block truncate text-[11.5px]" style={{ color: FAINT }}>

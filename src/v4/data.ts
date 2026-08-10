@@ -45,7 +45,6 @@ import {
   IndianRupee,
   Leaf,
   ListTodo,
-  type LucideIcon,
   MapPinOff,
   Package,
   PawPrint,
@@ -65,7 +64,9 @@ import {
   UserCog,
   Users,
   Utensils,
+  Warehouse,
   Wrench,
+  type LucideIcon,
 } from 'lucide-react'
 import type { ByPeriod, Figure } from '../exec/period'
 
@@ -172,6 +173,15 @@ export interface Kpi {
    * is the opposite: there the fraction IS the fact.
    */
   hideFraction?: true
+  /**
+   * Takes the whole last row of the KPI grid rather than sitting alone in it.
+   *
+   * The grid divides evenly at two, three and six, which is why there were six tiles. A seventh
+   * has no column count that divides it, so it is orphaned at every breakpoint — and a tile
+   * alone in a six-wide row is exactly the ragged edge that invariant existed to prevent. The
+   * seventh spans instead, which reads as a deliberate closing row.
+   */
+  wide?: true
   delta?: Figure
   icon: LucideIcon
   tone?: 'good' | 'warn' | 'bad'
@@ -242,7 +252,7 @@ export const headlineKpis: HeadlineKpi[] = [
     label: 'Animal Population',
     note: 'animals',
     icon: PawPrint,
-    accent: '#2f9e5b',
+    accent: '#006d35',
     metric: 'animals',
     drill: 'animals',
     href: '#/animals',
@@ -253,7 +263,7 @@ export const headlineKpis: HeadlineKpi[] = [
     label: 'Health & Medical',
     note: 'under care',
     icon: Stethoscope,
-    accent: '#e93353',
+    accent: '#1f415b',
     tone: 'warn',
     metric: 'health',
     drill: 'health',
@@ -265,7 +275,7 @@ export const headlineKpis: HeadlineKpi[] = [
     label: 'Natality',
     note: 'births',
     icon: Sparkles,
-    accent: '#e8590c',
+    accent: '#00abab',
     tone: 'good',
     metric: 'births',
     drill: 'births',
@@ -277,7 +287,7 @@ export const headlineKpis: HeadlineKpi[] = [
     label: 'Mortality',
     note: 'deaths',
     icon: Activity,
-    accent: '#9d174d',
+    accent: '#e93353',
     metric: 'mortality',
     drill: 'mortality',
     href: '#/mortality',
@@ -298,7 +308,7 @@ export const supportingKpis: Kpi[] = [
     unit: '%',
     note: 'pairings',
     icon: Dna,
-    accent: '#0f766e',
+    accent: '#fa6140',
     tone: 'good',
     metric: 'breeding',
     measure: 'breeding',
@@ -310,7 +320,7 @@ export const supportingKpis: Kpi[] = [
     unit: '%',
     note: 'covered',
     icon: Syringe,
-    accent: '#2563eb',
+    accent: '#00afd6',
     metric: 'vaccination',
     drill: 'vaccination',
     href: '#/vaccination',
@@ -320,7 +330,7 @@ export const supportingKpis: Kpi[] = [
     label: 'Tasks',
     note: 'done',
     icon: ListTodo,
-    accent: '#ea580c',
+    accent: '#e4b819',
     tone: 'warn',
     metric: 'tasks',
     href: '#/tasks',
@@ -331,7 +341,7 @@ export const supportingKpis: Kpi[] = [
     unit: '%',
     note: 'audits passed',
     icon: ShieldCheck,
-    accent: '#db2777',
+    accent: '#839d8d',
     tone: 'good',
     metric: 'welfare',
     measure: 'welfare',
@@ -345,7 +355,7 @@ export const supportingKpis: Kpi[] = [
     target: '90',
     hideFraction: true,
     icon: HeartPulse,
-    accent: '#be123c',
+    accent: '#1f415b',
     tone: 'good',
     metric: 'healthScore',
     measure: 'health',
@@ -362,11 +372,29 @@ export const supportingKpis: Kpi[] = [
     target: '3.0%',
     hideFraction: true,
     icon: Utensils,
-    accent: '#b45309',
+    accent: '#e4b819',
     tone: 'warn',
     metric: 'wastage',
     measure: 'wastage',
     href: '#/tasks',
+  },
+  /*
+   * PHARMACY, and the reason it is here at all: it was the one module with a real metric, a
+   * detail page and a drill-down that the home could not reach. Alerts and risks about medicine
+   * stock sit on this screen already, but those open sheets — their `href` is dead code — so a
+   * KPI tile is the only live door from the home to a module page.
+   */
+  {
+    key: 'pharmacy',
+    label: 'Pharmacy',
+    note: 'dispensed',
+    icon: Warehouse,
+    /* The hue the Medicine Spend trend card already uses, so the two agree about what colour
+       medicine is on this screen. */
+    accent: '#00afd6',
+    metric: 'pharmacy',
+    href: '#/pharmacy',
+    wide: true,
   },
 ]
 
@@ -1168,7 +1196,7 @@ export const trends: TrendCard[] = [
     label: 'Animal Population',
     tone: 'good',
     icon: PawPrint,
-    accent: '#2f9e5b',
+    accent: '#006d35',
     metric: 'animals',
     /* A level, and the only card whose shape is worth two columns — it is the collection itself. */
     shape: 'area',
@@ -1182,7 +1210,7 @@ export const trends: TrendCard[] = [
     label: 'Birth Trend',
     tone: 'good',
     icon: Sparkles,
-    accent: '#e8590c',
+    accent: '#00abab',
     metric: 'births',
     shape: 'columns',
     labels: MONTHS,
@@ -1194,7 +1222,7 @@ export const trends: TrendCard[] = [
     label: 'Mortality Trend',
     tone: 'good',
     icon: Activity,
-    accent: '#9d174d',
+    accent: '#e93353',
     metric: 'mortality',
     shape: 'columns',
     labels: MONTHS,
@@ -1206,7 +1234,7 @@ export const trends: TrendCard[] = [
     label: 'Disease Trend',
     tone: 'warn',
     icon: Biohazard,
-    accent: '#b91c1c',
+    accent: '#fa6140',
     metric: 'disease',
     shape: 'columns',
     labels: MONTHS,
@@ -1220,7 +1248,7 @@ export const trends: TrendCard[] = [
     delta: '+4%',
     tone: 'neutral',
     icon: Pill,
-    accent: '#0284c7',
+    accent: '#00afd6',
     shape: 'range',
     values: [8.2, 8.6, 8.4, 8.9, 9.1, 8.8, 9.2, 9.4, 9.1, 9.6, 9.4, 9.8],
     labels: MONTHS,
@@ -1233,7 +1261,7 @@ export const trends: TrendCard[] = [
     label: 'Food Wastage',
     tone: 'warn',
     icon: Utensils,
-    accent: '#b45309',
+    accent: '#e4b819',
     metric: 'wastage',
     /* The one card with a published target, so the gap to it is the mark. */
     shape: 'meter',
@@ -1249,7 +1277,7 @@ export const trends: TrendCard[] = [
     delta: '−3%',
     tone: 'good',
     icon: Truck,
-    accent: '#4f46e5',
+    accent: '#839d8d',
     shape: 'range',
     values: [58, 61, 66, 72, 69, 63, 60, 67, 71, 68, 66, 64],
     labels: MONTHS,
@@ -1264,7 +1292,7 @@ export const trends: TrendCard[] = [
     delta: '+9%',
     tone: 'good',
     icon: Ticket,
-    accent: '#7c3aed',
+    accent: '#1f415b',
     shape: 'area',
     values: [122, 138, 164, 191, 210, 186, 148, 132, 141, 158, 171, 186],
     labels: MONTHS,

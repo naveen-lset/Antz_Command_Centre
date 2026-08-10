@@ -108,6 +108,9 @@ const FALLBACK: Record<PeriodKey, PeriodKey> = {
   month: 'month',
   lastMonth: 'month',
   quarter: 'month',
+  /* Six months falls to the all-time wording where a page authored one, as `year` does — a
+     half-year caption written for "this month" reads wrong at that span. */
+  half: 'all',
   year: 'all',
   all: 'all',
   custom: 'month',

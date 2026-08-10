@@ -13,7 +13,7 @@
  * its own order — see `src/exec/pages/`.
  */
 
-import { createContext, useContext, useState, type ComponentType, type ReactNode } from 'react'
+import { createContext, useContext, useId, useState, type ComponentType, type ReactNode } from 'react'
 import { Search, X } from 'lucide-react'
 import { AnimatedValue, Reveal, usePlay } from '../motion'
 import { usePeriod } from './period'
@@ -57,9 +57,118 @@ export const INK2 = '#3d3a34'
 export const MUTED = '#6d6860'
 export const FAINT = '#9b958b'
 export const HAIR = '#f0efec'
-export const TRACK = '#f2f1ed'
-export const TONE = { good: '#1e7a44', warn: '#b45309', bad: '#dc2626', neutral: '#9b958b' } as const
+
+/**
+ * MD3_ANTZ — the brand palette, and the one place a chart colour is decided.
+ *
+ * These are the published library tokens. Everything below in this file that colours a
+ * mark resolves to one of them, so retheming the charts is an edit here rather than a
+ * sweep through twenty-eight files.
+ *
+ * THE SPLIT BETWEEN FILL AND INK IS NOT STYLISTIC. The brand brights are saturated and
+ * light, and measured against white they are fills, not strokes:
+ *
+ *   Primary      #37BD69   2.43:1     Secondary   #00D6C9   1.83:1
+ *   moderateSec  #E4B819   1.88:1     Tertiary    #FA6140   3.07:1
+ *
+ * A 1.5px sparkline in Primary is under the 3:1 floor a non-text mark needs, and on the
+ * sage ground it drops further (2.09:1). The `On*` tokens are the palette's own answer —
+ * OnSurface #006D35 is 6.48:1, OnSecondaryContainer #1F415B is 10.68:1 — and MD3 already
+ * intends them as what you draw ON a container. So: brights fill areas, bars and donut
+ * segments where the label sits outside the mark; the dark tokens carry strokes, thin
+ * bars, endpoints and any accent that is also type.
+ */
+export const MD3 = {
+  primary: '#37bd69',
+  primaryContainer: '#52f990',
+  onPrimaryContainer: '#1f515b',
+  secondary: '#00d6c9',
+  secondaryDark: '#00abab',
+  secondaryContainer: '#afefeb',
+  onSecondaryContainer: '#1f415b',
+  tertiary: '#fa6140',
+  tertiaryContainer: '#ffbda8',
+  error: '#e93353',
+  errorContainer: '#ffd3d3',
+  addPrimary: '#00afd6',
+  moderatePrimary: '#ffe86e',
+  moderateSecondary: '#e4b819',
+  notes: '#fcf4ae',
+  background: '#eff5f2',
+  onBackground: '#e1f9ed',
+  surfaceVariant: '#dae7df',
+  onSurface: '#006d35',
+  onSurfaceVariant: '#44544a',
+  outline: '#839d8d',
+  outlineVariant: '#c3cec7',
+  neutralSecondary: '#7a8684',
+  neutral05: 'rgba(0,0,0,0.05)',
+} as const
+
+/** Unfilled meter, bar remainder, gauge rest — the palette's own recessive surface. */
+export const TRACK = MD3.surfaceVariant
+/** Chart gridlines and baselines. */
+export const GRID = MD3.neutral05
+
+/**
+ * Semantic tones, as TYPE.
+ *
+ * `TONE` is read far more often as text than as a mark — severity counts, deltas, status
+ * labels — so it stays on values that clear AA. `good` and `neutral` move onto MD3_Antz
+ * (`onSurface` 6.48:1, `onSurfaceVariant` 8.04:1); `neutral` in particular was #9b958b at
+ * 2.97:1, which failed everywhere it appeared.
+ *
+ * `warn` and `bad` stay put, and that is a deliberate gap rather than an oversight: the
+ * palette's amber is #E4B819 at 1.88:1 and its Error is #E93353 at 4.15:1, and neither
+ * survives being set at 11–13px. The brand values for those two live in `TONE_FILL`,
+ * which is what the charts use.
+ */
+export const TONE = {
+  good: MD3.onSurface,
+  warn: '#b45309',
+  bad: '#dc2626',
+  neutral: MD3.onSurfaceVariant,
+} as const
 export type Tone = keyof typeof TONE
+
+/** The same four tones as MARKS — brand values, because a fill is not type. */
+export const TONE_FILL: Record<Tone, string> = {
+  good: MD3.primary,
+  warn: MD3.moderateSecondary,
+  bad: MD3.error,
+  neutral: MD3.outline,
+}
+
+/** Tone washes — a mark's own container, for chips, tray cells and heat cells. */
+export const TONE_SOFT: Record<Tone, string> = {
+  good: MD3.onBackground,
+  warn: MD3.notes,
+  bad: MD3.errorContainer,
+  neutral: MD3.surfaceVariant,
+}
+
+/**
+ * The categorical ramp, for the charts where the categories are genuinely unlike —
+ * a donut of causes, a composition of classes, lanes in and out.
+ *
+ * Single-hue lightness steps remain the default and this is the exception; see the note
+ * on `step` below. Ordered so neighbours differ in LIGHTNESS as well as hue, because a
+ * ramp separated only by hue collapses in greyscale and for a red–green reader. No two
+ * adjacent entries sit within 1.35:1 of each other.
+ */
+export const SERIES = [
+  MD3.onSurface, // deep green
+  MD3.secondaryDark, // teal
+  MD3.onSecondaryContainer, // navy
+  MD3.moderateSecondary, // gold
+  MD3.addPrimary, // sky
+  MD3.tertiary, // coral
+  MD3.error, // crimson
+  MD3.outline, // sage
+] as const
+
+/** Nth category, wrapping — never index past the end and land on `undefined`. */
+export const series = (i: number) => SERIES[i % SERIES.length]
 
 /**
  * IUCN Red List category colours, as published.
@@ -124,8 +233,8 @@ export type RedListCode = (typeof RED_LIST)[number]['code']
  * dark surface in the app; `ACCENT_INK` is accent-coloured text that still
  * passes contrast on a pale accent wash.
  */
-export const DEEP = '#123a2c'
-export const ACCENT_INK = '#1a6b40'
+export const DEEP = MD3.onPrimaryContainer
+export const ACCENT_INK = MD3.onSurface
 
 /**
  * ONE accent for every module — the home screen's hero green. Fourteen different
@@ -133,12 +242,36 @@ export const ACCENT_INK = '#1a6b40'
  * now comes from the ground and the type, not from a per-module tint. Icons and
  * data marks wear this; text never does.
  */
-export const ACCENT = '#2f9e5b'
-const AccentContext = createContext(ACCENT)
+export const ACCENT = MD3.primary
+const AccentContext = createContext<string>(ACCENT)
 export const AccentProvider = AccentContext.Provider
 export const useAccent = () => useContext(AccentContext)
 
-/** Lightness steps of the accent — magnitude, not identity. */
+/**
+ * The stroke companion to whatever accent is in scope.
+ *
+ * A 1.5px line and a 200px area cannot be the same green: the area wants the brand
+ * Primary, the line needs to be seen. Charts fill with `accent` and draw with this.
+ */
+const STROKE_OF: Record<string, string> = {
+  [MD3.primary]: MD3.onSurface,
+  [MD3.secondary]: MD3.onPrimaryContainer,
+  [MD3.secondaryDark]: MD3.onPrimaryContainer,
+  [MD3.moderateSecondary]: '#8a6d00',
+  [MD3.tertiary]: '#b8360f',
+  [MD3.addPrimary]: MD3.onSecondaryContainer,
+}
+export const strokeOf = (accent: string) => STROKE_OF[accent.toLowerCase()] ?? accent
+export const useStroke = () => strokeOf(useContext(AccentContext))
+
+/**
+ * Lightness steps of the accent — magnitude, not identity.
+ *
+ * Still the default for series inside one card, and still the reason this app does not
+ * look like a dashboard: six cycled hues say six unlike things, and a ranked bar chart is
+ * one thing measured six times. `SERIES` above is for the charts where the categories
+ * really are unlike.
+ */
 export const step = (i: number) => [1, 0.66, 0.46, 0.31, 0.2, 0.13][i] ?? 0.1
 /** Accent flattened over white at `a` — keeps strokes crisp where opacity would fade them. */
 export const mix = (hex: string, a: number) => {
@@ -165,10 +298,15 @@ export const compact = (n: number) => {
  */
 export const sentenceCase = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
+/**
+ * Delta ink. The brand's own pair for up and down is Primary and Tertiary, but a delta is
+ * 12px type — at 2.43:1 and 3.07:1 neither is readable at that size, so this takes the
+ * darker end of each: `onSurface` for a gain, the semantic bad for a fall.
+ */
 export const signTone = (s: string) => {
   const t = s.trim()
-  if (t.startsWith('+')) return '#37bd69'
-  if (t.startsWith('-') || t.startsWith('−')) return '#fa6140'
+  if (t.startsWith('+')) return TONE.good
+  if (t.startsWith('-') || t.startsWith('−')) return TONE.bad
   return undefined
 }
 
@@ -523,48 +661,186 @@ export function Composition({ items, unit }: { items: { label: string; value: nu
 }
 
 /** Thin sparkline with a soft wash and an emphasized endpoint. */
+/**
+ * A CURVE, NOT A POLYLINE — and the three differences from what this was.
+ *
+ * SMOOTH. The points were joined with straight segments, which at tile scale turns twelve
+ * months into a zigzag whose corners read as events. A Catmull-Rom spline through the same
+ * points draws the same data and lets the shape read as a trend rather than as twelve
+ * separate readings. Nothing is interpolated into the DATA — the curve passes exactly
+ * through every point it was given.
+ *
+ * THINNER, AND THE FILL QUIETER. 1.4px against 1.75, and the area at 0.07 against 0.1. The
+ * fill's job is to say which side of the line is "under"; at a tenth opacity it was
+ * competing with the line for the same 34px.
+ *
+ * THE LATEST POINT WEARS A HALO. A bare dot in the accent sat on top of a fill of the same
+ * hue and disappeared into it. A white ring under the dot separates it from whatever it
+ * lands on, which is what makes "where are we now" readable at a glance without a label.
+ */
 export function Spark({ values, h = 40, w = 120 }: { values: number[]; h?: number; w?: number }) {
   const accent = useAccent()
   const { ref, animate } = usePlay()
+  /* Per instance — four of these render side by side and a shared id would give all four
+     the first card's colour. */
+  const fillId = `spark-${useId().replace(/:/g, '')}`
+  /* A SERIES WITH NO SHAPE STILL HAS TO DRAW A LINE.
+     Two cases arrive here and both used to come out wrong. A single reading produced a
+     one-point path — `M x y` and nothing else — which is a legal path that draws no stroke,
+     so the card showed its end dot floating over an empty box. And a perfectly flat series
+     divided by a `span` of zero, which the `|| 1` fallback turned into "every point sits at
+     its own minimum", i.e. every point pinned to the FLOOR of the box: a flat reading drawn
+     as a bottomed-out one. Both are answered by the same two lines — a flat series is centred,
+     and one reading is drawn as the flat series it is, held across the full width. */
   const min = Math.min(...values)
   const max = Math.max(...values)
-  const span = max - min || 1
-  const stepX = w / Math.max(values.length - 1, 1)
-  const pts = values.map((v, i) => [i * stepX, 3 + (1 - (v - min) / span) * (h - 6)] as const)
-  const d = pts.map((p, i) => `${i ? 'L' : 'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')
+  const flat = max === min
+  const span = flat ? 1 : max - min
+  const at = (v: number) => (flat ? h / 2 : 4 + (1 - (v - min) / span) * (h - 8))
+
+  const held = values.length < 2 ? [values[0] ?? 0, values[0] ?? 0] : values
+  const stepX = w / (held.length - 1)
+  const pts = held.map((v, i) => [i * stepX, at(v)] as const)
+  const d = curveThrough(pts, h)
   const last = pts[pts.length - 1]
+
+  /* The end point's height as a PERCENTAGE of the box, so it can be placed with HTML — see
+     below for why it is not an SVG circle. */
+  const lastPct = (last[1] / h) * 100
+
   return (
-    <div ref={ref}>
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-[40px] w-full overflow-visible" preserveAspectRatio="none" aria-hidden>
+    <div ref={ref} className="relative">
+      <svg viewBox={`0 0 ${w} ${h}`} className="block h-[40px] w-full overflow-visible" preserveAspectRatio="none" aria-hidden>
+        {/* THE FILL FADES DOWNWARD. Flat at a tenth opacity it was a pale rectangle with two
+            hard vertical edges — the shape a dashboard makes, not the shape the data has.
+            Fading it to nothing at the baseline leaves only the band directly under the
+            curve, which is the part that says "this much". It is the one gradient on the
+            card and it carries meaning rather than decorating: nowhere else in the tile is
+            a gradient used, and no colour enters that is not the accent. */}
+        <defs>
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={accent} stopOpacity={0.16} />
+            <stop offset="100%" stopColor={accent} stopOpacity={0} />
+          </linearGradient>
+        </defs>
         <path
           d={`${d} L ${w} ${h} L 0 ${h} Z`}
-          fill={accent}
-          opacity={0.1}
+          fill={`url(#${fillId})`}
           className={animate ? 'animate-veil' : undefined}
           style={animate ? { animationDelay: '200ms' } : undefined}
         />
+        {/* NO DASH-BASED DRAW ANIMATION HERE, and that is a fix rather than a simplification.
+            `stroke-dasharray` is resolved in DEVICE space when `vector-effect: non-scaling-stroke`
+            is set, so the `pathLength={1}` normalisation that makes "dash the whole path" work
+            elsewhere does not apply — the browser read it as a one-pixel dash beside a one-pixel
+            gap and drew the line permanently dotted. The stroke has to stay non-scaling, because
+            this SVG is stretched (`preserveAspectRatio="none"`) and a scaling stroke would be
+            thicker vertically than horizontally. So the reveal is a fade, which is also the
+            calmer of the two. */}
         <path
           d={d}
           fill="none"
-          stroke={accent}
-          strokeWidth={1.75}
+          /* The wash above is the accent; the line is its darker companion. At 1.4px the
+             brand Primary measures 2.43:1 on white, under the floor a mark needs. */
+          stroke={strokeOf(accent)}
+          strokeWidth={1.4}
           strokeLinecap="round"
+          strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
-          pathLength={1}
-          strokeDasharray={animate ? 1 : undefined}
-          className={animate ? 'animate-draw' : undefined}
-        />
-        <circle
-          cx={last[0]}
-          cy={last[1]}
-          r={2.75}
-          fill={accent}
-          className={animate ? 'animate-pop' : undefined}
-          style={animate ? { animationDelay: '760ms' } : undefined}
+          className={animate ? 'animate-veil' : undefined}
+          style={animate ? { animationDelay: '120ms' } : undefined}
         />
       </svg>
+
+      {/* THE END POINT IS HTML, NOT AN SVG CIRCLE. The viewBox is stretched to the card's
+          width, so a circle drawn inside it is stretched with everything else — at the
+          rendered size that was a 6×9px ellipse sitting beside the line rather than a dot on
+          the end of it. Positioned here instead: 100% along, and its own height as a
+          percentage of the box, which is exact under any stretch and perfectly round at any
+          card width. */}
+      <span
+        /* 8px across with a 1.5px ring, not 7 with 2. The ring's job is to lift the point off
+           whatever it lands on; at 2px it also covered the last two pixels of the stroke on
+           each side, so a line arriving horizontally appeared to stop short of its own end
+           point. A thinner ring still separates and leaves a 5px core for the line to meet. */
+        className={`pointer-events-none absolute size-[8px] -translate-x-1/2 -translate-y-1/2 rounded-full ring-[1.5px] ring-white ${
+          animate ? 'animate-pop' : ''
+        }`}
+        style={{
+          left: '100%',
+          top: `${lastPct}%`,
+          backgroundColor: accent,
+          animationDelay: animate ? '520ms' : undefined,
+        }}
+        aria-hidden
+      />
     </div>
   )
+}
+
+/**
+ * A MONOTONE cubic through every point (Fritsch–Carlson), emitted as beziers.
+ *
+ * The obvious smoothing — a Catmull-Rom spline — was tried first and was wrong here, for a
+ * reason worth stating. Between two alternating readings a Catmull-Rom curve bulges past
+ * both of them, so a series that wobbles by one per cent is drawn as a rolling sine wave:
+ * it invents a peak between every pair of months, and the peak is a value the collection
+ * never held. On the population card that turned seeded noise into what looked like a
+ * designed decoration.
+ *
+ * Fritsch–Carlson constrains the tangents so the curve is monotone between consecutive
+ * points, which means it CANNOT overshoot: every local maximum and minimum on screen is a
+ * real reading. The result is smooth where the data is smooth and honest where it is not,
+ * which is the only kind of smoothing a figure this small can afford.
+ */
+function curveThrough(pts: readonly (readonly [number, number])[], _h: number): string {
+  const n = pts.length
+  if (n < 2) return n ? `M ${pts[0][0]} ${pts[0][1]}` : ''
+
+  /* Secant slopes, then tangents averaged from their neighbours — zeroed wherever the
+     series turns, which is what pins the curve to the turning point. */
+  const dx: number[] = []
+  const slope: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    dx[i] = pts[i + 1][0] - pts[i][0] || 1
+    slope[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]
+  }
+
+  const m: number[] = new Array(n)
+  m[0] = slope[0]
+  m[n - 1] = slope[n - 2]
+  for (let i = 1; i < n - 1; i++) {
+    m[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2
+  }
+
+  /* The monotonicity condition itself: where a tangent is steep enough to overshoot the
+     next point, both tangents are scaled back onto the circle of radius 3. */
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) {
+      m[i] = 0
+      m[i + 1] = 0
+      continue
+    }
+    const a = m[i] / slope[i]
+    const b = m[i + 1] / slope[i]
+    const s = a * a + b * b
+    if (s > 9) {
+      const t = 3 / Math.sqrt(s)
+      m[i] = t * a * slope[i]
+      m[i + 1] = t * b * slope[i]
+    }
+  }
+
+  let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`
+  for (let i = 0; i < n - 1; i++) {
+    const third = dx[i] / 3
+    const c1x = pts[i][0] + third
+    const c1y = pts[i][1] + m[i] * third
+    const c2x = pts[i + 1][0] - third
+    const c2y = pts[i + 1][1] - m[i + 1] * third
+    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${pts[i + 1][0].toFixed(1)} ${pts[i + 1][1].toFixed(1)}`
+  }
+  return d
 }
 
 /**
@@ -584,21 +860,81 @@ export function SparkBars({ values, h = 34 }: { values: number[]; h?: number }) 
   const { ref, animate } = usePlay()
   const max = Math.max(...values, 1)
   return (
-    <div ref={ref} className="flex items-end gap-[3px]" style={{ height: h }}>
+    /* Fully rounded caps and a wider gutter, so twelve columns read as twelve marks rather
+       than as a comb. The recessive tint drops to 0.24 and the latest column stays at full
+       accent: with the others quieter, "where are we now" is answered by contrast alone —
+       no label, no highlight ring, nothing added to the card. */
+    /* A COLUMN HAS A MAXIMUM WIDTH, AND THE ROW IS RIGHT-ALIGNED.
+       `flex-1` alone divides the box between however many values arrive, which is right at
+       twelve and absurd below about four: one value took the entire 104px and, at a full
+       corner radius, came out as a solid pill — the Natality and Mortality cards under a
+       one-day window showed a filled lozenge where their chart should be. A 12px ceiling
+       leaves the twelve-column case untouched (~10px each at the widest card these appear on)
+       and keeps a short series reading as columns. Right-aligned so the latest one stays
+       against the same edge whatever the count, which is where "now" is expected. */
+    <div ref={ref} className="flex items-end justify-end gap-[3.5px]" style={{ height: h }}>
       {values.map((v, i) => (
         <span
           key={i}
-          className={`min-w-0 flex-1 origin-bottom rounded-[2px] ${animate ? 'animate-grow-y' : ''}`}
+          className={`min-w-0 max-w-[12px] flex-1 origin-bottom rounded-full ${animate ? 'animate-grow-y' : ''}`}
           style={{
-            /* Floor of 3px so a zero month is still a mark on the axis rather than a
-               gap the eye reads as missing data. */
-            height: `${Math.max(3, (v / max) * h)}px`,
-            backgroundColor: i === values.length - 1 ? accent : mix(accent, 0.3),
+            /* Floor of 2.5px so a zero month is still a mark on the axis rather than a
+               gap the eye reads as missing data — and at a full radius that floor is a
+               dot, which is the honest shape for "none". */
+            height: `${Math.max(2.5, (v / max) * h)}px`,
+            backgroundColor: i === values.length - 1 ? accent : mix(accent, 0.24),
             animationDelay: animate ? `${i * 35}ms` : undefined,
           }}
         />
       ))}
     </div>
+  )
+}
+
+/**
+ * A RATE, AT TILE SCALE — the mark the supporting KPI tiles were missing.
+ *
+ * The four rate tiles stated a percentage and drew nothing, so "92%" and "86%" looked
+ * identical until both were read. A five-pixel meter answers "how far along" before either
+ * number is, which is the whole job of a KPI tile.
+ *
+ * TWO SCALES, BECAUSE THERE ARE TWO KINDS OF RATE. A coverage rate is measured against
+ * everything — 100% is the end of the track. A rate with a published target is measured
+ * against the target, so the notch sits at three-quarters and an overshoot is visibly an
+ * overshoot rather than a bar that is merely full. Food wastage against a 3% target would
+ * be a three-pixel sliver on a 0–100 track; against its own target it is a bar with a line
+ * on it, which is the fact the tile exists to state.
+ */
+export function SparkMeter({
+  percent,
+  target,
+  /** True where a LOWER reading is the good one — wastage, not coverage. */
+  inverse,
+}: {
+  percent: number
+  target?: number
+  inverse?: boolean
+}) {
+  const accent = useAccent()
+  const { ref, animate } = usePlay()
+  const scale = target && target > 0 ? target / 0.75 : 100
+  const width = Math.max(2, Math.min(100, (percent / scale) * 100))
+  const missed = target !== undefined && (inverse ? percent > target : percent < target)
+
+  return (
+    <span ref={ref} className="mt-2 block h-[5px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+      <span
+        className={`block h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
+        style={{ width: `${width}%`, backgroundColor: missed ? TONE.warn : accent }}
+      />
+      {target !== undefined && target > 0 && (
+        <span
+          className="relative block h-full w-[1.5px] rounded-full"
+          style={{ marginTop: -5, marginLeft: '75%', backgroundColor: 'rgba(22,21,15,0.35)' }}
+          aria-hidden
+        />
+      )}
+    </span>
   )
 }
 
@@ -965,7 +1301,7 @@ export function Radar({ axes, max = 100 }: { axes: { label: string; score: numbe
           points={shape}
           fill={accent}
           fillOpacity={0.14}
-          stroke={accent}
+          stroke={strokeOf(accent)}
           strokeWidth={1.75}
           className={animate ? 'animate-veil' : undefined}
         />
@@ -977,7 +1313,7 @@ export function Radar({ axes, max = 100 }: { axes: { label: string; score: numbe
               cx={x}
               cy={y}
               r={3.25}
-              fill={accent}
+              fill={strokeOf(accent)}
               className={animate ? 'animate-pop' : undefined}
               style={animate ? { animationDelay: `${260 + i * 70}ms` } : undefined}
             />
@@ -2247,16 +2583,22 @@ export function Trend({
               className={animate ? 'animate-veil' : undefined}
               style={animate ? { animationDelay: '180ms' } : undefined}
             />
+            {/* THE SAME DEFECT `Spark` HAD, and it reached further: `Trend` is the chart in
+                every measure sheet and half the module pages. `stroke-dasharray` resolves in
+                DEVICE space under `vector-effect: non-scaling-stroke`, so `pathLength={1}`
+                never normalised it and the browser drew a one-pixel dash beside a one-pixel
+                gap — a stippled line, permanently, on every one of them. The stroke must stay
+                non-scaling because the viewBox is stretched, so the reveal is a fade. */}
             <path
               d={line}
               fill="none"
               stroke={c}
               strokeWidth={1.75}
               strokeLinecap="round"
+              strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
-              pathLength={1}
-              strokeDasharray={animate ? 1 : undefined}
-              className={animate ? 'animate-draw' : undefined}
+              className={animate ? 'animate-veil' : undefined}
+              style={animate ? { animationDelay: '120ms' } : undefined}
             />
           </svg>
           <div className="mt-2 flex">
@@ -2464,7 +2806,22 @@ export function Roster({
  *     against the collection rather than filling the track alone.
  *   · Shade follows the site's rank in the full list, not its filtered position.
  */
-export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }) {
+export function Sites({
+  slug,
+  dense = false,
+  onOpenSite,
+}: {
+  slug: string
+  dense?: boolean
+  /**
+   * Tap a site row to drill into it — the module page's way into the bottom sheet.
+   *
+   * Optional, and absent the rows stay exactly what they were: a read-only split. Pages whose
+   * metric has no site→species→animal model behind it must not offer a door that opens on
+   * nothing, so the drill is wired per page rather than assumed here.
+   */
+  onOpenSite?: (key: string, name: string) => void
+}) {
   const accent = useAccent()
   const { period, cut: window } = usePeriod()
   const [query, setQuery] = useState('')
@@ -2528,52 +2885,76 @@ export function Sites({ slug, dense = false }: { slug: string; dense?: boolean }
       )}
 
       <ul className="mt-4 flex flex-col gap-3 border-t border-[#f0efec] pt-4 empty:mt-0 empty:border-0 empty:pt-0">
-        {rows.map((r) => (
-          <li key={r.site.key}>
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="flex min-w-0 items-baseline gap-2">
-                <span className="truncate text-[13.5px] text-[#1c1a16]">{r.site.name}</span>
-                {!dense && (
-                  <span className="shrink-0 text-[10.5px] tabular-nums text-[#9b958b]">
-                    {r.site.code} · {r.site.enclosures}
-                  </span>
-                )}
+        {rows.map((r) => {
+          /* A quiet site drills to an empty list, so it is not a door. */
+          const tap = onOpenSite && r.value > 0 ? () => onOpenSite(r.site.key, r.site.name) : undefined
+          /* Spans, not divs — the row is wrapped in a button when it drills, and a button may
+             only carry phrasing content. The marks and the measurements are unchanged. */
+          const row = (
+            <>
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <span className="truncate text-[13.5px] text-[#1c1a16]">{r.site.name}</span>
+                  {!dense && (
+                    <span className="shrink-0 text-[10.5px] tabular-nums text-[#9b958b]">
+                      {r.site.code} · {r.site.enclosures}
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-[13.5px] font-medium tabular-nums" style={{ color: VALUE }}>
+                  {rate ? `${Math.round(r.percent)}%` : fmt(r.value)}
+                  {rate && r.of && (
+                    <span className="ml-1 text-[10.5px] font-normal text-[#9b958b]">
+                      {fmt(r.value)}/{fmt(r.of)}
+                    </span>
+                  )}
+                  {!rate && r.value > 0 && (
+                    <span className="ml-1 text-[10.5px] font-normal text-[#9b958b]">
+                      {Math.round(r.percent)}%
+                    </span>
+                  )}
+                </span>
               </span>
-              <span className="shrink-0 text-[13.5px] font-medium tabular-nums" style={{ color: VALUE }}>
-                {rate ? `${Math.round(r.percent)}%` : fmt(r.value)}
-                {rate && r.of && (
-                  <span className="ml-1 text-[10.5px] font-normal text-[#9b958b]">
-                    {fmt(r.value)}/{fmt(r.of)}
-                  </span>
-                )}
-                {!rate && r.value > 0 && (
-                  <span className="ml-1 text-[10.5px] font-normal text-[#9b958b]">
-                    {Math.round(r.percent)}%
-                  </span>
-                )}
+              <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+                <span
+                  className="block h-full rounded-full"
+                  style={{
+                    /* A rate is measured against 100% — a coverage bar scaled so the
+                       best site fills the track would say Reptile House is doing fine.
+                       A count has no natural ceiling, so there the widest row fills it;
+                       scaling counts against the total leaves every bar a stub on a
+                       six-way split. */
+                    width: `${clamp(
+                      rate ? r.percent : (r.percent / Math.max(...cut.rows.map((x) => x.percent), 1)) * 100,
+                    )}%`,
+                    /* Shade comes from the site's rank in the FULL list, not its
+                       position in the filtered one — searching for "reptile" should not
+                       repaint that row the darkest step just because it is now first. */
+                    backgroundColor: mix(accent, step(cut.rows.indexOf(r))),
+                  }}
+                />
               </span>
-            </div>
-            <div className="mt-1.5 h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-              <div
-                className="h-full rounded-full"
-                style={{
-                  /* A rate is measured against 100% — a coverage bar scaled so the
-                     best site fills the track would say Reptile House is doing fine.
-                     A count has no natural ceiling, so there the widest row fills it;
-                     scaling counts against the total leaves every bar a stub on a
-                     six-way split. */
-                  width: `${clamp(
-                    rate ? r.percent : (r.percent / Math.max(...cut.rows.map((x) => x.percent), 1)) * 100,
-                  )}%`,
-                  /* Shade comes from the site's rank in the FULL list, not its
-                     position in the filtered one — searching for "reptile" should not
-                     repaint that row the darkest step just because it is now first. */
-                  backgroundColor: mix(accent, step(cut.rows.indexOf(r))),
-                }}
-              />
-            </div>
-          </li>
-        ))}
+            </>
+          )
+
+          return (
+            <li key={r.site.key}>
+              {tap ? (
+                /* The negative margin pair keeps the press target's padding from moving the
+                   row: the list's own 12px rhythm is unchanged, tappable or not. */
+                <button
+                  type="button"
+                  onClick={tap}
+                  className="card-press -mx-2 -my-1 block w-full rounded-[10px] px-2 py-1 text-left"
+                >
+                  {row}
+                </button>
+              ) : (
+                row
+              )}
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

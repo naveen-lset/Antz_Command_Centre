@@ -42,6 +42,7 @@ import {
   MUTED,
   Spark,
   SparkBars,
+  SparkMeter,
   TONE,
   TRACK,
   compact,
@@ -78,7 +79,6 @@ import {
   AlertPanel,
   ApprovalPanel,
   MeasurePanel,
-  MetricPanel,
   RiskPanel,
   TrendPanel,
   UpcomingPanel,
@@ -300,7 +300,6 @@ function ScoreStrip() {
  */
 function HeroBlock() {
   const { period } = usePeriod()
-  const { open } = useSheet()
   const { scope } = useScope()
   const animals = headlineKpis[0]
   /* The hero scopes with everything else. It briefly did not, and the result was a
@@ -317,17 +316,10 @@ function HeroBlock() {
 
   return (
     <section className="px-[var(--gutter-lg)] pt-4" aria-label="Total animals">
-      <button
-        type="button"
-        onClick={() =>
-          open({
-            title: animals.label,
-            eyebrow: period.window,
-            body: <MetricPanel metric={animals.drill!} />,
-          })
-        }
-        className="card-press block w-full"
-      >
+      {/* The hero states the same KPI as the first card below it, so it goes to the same place:
+          the Animal Population page. "View breakdown" is still what it does — the breakdown is
+          now the page's own site split, and each site row there opens the drill sheet. */}
+      <a href={animals.href} className="card-press block w-full">
         <p
           className="text-center font-display text-[length:var(--fs-hero)] leading-none font-bold tracking-[-0.02em]"
           style={{ color: HERO_INK }}
@@ -369,7 +361,7 @@ function HeroBlock() {
             </span>
           </span>
         </span>
-      </button>
+      </a>
     </section>
   )
 }
@@ -461,8 +453,6 @@ function LevelChip({ level }: { level: keyof typeof LEVEL_TONE }) {
  * 34px of card height to say it.
  */
 function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
-  const { open } = useSheet()
-  const { period } = usePeriod()
   const colour = kpi.accent ?? (kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : ACCENT)
 
   /* Figure, note, movement and curve all from the one metric under the one scope — so the
@@ -473,9 +463,15 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
   if (!known) return <EmptyCard label={kpi.label} icon={kpi.icon} />
 
   return (
-    <button
-      type="button"
-      onClick={() => open({ title: kpi.label, eyebrow: period.window, body: <MetricPanel metric={kpi.drill!} /> })}
+    /* A LINK TO THE MODULE, NOT A SHEET.
+       This card used to open the Overall → Site → Species → Animal drill directly, which made a
+       tile on the home the door to the deepest view in the product and left the module's own
+       page — the page that carries the trend, the targets, the calendar and the records — as
+       somewhere you could only reach from the sidebar. The card is the headline; the module page
+       is the analysis; the sheet is what you open FROM that page to drill one figure. See
+       `useSiteDrill` in `panels.tsx` for the other half of this change. */
+    <a
+      href={kpi.href}
       className={`${TAP} ${CARD} flex min-w-0 items-center gap-4 p-[var(--pad-card)] @[640px]:flex-col @[640px]:items-stretch @[640px]:gap-0`}
     >
       {/* The left block: what it is, what it reads, how it moved. Sits beside the curve on a
@@ -485,15 +481,14 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
             leaves each about 113px of inner width, and "Animal Population" needs ~131px with
             its glyph — truncated to "Animal Popu…" it names nothing. */}
         <span className="flex items-center gap-2">
-          {/* The glyph sits on a tinted chip of the card's own hue. Four cards drawn in one
-              green read as four copies of the same card; the chip is what makes the row
-              scannable before a single label is read. */}
-          <span
-            className="grid size-6 shrink-0 place-items-center rounded-[8px]"
-            style={{ backgroundColor: mix(colour, 0.12) }}
-            aria-hidden
-          >
-            <kpi.icon size={13} strokeWidth={2} style={{ color: colour }} />
+          {/* THE GLYPH STANDS ALONE. It used to sit on a tinted chip of the card's own hue,
+              which did make the row scannable and did it by adding a filled tile to every
+              card — ten small blocks of colour before a single figure. The hue was doing
+              the work, not the tile: an 18px outline glyph in the same accent is as
+              findable and leaves the card's only filled marks to the data.
+              The 24px box stays so the label sits where it always has. */}
+          <span className="grid size-6 shrink-0 place-items-center" aria-hidden>
+            <kpi.icon size={18} strokeWidth={1.75} style={{ color: colour }} />
           </span>
           <span className="min-w-0 text-[length:var(--fs-label)] leading-[17px] font-medium text-balance text-[#1c1a16]">
             {kpi.label}
@@ -527,7 +522,7 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
           {kpi.chart === 'bars' ? <SparkBars values={series} /> : <Spark values={series} h={34} />}
         </AccentProvider>
       </span>
-    </button>
+    </a>
   )
 }
 
@@ -579,17 +574,8 @@ function KpiRail() {
 
 /** The supporting six — the same tile, no graph, quieter. */
 function KpiTile({ kpi }: { kpi: Kpi }) {
-  const { open } = useSheet()
-  const { period } = usePeriod()
-  const measure = executiveHealth.find((m) => m.key === kpi.measure)
-  const { value, unit, note, delta, mood } = useKpi(kpi)
+  const { value, unit, note, delta, mood, percent, target, inverse } = useKpi(kpi)
   const accent = kpi.accent ?? ACCENT
-
-  const onOpen = kpi.drill
-    ? () => open({ title: kpi.label, eyebrow: period.window, body: <MetricPanel metric={kpi.drill!} /> })
-    : measure
-      ? () => open({ title: measure.label, eyebrow: measure.targetLabel, body: <MeasurePanel measure={measure} /> })
-      : undefined
 
   const inner = (
     <>
@@ -598,12 +584,9 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
           and position now do that work before the label is read. The hue is the module's own, so
           the tile and the page behind it match. */}
       <span className="flex items-center gap-2">
-        <span
-          className="grid size-6 shrink-0 place-items-center rounded-[8px]"
-          style={{ backgroundColor: mix(accent, 0.12) }}
-          aria-hidden
-        >
-          <kpi.icon size={13} strokeWidth={2} style={{ color: accent }} />
+        {/* Bare glyph, same box, same accent — see the headline card above. */}
+        <span className="grid size-6 shrink-0 place-items-center" aria-hidden>
+          <kpi.icon size={18} strokeWidth={1.75} style={{ color: accent }} />
         </span>
         <span className="min-w-0 truncate text-[length:var(--fs-label)] font-medium text-[#3d3a34]">{kpi.label}</span>
       </span>
@@ -625,16 +608,32 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
           </span>
         )}
       </span>
+      {/* THE ONE MARK THESE SIX TILES DID NOT HAVE. All six are rates, and a rate stated as
+          a number and drawn as nothing makes 92% and 86% look identical until both are read.
+          Five pixels answer "how far along" before either number is. Drawn only where there
+          is a percentage to draw, so a tile can never show a bar it invented. */}
+      {percent !== undefined && (
+        /* The tile's own hue, not the product green. `SparkMeter` reads the accent from
+           context like every other mark, and this tile sets its accent per KPI rather than
+           on a provider — so the provider goes here, around the one mark that needs it. */
+        <AccentProvider value={accent}>
+          <SparkMeter percent={percent} target={target} inverse={inverse} />
+        </AccentProvider>
+      )}
     </>
   )
 
-  const classes = `${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card-sm)]`
-  return onOpen ? (
-    <button type="button" onClick={onOpen} className={classes}>
-      {inner}
-    </button>
-  ) : (
-    <a href={kpi.href} className={classes}>
+  /* One destination for all six, the same as the four headline cards above: the module page.
+     Three of these used to open a drill sheet and two a measure panel, so a row of six identical
+     tiles behaved three different ways under the same gesture. The measure panel is still one tap
+     away — it is what the Executive Health tile below opens, where the score belongs. */
+  return (
+    <a
+      href={kpi.href}
+      className={`${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card-sm)] ${
+        kpi.wide ? 'col-span-2 @[640px]:col-span-3 @[1000px]:col-span-6' : ''
+      }`}
+    >
       {inner}
     </a>
   )
@@ -642,10 +641,12 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
 
 function KpiGrid() {
   return (
-    /* Six tiles, so every column count divides them exactly and no tile is ever left
-       alone on the last row: two, three, six. Measured off the COLUMN, not the window
-       — with a sidebar and a panel flanking it, a 1280 desktop hands this stack less
-       width than a tablet landscape does. See the note in `index.css`. */
+    /* Six tiles that divide evenly at two, three and six, and a seventh that spans the
+       last row rather than sitting alone in it. Seven has no column count that divides
+       it, so the choice was an orphaned tile at every breakpoint or a deliberate closing
+       row; `wide` on the KPI picks the second. Measured off the COLUMN, not the window —
+       with a sidebar and a panel flanking it, a 1280 desktop hands this stack less width
+       than a tablet landscape does. See the note in `index.css`. */
     <div className="grid grid-cols-2 gap-[var(--gap)] @[640px]:grid-cols-3 @[1000px]:grid-cols-6">
       {supportingKpis.map((k) => (
         <KpiTile key={k.key} kpi={k} />
@@ -1090,7 +1091,13 @@ export function HomeSections() {
           SectionHead fell back to its `mt-5`. 32px of nothing on the screen's opening gap, in
           the state the screen is almost always in. The bleed moved onto the note itself. */}
       <ScopeNote />
-      <SectionHead icon={SECTION_ICONS.kpis} title="Executive KPIs" aside="10 measures" />
+      {/* The count is derived. Typed, it stated ten while eleven tiles rendered under it the
+          moment a KPI was added. */}
+      <SectionHead
+        icon={SECTION_ICONS.kpis}
+        title="Executive KPIs"
+        aside={`${headlineKpis.length + supportingKpis.length} measures`}
+      />
       <Reveal>
         <KpiRail />
       </Reveal>

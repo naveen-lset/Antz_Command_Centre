@@ -22,6 +22,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { report } from '../report'
+import { useSiteDrill } from '../../v4/panels'
 import {
   Bars,
   Columns,
@@ -41,6 +42,10 @@ import {
 } from '../system'
 
 export default function Vaccination() {
+  /* The page a KPI card lands on is where the drill is entered: a site row opens the
+     existing sheet, scoped to that site. */
+  const openSite = useSiteDrill('vaccination', 'Vaccination coverage')
+
   return (
     <>
       <PeriodHero
@@ -74,8 +79,8 @@ export default function Vaccination() {
         </Section>
 
         {/* Overall stated above the six sites it is the sum of. */}
-        <Section icon={MapPin} label="Sites">
-          <Sites slug="vaccination" />
+        <Section icon={MapPin} label="Sites" aside="tap to drill">
+          <Sites slug="vaccination" onOpenSite={openSite} />
         </Section>
 
         <Section icon={Syringe} label="Drive" aside={<More href="#/vaccination/records" />}>

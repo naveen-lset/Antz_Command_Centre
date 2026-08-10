@@ -30,6 +30,7 @@ import { crumbs, type Scope } from '../core/scope'
 import type { Ref } from '../core/entities'
 import { ACCENT, FAINT, MUTED, TONE, mix } from '../exec/system'
 import { useNow } from '../hooks/useNow'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useScope } from './scope'
 import { useSheet } from './sheet'
 import { DateSheet, SiteSheet } from './filters'
@@ -244,15 +245,24 @@ export function ScopeHeader({
   actions?: React.ReactNode
 }) {
   const { scope } = useScope()
+  /* THE TRAIL ROW IS A SHELL-TIER MARK, not a phone one.
+     On a phone the header was four rows deep before the page said anything: crumbs and a read
+     time, then an eyebrow, then the title, then the scope pills — three of them restating what
+     the back chevron and the title already say. Above 768 the sidebar and the wider column give
+     the trail somewhere to live and a second way to navigate, so nothing changes there.
+     The same 768 the shell and the sheet use, so the product has one tier boundary. */
+  const shell = useMediaQuery('(min-width: 768px)')
 
   return (
     <header className="px-[var(--gutter-lg)] pt-6 pb-3">
-      <div className="flex items-center gap-3">
-        <Breadcrumbs scope={scope} moduleTitle={moduleTitle} entity={entity} />
-        <LastUpdated />
-      </div>
+      {shell && (
+        <div className="flex items-center gap-3">
+          <Breadcrumbs scope={scope} moduleTitle={moduleTitle} entity={entity} />
+          <LastUpdated />
+        </div>
+      )}
 
-      <div className="mt-2 flex items-start gap-3">
+      <div className={`flex items-start gap-3 ${shell ? 'mt-2' : ''}`}>
         {onBack && (
           <button
             type="button"
@@ -264,7 +274,10 @@ export function ScopeHeader({
           </button>
         )}
         <div className="min-w-0 flex-1">
-          {eyebrow && (
+          {/* "Monthly report" / "Operations" above "Animal Population" is a classification of the
+              page, not information about it — the shell keeps it beside the crumbs it belongs
+              with, the phone opens on the title. */}
+          {eyebrow && shell && (
             <p className="truncate text-[11px] font-medium tracking-[0.06em] uppercase" style={{ color: FAINT }}>
               {eyebrow}
             </p>

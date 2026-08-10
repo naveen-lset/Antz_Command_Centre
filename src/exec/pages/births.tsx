@@ -24,6 +24,7 @@ import {
   Users,
 } from 'lucide-react'
 import { report } from '../report'
+import { useSiteDrill } from '../../v4/panels'
 import {
   Band,
   BulletGroup,
@@ -44,6 +45,10 @@ import {
 } from '../system'
 
 export default function Births() {
+  /* This page is where the Natality KPI now lands, so it is also where the drill is entered:
+     a site row opens the sheet on that site's species and animals. */
+  const openSite = useSiteDrill('births', 'Natality')
+
   return (
     <>
       <PeriodHero
@@ -78,8 +83,8 @@ export default function Births() {
         </Section>
 
         {/* Overall stated above the six sites it is the sum of. */}
-        <Section icon={MapPin} label="Sites">
-          <Sites slug="births" />
+        <Section icon={MapPin} label="Sites" aside="tap to drill">
+          <Sites slug="births" onOpenSite={openSite} />
         </Section>
 
         <Section icon={TrendingUp} label="Trend" aside="30 d">

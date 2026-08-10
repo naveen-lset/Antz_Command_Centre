@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0}img,svg{display:block;max-width:100%}table{border-collapse:collapse}</style>
+</head>
+<body>
+<title>ANTZ v4 — UI &amp; UX improvement plan</title>
+
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     Tokens. Light is the bare :root; dark redefines tokens only.
+     Nothing below sets a colour outside this block.
+     ───────────────────────────────────────────────────────────── */
+  :root {
+    --ground:      #eef2ef;
+    --surface:     #ffffff;
+    --surface-2:   #f6f8f6;
+    --ink:         #101613;
+    --ink-2:       #384039;
+    --muted:       #59645d;
+    --rule:        #d6ded8;
+    --rule-soft:   #e6ece8;
+    --accent:      #14543a;
+    --accent-soft: #dfece4;
+    --critical:    #9c2f22;
+    --critical-bg: #f6e4e0;
+    --warn:        #7f5410;
+    --warn-bg:     #f4ebda;
+    --good:        #1c6b43;
+    --good-bg:     #e0eee5;
+
+    --shadow: 0 1px 2px rgba(16, 22, 19, .05), 0 8px 24px -18px rgba(16, 22, 19, .35);
+
+    --serif: "Iowan Old Style", "Hoefler Text", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0d1310;
+      --surface:     #151d18;
+      --surface-2:   #1a231e;
+      --ink:         #e8efea;
+      --ink-2:       #c3cec7;
+      --muted:       #93a099;
+      --rule:        #2b3831;
+      --rule-soft:   #222d27;
+      --accent:      #6cc296;
+      --accent-soft: #1a2f24;
+      --critical:    #e79184;
+      --critical-bg: #33201c;
+      --warn:        #d3a75c;
+      --warn-bg:     #302719;
+      --good:        #74c496;
+      --good-bg:     #172a1f;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 26px -18px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0d1310;
+    --surface:     #151d18;
+    --surface-2:   #1a231e;
+    --ink:         #e8efea;
+    --ink-2:       #c3cec7;
+    --muted:       #93a099;
+    --rule:        #2b3831;
+    --rule-soft:   #222d27;
+    --accent:      #6cc296;
+    --accent-soft: #1a2f24;
+    --critical:    #e79184;
+    --critical-bg: #33201c;
+    --warn:        #d3a75c;
+    --warn-bg:     #302719;
+    --good:        #74c496;
+    --good-bg:     #172a1f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 26px -18px rgba(0, 0, 0, .8);
+  }
+
+  /* ── base ───────────────────────────────────────────────────── */
+  body {
+    background: var(--ground);
+    color: var(--ink-2);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 56px 24px 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  .page :is(h1, h2, h3, p, ul, ol, table, figure, blockquote) { margin: 0; }
+  .page a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  .page a:focus-visible,
+  .page summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+  .page code, .page .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── masthead ───────────────────────────────────────────────── */
+  .masthead { display: flex; flex-direction: column; gap: 18px; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(34px, 5.4vw, 54px);
+    line-height: 1.06;
+    letter-spacing: -.015em;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .masthead .standfirst {
+    font-family: var(--serif);
+    font-size: clamp(17px, 2.1vw, 21px);
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 60ch;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .meta b { color: var(--ink-2); font-weight: 500; }
+
+  /* ── section frame ──────────────────────────────────────────── */
+  .sect { display: flex; flex-direction: column; gap: 22px; }
+  .sect > h2 {
+    font-family: var(--serif);
+    font-size: clamp(23px, 3vw, 30px);
+    font-weight: 600;
+    letter-spacing: -.01em;
+    line-height: 1.2;
+    color: var(--ink);
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .sect > .lede { max-width: 68ch; color: var(--ink-2); }
+
+  /* ── verdict ────────────────────────────────────────────────── */
+  .verdict {
+    background: var(--surface);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: clamp(24px, 3.4vw, 38px);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-left: 4px solid var(--accent);
+  }
+  .verdict p { max-width: 66ch; }
+  .verdict p + p { color: var(--ink-2); }
+  .verdict strong { color: var(--ink); font-weight: 600; }
+
+  /* ── plain lists ────────────────────────────────────────────── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 12px; padding: 0; }
+  .checklist li {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 12px;
+    align-items: start;
+    max-width: 74ch;
+  }
+  .checklist li::before {
+    content: "";
+    width: 9px; height: 9px;
+    margin-top: 9px;
+    border-radius: 2px;
+    background: var(--good);
+  }
+  .checklist b { color: var(--ink); font-weight: 600; }
+
+  /* ── findings ───────────────────────────────────────────────── */
+  .group { display: flex; flex-direction: column; gap: 14px; }
+  .group > h3 {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .finding {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: 216px 1fr;
+    gap: 0;
+    overflow: hidden;
+  }
+  .finding .rail {
+    background: var(--surface-2);
+    border-right: 1px solid var(--rule-soft);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .finding .body { padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; }
+  .finding h4 {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.32;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .finding p { font-size: 15px; max-width: 66ch; }
+  .finding p + p { color: var(--muted); }
+
+  .chip {
+    align-self: flex-start;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 5px;
+    font-weight: 600;
+  }
+  .chip.critical { background: var(--critical-bg); color: var(--critical); }
+  .chip.high     { background: var(--warn-bg);     color: var(--warn); }
+  .chip.medium   { background: var(--accent-soft); color: var(--accent); }
+
+  .measure { display: flex; flex-direction: column; gap: 3px; }
+  .measure .v {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 21px;
+    line-height: 1.1;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .measure .k {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--muted);
+  }
+
+  /* ── data table ─────────────────────────────────────────────── */
+  .scroller { overflow-x: auto; border-radius: 12px; box-shadow: var(--shadow); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  thead th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody td { padding: 12px 16px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody th {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    vertical-align: top;
+  }
+  tbody tr:last-child th { border-bottom: 0; }
+  td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  .tag-crit { color: var(--critical); font-weight: 600; }
+
+  /* ── the shape diagram ──────────────────────────────────────── */
+  .shape {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .stack {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .stack > header { display: flex; flex-direction: column; gap: 4px; }
+  .stack > header .t { font-weight: 600; color: var(--ink); font-size: 15px; }
+  .stack > header .s { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .bars { display: flex; flex-direction: column; gap: 4px; }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px;
+    border-radius: 5px;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-size: 12.5px;
+    min-height: 26px;
+  }
+  .bar .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar .px { font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bar.alert { background: var(--critical-bg); color: var(--critical); font-weight: 600; }
+  .bar.alert .px { color: var(--critical); }
+  .bar.keep { background: var(--accent-soft); color: var(--accent); }
+  .bar.keep .px { color: var(--accent); }
+  .bar.gone { opacity: .5; text-decoration: line-through; }
+  .fold {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 3px 0;
+  }
+  .fold::before, .fold::after { content: ""; height: 1px; flex: 1; background: var(--rule); }
+
+  /* ── phases ─────────────────────────────────────────────────── */
+  .phases { display: flex; flex-direction: column; gap: 16px; counter-reset: phase; }
+  .phase {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: clamp(20px, 2.6vw, 28px);
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .phase .no {
+    counter-increment: phase;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 8px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .phase .no::before { content: counter(phase, decimal-leading-zero); }
+  .phase .inner { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .phase h3 {
+    font-family: var(--serif);
+    font-size: clamp(19px, 2.3vw, 23px);
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ink);
+    letter-spacing: -.005em;
+  }
+  .phase p { max-width: 72ch; font-size: 15px; }
+  .moves { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  .moves li {
+    display: grid;
+    grid-template-columns: 14px 1fr;
+    gap: 11px;
+    font-size: 14.5px;
+    align-items: start;
+    max-width: 74ch;
+  }
+  .moves li::before {
+    content: "";
+    width: 6px; height: 6px;
+    margin-top: 9px;
+    margin-left: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .moves b { color: var(--ink); font-weight: 600; }
+  .outcome {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--good);
+    background: var(--good-bg);
+    border-radius: 7px;
+    padding: 9px 12px;
+    align-self: flex-start;
+    max-width: 100%;
+  }
+  .cost {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── decisions ──────────────────────────────────────────────── */
+  .asks { display: flex; flex-direction: column; gap: 12px; }
+  .ask {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ask .q { font-weight: 600; color: var(--ink); font-size: 15.5px; }
+  .ask .w { font-size: 14.5px; color: var(--muted); max-width: 74ch; }
+
+  .footnote {
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 74ch;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* ── narrow ─────────────────────────────────────────────────── */
+  @media (max-width: 760px) {
+    .page { padding: 36px 18px 80px; gap: 44px; }
+    .finding { grid-template-columns: 1fr; }
+    .finding .rail {
+      border-right: 0;
+      border-bottom: 1px solid var(--rule-soft);
+      flex-direction: row;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .shape { grid-template-columns: 1fr; }
+    .phase { grid-template-columns: 1fr; gap: 14px; }
+    .phase .no { width: 40px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+</style>
+
+<article class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">UX audit &amp; improvement plan</p>
+    <h1>The Command Centre is a report wearing a dashboard&rsquo;s clothes</h1>
+    <p class="standfirst">
+      V4&rsquo;s module pages are the best work in the product. The home screen is not yet doing the
+      job its own header comment claims for it: eight sections state the same twelve measures three
+      to five times over, and the twenty-eight things that actually need a decision today begin two
+      screens below the fold.
+    </p>
+    <div class="meta">
+      <span><b>Subject</b> antz-command-centre-v4 &middot; <code>localhost:5202</code></span>
+      <span><b>Reviewed</b> 10 Aug 2026</span>
+      <span><b>Widths</b> 402 &middot; 1024 &middot; 1512</span>
+      <span><b>Method</b> live capture + measured DOM</span>
+    </div>
+  </header>
+
+  <section class="verdict">
+    <p class="eyebrow">Verdict</p>
+    <p>
+      <strong>Do not redesign the module pages.</strong> Animal Population, Pharmacy and Mortality are
+      genuinely strong: scoped figures, honest provenance, real drill-downs. The work is on the home
+      screen and on the shared visual system that every page inherits.
+    </p>
+    <p>
+      Three problems account for almost everything else. The home screen <strong>repeats itself</strong>
+      — food wastage is stated five separate times, six of eleven Executive KPIs reappear verbatim
+      lower down. It <strong>inverts priority</strong> — the greeting and an illustration own the first
+      screen while critical alerts start at <span class="num">1,857&thinsp;px</span>. And it
+      <strong>contradicts itself</strong> — the right rail says 14 critical alerts while the section
+      header says 28 urgent. Fix those three and the page halves in length without losing a single
+      fact.
+    </p>
+  </section>
+
+  <section class="sect" id="working">
+    <h2>What is already right</h2>
+    <p class="lede">Listing this first because the plan below deliberately leaves it alone.</p>
+    <ul class="checklist">
+      <li><span></span><div><b>Module pages.</b> One scope, applied everywhere; every figure recut to site and window; a population bridge that visibly closes. This is the standard the home screen should be held to.</div></li>
+      <li><span></span><div><b>Scope lives in the URL, above the router.</b> The window and site survive navigation and can be pasted into a message. Rare, and correct.</div></li>
+      <li><span></span><div><b>Container-query tiering.</b> Sizing off the content column rather than the viewport is the right call — a 1280&thinsp;px desktop genuinely gives cards less room than a tablet landscape.</div></li>
+      <li><span></span><div><b>Entity routes.</b> Giving sites, species and animals their own URLs turns a module-only product into something you can navigate by <em>thing</em>, not just by question.</div></li>
+      <li><span></span><div><b>The code explains itself.</b> The header comments record the reasoning behind decisions, which is why this audit could argue with intent rather than guess at it.</div></li>
+    </ul>
+  </section>
+
+  <section class="sect" id="findings">
+    <h2>Findings</h2>
+    <p class="lede">
+      Severity uses the product&rsquo;s own vocabulary. Every measurement was taken from the running app
+      at the three widths above, with reveal-on-scroll forced so nothing was mis-measured as absent.
+    </p>
+
+    <div class="group">
+      <h3>Structure &mdash; the home screen</h3>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip critical">Critical</span>
+          <div class="measure"><span class="v">5&times;</span><span class="k">times food wastage is stated on one page</span></div>
+        </div>
+        <div class="body">
+          <h4>The same measures are restated three to five times, in three different visual languages</h4>
+          <p>Executive KPIs, Trends, Zoo Health, Executive Health, Risk Indicators and the right rail are six different renderings of one overlapping measure set. Six of the eleven Executive KPIs reappear in Executive Health with a target attached; four reappear again in Trends with a twelve-month shape.</p>
+          <p>The reader cannot tell whether the second appearance is new information or the same fact re-lit, so they read all of it — and the page is long because it says everything three times, not because it covers a lot.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip critical">Critical</span>
+          <div class="measure"><span class="v">1,857&thinsp;px</span><span class="k">where Critical Alerts begins on desktop</span></div>
+          <div class="measure"><span class="v">2,395&thinsp;px</span><span class="k">and on a phone &mdash; 2.7 screens down</span></div>
+        </div>
+        <div class="body">
+          <h4>The urgent work sits below two screens of context</h4>
+          <p>Missing animals, escaped animals, disease outbreaks, biosecurity incidents — twenty-eight items marked urgent — open below Executive KPIs and Trends. Above them, the first screen carries a greeting, an illustration and a total that moves by 181 a month.</p>
+          <p>The file&rsquo;s own header lists &ldquo;what needs my attention?&rdquo; as the second question the screen answers. On the rendered page it is answered fifth.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip critical">Critical</span>
+          <div class="measure"><span class="v">14 vs 28</span><span class="k">alert count, rail vs section, same screen</span></div>
+        </div>
+        <div class="body">
+          <h4>Two numbers for one thing, visible simultaneously</h4>
+          <p>The executive rail reads <span class="num">Alerts &mdash; 14 critical</span>. The section header six hundred pixels away reads <span class="num">28 urgent</span>. Both are on screen together at desktop width. Lab Requests has the same split: <span class="num">31 open</span> in the rail, <span class="num">4 of 31</span> in the alert tile.</p>
+          <p>This is the one finding that costs trust rather than time. A director who catches it once discounts every other figure on the page.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip high">High</span>
+          <div class="measure"><span class="v">7.3</span><span class="k">screens of home on a phone (6,349&thinsp;px)</span></div>
+          <div class="measure"><span class="v">5.1</span><span class="k">screens on desktop (4,803&thinsp;px)</span></div>
+        </div>
+        <div class="body">
+          <h4>Eight sections, no way to jump, collapse, or reorder</h4>
+          <p>The sidebar lists modules but not the home&rsquo;s own sections, so the only way to reach Risk Indicators is to scroll past six others. Nothing is collapsible and nothing remembers what this reader actually opens.</p>
+          <p>Four of the eight names also collide: <em>Health &amp; Medical</em>, <em>Health Score</em>, <em>Zoo Health</em> and <em>Executive Health</em> are four different things on one page.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip high">High</span>
+          <div class="measure"><span class="v">61%</span><span class="k">of screen one spent before the first figure</span></div>
+        </div>
+        <div class="body">
+          <h4>The banner costs 576&thinsp;px on desktop, 514&thinsp;px on a phone</h4>
+          <p>Greeting, org line, two filter pills, the total, and a full-bleed park illustration land before &ldquo;Executive KPIs&rdquo;. The illustration is beautiful and it is the single most expensive element on the screen.</p>
+          <p>It also continues behind the entire page — tree silhouettes sit under the Critical Alerts tiles and the Upcoming table, where they are texture behind dense data rather than atmosphere behind a welcome.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Visual system &mdash; inherited by every page</h3>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip critical">Critical</span>
+          <div class="measure"><span class="v">29</span><span class="k">distinct text colours in &lt;main&gt;</span></div>
+          <div class="measure"><span class="v">43</span><span class="k">distinct mark fills on the same page</span></div>
+        </div>
+        <div class="body">
+          <h4>Hue is used for identity and for severity at the same time</h4>
+          <p>Vaccination is blue, Welfare magenta, Health Score crimson, Food Wastage brown, Tasks orange — decorative identity. Red and amber are simultaneously the status language on the <span class="num">CRITICAL</span> / <span class="num">HIGH</span> chips right beside them.</p>
+          <p>So a magenta meter next to a red chip encodes nothing consistent, and the calm the design is reaching for is spent on eleven hues that carry no meaning.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip critical">Critical</span>
+          <div class="measure"><span class="v">2.97:1</span><span class="k">#9b958b on white &mdash; AA needs 4.5:1</span></div>
+          <div class="measure"><span class="v">2.55:1</span><span class="k">the same colour on the sage ground</span></div>
+        </div>
+        <div class="body">
+          <h4>The second-most-used text colour fails accessibility everywhere it appears</h4>
+          <p><code>FAINT #9b958b</code> carries units, section asides, sub-labels, the sidebar&rsquo;s zoo name, &ldquo;Dispensed&rdquo;, &ldquo;BAND 8.2&ndash;9.8&rdquo; — usually at 11&ndash;12&thinsp;px, which makes it worse. It fails AA for normal text and also fails the 3:1 large-text floor.</p>
+          <p><code>MUTED #6d6860</code> already exists in the token set at <span class="num">5.53:1</span> and looks nearly identical. <code>ACCENT #2f9e5b</code> is <span class="num">3.41:1</span> — fine as a mark, not as text.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip high">High</span>
+          <div class="measure"><span class="v">9&times;</span><span class="k">tiles whose delta reads &ldquo;flat&rdquo;</span></div>
+        </div>
+        <div class="body">
+          <h4>Three KPI anatomies in one section, and a delta column spent on non-information</h4>
+          <p>Row one of Executive KPIs uses a sparkline, a pulse line and two bar sets; rows two and three use target meters; the wide Pharmacy tile carries no mark at all. Trends adds four more mark types. Measures of the same kind cannot be compared because they are not drawn the same way.</p>
+          <p>Nine tiles then spend their delta slot saying &ldquo;flat&rdquo;. Where nothing moved, the honest design is to show nothing.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Interaction &amp; access</h3>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip critical">Critical</span>
+          <div class="measure"><span class="v">0</span><span class="k">:focus-visible rules in the codebase</span></div>
+          <div class="measure"><span class="v">63</span><span class="k">interactive elements in &lt;main&gt; on home</span></div>
+        </div>
+        <div class="body">
+          <h4>There is no designed keyboard focus state</h4>
+          <p>Two <code>focus:ring</code> declarations exist, both on text inputs. Every card, KPI tile, alert row, approval tile and sidebar link falls back to the browser default — which several of them suppress with <code>outline-none</code>.</p>
+          <p>On a screen built for a director who will be handed a keyboard, tabbing is currently invisible.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip high">High</span>
+          <div class="measure"><span class="v">25</span><span class="k">sub-40px tap targets on a phone</span></div>
+          <div class="measure"><span class="v">28&thinsp;px</span><span class="k">height of the 7-day / 30-day chips</span></div>
+        </div>
+        <div class="body">
+          <h4>The primary controls are the smallest things on the screen</h4>
+          <p>The date pill is <span class="num">119&times;33</span>, the site pill <span class="num">99&times;33</span>, the horizon chips <span class="num">28&thinsp;px</span> tall, drill chevrons <span class="num">14&times;14</span>, sidebar rows <span class="num">36&thinsp;px</span>. The floor for touch is 44&thinsp;px, and the tablet layout is a touch layout.</p>
+          <p>Scope is the control the whole product hangs on; it should not be the hardest thing to hit.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip medium">Medium</span>
+          <div class="measure"><span class="v">5</span><span class="k">sidebar rows carrying a bare number</span></div>
+        </div>
+        <div class="body">
+          <h4>Sub-page counts are drawn exactly like alert badges</h4>
+          <p><span class="num">Animal Population 1</span>, <span class="num">Preventive Medication 2</span> — these count child pages. In every other product a right-aligned number on a nav row means unread or outstanding, which is precisely the meaning this rail also needs for Alerts, Approvals and Tasks.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip medium">Medium</span>
+          <div class="measure"><span class="v">8 of 8</span><span class="k">sections gated on scroll</span></div>
+        </div>
+        <div class="body">
+          <h4>Reveal-on-scroll means the page cannot be captured, printed or searched whole</h4>
+          <p>A full-page capture of the home screen returns section headers over an empty background; browser find-in-page misses anything not yet revealed. The motion is good and this is a real cost of it — content should mount and the reveal should be presentation only.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Layout</h3>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip high">High</span>
+          <div class="measure"><span class="v">~800&thinsp;px</span><span class="k">of dead column on #/animals, desktop</span></div>
+        </div>
+        <div class="body">
+          <h4>The two-column masonry strands a column</h4>
+          <p>On Animal Population the right column ends at Regulatory Standing while the left runs on through the class breakdown, leaving a tall empty band of ground beside real content. Any page whose two columns hold unequal content does the same.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rail">
+          <span class="chip medium">Medium</span>
+          <div class="measure"><span class="v">identical</span><span class="k">rail content on home and on every module</span></div>
+        </div>
+        <div class="body">
+          <h4>The executive rail is the same three cards everywhere</h4>
+          <p>On the home screen it duplicates the middle column — Top Risks <em>is</em> Risk Indicators, Needs Attention <em>is</em> the alerts and approvals sections condensed. On a module page it is useful but static: reading Pharmacy, the rail still offers weather and staff attendance rather than anything about medicine.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sect" id="shape">
+    <h2>What the home screen should become</h2>
+    <p class="lede">
+      Same facts, same modules, same design language. Four sections instead of eight, ordered by
+      what a director does with them — and the first alert above the fold on a phone.
+    </p>
+
+    <div class="shape">
+      <div class="stack">
+        <header>
+          <span class="t">Today &mdash; 8 sections</span>
+          <span class="s">4,803&thinsp;px desktop &middot; 6,349&thinsp;px phone</span>
+        </header>
+        <div class="bars">
+          <div class="bar"><span class="lbl">Greeting, filters, hero, park</span><span class="px">576</span></div>
+          <div class="fold">phone fold</div>
+          <div class="bar"><span class="lbl">Executive KPIs &mdash; 11 tiles</span><span class="px">576</span></div>
+          <div class="bar"><span class="lbl">Trends &mdash; 8 tiles</span><span class="px">1,279</span></div>
+          <div class="fold">desktop fold</div>
+          <div class="bar alert"><span class="lbl">Critical Alerts &mdash; 28 urgent</span><span class="px">1,857</span></div>
+          <div class="bar"><span class="lbl">Needs My Approval</span><span class="px">2,472</span></div>
+          <div class="bar"><span class="lbl">Upcoming</span><span class="px">2,760</span></div>
+          <div class="bar gone"><span class="lbl">Zoo Health &mdash; 4 indices</span><span class="px">3,450</span></div>
+          <div class="bar gone"><span class="lbl">Executive Health &mdash; 6 repeats</span><span class="px">3,593</span></div>
+          <div class="bar gone"><span class="lbl">Risk Indicators &mdash; 8, also in rail</span><span class="px">4,158</span></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <header>
+          <span class="t">Proposed &mdash; 4 sections</span>
+          <span class="s">~2,400&thinsp;px desktop &middot; ~3,100&thinsp;px phone</span>
+        </header>
+        <div class="bars">
+          <div class="bar keep"><span class="lbl">Banner &mdash; greeting, scope, total, score</span><span class="px">~300</span></div>
+          <div class="bar alert"><span class="lbl">Attention &mdash; alerts + approvals, merged</span><span class="px">~300</span></div>
+          <div class="fold">phone fold</div>
+          <div class="bar keep"><span class="lbl">Upcoming &mdash; 7 / 30 days</span><span class="px">~900</span></div>
+          <div class="fold">desktop fold</div>
+          <div class="bar keep"><span class="lbl">Performance &mdash; KPI = value + target + trend</span><span class="px">~1,400</span></div>
+          <div class="bar keep"><span class="lbl">Rail &mdash; risks, activity, weather</span><span class="px">sticky</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Measure</th>
+            <th scope="col">Stated where, today</th>
+            <th scope="col">Times</th>
+            <th scope="col">Belongs</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Food wastage</th>
+            <td>KPIs &middot; Trends &middot; Executive Health &middot; Risk Indicators &middot; Critical Alerts</td>
+            <td class="n tag-crit">5</td>
+            <td>One KPI, with target and 12-month shape in the tile</td>
+          </tr>
+          <tr>
+            <th scope="row">Medicine stock / expiry</th>
+            <td>KPIs &middot; Trends &middot; Risk Indicators &middot; Critical Alerts &middot; rail Top Risks</td>
+            <td class="n tag-crit">5</td>
+            <td>Attention, once &mdash; it is an action, not a score</td>
+          </tr>
+          <tr>
+            <th scope="row">Welfare</th>
+            <td>KPIs &middot; Zoo Health &middot; Executive Health &middot; Critical Alerts</td>
+            <td class="n tag-crit">4</td>
+            <td>One KPI; the overdue audits go to Attention</td>
+          </tr>
+          <tr>
+            <th scope="row">Mortality</th>
+            <td>KPIs &middot; Trends &middot; Executive Health &middot; Critical Alerts</td>
+            <td class="n tag-crit">4</td>
+            <td>One KPI; a death in the last 24&thinsp;h is an alert</td>
+          </tr>
+          <tr>
+            <th scope="row">Health score</th>
+            <td>KPIs &middot; Zoo Health &middot; Executive Health</td>
+            <td class="n">3</td>
+            <td>Banner, beside the total &mdash; it is the standing answer</td>
+          </tr>
+          <tr>
+            <th scope="row">Animal population</th>
+            <td>Hero &middot; KPIs &middot; Trends</td>
+            <td class="n">3</td>
+            <td>Banner only; the KPI tile carries the trend</td>
+          </tr>
+          <tr>
+            <th scope="row">Vaccination, breeding, births</th>
+            <td>KPIs, then again in Executive Health or Trends</td>
+            <td class="n">2</td>
+            <td>One KPI each</td>
+          </tr>
+          <tr>
+            <th scope="row">Alerts, approvals, lab</th>
+            <td>Section header <em>and</em> rail, with different numbers</td>
+            <td class="n tag-crit">2</td>
+            <td>Attention; the rail links, it does not re-count</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sect" id="plan">
+    <h2>The plan</h2>
+    <p class="lede">
+      Five phases, ordered so each one is shippable on its own and the earliest is the largest win.
+      Phases 3 and 4 touch the shared system, so they improve every module page for free.
+    </p>
+
+    <div class="phases">
+
+      <div class="phase">
+        <div class="no"></div>
+        <div class="inner">
+          <h3>One measure, one place &mdash; then reorder the home around the decision</h3>
+          <p>Declare a single measure registry with, for each measure, its current value, its target, its twelve-month series and its severity. Every home surface reads from it, and each measure renders exactly once.</p>
+          <ul class="moves">
+            <li><b>Retire Executive Health.</b> Its six measures are the KPIs with a target attached — fold the target line into the KPI tile instead of restating the number.</li>
+            <li><b>Retire Risk Indicators from the column.</b> It is the rail&rsquo;s Top Risks with more rows; make the rail the one home for standing risk and let it expand.</li>
+            <li><b>Fold Zoo Health into the banner.</b> Four indices beside the total answer &ldquo;is anything wrong&rdquo; where the reader is already looking.</li>
+            <li><b>Merge Critical Alerts and Needs My Approval</b> into one <em>Attention</em> section, sorted by severity then age, and move it directly under the banner.</li>
+            <li><b>Derive every count from the registry</b> so 14-versus-28 becomes structurally impossible rather than a bug someone has to notice.</li>
+          </ul>
+          <p class="outcome">8 sections &rarr; 4 &middot; ~4,800&thinsp;px &rarr; ~2,400&thinsp;px &middot; first alert above the fold on a phone</p>
+          <p class="cost">Largest change &middot; no new data &middot; no module page touched</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="no"></div>
+        <div class="inner">
+          <h3>Compress the banner; give the park a band, not the page</h3>
+          <p>Keep the illustration — it is the product&rsquo;s character and it should not be sacrificed. Cap what it costs.</p>
+          <ul class="moves">
+            <li><b>Target ~300&thinsp;px</b> for the whole banner at every width, down from 576. Greeting on one line, scope pills beside it rather than under it.</li>
+            <li><b>Put the health score and the attention count beside the total,</b> so the first screen answers &ldquo;how big&rdquo;, &ldquo;how well&rdquo; and &ldquo;how urgent&rdquo; together.</li>
+            <li><b>Stop the landscape at the banner&rsquo;s lower edge.</b> Flat ground under the data; the park stays a welcome rather than becoming a watermark.</li>
+            <li><b>Keep the scope pills pinned</b> when the banner scrolls away — they govern every figure below them.</li>
+          </ul>
+          <p class="outcome">First screen: greeting, scope, total, score, and the top three things needing attention</p>
+          <p class="cost">Contained &middot; banner and Landscape only</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="no"></div>
+        <div class="inner">
+          <h3>Make colour mean one thing, and make the small text legible</h3>
+          <p>Two rules, applied through tokens so every page inherits them at once.</p>
+          <ul class="moves">
+            <li><b>Hue encodes state, never identity.</b> One accent plus the reserved good / warn / critical trio. Identity is carried by the icon and the label, which already exist on every tile.</li>
+            <li><b>Retire <code>FAINT #9b958b</code> as a text colour</b> in favour of <code>MUTED #6d6860</code> (5.53:1). Keep the faint tone for hairlines and de-emphasised marks, where contrast rules do not apply.</li>
+            <li><b>One KPI anatomy:</b> label, value, unit, delta against target, one mark. Two mark types across the whole product — a line for a stock, bars for a flow.</li>
+            <li><b>Suppress the delta when it is flat</b> rather than printing &ldquo;flat&rdquo; nine times; reserve the slot for movement worth reading.</li>
+            <li><b>Check <code>#dc2626</code> on the sage ground</b> — 4.15:1 is under AA for body text on the app&rsquo;s own background.</li>
+          </ul>
+          <p class="outcome">29 text colours &rarr; ~8 &middot; every text token passes AA &middot; tiles become comparable</p>
+          <p class="cost">Shared system &middot; improves all 22 module pages</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="no"></div>
+        <div class="inner">
+          <h3>Make it operable &mdash; keyboard, touch, and honest badges</h3>
+          <ul class="moves">
+            <li><b>One focus token, applied globally</b> to every card, tile, row and nav link. Currently there is no designed focus state anywhere in the product.</li>
+            <li><b>44&thinsp;px minimum hit area</b> on scope pills, horizon chips, chevrons and sidebar rows — through padding, not visual size, so nothing has to grow.</li>
+            <li><b>Reserve the sidebar badge for outstanding work.</b> Replace sub-page counts with a disclosure chevron; let Alerts, Approvals and Tasks own the number.</li>
+            <li><b>Mount content, reveal on scroll as presentation only,</b> so find-in-page, print and capture see the whole page.</li>
+            <li><b>Give the home&rsquo;s four sections a jump control</b> — with four rather than eight, a small sticky strip is enough.</li>
+          </ul>
+          <p class="outcome">Fully keyboard-navigable &middot; touch-legal on tablet &middot; printable and searchable</p>
+          <p class="cost">Mostly token and utility work &middot; low risk</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="no"></div>
+        <div class="inner">
+          <h3>Fix the column layout and make the rail follow the page</h3>
+          <ul class="moves">
+            <li><b>Stop stranding the second column.</b> Either balance the two columns by measured height or give sections explicit spans, so no page ends with 800&thinsp;px of empty ground beside live content.</li>
+            <li><b>Let the rail change with the route.</b> Keep weather and activity global; swap the middle card for what the current module is about — low stock on Pharmacy, open cases on Health &amp; Medical.</li>
+            <li><b>Remove the rail&rsquo;s duplication on home</b> once phase 1 lands, so the rail is the only home for standing risk rather than a second copy of it.</li>
+          </ul>
+          <p class="outcome">No dead columns &middot; the third column earns its width on every route</p>
+          <p class="cost">Shell and panel only</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="sect" id="quick">
+    <h2>If only a day is available</h2>
+    <p class="lede">Six changes with no structural dependency, in descending value per hour.</p>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Change</th>
+            <th scope="col">Where</th>
+            <th scope="col">Effect</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Move Critical Alerts above Executive KPIs</th>
+            <td class="n">Home.tsx &middot; HomeSections</td>
+            <td>Urgent work rises ~1,300&thinsp;px; one reorder, no new components</td>
+          </tr>
+          <tr>
+            <th scope="row">Derive the rail&rsquo;s counts from the same source as the sections</th>
+            <td class="n">panels.tsx &middot; data.ts</td>
+            <td>Removes the 14-vs-28 contradiction</td>
+          </tr>
+          <tr>
+            <th scope="row">Swap <code>FAINT</code> for <code>MUTED</code> on text</th>
+            <td class="n">exec/system.tsx</td>
+            <td>Whole product clears AA for small text</td>
+          </tr>
+          <tr>
+            <th scope="row">Add a global <code>:focus-visible</code> ring</th>
+            <td class="n">index.css</td>
+            <td>Keyboard navigation becomes visible everywhere</td>
+          </tr>
+          <tr>
+            <th scope="row">Hide the delta chip when the change is flat</th>
+            <td class="n">Home.tsx &middot; KpiTile</td>
+            <td>Nine tiles quieten; movement stands out</td>
+          </tr>
+          <tr>
+            <th scope="row">Pad the scope pills and horizon chips to 44&thinsp;px</th>
+            <td class="n">filters.tsx</td>
+            <td>The most-used control becomes touch-legal</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sect" id="decisions">
+    <h2>Open questions &mdash; your call, not mine</h2>
+    <div class="asks">
+      <div class="ask">
+        <span class="q">Is the home screen for the director, or for the board pack?</span>
+        <span class="w">The plan above assumes the director: attention first, performance second. If the screen also has to be the monthly report&rsquo;s front page, Trends and Executive Health earn their place back and the answer is two views rather than one longer one.</span>
+      </div>
+      <div class="ask">
+        <span class="q">How much of the illustration are you willing to lose?</span>
+        <span class="w">Phase 2 halves the banner. There is a version that keeps it at full height and puts the attention list beside it on desktop — richer, but it does nothing for the phone, where the cost is highest.</span>
+      </div>
+      <div class="ask">
+        <span class="q">Should the module accent hues go entirely?</span>
+        <span class="w">Phase 3 says hue means state. The softer option keeps one hue per module as a small identity mark — the icon tint only — and bans it from every meter, bar and number. That preserves recognisability and still frees red and amber for severity.</span>
+      </div>
+      <div class="ask">
+        <span class="q">Where does this land relative to the uncommitted work?</span>
+        <span class="w">The v4 worktree currently carries two sessions&rsquo; edits with nothing committed, and the existing handoff flags that as the thing to sort out first. Phase 1 rewrites <code>Home.tsx</code> substantially, so commit boundaries want deciding before it starts.</span>
+      </div>
+    </div>
+  </section>
+
+  <p class="footnote">
+    Measurements taken 10 Aug 2026 against the running dev server at <code>localhost:5202</code>, at
+    402&times;874, 1024&times;1180 and 1512&times;950, with reveal-on-scroll forced before measuring.
+    Contrast ratios computed per WCAG 2.1 relative luminance against <code>#ffffff</code> and the app
+    ground <code>#e7f0ea</code>. Colour and target counts read from the live DOM, not from source.
+  </p>
+
+</article>
+</body>
+</html>

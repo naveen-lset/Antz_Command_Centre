@@ -69,6 +69,10 @@ const RHYTHM: Record<string, number> = {
   accession: 0.5,
   transfers: 0.55,
   deworming: 0.6,
+  /* Vaccination runs as rounds on keeper shifts, so it is the most weekday-shaped flow in
+     the product; supplements go out with the daily feed and barely notice the week. */
+  vaccinations: 0.65,
+  supplement: 0.12,
   lab: 0.45,
   pharmacy: 0.4,
   admissions: 0.25,

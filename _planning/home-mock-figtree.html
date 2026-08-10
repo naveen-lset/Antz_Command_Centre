@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>ANTZ Command Centre — Home (Figtree mock)</title>
+
+<style>
+  @font-face {
+    font-family: 'Figtree';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 300 900;
+    src: url(data:font/woff2;base64,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) format('woff2');
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     TOKENS — the app's palette, disciplined to the plan.
+     Hue means STATE. Identity is carried by icon and label.
+     ═══════════════════════════════════════════════════════════════ */
+  :root {
+    --ground:   #e7f0ea;   /* page */
+    --surface:  #ffffff;   /* every card */
+    --ink:      #1c1a16;   /* primary text */
+    --ink-2:    #3d3a34;   /* secondary text */
+    --muted:    #6d6860;   /* captions — 5.53:1, replaces #9b958b */
+    --hair:     #f0efec;   /* hairline */
+    --track:    #eef1ee;   /* unfilled meters */
+    --accent:   #2f9e5b;   /* the one accent */
+    --accent-ink: #14543a; /* accent as text */
+    --accent-soft: #e4f1ea;
+    --good:     #1e7a44;
+    --warn:     #b45309;
+    --warn-soft:#f8eeda;
+    --bad:      #c62828;
+    --bad-soft: #fbe9e6;
+
+    --radius: 16px;
+    --gap: 12px;
+    --gutter: 16px;
+    --rail: 300px;
+    --panel: 340px;
+    --shell-pad: 16px;
+
+    --shadow-card: 0 1px 2px rgba(28,26,22,.04);
+  }
+
+  @media (min-width: 1440px) {
+    :root { --rail: 316px; --panel: 352px; --shell-pad: 20px; --gap: 14px; --gutter: 20px; }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink-2);
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  h1, h2, h3, h4, p, ul, ol, figure { margin: 0; }
+  ul { list-style: none; padding: 0; }
+  a { text-decoration: none; color: inherit; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  /* one focus token, applied to everything interactive */
+  a:focus-visible, button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 2px;
+    border-radius: 10px;
+  }
+
+  .fig { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ── shell ─────────────────────────────────────────────────── */
+  .shell { display: flex; align-items: flex-start; gap: var(--shell-pad); padding: var(--shell-pad); min-height: 100vh; }
+  .col-main { flex: 1; min-width: 0; }
+
+  /* ── sidebar ───────────────────────────────────────────────── */
+  .rail {
+    position: sticky; top: var(--shell-pad);
+    width: var(--rail); flex: none;
+    max-height: calc(100vh - var(--shell-pad) * 2);
+    display: flex; flex-direction: column;
+    background: var(--surface); border-radius: 20px; overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .rail .brand { padding: 18px 16px 12px; flex: none; }
+  .rail .brand .org { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+  .rail .brand .zoo { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+  .rail .search {
+    display: flex; align-items: center; gap: 9px;
+    margin-top: 14px; padding: 0 12px; height: 44px;
+    background: #f4f6f4; border-radius: 12px;
+  }
+  .rail .search input { border: 0; background: none; outline: none; font: inherit; font-size: 13.5px; color: var(--ink); min-width: 0; flex: 1; }
+  .rail .search input::placeholder { color: var(--muted); }
+
+  .rail .list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 14px; }
+  .rail .list::-webkit-scrollbar { width: 0; }
+  .navgroup { margin-top: 16px; }
+  .navgroup:first-child { margin-top: 6px; }
+  .navgroup h2 {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); padding: 0 12px 6px;
+  }
+  .nav {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 44px; padding: 0 12px; border-radius: 11px;
+    font-size: 13.5px; font-weight: 500; color: var(--ink-2);
+    transition: background-color .18s ease;
+  }
+  .nav:hover { background: #f6f7f6; }
+  .nav.on { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+  .nav .gl { flex: none; color: var(--muted); display: flex; }
+  .nav.on .gl { color: var(--accent-ink); }
+  .nav .lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* a chevron says "opens up"; a pill says "waiting for you" */
+  .nav .chev { color: #c2bdb4; flex: none; display: flex; }
+  .nav .count {
+    flex: none; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  }
+  .count.bad { background: var(--bad-soft); color: var(--bad); }
+  .count.warn { background: var(--warn-soft); color: var(--warn); }
+  .rail .foot { flex: none; border-top: 1px solid var(--hair); padding: 8px 12px 12px; }
+
+  /* ── banner ────────────────────────────────────────────────── */
+  .content { background: var(--ground); border-radius: 22px; overflow: hidden; }
+  .banner {
+    position: relative;
+    background: linear-gradient(180deg, #d7e9df 0%, #c6dfd2 52%, #e7f0ea 100%);
+    padding: 26px var(--gutter) 0;
+  }
+  .banner .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .greet .hello { font-size: 15px; color: #47584d; }
+  .greet h1 { font-size: 28px; font-weight: 800; letter-spacing: -.025em; color: #14211a; line-height: 1.14; margin-top: 1px; }
+  .greet .role { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: #3c4d43; margin-top: 5px; }
+  .iconbtn {
+    width: 44px; height: 44px; border-radius: 50%; background: #fbfaf7;
+    display: flex; align-items: center; justify-content: center; color: var(--ink); flex: none;
+  }
+
+  /* scope pills — 44px, and they pin when the banner scrolls away */
+  .scopebar { position: sticky; top: 0; z-index: 5; padding: 16px 0 4px; margin: 0 -4px; }
+  .scope { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 4px; }
+  .scope .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 44px; padding: 0 16px; border-radius: 999px;
+    background: var(--surface); color: var(--ink);
+    font-size: 13.5px; font-weight: 600;
+    box-shadow: 0 1px 3px rgba(28,26,22,.10);
+  }
+  .scope .pill .cv { color: var(--muted); font-weight: 500; }
+  .scope .asof { display: inline-flex; align-items: center; font-size: 12.5px; color: #47584d; padding: 0 4px; }
+
+  .headline { display: flex; align-items: flex-end; gap: 26px; flex-wrap: wrap; margin-top: 18px; }
+  .headline .total .n { font-size: 56px; font-weight: 800; letter-spacing: -.035em; line-height: .95; color: #0e2419; }
+  .headline .total .l { font-size: 14.5px; color: #2c3d33; margin-top: 4px; }
+  .headline .total .d { font-size: 13px; font-weight: 700; color: var(--good); margin-top: 2px; }
+  .headline .divide { width: 1px; align-self: stretch; background: rgba(28,26,22,.14); margin: 6px 0; }
+  .healthscore { display: flex; flex-direction: column; gap: 6px; }
+  .healthscore .n { font-size: 34px; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--accent-ink); }
+  .healthscore .n small { font-size: 15px; font-weight: 600; color: #3c4d43; letter-spacing: 0; }
+  .healthscore .l { font-size: 13px; color: #2c3d33; }
+  .indices { display: flex; gap: 14px; flex-wrap: wrap; }
+  .indices span { font-size: 12.5px; color: #3c4d43; }
+  .indices span b { font-weight: 700; color: #14211a; }
+
+  /* full-bleed to the banner's edges, so the park is a band and not a floating panel */
+  .horizon {
+    display: block; height: 96px; margin-top: 14px;
+    width: calc(100% + var(--gutter) * 2);
+    margin-left: calc(var(--gutter) * -1);
+    margin-right: calc(var(--gutter) * -1);
+  }
+
+  /* ── sections ──────────────────────────────────────────────── */
+  main { padding: 0 var(--gutter) 48px; display: flex; flex-direction: column; gap: var(--gap); }
+  .shead { display: flex; align-items: center; gap: 10px; padding-top: 18px; }
+  .shead .ic { color: var(--muted); display: flex; }
+  .shead h2 { font-size: 11.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+  .shead .ln { flex: 1; height: 1px; background: rgba(28,26,22,.10); }
+  .shead .aside { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .shead .aside.bad { color: var(--bad); }
+
+  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-card); }
+  .card > .ch { display: flex; align-items: center; gap: 10px; padding: 15px 18px 11px; }
+  .card > .ch h3 { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .card > .ch .n { margin-left: auto; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+
+  /* ── attention ─────────────────────────────────────────────── */
+  .attention { display: grid; grid-template-columns: 1fr; gap: var(--gap); }
+  @media (min-width: 1000px) { .attention { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); } }
+
+  .rows { padding: 0 18px 6px; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    min-height: 56px; padding: 8px 0;
+    border-bottom: 1px solid var(--hair);
+  }
+  .rows .row:last-child { border-bottom: 0; }
+  .row .badge {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .badge.c { background: var(--bad-soft); color: var(--bad); }
+  .badge.h { background: var(--warn-soft); color: var(--warn); }
+  .badge.m { background: var(--accent-soft); color: var(--accent-ink); }
+  .row .tx { flex: 1; min-width: 0; }
+  .row .l1 { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .row .l2 { font-size: 12.5px; color: var(--muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .val { font-size: 20px; font-weight: 800; color: var(--ink); flex: none; letter-spacing: -.02em; }
+  .row .val.bad { color: var(--bad); }
+  .row .go { color: #c2bdb4; flex: none; display: flex; }
+  .sev { font-size: 9.5px; font-weight: 800; letter-spacing: .07em; padding: 2px 6px; border-radius: 4px; flex: none; }
+  .sev.c { background: var(--bad-soft); color: var(--bad); }
+  .sev.h { background: var(--warn-soft); color: var(--warn); }
+  .sev.m { background: var(--accent-soft); color: var(--accent-ink); }
+
+  .showmore {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%; min-height: 48px; padding: 0 18px;
+    font-size: 13px; font-weight: 700; color: var(--accent-ink);
+    border-top: 1px solid var(--hair);
+  }
+
+  .approvals { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1px; background: var(--hair); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
+  .appr { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 3px; min-height: 78px; }
+  .appr .l { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+  .appr .v { font-size: 24px; font-weight: 800; color: var(--ink); letter-spacing: -.025em; line-height: 1.1; }
+  .appr .late { font-size: 11.5px; font-weight: 700; color: var(--warn); }
+
+  /* ── upcoming ──────────────────────────────────────────────── */
+  .horizonbar { display: flex; gap: 6px; margin-left: auto; }
+  .hchip {
+    min-height: 44px; padding: 0 16px; border-radius: 999px;
+    display: inline-flex; align-items: center;
+    font-size: 13px; font-weight: 600; color: var(--ink-2); background: transparent;
+  }
+  .hchip.on { background: var(--accent-ink); color: #fff; }
+  .due { display: inline-flex; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
+
+  /* ── performance ───────────────────────────────────────────── */
+  .kpis { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: var(--gap); }
+  @media (min-width: 620px) { .kpis { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+  @media (min-width: 1000px) { .kpis { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+
+  /* ONE anatomy: label · value+delta · mark · footer */
+  .kpi {
+    background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-card);
+    padding: 15px 16px 14px; display: flex; flex-direction: column; gap: 9px;
+  }
+  .kpi .lb { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .kpi .lb .gl { color: var(--accent); display: flex; flex: none; }
+  .kpi .lb .gl.warn { color: var(--warn); }
+  .kpi .lb .gl.bad { color: var(--bad); }
+  .kpi .vl { display: flex; align-items: baseline; gap: 6px; }
+  .kpi .vl .v { font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--ink); }
+  .kpi .vl .u { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .kpi .vl .d { margin-left: auto; font-size: 12.5px; font-weight: 700; }
+  .d.up { color: var(--good); } .d.down { color: var(--bad); } .d.hold { color: var(--warn); }
+  .kpi .mk { height: 30px; display: flex; align-items: flex-end; }
+  .kpi .mk svg { width: 100%; height: 30px; display: block; }
+  .meter { position: relative; height: 6px; border-radius: 3px; background: var(--track); overflow: visible; }
+  .meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+  .meter i.warn { background: var(--warn); }
+  .meter u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(28,26,22,.45); border-radius: 1px; }
+  .kpi .ft { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--muted); }
+  .kpi .ft .t { font-weight: 600; }
+  .kpi .ft .t.miss { color: var(--warn); }
+
+  /* ── executive panel ───────────────────────────────────────── */
+  .panel {
+    position: sticky; top: var(--shell-pad);
+    width: var(--panel); flex: none;
+    max-height: calc(100vh - var(--shell-pad) * 2); overflow-y: auto;
+    display: flex; flex-direction: column; gap: var(--shell-pad);
+  }
+  .panel::-webkit-scrollbar { width: 0; }
+  .pcard { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow-card); padding: 16px 18px; }
+  .pcard h2 { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .weather .wtop { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .weather .pl { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+  .weather .sm { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .weather .tp { font-size: 38px; font-weight: 800; letter-spacing: -.03em; color: var(--ink); line-height: 1; margin-top: 10px; }
+  .weather .fl { font-size: 12px; color: var(--muted); margin-top: 7px; display: flex; align-items: center; gap: 6px; }
+
+  .prow { display: flex; align-items: center; gap: 11px; min-height: 48px; padding: 7px 0; border-bottom: 1px solid var(--hair); }
+  .pcard .prow:last-of-type { border-bottom: 0; }
+  .prow .gl { flex: none; display: flex; }
+  .prow .gl.h { color: var(--warn); } .prow .gl.c { color: var(--bad); } .prow .gl.m { color: var(--muted); }
+  .prow .tx { flex: 1; min-width: 0; }
+  .prow .n1 { display: block; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .prow .n2 { display: block; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prow .vv { font-size: 17px; font-weight: 800; letter-spacing: -.02em; flex: none; }
+  .vv.h { color: var(--warn); } .vv.c { color: var(--bad); } .vv.m { color: var(--ink); }
+
+  .thread { display: flex; flex-direction: column; margin-top: 6px; }
+  .ev { display: flex; gap: 11px; padding: 7px 0; }
+  .ev .dot { position: relative; width: 8px; flex: none; display: flex; justify-content: center; padding-top: 7px; }
+  .ev .dot i { width: 6px; height: 6px; border-radius: 50%; background: #c2bdb4; }
+  .ev .dot i.bad { background: var(--bad); } .ev .dot i.good { background: var(--good); }
+  .ev .dot::after { content: ""; position: absolute; top: 17px; bottom: -7px; width: 1px; background: var(--hair); }
+  .ev:last-child .dot::after { display: none; }
+  .ev .tx { flex: 1; min-width: 0; }
+  .ev .e1 { display: block; font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
+  .ev .e2 { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  /* ── responsive: three columns → two → one ─────────────────── */
+  @media (max-width: 1279px) { .panel { display: none; } }
+  @media (max-width: 767px) {
+    :root { --shell-pad: 0px; --gutter: 16px; }
+    .rail { display: none; }
+    .shell { padding: 0; }
+    .content { border-radius: 0; }
+    .banner { padding-top: 22px; }
+    .greet h1 { font-size: 24px; }
+    .headline { gap: 16px; margin-top: 14px; }
+    .headline .total .n { font-size: 44px; }
+    /* the rule separates two columns; once they stack there is nothing to separate */
+    .headline .divide { display: none; }
+    .healthscore { flex-direction: row; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+    .healthscore .n { font-size: 26px; }
+    .indices { width: 100%; gap: 12px; }
+    .horizon { height: 78px; }
+    .approvals { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+</style>
+
+<!-- icon sprite: 16px stroke glyphs, lucide-shaped -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="i-base" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+  <symbol id="paw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="9" r="2"/><circle cx="11" cy="6" r="2"/><circle cx="17" cy="8" r="2"/><path d="M18.5 14.5c1.5 2 .3 5-2.3 5-1.2 0-1.9-.6-3.2-.6s-2 .6-3.2.6c-2.6 0-3.8-3-2.3-5 1.2-1.6 2.4-3.4 4.5-3.4s3.3 1.8 4.5 3.4Z"/></g></symbol>
+  <symbol id="heart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9c0 5-8 10-8 10S4 14 4 9a4 4 0 0 1 8-1 4 4 0 0 1 8 1Z"/></g></symbol>
+  <symbol id="spark" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3Z"/><path d="M18.5 16.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2Z"/></g></symbol>
+  <symbol id="pulse" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 3-9 2.5 2H22"/></g></symbol>
+  <symbol id="egg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.5 0 6 5 6 9a6 6 0 0 1-12 0c0-4 2.5-9 6-9Z"/></g></symbol>
+  <symbol id="swap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></g></symbol>
+  <symbol id="trend" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M16 7h5v5"/></g></symbol>
+  <symbol id="flask" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v6L4.5 18A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 9V3"/><path d="M9 3h6M7.5 14h9"/></g></symbol>
+  <symbol id="pill" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-45 12 12)"/><path d="M8.8 8.8l6.4 6.4"/></g></symbol>
+  <symbol id="store" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v11h16V9"/><path d="M3 9l2-5h14l2 5H3Z"/><path d="M10 20v-5h4v5"/></g></symbol>
+  <symbol id="shieldplus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/><path d="M12 9v5M9.5 11.5h5"/></g></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></g></symbol>
+  <symbol id="tasks" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5l1.6 1.6L8.6 5"/><path d="M4 17l1.6 1.6L8.6 15.5"/><path d="M11.5 7h9M11.5 17h9"/></g></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 0 0-12 0c0 6-2 7-2 7h16s-2-1-2-7Z"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/></g></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/><path d="M9 12l2 2 4-4.5"/></g></symbol>
+  <symbol id="users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.3a3 3 0 0 1 0 5.4M17.5 19a5.6 5.6 0 0 0-2-4"/></g></symbol>
+  <symbol id="home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20H4v-9.5Z"/><path d="M9.5 20v-5h5v5"/></g></symbol>
+  <symbol id="boxes" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12.5" width="8" height="8" rx="1.5"/><rect x="13" y="12.5" width="8" height="8" rx="1.5"/><rect x="8" y="3.5" width="8" height="8" rx="1.5"/></g></symbol>
+  <symbol id="cog" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9 5.3 5.3"/></g></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></g></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></g></symbol>
+  <symbol id="pin" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></g></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></g></symbol>
+  <symbol id="warn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 4.2 2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4.2M12 17h.01"/></g></symbol>
+  <symbol id="eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+  <symbol id="run" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4.5" r="2"/><path d="M9 21l2.5-5.5-3-2.5 1.5-5 4 3 3 1"/><path d="M6 12l3-2.5"/></g></symbol>
+  <symbol id="bio" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><path d="M12 3a5 5 0 0 1 4.3 7.5M12 3a5 5 0 0 0-4.3 7.5M4.5 18.5a5 5 0 0 1 .7-8.6M19.5 18.5a5 5 0 0 0-.7-8.6M4.5 18.5h15"/></g></symbol>
+  <symbol id="lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10" width="15" height="10.5" rx="2.5"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/></g></symbol>
+  <symbol id="soup" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-8 8 8 8 0 0 1-8-8Z"/><path d="M8.5 7.5c0-1.5 1-1.5 1-3M12 7.5c0-1.5 1-1.5 1-3M15.5 7.5c0-1.5 1-1.5 1-3"/></g></symbol>
+  <symbol id="door" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5 6 5.5v15l8 2V3.5Z"/><path d="M14 5h4v15h-4"/><circle cx="11" cy="12.5" r=".9" fill="currentColor" stroke="none"/></g></symbol>
+  <symbol id="dna" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3c0 5 10 5 10 10s-10 5-10 8"/><path d="M17 3c0 5-10 5-10 10s10 5 10 8"/><path d="M8.6 7h6.8M8.6 17h6.8"/></g></symbol>
+  <symbol id="cap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 8.5 9.5-4.5 9.5 4.5L12 13 2.5 8.5Z"/><path d="M6.5 10.5V16c0 1.5 2.7 3 5.5 3s5.5-1.5 5.5-3v-5.5"/></g></symbol>
+  <symbol id="clip" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.5"/><path d="M9 4.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 4.5v1H9v-1Z"/><path d="M9 12.5l2 2 4-4"/></g></symbol>
+  <symbol id="bandage" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="7" width="21" height="10" rx="5" transform="rotate(-45 12 12)"/><path d="M8.5 8.5 15.5 15.5"/></g></symbol>
+  <symbol id="sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3.2"/><path d="M9 2.6v1.6M9 13.8v1.6M2.6 9h1.6M13.8 9h1.6M13.2 4.8l-1.1 1.1M5.9 12.1l-1.1 1.1M13.2 13.2l-1.1-1.1M5.9 5.9 4.8 4.8"/><path d="M11 20.5h7.5a3 3 0 0 0 0-6 4.4 4.4 0 0 0-8.3-1.3A3.4 3.4 0 0 0 11 20.5Z"/></g></symbol>
+  <symbol id="temp" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V5a2.5 2.5 0 0 0-5 0v9.8a4.5 4.5 0 1 0 5 0Z"/></g></symbol>
+</svg>
+
+<div class="shell">
+
+  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <nav class="rail" aria-label="Modules">
+    <div class="brand">
+      <div class="org">Vantara Wildlife Trust</div>
+      <div class="zoo">Jamnagar Zoo</div>
+      <label class="search">
+        <svg width="15" height="15" style="color:var(--muted)"><use href="#search"/></svg>
+        <input type="search" placeholder="Search modules, animals, sites" aria-label="Search">
+      </label>
+    </div>
+
+    <div class="list">
+      <a class="nav on" href="#"><span class="gl"><svg width="17" height="17"><use href="#home"/></svg></span><span class="lb">Home</span></a>
+      <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#boxes"/></svg></span><span class="lb">Everything</span></a>
+
+      <div class="navgroup">
+        <h2>Collection</h2>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#paw"/></svg></span><span class="lb">Animal Population</span><span class="chev"><svg width="14" height="14"><use href="#chev"/></svg></span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#spark"/></svg></span><span class="lb">Birth Analytics</span><span class="chev"><svg width="14" height="14"><use href="#chev"/></svg></span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#egg"/></svg></span><span class="lb">Eggs &amp; Incubation</span><span class="chev"><svg width="14" height="14"><use href="#chev"/></svg></span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#pulse"/></svg></span><span class="lb">Mortality</span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#swap"/></svg></span><span class="lb">Animal Movement</span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#trend"/></svg></span><span class="lb">30-Day Trends</span></a>
+      </div>
+
+      <div class="navgroup">
+        <h2>Medical</h2>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#heart"/></svg></span><span class="lb">Health &amp; Medical</span><span class="chev"><svg width="14" height="14"><use href="#chev"/></svg></span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#store"/></svg></span><span class="lb">Pharmacy</span><span class="count warn">8</span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#flask"/></svg></span><span class="lb">Lab Requests</span><span class="count warn">31</span></a>
+      </div>
+
+      <div class="navgroup">
+        <h2>Preventive care</h2>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#shieldplus"/></svg></span><span class="lb">Preventive Medication</span><span class="chev"><svg width="14" height="14"><use href="#chev"/></svg></span></a>
+      </div>
+
+      <div class="navgroup">
+        <h2>Operations</h2>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#check"/></svg></span><span class="lb">Approvals</span><span class="count warn">14</span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#tasks"/></svg></span><span class="lb">Tasks</span><span class="count warn">35</span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#bell"/></svg></span><span class="lb">Alerts</span><span class="count bad">28</span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#shield"/></svg></span><span class="lb">Animal Welfare</span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#users"/></svg></span><span class="lb">Staff Attendance</span></a>
+        <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#users"/></svg></span><span class="lb">Users</span></a>
+      </div>
+    </div>
+
+    <div class="foot">
+      <a class="nav" href="#"><span class="gl"><svg width="17" height="17"><use href="#cog"/></svg></span><span class="lb">Settings</span></a>
+    </div>
+  </nav>
+
+  <!-- ══════════════ CONTENT ══════════════ -->
+  <div class="col-main">
+    <div class="content">
+
+      <!-- ── banner: ~300px, and it answers three questions ── -->
+      <header class="banner">
+        <div class="top">
+          <div class="greet">
+            <div class="hello">Good afternoon,</div>
+            <h1>Bharathi Raja</h1>
+            <div class="role">
+              <svg width="14" height="14"><use href="#pin"/></svg>
+              Vantara Wildlife Trust &middot; Zoo Director
+            </div>
+          </div>
+          <button class="iconbtn" aria-label="Search">
+            <svg width="18" height="18"><use href="#search"/></svg>
+          </button>
+        </div>
+
+        <div class="scopebar">
+          <div class="scope">
+            <button class="pill"><svg width="15" height="15" style="color:var(--accent-ink)"><use href="#cal"/></svg> This month <span class="cv">&#9662;</span></button>
+            <button class="pill"><svg width="15" height="15" style="color:var(--accent-ink)"><use href="#pin"/></svg> All sites <span class="cv">&#9662;</span></button>
+            <span class="asof">July 2025 &middot; 31 days &middot; data to 31 Jul</span>
+          </div>
+        </div>
+
+        <div class="headline">
+          <div class="total">
+            <div class="n fig">215,432</div>
+            <div class="l">Total animals</div>
+            <div class="d">&#9650; +181 this month</div>
+          </div>
+          <div class="divide"></div>
+          <div class="healthscore">
+            <div>
+              <div class="n fig">90.3<small> / 100</small></div>
+              <div class="l">Zoo health</div>
+            </div>
+            <div class="indices">
+              <span>Health <b>94</b></span>
+              <span>Welfare <b>92</b></span>
+              <span>Compliance <b>88</b></span>
+              <span>Operations <b>81</b></span>
+            </div>
+          </div>
+        </div>
+
+        <svg class="horizon" viewBox="0 0 900 96" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+          <path d="M0 40 Q140 18 290 34 T580 24 Q720 18 900 32 L900 96 L0 96 Z" fill="#bfdbcb"/>
+          <path d="M0 54 Q120 40 260 50 T540 44 Q700 38 900 50 L900 96 L0 96 Z" fill="#a7cdb9"/>
+          <g fill="#8fbaa5">
+            <circle cx="110" cy="55" r="12"/><circle cx="128" cy="58" r="9"/>
+            <circle cx="470" cy="53" r="11"/><circle cx="486" cy="57" r="8"/>
+            <circle cx="770" cy="55" r="10"/><circle cx="784" cy="58" r="7"/>
+          </g>
+          <g fill="#7fae99"><path d="M300 60 l9 -26 9 26 Z"/><path d="M620 58 l8 -22 8 22 Z"/></g>
+          <path d="M0 68 Q200 58 400 66 T900 62 L900 96 L0 96 Z" fill="#84b19b"/>
+          <path d="M382 66 C398 80 372 90 402 96 L344 96 C368 88 362 78 372 67 Z" fill="#d3e8dc" opacity=".9"/>
+        </svg>
+      </header>
+
+      <main>
+
+        <!-- ══ 1 · ATTENTION — alerts and approvals, one section ══ -->
+        <div class="shead">
+          <span class="ic"><svg width="15" height="15"><use href="#warn"/></svg></span>
+          <h2>Attention</h2>
+          <span class="ln"></span>
+          <span class="aside bad">28 urgent &middot; 14 to approve</span>
+        </div>
+
+        <div class="attention">
+
+          <section class="card" aria-label="Alerts">
+            <div class="ch">
+              <h3>Alerts</h3>
+              <span class="n">sorted by severity, then age</span>
+            </div>
+            <ul class="rows">
+              <li class="row">
+                <span class="badge c"><svg width="17" height="17"><use href="#run"/></svg></span>
+                <span class="tx"><span class="l1">Missing animals <span class="sev c">CRITICAL</span></span><span class="l2">2 sites &middot; since 06:40</span></span>
+                <span class="val bad fig">2</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+              </li>
+              <li class="row">
+                <span class="badge c"><svg width="17" height="17"><use href="#heart"/></svg></span>
+                <span class="tx"><span class="l1">Critical medical cases <span class="sev c">CRITICAL</span></span><span class="l2">of 124 under care</span></span>
+                <span class="val bad fig">7</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+              </li>
+              <li class="row">
+                <span class="badge c"><svg width="17" height="17"><use href="#pulse"/></svg></span>
+                <span class="tx"><span class="l1">Animal deaths <span class="sev c">CRITICAL</span></span><span class="l2">last 24 h &middot; necropsy due</span></span>
+                <span class="val bad fig">1</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+              </li>
+              <li class="row">
+                <span class="badge c"><svg width="17" height="17"><use href="#door"/></svg></span>
+                <span class="tx"><span class="l1">Escaped animals <span class="sev c">CRITICAL</span></span><span class="l2">contained &middot; perimeter held</span></span>
+                <span class="val bad fig">1</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+              </li>
+              <li class="row">
+                <span class="badge c"><svg width="17" height="17"><use href="#bio"/></svg></span>
+                <span class="tx"><span class="l1">Disease outbreaks <span class="sev c">CRITICAL</span></span><span class="l2">2 enclosures quarantined</span></span>
+                <span class="val bad fig">2</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+              </li>
+              <li class="row">
+                <span class="badge c"><svg width="17" height="17"><use href="#lock"/></svg></span>
+                <span class="tx"><span class="l1">Biosecurity incidents <span class="sev c">CRITICAL</span></span><span class="l2">perimeter &middot; unresolved</span></span>
+                <span class="val bad fig">1</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+              </li>
+              <li class="row">
+                <span class="badge h"><svg width="17" height="17"><use href="#spark"/></svg></span>
+                <span class="tx"><span class="l1">Fetal deaths <span class="sev h">HIGH</span></span><span class="l2">this month &middot; 3 species</span></span>
+                <span class="val fig">5</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+              </li>
+              <li class="row">
+                <span class="badge h"><svg width="17" height="17"><use href="#flask"/></svg></span>
+                <span class="tx"><span class="l1">Critical lab results <span class="sev h">HIGH</span></span><span class="l2">of 31 open requests</span></span>
+                <span class="val fig">4</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+              </li>
+            </ul>
+            <button class="showmore">
+              <span>4 more &middot; medicine out of stock, food inventory, enclosure safety, welfare audit</span>
+              <svg width="15" height="15"><use href="#chev"/></svg>
+            </button>
+          </section>
+
+          <section class="card" aria-label="Needs my approval">
+            <div class="ch">
+              <h3>Needs my approval</h3>
+              <span class="n">3 late</span>
+            </div>
+            <div class="approvals">
+              <div class="appr">
+                <span class="l"><svg width="14" height="14" style="color:var(--muted)"><use href="#spark"/></svg> Breeding</span>
+                <span class="v fig">3</span>
+              </div>
+              <div class="appr">
+                <span class="l"><svg width="14" height="14" style="color:var(--muted)"><use href="#swap"/></svg> Transfer</span>
+                <span class="v fig">4</span>
+                <span class="late">1 late</span>
+              </div>
+              <div class="appr">
+                <span class="l"><svg width="14" height="14" style="color:var(--muted)"><use href="#clip"/></svg> Budget</span>
+                <span class="v fig">2</span>
+                <span class="late">2 late</span>
+              </div>
+              <div class="appr">
+                <span class="l"><svg width="14" height="14" style="color:var(--muted)"><use href="#store"/></svg> Procurement</span>
+                <span class="v fig">2</span>
+              </div>
+              <div class="appr">
+                <span class="l"><svg width="14" height="14" style="color:var(--muted)"><use href="#users"/></svg> User access</span>
+                <span class="v fig">1</span>
+              </div>
+              <div class="appr">
+                <span class="l"><svg width="14" height="14" style="color:var(--muted)"><use href="#heart"/></svg> Veterinary</span>
+                <span class="v fig">2</span>
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- ══ 2 · UPCOMING ══ -->
+        <div class="shead">
+          <span class="ic"><svg width="15" height="15"><use href="#cal"/></svg></span>
+          <h2>Upcoming</h2>
+          <span class="ln"></span>
+          <span class="aside">21 scheduled</span>
+        </div>
+
+        <section class="card" aria-label="Upcoming">
+          <div class="ch">
+            <h3>Next 7 days</h3>
+            <div class="horizonbar" role="tablist" aria-label="Horizon">
+              <button class="hchip on" role="tab" aria-selected="true">7 days</button>
+              <button class="hchip" role="tab" aria-selected="false">30 days</button>
+            </div>
+          </div>
+          <ul class="rows">
+            <li class="row">
+              <span class="badge m"><svg width="17" height="17"><use href="#spark"/></svg></span>
+              <span class="tx"><span class="l1">Expected births</span><span class="l2">Next 09 Aug &middot; Savanna &middot; SV-06</span></span>
+              <span class="val fig">6</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+            </li>
+            <li class="row">
+              <span class="badge m"><svg width="17" height="17"><use href="#egg"/></svg></span>
+              <span class="tx"><span class="l1">Expected hatchings <span class="due"></span></span><span class="l2">Next 08 Aug &middot; Aviary &middot; Incubator 2</span></span>
+              <span class="val fig">29</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+            </li>
+            <li class="row">
+              <span class="badge m"><svg width="17" height="17"><use href="#shieldplus"/></svg></span>
+              <span class="tx"><span class="l1">Vaccination due <span class="due"></span></span><span class="l2">Next 08 Aug &middot; Carnivore Ridge</span></span>
+              <span class="val fig">300</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+            </li>
+            <li class="row">
+              <span class="badge m"><svg width="17" height="17"><use href="#heart"/></svg></span>
+              <span class="tx"><span class="l1">Health assessment due <span class="due"></span></span><span class="l2">Next 08 Aug &middot; Savanna &middot; SV-09</span></span>
+              <span class="val fig">43</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+            </li>
+            <li class="row">
+              <span class="badge m"><svg width="17" height="17"><use href="#pill"/></svg></span>
+              <span class="tx"><span class="l1">Deworming due</span><span class="l2">Next 09 Aug &middot; Savanna &middot; SV-09</span></span>
+              <span class="val fig">102</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+            </li>
+            <li class="row">
+              <span class="badge m"><svg width="17" height="17"><use href="#soup"/></svg></span>
+              <span class="tx"><span class="l1">Supplement due <span class="due"></span></span><span class="l2">Next 08 Aug &middot; Reptile House</span></span>
+              <span class="val fig">164</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+            </li>
+            <li class="row">
+              <span class="badge m"><svg width="17" height="17"><use href="#cap"/></svg></span>
+              <span class="tx"><span class="l1">Staff training due <span class="due"></span></span><span class="l2">Next 08 Aug &middot; Veterinary &middot; 9 staff</span></span>
+              <span class="val fig">55</span><span class="go"><svg width="15" height="15"><use href="#chev"/></svg></span>
+            </li>
+          </ul>
+          <button class="showmore">
+            <span>2 more &middot; welfare assessment, enclosure assessment</span>
+            <svg width="15" height="15"><use href="#chev"/></svg>
+          </button>
+        </section>
+
+        <!-- ══ 3 · PERFORMANCE — one tile anatomy, value + target + trend ══ -->
+        <div class="shead">
+          <span class="ic"><svg width="15" height="15"><use href="#trend"/></svg></span>
+          <h2>Performance</h2>
+          <span class="ln"></span>
+          <span class="aside">11 measures &middot; July vs June</span>
+        </div>
+
+        <div class="kpis">
+
+          <article class="kpi">
+            <div class="lb"><span class="gl"><svg width="16" height="16"><use href="#paw"/></svg></span> Animal Population</div>
+            <div class="vl"><span class="v fig">215,432</span><span class="d up">+181</span></div>
+            <div class="mk">
+              <svg viewBox="0 0 140 30" preserveAspectRatio="none"><path d="M2 25 L15 24 L28 23 L41 21 L54 20 L67 18 L80 15 L93 13 L106 10 L119 8 L132 5" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="132" cy="5" r="3" fill="var(--accent)"/></svg>
+            </div>
+            <div class="ft"><span>Animals</span><span class="t">97 species &middot; 6 sites</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl"><svg width="16" height="16"><use href="#heart"/></svg></span> Health &amp; Medical</div>
+            <div class="vl"><span class="v fig">124</span></div>
+            <div class="mk">
+              <svg viewBox="0 0 140 30" preserveAspectRatio="none"><path d="M2 16 L15 14 L28 17 L41 13 L54 16 L67 14 L80 17 L93 15 L106 13 L119 16 L132 15" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="132" cy="15" r="3" fill="var(--accent)"/></svg>
+            </div>
+            <div class="ft"><span>Under care</span><span class="t">7 critical</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl"><svg width="16" height="16"><use href="#spark"/></svg></span> Natality</div>
+            <div class="vl"><span class="v fig">45</span><span class="d down">&minus;6.3%</span></div>
+            <div class="mk">
+              <svg viewBox="0 0 140 30" preserveAspectRatio="none">
+                <g fill="var(--accent)" opacity=".28">
+                  <rect x="2" y="12" width="8" height="18" rx="2"/><rect x="14" y="9" width="8" height="21" rx="2"/><rect x="26" y="14" width="8" height="16" rx="2"/><rect x="38" y="8" width="8" height="22" rx="2"/><rect x="50" y="11" width="8" height="19" rx="2"/><rect x="62" y="6" width="8" height="24" rx="2"/><rect x="74" y="10" width="8" height="20" rx="2"/><rect x="86" y="7" width="8" height="23" rx="2"/><rect x="98" y="12" width="8" height="18" rx="2"/><rect x="110" y="9" width="8" height="21" rx="2"/>
+                </g>
+                <rect x="122" y="13" width="8" height="17" rx="2" fill="var(--accent)"/>
+              </svg>
+            </div>
+            <div class="ft"><span>Births</span><span class="t">38 natural &middot; 7 assisted</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl bad"><svg width="16" height="16"><use href="#pulse"/></svg></span> Mortality</div>
+            <div class="vl"><span class="v fig">23</span><span class="d down">+9.5%</span></div>
+            <div class="mk">
+              <svg viewBox="0 0 140 30" preserveAspectRatio="none">
+                <g fill="var(--bad)" opacity=".22">
+                  <rect x="2" y="14" width="8" height="16" rx="2"/><rect x="14" y="16" width="8" height="14" rx="2"/><rect x="26" y="13" width="8" height="17" rx="2"/><rect x="38" y="17" width="8" height="13" rx="2"/><rect x="50" y="15" width="8" height="15" rx="2"/><rect x="62" y="18" width="8" height="12" rx="2"/><rect x="74" y="14" width="8" height="16" rx="2"/><rect x="86" y="16" width="8" height="14" rx="2"/><rect x="98" y="19" width="8" height="11" rx="2"/><rect x="110" y="17" width="8" height="13" rx="2"/>
+                </g>
+                <rect x="122" y="12" width="8" height="18" rx="2" fill="var(--bad)"/>
+              </svg>
+            </div>
+            <div class="ft"><span>Deaths</span><span class="t">Rate 0.011% &middot; ceiling 0.015%</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl"><svg width="16" height="16"><use href="#heart"/></svg></span> Animal Health</div>
+            <div class="vl"><span class="v fig">94</span><span class="u">/ 100</span><span class="d up">+2</span></div>
+            <div class="mk"><span class="meter" style="width:100%"><i style="width:94%"></i><u style="left:90%"></u></span></div>
+            <div class="ft"><span>Site average</span><span class="t">Target 90</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl"><svg width="16" height="16"><use href="#shield"/></svg></span> Animal Welfare</div>
+            <div class="vl"><span class="v fig">4.6</span><span class="u">/ 5</span><span class="d up">+0.1</span></div>
+            <div class="mk"><span class="meter" style="width:100%"><i style="width:92%"></i><u style="left:90%"></u></span></div>
+            <div class="ft"><span>82 of 89 audits passed</span><span class="t">Target 4.5</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl"><svg width="16" height="16"><use href="#spark"/></svg></span> Breeding Success</div>
+            <div class="vl"><span class="v fig">78</span><span class="u">%</span><span class="d up">+4</span></div>
+            <div class="mk"><span class="meter" style="width:100%"><i style="width:78%"></i><u style="left:75%"></u></span></div>
+            <div class="ft"><span>45 of 58 pairings</span><span class="t">Target 75%</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl warn"><svg width="16" height="16"><use href="#shieldplus"/></svg></span> Vaccination</div>
+            <div class="vl"><span class="v fig">92</span><span class="u">%</span><span class="d hold">+1</span></div>
+            <div class="mk"><span class="meter" style="width:100%"><i class="warn" style="width:92%"></i><u style="left:95%"></u></span></div>
+            <div class="ft"><span>2,184 of 2,374</span><span class="t miss">Target 95% &middot; 3 short</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl warn"><svg width="16" height="16"><use href="#soup"/></svg></span> Food Wastage</div>
+            <div class="vl"><span class="v fig">3.4</span><span class="u">%</span><span class="d hold">+0.3</span></div>
+            <div class="mk"><span class="meter" style="width:100%"><i class="warn" style="width:88%"></i><u style="left:78%"></u></span></div>
+            <div class="ft"><span>Of feed</span><span class="t miss">Ceiling 3.0% &middot; over</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl warn"><svg width="16" height="16"><use href="#store"/></svg></span> Pharmacy</div>
+            <div class="vl"><span class="v fig">1,284</span><span class="d up">+1.6%</span></div>
+            <div class="mk"><span class="meter" style="width:100%"><i class="warn" style="width:71%"></i></span></div>
+            <div class="ft"><span>Dispensed</span><span class="t miss">9 unavailable</span></div>
+          </article>
+
+          <article class="kpi">
+            <div class="lb"><span class="gl"><svg width="16" height="16"><use href="#tasks"/></svg></span> Tasks</div>
+            <div class="vl"><span class="v fig">54</span><span class="u">%</span></div>
+            <div class="mk"><span class="meter" style="width:100%"><i style="width:54%"></i></span></div>
+            <div class="ft"><span>41 of 76 done</span><span class="t">35 open</span></div>
+          </article>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ══════════════ EXECUTIVE PANEL ══════════════ -->
+  <aside class="panel" aria-label="Live operations">
+
+    <section class="pcard weather" aria-label="Weather">
+      <div class="wtop">
+        <div>
+          <div class="pl">Jamnagar Zoo</div>
+          <div class="sm">Partly cloudy</div>
+        </div>
+        <span style="color:var(--warn)"><svg width="26" height="26"><use href="#sun"/></svg></span>
+      </div>
+      <div class="tp fig">24&deg;</div>
+      <div class="fl"><svg width="12" height="12"><use href="#temp"/></svg> Feels 27&deg; &middot; H 31&deg; &middot; L 22&deg;</div>
+    </section>
+
+    <!-- Risk Indicators moves here, and the middle column stops repeating it -->
+    <section class="pcard" aria-label="Standing risks">
+      <h2>Standing risks</h2>
+      <div>
+        <a class="prow" href="#"><span class="gl h"><svg width="17" height="17"><use href="#bandage"/></svg></span><span class="tx"><span class="n1">Medicine expiry</span><span class="n2">lines expiring in 60 d &middot; &#8377;4.1L</span></span><span class="vv h fig">22</span></a>
+        <a class="prow" href="#"><span class="gl h"><svg width="17" height="17"><use href="#pill"/></svg></span><span class="tx"><span class="n1">Low medicine stock</span><span class="n2">items under reorder level</span></span><span class="vv h fig">8</span></a>
+        <a class="prow" href="#"><span class="gl h"><svg width="17" height="17"><use href="#door"/></svg></span><span class="tx"><span class="n1">Critical capacity</span><span class="n2">enclosures over 95% occupancy</span></span><span class="vv h fig">4</span></a>
+        <a class="prow" href="#"><span class="gl h"><svg width="17" height="17"><use href="#lock"/></svg></span><span class="tx"><span class="n1">Biosecurity risk</span><span class="n2">controls lapsed &middot; 2 zones</span></span><span class="vv h fig">3</span></a>
+        <a class="prow" href="#"><span class="gl m"><svg width="17" height="17"><use href="#dna"/></svg></span><span class="tx"><span class="n1">Inbreeding risk</span><span class="n2">pairings above 0.125 kinship</span></span><span class="vv m fig">14</span></a>
+        <a class="prow" href="#"><span class="gl m"><svg width="17" height="17"><use href="#soup"/></svg></span><span class="tx"><span class="n1">Low food inventory</span><span class="n2">lines under 5 days cover</span></span><span class="vv m fig">3</span></a>
+        <a class="prow" href="#"><span class="gl m"><svg width="17" height="17"><use href="#cap"/></svg></span><span class="tx"><span class="n1">Training compliance</span><span class="n2">% of 312 staff current</span></span><span class="vv m fig">68%</span></a>
+        <a class="prow" href="#"><span class="gl m"><svg width="17" height="17"><use href="#clip"/></svg></span><span class="tx"><span class="n1">Compliance risk</span><span class="n2">statutory filings open</span></span><span class="vv m fig">6</span></a>
+      </div>
+    </section>
+
+    <section class="pcard" aria-label="Recent activity">
+      <h2>Recent activity</h2>
+      <div class="thread">
+        <a class="ev" href="#"><span class="dot"><i class="bad"></i></span><span class="tx"><span class="e1">Perimeter gate unsecured &middot; Zone A</span><span class="e2 fig">11:12</span></span></a>
+        <a class="ev" href="#"><span class="dot"><i class="bad"></i></span><span class="tx"><span class="e1">Mortality logged &middot; Chital, Zone A</span><span class="e2 fig">09:42</span></span></a>
+        <a class="ev" href="#"><span class="dot"><i class="good"></i></span><span class="tx"><span class="e1">Vaccination round closed &middot; Aviary Complex</span><span class="e2 fig">09:15</span></span></a>
+        <a class="ev" href="#"><span class="dot"><i class="good"></i></span><span class="tx"><span class="e1">3 hatchlings recorded &middot; Open Aviary 4</span><span class="e2 fig">08:51</span></span></a>
+      </div>
+    </section>
+
+  </aside>
+</div>
+</body>
+</html>
