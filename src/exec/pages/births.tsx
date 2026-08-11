@@ -1,208 +1,299 @@
 /**
- * BIRTH ANALYTICS — the nursery.
+ * BIRTH ANALYTICS — when the collection bred, which species, and where.
  *
- * The only forward-facing sheet in the set, so the month grid opens the page and
- * the count sits above it in the hero. Performance is stated against the house
- * target and nothing else — the three-year average was a benchmark dressed as a
- * note, and this page is not a scorecard.
+ * ────────────────────────────────────────────────────────────────────────────
+ * REBUILT ON `report_births`. Every figure below is a count of the 66,303 birth rows in
+ * `species_mgmt_anon`, cut by the global window and site scope, and nothing else.
  *
- * Losses before birth used to live here as five words on a target bar. They are a
- * module now; what remains is the handoff to it, because a delivery-success figure
- * that quietly excludes five fetal deaths is a figure that misleads.
+ * WHAT THIS PAGE USED TO SAY, because the gap is the point. It opened on 45 births, +12%,
+ * against 38 "expected". Under that: a July calendar with eight named marks (`Zebra Finch ·
+ * Open Aviary 4`), a 93% delivery success against a 90% target, an 88% neonatal survival, a
+ * 38/7 natural-versus-assisted split annotated "3 sedated · 1 caesarean", four zones with
+ * survival rates, and five named dams — Sundari, Meera, Roshni, Kavi, Ambika — with pregnancy
+ * numbers, prior dystocia, body condition scores and the vets watching them.
+ *
+ * The database records, per birth: the animal, its species, its site, and a date. That is all.
+ * There is no pregnancy, no dam, no delivery, no attendant, no outcome and no neonatal
+ * follow-up anywhere in the schema. So the dams, the survival rates, the targets and the
+ * caesareans are not approximations that need refreshing against real numbers — there is
+ * nothing for them to be approximations OF, and they are gone rather than recalculated.
+ *
+ * THE ONE SPLIT THAT SURVIVED THE SCHEMA AND STILL HAD TO GO. `report_births.accession_type`
+ * exists, which looked like the natural/assisted split. Its value is `'Natality'` on all 66,303
+ * rows — one category, so a "38 natural · 7 assisted" line drawn from it would have been a
+ * fabricated division of a real column, which is the harder kind of wrong to spot. The handoff
+ * flagged this; the sub-line is dropped rather than rendered as "66,303 natural · 0 assisted",
+ * which states a fact about the collection that the column does not support either.
+ *
+ * WHY THE CALENDAR LEADS. Of the four questions a birth record can answer — how many, when,
+ * what, where — *when* is the one this module exists for and the one a rate cannot show. It is
+ * a real month grid from `dayCells`, not the authored 31 cells with an offset of 5 that stood
+ * here; past about seven weeks it becomes a year strip, because a year as rows of seven is nine
+ * hundred pixels tall. `DayHeat` decides which, from the window.
+ *
+ * THE DERIVATION IS STATED ON THE PAGE, not just in a comment. 59% of `birth_date` is null and
+ * those rows are counted against the day they were added to the system instead. That materially
+ * shapes the calendar — added-on dates cluster on working days in a way real births do not —
+ * and a reader drawing a conclusion from a Tuesday spike deserves to know it before they do.
+ * The note comes from `METRICS.births.note`, so it is the same sentence the metric carries
+ * everywhere else rather than a second wording of it.
  */
 
-import {
-  Award,
-  Baby,
-  CalendarDays,
-  Eye,
-  Gauge,
-  Home,
-  MapPin,
-  Sparkles,
-  TrendingUp,
-  Users,
-} from 'lucide-react'
+import { useMemo } from 'react'
+import { CalendarDays, Dna, Info, MapPin, Search, Sparkles, TrendingUp } from 'lucide-react'
+import { shortDate } from '../../core/calendar'
+import { METRICS } from '../../core/metrics'
+import { bySpecies, figure, records } from '../../core/query'
+import { siteName } from '../../core/world'
+import { AccentProvider, FAINT, Figure, HERO_INK, Section, Stack, Stamp, fmt } from '../system'
+import { DayHeat, EventTrend, RankList } from '../marks'
+import { compareOf, dayCells, peakOf, pointsOf } from '../../v4/plot'
+import { useScope } from '../../v4/scope'
 import { useSiteDrill } from '../../v4/panels'
-import {
-  Band,
-  BulletGroup,
-  Calendar,
-  Duo,
-  Facts,
-  Ladder,
-  More,
-  PeriodHero,
-  Records,
-  Rule,
-  Scoreboard,
-  Section,
-  Sites,
-  Stack,
-  Stamp,
-  Trend,
-} from '../system'
+import { MoreRows, usePaged } from '../../v4/perf'
+import { DrillList, DrillRow, SiteSplit } from '../../v4/modules/kit'
+
+/** MD3_Antz — natality reads as growth, so it takes the collection's own green. */
+const BIRTHS_ACCENT = '#2f6b46'
 
 export default function Births() {
-  /* This page is where the Natality KPI now lands, so it is also where the drill is entered:
-     a site row opens the sheet on that site's species and animals. */
+  return (
+    <AccentProvider value={BIRTHS_ACCENT}>
+      <BirthsHero />
+      <Stack>
+        <DateDistribution />
+        <Trend />
+        <Species />
+        <Sites />
+        <Records />
+        <Derivation />
+      </Stack>
+      <Stamp />
+    </AccentProvider>
+  )
+}
+
+/* ── 1 · hero ────────────────────────────────────────────────────────────── */
+
+/**
+ * The window's births, the species behind them, and the busiest single day.
+ *
+ * The third figure is deliberately the peak DAY rather than a rate: this module's subject is
+ * timing, and "the busiest day held 41" is the one supporting number a reader cannot get from
+ * the headline. Every rate that used to sit here needed a denominator — pregnancies, expected
+ * births, dams at risk — and the schema has none of them.
+ */
+function BirthsHero() {
+  const { scope } = useScope()
+
+  const { total, species, peak } = useMemo(() => {
+    const cells = dayCells('births', scope.site?.key ?? null, scope.win).cells
+    const best = cells.reduce((a, b) => (b.count > a.count ? b : a), { count: 0, label: '' })
+    return {
+      total: figure(scope, 'births').value,
+      species: bySpecies(scope, 'births').length,
+      peak: best.count > 0 ? best : undefined,
+    }
+  }, [scope])
+
+  return (
+    <div className="w-full px-[var(--gutter)] pb-3">
+      <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
+        <div className="flex items-end justify-between gap-4">
+          <span>
+            <Figure value={fmt(total)} size={48} color={HERO_INK} />
+            <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
+              <Sparkles size={15} strokeWidth={1.75} style={{ color: BIRTHS_ACCENT }} aria-hidden />
+              Births · {scope.win.label.toLowerCase()}
+            </p>
+          </span>
+          <span className="shrink-0 pb-1 text-right text-caption" style={{ color: FAINT }}>
+            {scope.site?.name ?? 'All sites'}
+            <br />
+            {scope.win.window}
+          </span>
+        </div>
+        <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
+          <span className="min-w-0 flex-1 pr-4">
+            <Figure value={fmt(species)} size={28} />
+            <span className="mt-0.5 block truncate text-caption text-[#6d6860]">Species</span>
+          </span>
+          <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
+            <Figure value={peak ? fmt(peak.count) : '—'} size={28} />
+            <span className="mt-0.5 block truncate text-caption text-[#6d6860]">
+              {peak ? `Busiest · ${peak.label}` : 'No births in window'}
+            </span>
+          </span>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+/* ── 2 · when ────────────────────────────────────────────────────────────── */
+
+/** The real grid. A month reads as a month; a year reads as a strip. `DayHeat` picks. */
+function DateDistribution() {
+  const { scope } = useScope()
+  const grid = useMemo(() => dayCells('births', scope.site?.key ?? null, scope.win), [scope])
+  const total = grid.cells.reduce((n, c) => n + c.count, 0)
+
+  return (
+    <Section
+      icon={CalendarDays}
+      label="Date distribution"
+      aside={grid.capped ? 'last 371 days' : `${grid.cells.length} days`}
+    >
+      {total > 0 ? (
+        <DayHeat days={grid.cells} />
+      ) : (
+        <p className="py-3 text-small" style={{ color: FAINT }}>
+          No births recorded in {scope.win.window}.
+        </p>
+      )}
+    </Section>
+  )
+}
+
+/* ── 3 · the shape of the window ─────────────────────────────────────────── */
+
+/**
+ * Counts over time, so columns rather than an area — and a previous-period ghost.
+ *
+ * The old card drew fifteen authored values under the caption "45 births · 2-day buckets",
+ * which was four weeks of labels over fifteen columns. `pointsOf` joins the values to
+ * `calendar.buckets()`, so each column's label is the span it was actually summed over.
+ */
+function Trend() {
+  const { scope } = useScope()
+  const site = scope.site?.key ?? null
+  const points = useMemo(() => pointsOf('births', site, scope.win), [site, scope.win])
+  const compare = useMemo(() => compareOf('births', site, scope.win), [site, scope.win])
+  const peak = useMemo(() => peakOf(points), [points])
+
+  return (
+    <Section icon={TrendingUp} label="Trend" aside={scope.win.label}>
+      <EventTrend
+        points={points}
+        unit="births"
+        span={scope.win.window}
+        compare={compare}
+        marks={peak ? [{ index: peak.index, note: peak.note }] : undefined}
+        empty={`No births recorded in ${scope.win.window}.`}
+      />
+    </Section>
+  )
+}
+
+/* ── 4 · what ────────────────────────────────────────────────────────────── */
+
+/**
+ * Which species bred, ranked, with each one's share of the window.
+ *
+ * A real bottom-up tally — `bySpecies` groups the same events the hero counted, so the rows sum
+ * to the headline rather than being scaled to it. The tail is stated as one row for the reason
+ * the authored version gave and got right: a sixth rung implies a sixth ranked species rather
+ * than the long tail that shares the remainder.
+ */
+function Species() {
+  const { scope } = useScope()
+  const rows = useMemo(() => bySpecies(scope, 'births'), [scope])
+  const top = rows.slice(0, 8)
+  const rest = rows.slice(8)
+  const restTotal = rest.reduce((n, r) => n + r.value, 0)
+
+  return (
+    <Section icon={Dna} label="Species" aside={rows.length ? `${fmt(rows.length)} breeding` : undefined}>
+      {top.length ? (
+        <>
+          <RankList
+            items={top.map((r) => ({
+              key: r.id,
+              title: r.label,
+              meta: r.sub,
+              value: fmt(r.value),
+              share: r.percent,
+              onPick: r.href ? () => { window.location.hash = r.href!.replace(/^#/, '') } : undefined,
+            }))}
+          />
+          {rest.length > 0 && (
+            <div className="mt-3 border-t border-[#f0efec] pt-3">
+              <DrillList>
+                <DrillRow label="Others" sub={`${fmt(rest.length)} species`} value={fmt(restTotal)} />
+              </DrillList>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="py-3 text-small" style={{ color: FAINT }}>
+          No births recorded in {scope.win.window}.
+        </p>
+      )}
+    </Section>
+  )
+}
+
+/* ── 5 · where ───────────────────────────────────────────────────────────── */
+
+/** The site ladder, drillable into the Overall → Site → Species → Animal panel. */
+function Sites() {
+  const { scope } = useScope()
   const openSite = useSiteDrill('births', 'Natality')
 
   return (
-    <>
-      <PeriodHero
-        slug="births"
-        icon={Sparkles}
-        value="45"
-        label="Births"
-        status="+12% Month"
-        tone="good"
-        stats={[
-          { value: '38', label: 'Expected' },
-          { value: '24', label: 'Species' },
-          { value: '4', label: 'High risk' },
-        ]}
-      />
-      <Stack>
-        <Section icon={CalendarDays} label="Calendar" aside={<More href="#/births/records" />}>
-          <Calendar
-            days={31}
-            offset={5}
-            marks={[
-              { day: 2, count: 3, note: 'Blackbuck · Savanna Paddock 1' },
-              { day: 7, count: 2, note: 'Sambar Deer · Zone A · High risk', tone: 'bad' },
-              { day: 11, count: 12, note: 'Zebra Finch · Open Aviary 4' },
-              { day: 14, count: 5, note: 'Nilgai · Wetland Reserve' },
-              { day: 18, count: 4, note: 'Indian Peafowl · Aviary Complex' },
-              { day: 21, count: 4, note: 'Bengal Fox · Savanna Paddock 6' },
-              { day: 26, count: 3, note: 'Chital · Zone A · High risk', tone: 'bad' },
-              { day: 29, count: 5, note: 'Grey Francolin · Open Aviary 7' },
-            ]}
+    <Section icon={MapPin} label="Site" aside={scope.site ? 'scoped' : 'tap to drill'}>
+      <SiteSplit slug="births" onOpenSite={openSite} />
+    </Section>
+  )
+}
+
+/* ── 6 · the records ─────────────────────────────────────────────────────── */
+
+/** The individual births behind every figure above. */
+function Records() {
+  const { scope } = useScope()
+  const page = usePaged(
+    (offset, limit) => {
+      const p = records(scope, 'births', offset, limit)
+      return { rows: p.rows, total: p.total }
+    },
+    15,
+    [scope.win.key, scope.win.from, scope.win.to, scope.site?.key],
+  )
+
+  return (
+    <Section icon={Search} label="Records" aside={`${fmt(page.total)} · ${scope.win.window}`}>
+      <DrillList>
+        {page.rows.map((ev) => (
+          <DrillRow
+            key={ev.id}
+            label={ev.speciesName}
+            sub={`${ev.animalId || 'unidentified'} · ${siteName(ev.siteKey)}`}
+            value={shortDate(ev.day)}
           />
-        </Section>
+        ))}
+      </DrillList>
+      <MoreRows page={page} noun="births" />
+    </Section>
+  )
+}
 
-        {/* Overall stated above the six sites it is the sum of. */}
-        <Section icon={MapPin} label="Sites" aside="tap to drill">
-          <Sites slug="births" onOpenSite={openSite} />
-        </Section>
+/* ── 7 · how it was counted ──────────────────────────────────────────────── */
 
-        <Section icon={TrendingUp} label="Trend" aside="30 d">
-          <Trend
-            values={[2, 2, 3, 3, 4, 4, 3, 3, 3, 4, 3, 3, 3, 3, 2]}
-            labels={['Week 1', 'Week 2', 'Week 3', 'Week 4']}
-            unit="45 births · 2-day buckets"
-          />
-        </Section>
-
-        <Section icon={Gauge} label="Delivery" aside="vs target">
-          <BulletGroup
-            items={[
-              {
-                label: 'Delivery success',
-                value: '93%',
-                percent: 93,
-                target: 90,
-                note: 'Target 90% · 42 of 45',
-              },
-              {
-                label: 'Neonatal survival',
-                value: '88%',
-                percent: 88,
-                target: 85,
-                note: 'Target 85% · first 30 d',
-              },
-            ]}
-          />
-        </Section>
-
-        <Duo>
-          <Section icon={Baby} label="Natural" tight>
-            <Scoreboard items={[{ value: '38', label: '84% share' }]} />
-          </Section>
-          <Section icon={Users} label="Assisted" tight>
-            <Scoreboard items={[{ value: '7', label: '3 sedated · 1 caesarean' }]} />
-          </Section>
-        </Duo>
-
-        <Section icon={Award} label="Species" aside="July">
-          <Ladder
-            leader={{ label: 'Zebra Finch', sub: 'Open Aviary 4 · 2 clutches', value: '18' }}
-            rest={[
-              { label: 'Blackbuck', sub: 'Savanna Paddocks · 4 dams', value: '7' },
-              { label: 'Nilgai', sub: 'Wetland Reserve', value: '6' },
-              { label: 'Indian Peafowl', sub: 'Aviary Complex', value: '5' },
-              { label: 'Sambar Deer', sub: 'Zone A · Neonatal watch', value: '4' },
-            ]}
-          />
-          {/* The tail as a single row — a sixth ladder rung would imply a sixth ranked
-              species rather than the 19 that share five births. */}
-          <div className="mt-4">
-            <Facts items={[{ label: 'Others', sub: '19 species', value: '5' }]} />
-          </div>
-        </Section>
-
-        <Section icon={Home} label="Zones">
-          <Band label="Best" title="Open Aviaries" sub="96% survival" value="23" unit="births" />
-          <div className="mt-4">
-            <Facts
-              items={[
-                { label: 'Savanna Paddocks', sub: '100% delivery · 100% survival', value: '11' },
-                { label: 'Wetland Reserve', sub: '86% survival', value: '7' },
-                { label: 'Zone A', sub: '75% survival', value: '4', tone: 'warn' },
-              ]}
-            />
-          </div>
-        </Section>
-
-        <Section icon={Eye} label="Mothers" aside="9 dams · 4 risk">
-          <Records
-            items={[
-              {
-                label: 'Sundari · Sambar Deer',
-                sub: 'High risk · 4th pregnancy · 12 y · Prior dystocia · Dr. Iyer',
-                value: '07 Aug',
-                tone: 'bad',
-              },
-              {
-                label: 'Meera · Nilgai',
-                sub: 'High risk · Dystocia 2025 · Twins · Dr. Rao',
-                value: '14 Aug',
-                tone: 'bad',
-              },
-              {
-                label: 'Roshni · Chital',
-                sub: 'High risk · Body condition 2.5 of 5',
-                value: '26 Aug',
-                tone: 'bad',
-              },
-              {
-                label: 'Kavi · Bengal Fox',
-                sub: 'High risk · 1st litter · Camera watch',
-                value: '21 Aug',
-                tone: 'bad',
-              },
-              {
-                label: 'Ambika · Blackbuck',
-                sub: 'Post-partum day 6 · 2 calves',
-                value: 'Clear',
-                tone: 'good',
-              },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Baby} label="Losses" aside={<More href="#/fetal" />}>
-          <Facts
-            items={[
-              { label: 'Fetal deaths', sub: '3 still birth · 2 abortion', value: '5', tone: 'warn' },
-              { label: 'Fetal loss rate', sub: '5 of 50 pregnancies', value: '10%' },
-            ]}
-          />
-          <Rule label="Not in the 45" />
-          <Facts items={[{ label: 'Live births counted above', sub: 'Excludes all 5 losses', value: '45' }]} />
-        </Section>
-      </Stack>
-      <Stamp />
-    </>
+/**
+ * The caveat, on the page rather than in the console.
+ *
+ * `METRICS.births.note` is the same string the metric carries wherever else it is explained, so
+ * there is one sentence about this derivation in the product and not two that can drift.
+ */
+function Derivation() {
+  const note = METRICS.births?.note
+  if (!note) return null
+  return (
+    <Section icon={Info} label="How this is counted">
+      <p className="text-small text-balance" style={{ color: '#6d6860' }}>
+        {note}
+      </p>
+    </Section>
   )
 }
