@@ -137,7 +137,7 @@ export default function Lab() {
     <>
       {/* §1 — the page's own controls. Back, title, date and site belong to the shared
           header above; the bench filter, the search and the filter sheet are Lab's. */}
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <Controls
           deptId={deptId}
           departments={base.departments}
@@ -584,7 +584,7 @@ function LabHero({
   )
 
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={fmt(t.requests)} size={64} color={HERO_INK} />
         <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">

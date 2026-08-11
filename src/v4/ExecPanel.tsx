@@ -119,6 +119,27 @@ function QueueRow({
   const { scope } = useScope()
   const f = figure(scope, queue.metric)
 
+  /*
+   * A METRIC WITH NO SOURCE PRINTS A DASH, NOT A ZERO.
+   *
+   * This row read `f.value` and ignored `f.known`, which was harmless while every metric had a
+   * model and became a lie the moment the product was connected to the database: alerts,
+   * approvals, lab requests and attendance have no table in `species_mgmt_anon`, so the rail
+   * announced "0 critical alerts" under a heading reading Needs attention. Nought alerts and no
+   * alerting system are opposite messages and only one of them is true.
+   */
+  if (!f.known) {
+    return (
+      <li className="flex items-center gap-2 py-2">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-small font-medium text-[#9b958b]">{queue.label}</span>
+          <span className="mt-0.5 block truncate text-caption text-[#c9c4bb]">not recorded</span>
+        </span>
+        <span className="shrink-0 font-display text-n-sm font-bold tabular-nums text-[#c9c4bb]">—</span>
+      </li>
+    )
+  }
+
   /* A rate states its denominator; a level states the window is now. Composed from the metric
      rather than authored, so "of 312 on site" cannot survive a site being picked. */
   const note =

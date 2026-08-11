@@ -253,7 +253,7 @@ export function ScopeHeader({
   const shell = useMediaQuery('(min-width: 768px)')
 
   return (
-    <header className="px-[var(--gutter-lg)] pt-6 pb-3">
+    <header className="px-[var(--gutter)] pt-6 pb-3">
       {/* THE READ TIME IS GONE FROM THE HEADER. It stated two true things — when this render
           happened, and the last day the ledger holds — and neither was a thing a reader came to
           this page for. The second is still stated, better, by the scope strip two rows down,

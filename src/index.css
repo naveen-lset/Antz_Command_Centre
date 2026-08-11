@@ -154,6 +154,71 @@
   --color-status-warn: #b45309;
   --color-status-critical: #dc2626;
 
+  /**
+   * THE CONTAINER LADDER — the only widths a component is allowed to respond to.
+   *
+   * Every responsive decision in this product is made against the CONTENT COLUMN
+   * rather than the window (see the long note further down), and until now each
+   * component picked its own threshold to make that decision at: the home alone
+   * carried 460, 520, 560, 640, 820, 900 and 1000, the module stack used 760, and
+   * the entity grid 560. Eight numbers for four decisions, and no two components
+   * changing shape at the same width — which is what a reader sees when they drag a
+   * window and the page reflows five times in two hundred pixels.
+   *
+   * These five names are those eight numbers, deduplicated and made nameable. Two of
+   * them are not new: `roomy` and `page` are the exact widths `.tier` already steps
+   * its type and spacing at, so a grid gaining a column and the type gaining a step
+   * now happen on the same frame instead of a hundred pixels apart.
+   *
+   * THESE NAMES ARE NOT FREE — `--container-*` is a live Tailwind v4 utility namespace,
+   * not a private variable prefix. Every name here also generates `w-<name>`,
+   * `max-w-<name>`, `min-w-<name>` and an `@<name>:` container variant, which means a
+   * name that collides with a built-in utility SILENTLY REDEFINES IT. Check any new
+   * name against Tailwind's own width scale before adding it; see the note on `page`.
+   *
+   *   roomy  the second tier — a large phone in landscape, any tablet portrait.
+   *          Two-up becomes readable.
+   *   mid    three-up tiles, and the point a wrapping metadata line fits inline.
+   *   wide   the four headline cards fit across; multi-column tile grids stop
+   *          truncating their own labels.
+   *   split  THE PAGE COLUMN HALVES. Derived, not chosen: the sheet states 380px as
+   *          the floor below which two-column blocks stop fitting, and 820 is the
+   *          narrowest column that still yields two 380px halves once the gutters
+   *          and the gap are taken out. It was 760, which yielded 350px halves.
+   *   page   the third tier — a genuinely wide desktop column. Six-up tiles.
+   *          NAMED `page` RATHER THAN `full`, and that is a bug fix rather than taste.
+   *          Tailwind ships `w-full`/`max-w-full` as 100%, and this namespace generates
+   *          the same class names from its own keys — so `--container-full: 900px` won
+   *          the cascade and turned every one of the 154 `w-full` elements in the app
+   *          into a fixed 900px box. On a phone that clipped the hero mid-number; on
+   *          desktop it pushed sparklines out through the side of their cards. The
+   *          other four names collide with nothing, which is why only this one moved.
+   *
+   * A component that needs a width not on this ladder is telling you either that the
+   * ladder is wrong or that the component is. Adding a sixth name is the exception,
+   * not the escape hatch.
+   */
+  --container-roomy: 460px;
+  --container-mid: 560px;
+  --container-wide: 640px;
+  /**
+   * THE CARD-LIST ⇄ TABLE SWITCH, and the reason it earns a name of its own.
+   *
+   * Five places in the product show a stacked list of cards in a narrow column and a
+   * real multi-column table in a wide one. It is one decision, made about the same
+   * kind of content, and it was being made at two different widths: Mortality and
+   * Preventive switched at 720, Eggs and Lab at 620. So between 620 and 720 the same
+   * reader on the same tablet met a table in two modules and a card list in two
+   * others, for no reason either module could have explained.
+   *
+   * 720 is the wider of the two and deliberately so: the failure at 620 is a
+   * seven-column table with its headers colliding, and the failure at 720 is one
+   * screen of cards where a table would have fit. The second is a smaller loss.
+   */
+  --container-table: 720px;
+  --container-split: 820px;
+  --container-page: 900px;
+
   --animate-rise: rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-up: fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
   /* Page and sheet entrances run on the emphasis tier below, not the 500ms
@@ -407,9 +472,26 @@
  * would only cost lines of text; the hero, read across a room, earns the step.
  */
 :root {
-  /* Layout */
-  --gutter: 16px; /* card-stack side padding */
-  --gutter-lg: 20px; /* header side padding — wider than the stack, by design */
+  /**
+   * Layout. ONE SIDE PADDING FOR THE WHOLE PAGE, and that is a correction.
+   *
+   * There were two — `--gutter` at 16px "card-stack side padding" and `--gutter-lg`
+   * at 20px "header side padding, wider than the stack, by design". The design did
+   * not survive contact with the twenty module pages, which pad their header AND
+   * their card stack with the large one; only the home used the small one, and only
+   * for its cards. So the home's greeting, hero and filter pills stood at 20/22/26px
+   * while every card beneath them stood at 16/18/20 — a 4-to-6px step that reads as
+   * the page's own left edge wobbling as you scroll down it. Two tokens for one job
+   * is how that happens, so there is now one.
+   *
+   * THE PAGE-LEVEL VALUES ARE ON THE 4px SCALE; the card-internal ones are left
+   * alone. 20 → 24 → 32 and 12 → 16 → 20 are the two that decide where a page's
+   * content edge and its vertical rhythm land, and those are worth having on the
+   * scale. `--pad-card` (20/22/24) and its friends interpolate INSIDE the 16–24px
+   * band the spec asks card padding to sit in; snapping 22 to 24 would only collapse
+   * the middle tier into the top one and buy a reader nothing.
+   */
+  --gutter: 20px; /* page side padding — header and card stack alike */
   --gap: 12px; /* gap between cards */
   --pad-card: 20px;
   --pad-card-sm: 16px;
@@ -473,9 +555,23 @@
      744px — none of them 768. The rail and the padding are sized so that what is
      left over on the narrowest of them still clears the two-column threshold
      below, because a rail chosen for 768 leaves 834 six pixels short of it and
-     the whole tablet layout silently falls back to the phone's. */
+     the whole tablet layout silently falls back to the phone's.
+
+     THE SIDE COLUMNS ARE SIZED TO WHAT IS IN THEM, and that is the fix a desktop
+     window most needed. They were not: measured off-DOM, the widest row the rail
+     has to carry — "Preventive Medication", with its glyph, its row padding and
+     the list's own inset — needs 235px, and the rail was handed 316. The panel's
+     widest line needs a shade over 260 and it was handed 352. Between them they
+     took 744px of a 1440px window and left the content column 696, which made the
+     column carrying the page NARROWER THAN EITHER COLUMN FRAMING IT, and narrower
+     than the 846 the same page gets on a 1194 tablet in landscape. That is what a
+     three-up tile grid truncating "Procurement Spend" to "Procuremen…" on a large
+     desktop and not on a tablet was telling us.
+
+     Trimmed to what they need plus air, the content column gains 60px at 1440 and
+     48 at 1280, and is the widest of the three at every width. */
   --rail: 244px; /* permanent module sidebar */
-  --panel: 320px; /* executive panel */
+  --panel: 296px; /* executive panel — desktop only */
   /* Deliberately small. The content column is the same colour as the page it
      sits on, so this padding buys no visual separation — it only decides how far
      the cards start from the screen edge, and it stacks with the card gutter
@@ -483,11 +579,27 @@
      rail on a tablet. */
   --shell-pad: 12px; /* page padding around the whole three-column shell */
   --shell-gap: 12px; /* space between sidebar, content and panel */
+  /**
+   * WHERE THE APP STOPS GETTING WIDER.
+   *
+   * Nothing capped it before, so the content column grew without limit: a 2560px
+   * display handed it 1816px and the two-column stack drew cards 890px across.
+   * A card is a unit of reading and 890px is past the width at which a row of
+   * label-and-figure still reads as one thing — and a 13-word section note across
+   * 890px is the long line of text the spec rules out.
+   *
+   * 1800 is chosen so the two windows that matter are treated differently: a 1920
+   * display keeps essentially the whole width (60px of margin a side), and anything
+   * genuinely larger centres the product rather than stretching it. The shell as a
+   * whole is centred, so what a very wide screen gains is symmetric margin — which
+   * reads as intent — rather than ever-wider cards, which read as a bug.
+   */
+  --shell-max: 1800px;
 }
 
 @media (min-width: 1024px) {
   :root {
-    --rail: 300px;
+    --rail: 268px;
     --shell-pad: 16px;
     --shell-gap: 16px;
   }
@@ -495,10 +607,17 @@
 
 @media (min-width: 1440px) {
   :root {
-    --rail: 316px;
-    --panel: 352px;
+    --rail: 284px;
+    --panel: 320px;
     --shell-pad: 20px;
-    --shell-gap: 18px;
+    --shell-gap: 20px;
+  }
+}
+
+@media (min-width: 1680px) {
+  :root {
+    --rail: 300px;
+    --panel: 344px;
   }
 }
 
@@ -516,9 +635,8 @@
    an iPad mini at 744px, leaves 472px of content. */
 @container (min-width: 460px) {
   .tier {
-    --gutter: 18px;
-    --gutter-lg: 22px;
-    --gap: 14px;
+    --gutter: 24px;
+    --gap: 16px;
     --pad-card: 22px;
     --pad-card-sm: 18px;
     --radius-card: 18px;
@@ -544,9 +662,8 @@
    the step above — the figures only grow once there is column to put them in. */
 @container (min-width: 900px) {
   .tier {
-    --gutter: 20px;
-    --gutter-lg: 26px;
-    --gap: 16px;
+    --gutter: 32px;
+    --gap: 20px;
     --pad-card: 24px;
     --pad-card-sm: 20px;
     --radius-card: 20px;
@@ -565,6 +682,214 @@
     --viz-h: 58px;
     --bars-h: 66px;
   }
+}
+
+/**
+ * THE PAGE ENVIRONMENT — one continuous canvas, thinning as it descends.
+ *
+ * The ground is painted once, across the whole window, by `.page-ground` below — flat sage
+ * on every page but the home, and on the home a descent from the colour under the
+ * illustration back to that sage. `Landscape` draws faint vector scenery on top of it for
+ * the whole scroll; the two rules here decide how much of that you see and where.
+ *
+ * `.env-page` IS THE OLD BEHAVIOUR, UNCHANGED. Module and record pages open on a header,
+ * not on an illustration, so their environment starts at the top of the column and thins
+ * gently to about half by the foot.
+ *
+ * `.env-home` IS SHAPED AROUND THE HERO, and the ramp is written in pixels from the top of
+ * the content column because that is where the thing it has to line up with is:
+ *
+ *   0 → --env-top            NOTHING. The illustration is the environment here. Anything
+ *                            drawn underneath it either does not show or, where the
+ *                            artwork has begun to fade, shows as a second drawing under
+ *                            the first — which is what put grey tree canopies in a row
+ *                            immediately below the seam.
+ *   --env-top ± 90px         the layer comes up THROUGH the artwork's atmospheric fade,
+ *                            so the illustration hands over to the scenery inside the
+ *                            mist rather than ending and being followed by it.
+ *   + 260 … + 700px          the Executive KPI band. Down to about half of the handover,
+ *                            present enough to be a landscape, quiet enough that white
+ *                            cards read as surfaces sitting on it.
+ *   + 1500px onward          the middle and lower dashboard. Texture, then almost nothing.
+ *
+ * WHY THE STOPS ARE PIXELS AND NOT PERCENTAGES. The layer is as tall as the page, and the
+ * page is as tall as the data — a filter that drops six rows would slide a percentage-based
+ * ramp up the screen and change how much scenery sits behind the KPIs. Pixels from the top
+ * are anchored to the one thing that does not move.
+ *
+ * `--env-top` is where the illustration's foot lands; it is declared once, with its
+ * measurements, further down this file.
+ */
+:root {
+  /**
+   * TWO GROUNDS, AND THE PAGE TRAVELS BETWEEN THEM.
+   *
+   * `--env-ground` is the settled page colour, the sage the product has always used.
+   * `--env-canopy` is the ground DIRECTLY UNDER THE ILLUSTRATION, and it exists because
+   * the settled colour is the wrong one to hand the artwork over to. Faded onto
+   * `#e7f0ea`, a scene of mid-greens ends on something that reads as off-white next to
+   * it — the illustration stopped having an edge and started having a floor, which is
+   * the same complaint in a different form. `#d6e8dd` is fifteen levels greener and is
+   * where the artwork's own foreground grass is heading, so the fade arrives on the
+   * colour it was already becoming.
+   *
+   * The page then travels from the canopy back to the settled ground over about 1600px —
+   * see `.page-ground.is-home` below. That is the "light green carried down the page":
+   * greenest where the environment just was, ordinary sage by the time the data is the
+   * only thing being read.
+   *
+   * BOTH ARE CHANNELS, NOT HEXES, because the atmospheric fade is an alpha ramp of the
+   * canopy — see `MIST` in `Home.tsx` — and a wash can only be invisible where it lands
+   * if it lands on the colour it was made of.
+   */
+  --env-ground-rgb: 231 240 234;
+  --env-ground: rgb(var(--env-ground-rgb));
+  --env-canopy-rgb: 214 232 221;
+  --env-canopy: rgb(var(--env-canopy-rgb));
+}
+
+/**
+ * WHERE THE HERO ILLUSTRATION'S FOOT LANDS, below the top of the content column.
+ *
+ * Two things hang off it — the ground's hand-over from the canopy colour back to the
+ * settled sage, and the point the vector scenery fades in — so they read it from one
+ * declaration and can never drift apart.
+ *
+ * MEASURED, NOT GUESSED. In the browser at seven widths: 526px at 390 and 430 CSS px of
+ * column, 546 at 554, 552 at 744, 580 at 878, 654 at 1096, 674 at 1440. The values below
+ * are the floor of each range, so a column above its band's floor starts a few pixels
+ * early — inside the atmospheric fade, where it cannot be seen — rather than a few pixels
+ * late, where it would be a line.
+ *
+ * WINDOW QUERIES, NOT CONTAINER QUERIES, and that is a change of mind worth recording. The
+ * quantity this tracks is a function of the COLUMN's width — everything else in this file
+ * that steps with the column is a container query for good reason. But the shell's ground
+ * has to be painted on the whole window, outside the column, where no container query can
+ * reach; and the column's width is a deterministic function of the window and the rail,
+ * both of which are decided in this file. So the two breakpoints below are the column's
+ * two `.tier` steps translated through that arithmetic:
+ *
+ *   window < 460          phone frame, column = window, under the 460 step   → 520
+ *   460 … 1215            column 460–899 — under 768 it is the window; from 768 it is
+ *                         the window less the rail, the gap and two shell pads, which at
+ *                         1215 is 899                                        → 545
+ *   1216 and up           column 900 upward, the wide `.tier` step           → 652
+ *
+ * If the rail or the shell padding is ever retuned, 1216 is the number that moves with it.
+ */
+:root {
+  --env-top: 520px;
+}
+
+@media (min-width: 460px) {
+  :root {
+    --env-top: 545px;
+  }
+}
+
+@media (min-width: 1216px) {
+  :root {
+    --env-top: 652px;
+  }
+}
+
+/**
+ * THE PAGE'S GROUND, AS A LAYER RATHER THAN AS ANY FRAME'S OWN BACKGROUND.
+ *
+ * ONE GROUND FOR THE WHOLE WINDOW, and that is the point rather than a convenience. Painted
+ * on the content column, the home's descent from canopy green back to sage made the column
+ * seventeen levels greener than the page around it — a tinted panel floating on a paler
+ * ground, with the twenty-pixel shell margin drawing its outline. That is precisely the
+ * "separate page container behind every section" the environment exists to remove. So the
+ * shell paints this across the full window and the column carries no background at all; its
+ * rounded corners are still there and now have nothing to be a corner between.
+ *
+ * `--env-offset` is the distance from wherever this layer starts to the top of the content
+ * column, because that is what `--env-top` is measured from. Zero on the phone, where the
+ * frame IS the column; the shell's own padding under the shell.
+ *
+ * At `-z-20` it sits under `Landscape`'s `-z-10` and under the page's content, which is in
+ * flow and therefore paints above every negative layer. It can never take a tap.
+ */
+.page-ground {
+  --env-hero: calc(var(--env-top) + var(--env-offset, 0px));
+}
+
+.page-ground.is-shell {
+  --env-offset: var(--shell-pad);
+}
+
+.page-ground.is-home {
+  background-image: linear-gradient(
+    180deg,
+    var(--env-canopy) 0px,
+    var(--env-canopy) calc(var(--env-hero) + 60px),
+    #d9eadf calc(var(--env-hero) + 300px),
+    #dfeee5 calc(var(--env-hero) + 700px),
+    #e4f0e8 calc(var(--env-hero) + 1150px),
+    var(--env-ground) calc(var(--env-hero) + 1600px),
+    var(--env-ground) 100%
+  );
+}
+
+.env-page {
+  opacity: 0.1;
+  --env-mask: linear-gradient(
+    to bottom,
+    #000 0%,
+    rgba(0, 0, 0, 0.88) 20%,
+    rgba(0, 0, 0, 0.74) 46%,
+    rgba(0, 0, 0, 0.6) 74%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
+  mask-image: var(--env-mask);
+  -webkit-mask-image: var(--env-mask);
+}
+
+.env-home {
+  /* A shade under the page profile's 0.1. The home is the one page where the layer has an
+     illustration directly above it to be compared against, and at 0.1 the vector foliage
+     read as a second, coarser drawing rather than as the same environment continuing. */
+  opacity: 0.095;
+  --env-mask: linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent calc(var(--env-top) - 96px),
+    rgba(0, 0, 0, 0.3) calc(var(--env-top) - 34px),
+    rgba(0, 0, 0, 0.75) calc(var(--env-top) + 90px),
+    rgba(0, 0, 0, 0.6) calc(var(--env-top) + 300px),
+    rgba(0, 0, 0, 0.42) calc(var(--env-top) + 760px),
+    rgba(0, 0, 0, 0.24) calc(var(--env-top) + 1500px),
+    rgba(0, 0, 0, 0.11) calc(var(--env-top) + 2400px),
+    rgba(0, 0, 0, 0.05) 100%
+  );
+  mask-image: var(--env-mask);
+  -webkit-mask-image: var(--env-mask);
+}
+
+/**
+ * THE SCENES START UNDER THE HERO, NOT AT THE TOP OF THE COLUMN — and this line is doing
+ * more work than an offset usually does.
+ *
+ * `Landscape` stacks three scenes on repeat, each drawn to fill a band 0.75 as tall as it
+ * is wide. Left at the top of the column, the band boundary lands wherever it lands, and
+ * on a desktop column it put the FOOT of the first scene directly under the hero: a
+ * full-size tree crown and a bush, at eight per cent, showing between the white KPI cards
+ * as two grey lozenges. Coarse near-field shapes are the one thing that cannot follow a
+ * photograph — they read as a second, cruder drawing rather than as the same park further
+ * back.
+ *
+ * Sliding the stack down to the hero's foot hands that spot to the TOP of a scene instead,
+ * which is where every scene keeps its distant treeline — small, simple crowns, the exact
+ * register the artwork above dissolves into. The near-field trees and ponds then arrive
+ * lower, behind the card grid, which is where scenery belongs.
+ *
+ * The bands beyond the container are clipped rather than laid out, so pushing the stack
+ * down costs nothing; there are fourteen of them and the longest page in the product does
+ * not reach the sixth.
+ */
+.env-home > * {
+  margin-top: calc(var(--env-top) - 56px);
 }
 
 /* SVG marks scale from their own box, not the viewBox origin. */

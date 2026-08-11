@@ -139,7 +139,7 @@ function CardRangeSheet({
   const [draft, setDraft] = useState(current.custom)
 
   return (
-    <div className="flex w-full flex-col gap-[var(--gap)] px-[var(--gutter-lg)] pb-2">
+    <div className="flex w-full flex-col gap-[var(--gap)] px-[var(--gutter)] pb-2">
       <Section icon={CalendarRange} label="This card's window">
         <ul className="flex flex-col">
           <Option

@@ -23,8 +23,12 @@
  *
  * TWO LAYOUTS, NOT ONE STRETCHED BETWEEN THEM. Below 768 the app is a phone app: one column,
  * modules as pages with a back chevron, sheets rising from the bottom. At 768 it is the shell —
- * permanent sidebar, modules in place, sheets from the right — and at 1280 a third column
- * appears. One number decides, used by the shell and the sheet alike.
+ * permanent sidebar, modules in place, sheets from the right. One number decides, used by the
+ * shell and the sheet alike.
+ *
+ * There used to be a third column at 1280 carrying the weather, the decision queues, the risk
+ * list and a recent-activity feed. It has been removed, so the content column keeps the full
+ * width beside the sidebar at every tier above 768.
  */
 
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
@@ -191,7 +195,7 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
 
 function Missing({ path }: { path: string }) {
   return (
-    <div className="px-[var(--gutter-lg)] pt-2">
+    <div className="px-[var(--gutter)] pt-2">
       <div className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <p className="text-small text-[#3d3a34]">
           Nothing is routed at <span className="tabular-nums">#/{path}</span>.
@@ -222,7 +226,6 @@ function Router() {
   const atHome = route.kind === 'home'
 
   const shell = useMediaQuery('(min-width: 768px)')
-  const panel = useMediaQuery('(min-width: 1280px)')
   const phone = !shell
 
   /* The home the back chevron returns to. Recorded during render rather than in an effect,
@@ -265,11 +268,11 @@ function Router() {
   )
 
   return shell ? (
-    <AppShell route={`#/${path}`} panel={panel}>
+    <AppShell route={`#/${path}`}>
       {content}
     </AppShell>
   ) : (
-    <PhoneFrame>{content}</PhoneFrame>
+    <PhoneFrame home={atHome}>{content}</PhoneFrame>
   )
 }
 

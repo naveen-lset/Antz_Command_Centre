@@ -268,7 +268,7 @@ export function RequestBody({ record: r }: { record: LabRecord }) {
           ]}
         />
       </Section>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         Deepest level
       </p>
     </Stack>

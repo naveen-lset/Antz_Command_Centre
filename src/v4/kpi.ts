@@ -265,23 +265,31 @@ export function useKpi(kpi: KpiSpec): ResolvedKpi {
 /**
  * A trend card's figure, movement and twelve-month curve.
  *
- * THE CURVE IS ALWAYS TWELVE MONTHS, unlike a KPI sparkline, and that difference is
- * deliberate rather than an oversight. These cards are titled "12 months" and exist to
- * answer "are we improving" — a curve that shrank to seven points when the reader picked
- * "last 7 days" would answer nothing. So the figure is the window's and the curve is the
- * year's, which is what the caption has always said.
+ * THE SECTION CARRIES ITS OWN WINDOW. `over` overrides the global scope's window for this
+ * card and nothing else, which is what lets the Trends section offer Today / This week / 6
+ * months / 12 months without touching the filter that governs the rest of the page. The SITE
+ * half of the scope is still the global one — the section switches when, never where, so a
+ * reader who has scoped to a site cannot be shown the collection's movement inside it.
  *
- * The curve is still SCOPED. A twelve-month shape for Aquatic Halls under an Aquatic Halls
- * scope, not the collection's, which is the part that was wrong before.
+ * The delta re-reads with it: `delta()` compares against the preceding window of equal length,
+ * so picking "6 months" compares this half-year against the last one rather than against
+ * whatever the page filter happens to say.
+ *
+ * The curve stays twelve months regardless, for the sheet that still draws one — a chart that
+ * shrank to seven points when the reader picked a week would answer nothing.
  */
-export function useTrendCard(card: {
-  metric?: string
-  value?: string
-  delta?: string
-  values?: number[]
-  scoped?: false
-}): { value: string; delta: string; values: number[]; scopedNote?: string; mood: DeltaMood } {
-  const { scope } = useScope()
+export function useTrendCard(
+  card: {
+    metric?: string
+    value?: string
+    delta?: string
+    values?: number[]
+    scoped?: false
+  },
+  over?: Win,
+): { value: string; delta: string; values: number[]; scopedNote?: string; mood: DeltaMood; known: boolean } {
+  const { scope: global } = useScope()
+  const scope = useMemo<Scope>(() => (over ? { ...global, win: over } : global), [global, over])
 
   return useMemo(() => {
     if (!card.metric) {
@@ -291,6 +299,8 @@ export function useTrendCard(card: {
         values: card.values ?? [],
         scopedNote: scope.site ? 'not site-attributed' : undefined,
         mood: 'flat',
+        /* An authored card carries its figure on itself, so it is always known. */
+        known: true,
       }
     }
 
@@ -308,6 +318,10 @@ export function useTrendCard(card: {
       values: series(card.metric, siteKeyOf(scope), year, 12),
       scopedNote: scope.site?.name,
       mood: d ? mood(card.metric, d.percent) : 'flat',
+      /* Passed through so a tile can render the empty state instead of a zero, the same way the
+         KPI cards above already do. Food wastage has no feed record anywhere in the schema, and
+         this tile was printing "0" for it. */
+      known: f.known,
     }
   }, [card, scope])
 }

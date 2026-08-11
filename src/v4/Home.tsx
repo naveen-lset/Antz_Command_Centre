@@ -1,15 +1,26 @@
 /**
- * V4 HOME — executive-first, seven sections, nothing else.
+ * V4 HOME — executive-first, four sections, nothing else.
  *
- * The screen answers five questions in the order they are asked, and every section
+ * The screen answers three questions in the order they are asked, and every section
  * exists because one of them does:
  *
  *   How healthy is the zoo?    hero + Executive KPIs
- *   What needs my attention?   Critical Alerts
- *   What is waiting on me?     Needs My Approval
+ *   Are we improving?          Trends
  *   What is due soon?          Upcoming
- *   Are we improving?          Executive Health, Trends
  *   What could go wrong?       Risk Indicators
+ *
+ * WHAT WAS REMOVED, AND WHAT WENT WITH IT. Critical Alerts, Needs My Approval, Zoo Health and
+ * Executive Health were taken off this page on request. Three of the four had no source in
+ * `species_mgmt_anon` in any case — there is no alerts table, no approvals table and no
+ * composite index — so they were the last authored sections on a screen otherwise reading from
+ * the database.
+ *
+ * THE SPARKLINES WENT TOO. Every headline KPI carried a curve of its window and every trend
+ * tile a mark chosen from what its figure was. Removed on the same call. What replaces the
+ * comparison they were making is the Trends section's own period switch: the reader picks the
+ * span and each figure re-reads at it, with a delta against the preceding span of equal
+ * length. `SparkMeter` survives on the rate tiles, because a percentage drawn as nothing makes
+ * 92% and 86% look identical until both are read.
  *
  * WHAT IS GONE FROM V3 IS THE POINT. The old home was the board report's contents
  * page as cards — population, life events, veterinary, preventive care, movement,
@@ -24,12 +35,12 @@
  * mark on this page comes from `exec/system.tsx`.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ChevronRight, Eye, MapPin, Search } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
 import forestScene from '../assets/forest-scene.webp'
-import { useFigure, usePeriod } from '../exec/period'
+import { usePeriod } from '../exec/period'
 import { useCountUp } from '../hooks/useCountUp'
 import { Reveal } from '../motion'
 import {
@@ -40,33 +51,21 @@ import {
   Figure,
   HERO_INK,
   MUTED,
-  Spark,
-  SparkBars,
   SparkMeter,
   TONE,
-  TRACK,
   compact,
   mix,
-  signTone,
 } from '../exec/system'
 import {
   LEVEL_TONE,
   SECTION_ICONS,
-  alertsUrgent,
-  approvals,
-  approvalsOverdue,
-  approvalsPending,
-  criticalAlerts,
   dueWithin,
-  executiveHealth,
   headlineKpis,
   risks,
   site,
   supportingKpis,
   trends,
   upcoming,
-  zooHealth,
-  zooHealthScore,
   type HeadlineKpi,
   type Kpi,
 } from './data'
@@ -74,15 +73,12 @@ import { useSheet } from './sheet'
 import { FilterBar, ScopeNote } from './filters'
 import { useScope } from './scope'
 import { useKpi, useMovement, useTrendCard } from './kpi'
+import { resolveWindow, type Win, type WindowKey } from '../core/calendar'
 import { figure as figureOf } from '../core/query'
 import {
-  AlertPanel,
-  ApprovalPanel,
-  MeasurePanel,
   RiskPanel,
   TrendPanel,
   UpcomingPanel,
-  ZooHealthPanel,
 } from './panels'
 
 const CARD = 'rounded-[var(--radius-card)] bg-white'
@@ -130,7 +126,7 @@ function MistBackdrop() {
 function GreetingHeader({ onSearch }: { onSearch: () => void }) {
   const now = useNow(30_000)
   return (
-    <header className="relative px-[var(--gutter-lg)] pt-12 pb-4 @[460px]:pt-14 @[900px]:pt-16">
+    <header className="relative px-[var(--gutter)] pt-12 pb-4 @[460px]:pt-14 @[900px]:pt-16">
       <MistBackdrop />
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -197,92 +193,128 @@ function StickyPeriod() {
   )
 }
 
+/**
+ * THE ARTWORK'S ALPHA RAMP — eased at both ends, not linear.
+ *
+ * A two-stop `#000 92% → transparent 100%` is a straight line in alpha, and a straight
+ * line has a corner at each end of it. The eye finds those corners: the old mask read as
+ * a soft edge with a hard edge at the top of it, which is the worst of both. These stops
+ * are a smootherstep, so the artwork's opacity leaves 1 and arrives at 0 with no kink
+ * anywhere in between and there is nothing for the eye to catch on.
+ *
+ * TWENTY PER CENT AT THE FOOT, not eight, AND THE ANIMALS SURVIVE IT — because the ramp
+ * no longer works alone. `MIST` below washes the artwork toward the ground colour over a
+ * much longer distance, so by 80%, where this ramp starts to give way, the foliage under
+ * it is already half ground. The elephants stand at roughly 76% of the image; the ramp is
+ * still at 1 there and only the grass at their feet dissolves, which is what the eight per
+ * cent was protecting and what mist actually does.
+ *
+ * THE TOP FADE IS THE SAME CURVE MIRRORED. It dissolves the artwork's own sky into the
+ * banner gradient above it, so the illustration has no top edge either — the hero reads as
+ * one environment that the greeting and the total are standing inside.
+ */
+const ARTWORK_MASK = [
+  'rgba(0,0,0,0) 0%',
+  'rgba(0,0,0,0.04) 10%',
+  'rgba(0,0,0,0.17) 20%',
+  'rgba(0,0,0,0.4) 30%',
+  'rgba(0,0,0,0.68) 39%',
+  'rgba(0,0,0,0.9) 47%',
+  '#000 56%',
+  '#000 80%',
+  'rgba(0,0,0,0.94) 85%',
+  'rgba(0,0,0,0.79) 89%',
+  'rgba(0,0,0,0.56) 93%',
+  'rgba(0,0,0,0.31) 96%',
+  'rgba(0,0,0,0.12) 98%',
+  'rgba(0,0,0,0) 100%',
+].join(',')
+
+/**
+ * THE ATMOSPHERIC FADE — the ground colour rising through the foot of the illustration.
+ *
+ * This is the half of the handover that the mask cannot do. An alpha ramp only makes the
+ * artwork thinner; whatever is left still carries the artwork's own contrast, so a short
+ * ramp shows an edge and a long one deletes the elephants. A wash in the PAGE'S OWN GROUND
+ * — `#e7f0ea`, the colour the illustration is standing on — takes the contrast out first,
+ * which is aerial perspective rather than a fade: distance is not transparency, it is
+ * everything drifting toward the colour of the air.
+ *
+ * The two ramps are deliberately OFFSET. The wash starts at the top of this box, about
+ * 55% up the artwork, and is already past half strength by the time the mask begins to
+ * give way at 80%. So the artwork loses its contrast, then loses its opacity, and the
+ * geometric bottom of the image lands somewhere the eye stopped reading fifty pixels ago.
+ *
+ * The stops are the same smootherstep as the mask, for the same reason.
+ *
+ * THE RADIAL IS WHY IT IS NOT A CSS GRADIENT OVERLAY. A pure vertical wash is uniform
+ * across the width, and uniform is the tell — real haze pools low and toward the middle of
+ * the ground rather than arriving as a level front. The ellipse adds that pooling over the
+ * pond and thins outward to the sides.
+ *
+ * ITS LAST STOP IS TRANSPARENT AND THAT IS NOT A DETAIL. A radial gradient holds its final
+ * colour everywhere beyond the final stop, so an ellipse that still has alpha where it
+ * meets the top of this box paints that alpha along the whole top edge — which is a
+ * ruler-straight line across the screen, exactly the thing this component exists to remove.
+ * The ellipse is sized and centred so it is fully transparent well before the box's top.
+ *
+ * THE VERTICAL RAMP IS BACK-LOADED, and that is what protects the animals. Distributed
+ * evenly it is at half strength by the elephants, which is not mist, it is a dimmer on the
+ * subject of the illustration. Two thirds of the wash happens in the last third of the box,
+ * so the elephants keep their contrast and the grass at their feet is what dissolves.
+ */
+/* `--env-canopy-rgb` and not a hex, because the colour this fade ends on and the colour the
+   page is painted in directly under the illustration have to be the same one. It is the
+   GREENER of the two grounds deliberately: faded onto the settled sage the artwork ends on
+   something that reads as off-white beside it, which is the hard edge back in another form.
+   See the token's note in `index.css`. */
+const G = (a: number) => `rgb(var(--env-canopy-rgb) / ${a})`
+const MIST = [
+  `radial-gradient(135% 70% at 50% 118%, ${G(0.3)} 0%, ${G(0.16)} 38%, ${G(0.05)} 62%, ${G(0)} 80%)`,
+  `linear-gradient(to bottom,
+     ${G(0)} 0%,
+     ${G(0.015)} 20%,
+     ${G(0.055)} 35%,
+     ${G(0.13)} 48%,
+     ${G(0.23)} 58%,
+     ${G(0.38)} 68%,
+     ${G(0.53)} 76%,
+     ${G(0.68)} 83%,
+     ${G(0.81)} 89%,
+     ${G(0.91)} 94%,
+     ${G(0.97)} 97.5%,
+     ${G(1)} 100%)`,
+].join(',')
+
 function ForestBand() {
   return (
     <div className="relative -z-10 h-[clamp(150px,21cqw,250px)] w-full">
       {/* THE CAP ONLY EVER TRIMS SKY. The artwork is 4:3, so at column width W its
           natural height is 0.75W; keep the box shorter than that and `object-cover`
           crops the height — the empty sky the scene was composed with — rather than
-          the sides, where the elephants and the pond are.
-
-          40cqw, down from 54. The score strip added a row above the hero and pushed it
-          down into the illustration: on a 716px desktop column the giraffe and the hut
-          ended up directly behind "Total Animals", which is dark type on mid-green.
-          A shorter image sits the horizon lower, and the mask now clears the top 42%
-          rather than 30% so the hero has flat ground under it at every width.
-
-          THE MASK NOW CLOSES AT THE BOTTOM TOO. The artwork's last row averages
-          rgb(118,164,141) and the page ground under it is around rgb(219,233,226) — a
-          hundred levels in every channel, landing as a ruler-straight line across the
-          screen. That line is what the vector seam below it was really trying to hide,
-          and hiding a bad edge with a second drawing is how the page ended up with a
-          hundred pixels of blank green under the illustration.
-          Eight per cent, and eight only: the foreground plants dissolve at their base,
-          which is what mist does, while the elephants' feet sit just clear of it. Any
-          longer and the animals go with the grass. */}
+          the sides, where the elephants and the pond are. Nothing here stretches it:
+          one `object-cover` at the artwork's own ratio at every width. */}
       <img
         src={forestScene}
         alt=""
         aria-hidden
         className="pointer-events-none absolute bottom-0 left-0 max-h-[clamp(230px,34cqw,340px)] w-full object-cover object-bottom select-none"
         style={{
-          maskImage: 'linear-gradient(to bottom, transparent 0%, #000 50%, #000 92%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 50%, #000 92%, transparent 100%)',
+          maskImage: `linear-gradient(to bottom, ${ARTWORK_MASK})`,
+          WebkitMaskImage: `linear-gradient(to bottom, ${ARTWORK_MASK})`,
         }}
       />
+      {/* Anchored to the FOOT of the band and sized off the column, so it covers the same
+          proportion of the artwork at every width — a little under half of it — and lands
+          exactly on the ground the page is already painted in. There is nothing to line up
+          below it: the wash finishes at full `#e7f0ea` on the last row of the band, and the
+          page under the band is that same colour, so the seam has no two sides to have. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(120px,14cqw,168px)]"
+        style={{ background: MIST }}
+      />
     </div>
-  )
-}
-
-/**
- * The four composite scores, kept at the top of the screen.
- *
- * They used to live under the hero, as the breakdown of a Zoo Health headline. The
- * headline is the collection total again, so the scores need their own place.
- *
- * THAT PLACE IS DOWN THE PAGE, NOT IN THE BANNER. It sat directly under the greeting, which put
- * four composite indices above the figure the screen exists to show — and a composite is the one
- * kind of number nobody acts on directly. It now has its own section beside Executive Health,
- * where the other scores-against-target live, and the banner opens on the hero.
- *
- * One word each. Four cells share ~350px at 390px wide, which leaves ~78px a cell —
- * "Animal health" truncated to "Animal heal…" there, and a clipped label in the first
- * thing on the screen is worse than a less precise one. The sheet spells them out.
- */
-function ScoreStrip() {
-  const { open } = useSheet()
-  const { period } = usePeriod()
-  const delta = useFigure(zooHealth.delta)
-
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        open({
-          title: 'Zoo Health',
-          eyebrow: period.window,
-          body: <ZooHealthPanel score={zooHealthScore} parts={zooHealth.parts} delta={delta} />,
-        })
-      }
-      className={`${TAP} ${CARD} flex w-full items-stretch p-[var(--pad-card-sm)]`}
-      aria-label={`Zoo health ${Math.round(zooHealthScore)} out of 100`}
-    >
-      {zooHealth.parts.map((p, i) => (
-        <span
-          key={p.label}
-          className={`min-w-0 flex-1 ${i ? 'border-l border-[#1c1a16]/8 pl-3' : ''} ${
-            i < zooHealth.parts.length - 1 ? 'pr-3' : ''
-          }`}
-        >
-          <span className="block font-display text-n-sm font-bold tabular-nums" style={{ color: HERO_INK }}>
-            {p.score}
-          </span>
-          {/* One word each. Four cells share ~350px at 390px wide, which leaves ~78px a cell —
-              "Animal health" truncated to "Animal heal…" there. The sheet spells them out. */}
-          <span className="mt-1 block truncate text-caption text-[#6d6860]">{p.label}</span>
-        </span>
-      ))}
-    </button>
   )
 }
 
@@ -315,7 +347,7 @@ function HeroBlock() {
   const total = useCountUp(headcount, { format: (v) => Math.round(v).toLocaleString('en-US') })
 
   return (
-    <section className="px-[var(--gutter-lg)] pt-4" aria-label="Total animals">
+    <section className="px-[var(--gutter)] pt-4" aria-label="Total animals">
       {/* The hero states the same KPI as the first card below it, so it goes to the same place:
           the Animal Population page. "View breakdown" is still what it does — the breakdown is
           now the page's own site split, and each site row there opens the drill sheet. */}
@@ -418,7 +450,9 @@ function SectionHead({
 }: {
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; style?: object }>
   title: string
-  aside?: string
+  /* A NODE, NOT A STRING. It carries a count on most sections and a control on Trends, and a
+     second head component for the one case would be two things to keep in step. */
+  aside?: ReactNode
   tone?: 'good' | 'warn' | 'bad'
 }) {
   return (
@@ -440,19 +474,6 @@ function SectionHead({
   )
 }
 
-/** Severity chip — the one place a level is spelled out rather than dotted. */
-function LevelChip({ level }: { level: keyof typeof LEVEL_TONE }) {
-  const tone = LEVEL_TONE[level]
-  return (
-    <span
-      className="shrink-0 rounded-full px-2 py-[2px] text-overline font-semibold uppercase"
-      style={{ backgroundColor: mix(TONE[tone], 0.12), color: TONE[tone] }}
-    >
-      {level}
-    </span>
-  )
-}
-
 /* ── 1 · executive KPIs ──────────────────────────────────────────────────── */
 
 /**
@@ -469,7 +490,7 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
   /* Figure, note, movement and curve all from the one metric under the one scope — so the
      card cannot state a site's figure beside the collection's movement, which is exactly
      what it did when these came from four separate places. */
-  const { value, note, delta, mood, series, known } = useKpi(kpi)
+  const { value, note, delta, mood, known } = useKpi(kpi)
 
   if (!known) return <EmptyCard label={kpi.label} icon={kpi.icon} />
 
@@ -537,21 +558,15 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
         </span>
       </span>
 
-      {/* Tinted by putting the tone on the accent context rather than by threading a colour prop
-          through two shared marks.
+      {/* NO CURVE. These four carried a sparkline of the window, bucketed from the same daily
+          series the figure sums — the thing that separated them from the six tiles below, on the
+          argument that "45 births" cannot answer "are we improving?" and forty-five against
+          eleven previous months can.
 
-          The curve is the WINDOW, bucketed — the same daily series the figure beside it sums, so
-          the two cannot disagree. It used to be a fixed twelve months whatever the chip said,
-          which left a seven-day figure sitting on a year of shape.
-
-          NO CAPTION UNDER IT. It used to print the window — "JULY 2025" — under all four curves,
-          which is the period chip at the top of the page restated four times in the same eyeline.
-          The window is stated once, where it is set. */}
-      <span className="w-[104px] shrink-0 @[640px]:mt-3.5 @[640px]:w-auto" aria-hidden>
-        <AccentProvider value={colour}>
-          {kpi.chart === 'bars' ? <SparkBars values={series} /> : <Spark values={series} h={34} />}
-        </AccentProvider>
-      </span>
+          Removed on request: the shape was not earning the height it cost. What answers the same
+          question is still on the card — the delta beside the figure, which is a real comparison
+          against the preceding window of equal length — and the Trends section below now carries
+          its own period switch for the reader who wants the movement over a longer span. */}
     </a>
   )
 }
@@ -604,8 +619,14 @@ function KpiRail() {
 
 /** The supporting six — the same tile, no graph, quieter. */
 function KpiTile({ kpi }: { kpi: Kpi }) {
-  const { value, unit, note, delta, mood, percent, target, inverse } = useKpi(kpi)
+  const { value, unit, note, delta, mood, percent, target, inverse, known } = useKpi(kpi)
   const accent = kpi.accent ?? ACCENT
+
+  /* The same guard the headline card above already had, and for the same reason: a metric with
+     no model must show the empty state rather than a zero. It mattered less when every metric
+     had one — against the database, Breeding Success and Tasks have no source at all, and this
+     tile was printing "0%" and "0 Done" for them. */
+  if (!known) return <EmptyCard label={kpi.label} icon={kpi.icon} />
 
   const inner = (
     <>
@@ -707,87 +728,7 @@ function KpiGrid() {
 
 /* ── 2 · critical alerts ─────────────────────────────────────────────────── */
 
-function AlertTile({ alert }: { alert: (typeof criticalAlerts)[number] }) {
-  const { open } = useSheet()
-  const tone = LEVEL_TONE[alert.level]
-  return (
-    <button
-      type="button"
-      onClick={() => open({ title: alert.label, eyebrow: `${alert.count} open · ${alert.level}`, body: <AlertPanel alert={alert} /> })}
-      className={`${TAP} ${CARD} flex items-center gap-3 p-[var(--pad-card-sm)]`}
-    >
-      <span
-        className="grid size-9 shrink-0 place-items-center rounded-[11px]"
-        style={{ backgroundColor: mix(TONE[tone], 0.12) }}
-        aria-hidden
-      >
-        <alert.icon size={17} strokeWidth={1.75} style={{ color: TONE[tone] }} />
-      </span>
-      {/* The severity chip rides the SUB-LINE, not the title.
-          Beside the title it took ~78px out of a ~150px label column once these sit
-          two-up in a content column, and seven of the ten titles clipped —
-          "Critical Medical …", "Medicine Out of St…". The chip is a small
-          fixed-width token and the note beside it is already short, so the two share
-          the lower line comfortably and the title gets the whole upper one. */}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-small font-medium text-[#1c1a16]">
-          {alert.label}
-        </span>
-        <span className="mt-1 flex items-center gap-1.5">
-          <LevelChip level={alert.level} />
-          <span className="min-w-0 truncate text-caption text-[#9b958b]">{alert.note}</span>
-        </span>
-      </span>
-      {/* The count is INK, not the severity colour. The severity is already said twice on this
-          row — by the chip under the title and by the glyph beside it — and a third statement of
-          it in the largest mark on the card left ten alert tiles reading as a wall of red and
-          amber numbers. The number is a quantity; the chip is the judgement. */}
-      <span className="shrink-0 font-display text-n font-bold tabular-nums" style={{ color: HERO_INK }}>
-        {alert.count}
-      </span>
-      <ChevronRight size={14} strokeWidth={2} className="shrink-0" style={{ color: '#c9c4bb' }} aria-hidden />
-    </button>
-  )
-}
-
 /* ── 3 · approvals ───────────────────────────────────────────────────────── */
-
-function ApprovalTile({ group }: { group: (typeof approvals)[number] }) {
-  const { open } = useSheet()
-  const overdue = group.requests.filter((r) => r.overdue).length
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        open({
-          title: group.label,
-          eyebrow: `${group.requests.length} waiting on you`,
-          body: <ApprovalPanel group={group} />,
-        })
-      }
-      className={`${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card-sm)]`}
-    >
-      <span className="flex items-center gap-2">
-        <span
-          className="grid size-7 shrink-0 place-items-center rounded-[9px]"
-          style={{ backgroundColor: mix(ACCENT, 0.1) }}
-          aria-hidden
-        >
-          <group.icon size={15} strokeWidth={1.75} style={{ color: ACCENT }} />
-        </span>
-        <span className="min-w-0 truncate text-small font-medium text-[#1c1a16]">{group.label}</span>
-      </span>
-      <span className="mt-2.5 flex items-baseline justify-between gap-2">
-        <Figure value={String(group.requests.length)} size={28} color={HERO_INK} />
-        {overdue > 0 && (
-          <span className="shrink-0 text-caption font-semibold" style={{ color: TONE.warn }}>
-            {overdue} late
-          </span>
-        )}
-      </span>
-    </button>
-  )
-}
 
 /* ── 4 · upcoming ────────────────────────────────────────────────────────── */
 
@@ -889,67 +830,20 @@ function Upcoming() {
   )
 }
 
-/* ── 5 · executive health ────────────────────────────────────────────────── */
+/* ── 6 · risks ───────────────────────────────────────────────────────────── */
 
-function MeasureTile({ measure }: { measure: (typeof executiveHealth)[number] }) {
-  const { open } = useSheet()
+/** Severity chip — the one place a level is spelled out rather than dotted. */
+function LevelChip({ level }: { level: keyof typeof LEVEL_TONE }) {
+  const tone = LEVEL_TONE[level]
   return (
-    <button
-      type="button"
-      onClick={() => open({ title: measure.label, eyebrow: measure.targetLabel, body: <MeasurePanel measure={measure} /> })}
-      className={`${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card)]`}
+    <span
+      className="shrink-0 rounded-full px-2 py-[2px] text-overline font-semibold uppercase"
+      style={{ backgroundColor: mix(TONE[tone], 0.12), color: TONE[tone] }}
     >
-      <span className="flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate text-small text-[#3d3a34]">{measure.label}</span>
-        <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: signTone(measure.delta) ?? FAINT }}>
-          {measure.delta}
-        </span>
-      </span>
-      <span className="mt-2 block">
-        <Figure value={measure.value} unit={measure.unit} size={32} color={HERO_INK} />
-      </span>
-      {/* Bar, target tick, sparkline — the same three facts `Bullet` carries, laid
-          out for a tile rather than a card row. A full bar always means good: the
-          two "lower is better" measures are inverted in the data, not here. */}
-      <span className="relative mt-3 block h-[8px] w-full rounded-full" style={{ backgroundColor: TRACK }}>
-        <span
-          className="block h-full rounded-full"
-          style={{ width: `${Math.max(3, Math.min(100, measure.percent))}%`, backgroundColor: TONE[measure.tone] }}
-        />
-        {measure.target < 100 && (
-          <span
-            className="absolute inset-y-[-2px] w-[2px] rounded-full bg-[#1c1a16]/45"
-            style={{ left: `calc(${measure.target}% - 1px)` }}
-            aria-hidden
-          />
-        )}
-      </span>
-      {/* No sparkline here, deliberately. One went in and came out: six months of a
-          94-out-of-100 score drawn into a 64px box is a horizontal line, and a mark
-          that cannot vary is a mark that says nothing while taking the room that says
-          it. The movement over the window is the answer to "are we improving", and it
-          is a number — the shape is in the sheet, on a real axis. */}
-      <span className="mt-2 flex items-baseline justify-between gap-3">
-        <span className="text-caption" style={{ color: FAINT }}>
-          {measure.targetLabel}
-        </span>
-        <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
-          6 mo {moved(measure.history)}
-        </span>
-      </span>
-    </button>
+      {level}
+    </span>
   )
 }
-
-/** Signed movement across the six readings, at the series' own precision. */
-function moved(history: number[]): string {
-  const d = history[history.length - 1] - history[0]
-  const decimals = Number.isInteger(history[0]) && Number.isInteger(history[history.length - 1]) ? 0 : 3
-  const n = Number(d.toFixed(decimals))
-  return `${n > 0 ? '+' : ''}${n}`
-}
-
-/* ── 6 · risks ───────────────────────────────────────────────────────────── */
 
 function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
   const { open } = useSheet()
@@ -997,18 +891,89 @@ function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
  *
  * Each also carries its own hue, so the section can be navigated by colour before it is read.
  */
-function TrendTile({ card }: { card: (typeof trends)[number] }) {
+/**
+ * The four spans the Trends section offers.
+ *
+ * Every one resolves through a window `core/calendar.ts` already defines, so a chip here and
+ * the page's own date filter mean exactly the same span — the alternative was a second
+ * definition of "6 months" that could drift from the first. `half` and `year` are trailing
+ * calendar months rather than 182 and 365 days, for the same reason the global filter's are.
+ */
+const TREND_SPANS: { key: WindowKey; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'last7', label: 'Week' },
+  { key: 'half', label: '6 months' },
+  { key: 'year', label: 'Year' },
+]
+
+/**
+ * Trends, with their own window.
+ *
+ * WHY THIS SECTION GETS A SWITCH AND THE REST OF THE PAGE DOES NOT. Everything above answers
+ * "what is true now", and one date filter at the top governs all of it. This section answers
+ * "are we improving", which is a question about a span — and the span a reader wants for it is
+ * rarely the one they want for the figures above. Twelve sparklines used to carry that
+ * comparison implicitly; with the marks gone it has to be explicit, and a switch is a better
+ * answer than a curve because the delta beside each figure is a real like-for-like comparison
+ * against the preceding span of equal length.
+ *
+ * IT SWITCHES WHEN, NOT WHERE. The site half of the scope stays global, so a reader who has
+ * scoped to a site cannot be shown the collection's movement inside it.
+ */
+function TrendsSection() {
+  const [span, setSpan] = useState<WindowKey>('year')
+  const win = useMemo(() => resolveWindow(span), [span])
+
+  return (
+    <>
+      <SectionHead
+        icon={SECTION_ICONS.trends}
+        title="Trends"
+        aside={
+          /* Same pill as the Upcoming horizon switch below — one control shape on this page,
+             not two that do the same job. */
+          <span className="flex gap-1.5" role="tablist" aria-label="Trend span">
+            {TREND_SPANS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                role="tab"
+                aria-selected={span === s.key}
+                onClick={() => setSpan(s.key)}
+                className={`rounded-full px-2.5 py-[3px] text-caption font-medium transition-colors ${
+                  span === s.key ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a]'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </span>
+        }
+      />
+      <Reveal>
+        <div className="grid grid-cols-2 gap-[var(--gap)] @[520px]:grid-cols-4">
+          {trends.map((t) => (
+            <TrendTile key={t.key} card={t} win={win} />
+          ))}
+        </div>
+      </Reveal>
+    </>
+  )
+}
+
+function TrendTile({ card, win }: { card: (typeof trends)[number]; win: Win }) {
   const { open } = useSheet()
   const accent = card.accent ?? (card.tone === 'neutral' ? MUTED : TONE[card.tone])
-  const { value, delta, values, mood } = useTrendCard(card)
-  const shape = card.shape ?? 'area'
+  const { value, delta, mood, known } = useTrendCard(card, win)
 
-  const low = values.length ? Math.min(...values) : 0
-  const high = values.length ? Math.max(...values) : 0
+  /* Same guard as the KPI cards: a metric with no model shows the empty state, never a zero. */
+  if (!known) return <EmptyCard label={card.label} icon={card.icon} />
 
   return (
     <button
       type="button"
+      /* The sheet still draws the twelve-month chart whatever the section is cut to — it is the
+         one place with an axis, and the eyebrow says so. */
       onClick={() => open({ title: card.label, eyebrow: '12 months', body: <TrendPanel card={card} /> })}
       className={`${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card-sm)] ${
         card.wide ? '@[520px]:col-span-2' : ''
@@ -1040,89 +1005,18 @@ function TrendTile({ card }: { card: (typeof trends)[number] }) {
         )}
       </span>
 
-      {/* The mark. Tinted by putting the hue on the accent context rather than by threading a
-          colour prop through four shared components.
+      {/* THE MARK IS GONE, on the same call as the headline curves above.
 
-          `Spark` and `SparkBars` scale to the SERIES' OWN RANGE, unlike the `Trend` in the sheet
-          which is zero-based with a real axis — and that difference is deliberate. Animal
-          population runs 212,040 → 215,432; zero-based, that is a dead flat line under a large
-          filled slab, which is a truthful chart and a useless glyph. A sparkline's job beside a
-          stated number is shape; the readable scale belongs on the chart that carries an axis. */}
-      <span className="mt-2.5 block w-full" aria-hidden>
-        <AccentProvider value={accent}>
-          {shape === 'columns' ? (
-            <SparkBars values={values} />
-          ) : shape === 'meter' ? (
-            <TargetMeter value={values[values.length - 1] ?? 0} target={card.target ?? 0} accent={accent} />
-          ) : shape === 'range' ? (
-            <RangeBand low={low} high={high} at={values[values.length - 1] ?? 0} accent={accent} />
-          ) : (
-            <Spark values={values} h={34} />
-          )}
-        </AccentProvider>
-      </span>
+          What stood here was four different marks chosen from what the figure IS — an area for a
+          level, columns for discrete monthly counts, a meter for a rate against its target, a
+          range band for a level read against its own floor and ceiling. That reasoning still
+          holds and the `shape` field on `TrendCard` still records it; only the drawing is
+          removed, so restoring it is one block.
 
-      {/* NO CAPTION UNDER THE MARK. It printed "Animals · monthly close" beneath a card already
-          titled "Animal Population" — the label restated in smaller grey type, on all twelve
-          tiles at once, which is a band of noise across the section for no fact you did not
-          already have. The bucketing it named is a property of the section, not of each tile.
-
-          The two shapes whose caption carried a real number — the meter's target and the
-          range's band — lose those figures here. Both are still DRAWN: the meter's notch sits
-          at its target and the band's dot at its position, and the exact numbers are one tap
-          away in the trend panel this card opens. */}
+          The period switch on the section head does the work the curve was doing: rather than
+          showing twelve months of shape beside a window's figure, the reader picks the span and
+          the figure and its delta both re-read at it. */}
     </button>
-  )
-}
-
-/**
- * A rate against its published target.
- *
- * The bar is the target's width, and the fill is the reading. Over target the fill turns red and
- * runs past the notch — which is the one thing a sparkline of the same series cannot show, because
- * the target does not appear in the series at all.
- */
-function TargetMeter({ value, target, accent }: { value: number; target: number; accent: string }) {
-  const over = target > 0 && value > target
-  /* Scaled so the target notch sits at three-quarters, leaving room for an overshoot to be visibly
-     an overshoot rather than a bar that is simply full. */
-  const scale = target > 0 ? target / 0.75 : Math.max(value, 1)
-  const width = Math.max(3, Math.min(100, (value / scale) * 100))
-
-  return (
-    <span className="block h-[34px] pt-3">
-      <span className="relative block h-[8px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-        <span
-          className="absolute inset-y-0 left-0 rounded-full"
-          style={{ width: `${width}%`, backgroundColor: over ? TONE.bad : accent }}
-        />
-        {/* The notch. Drawn over the fill so it stays visible when the bar runs past it. */}
-        <span className="absolute inset-y-[-3px] w-[2px] rounded-full bg-[#16150f]/45" style={{ left: '75%' }} />
-      </span>
-    </span>
-  )
-}
-
-/**
- * A level in its own twelve-month band.
- *
- * For a money figure the useful question is not the wiggle, it is whether this month is near the
- * floor or the ceiling of the year — so the mark is the band with the reading on it, and the floor
- * and ceiling are stated under the card.
- */
-function RangeBand({ low, high, at, accent }: { low: number; high: number; at: number; accent: string }) {
-  const span = high - low
-  const pos = span > 0 ? ((at - low) / span) * 100 : 50
-
-  return (
-    <span className="block h-[34px] pt-3">
-      <span className="relative block h-[8px] w-full rounded-full" style={{ backgroundColor: mix(accent, 0.16) }}>
-        <span
-          className="absolute top-1/2 size-[12px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
-          style={{ left: `${Math.max(4, Math.min(96, pos))}%`, backgroundColor: accent }}
-        />
-      </span>
-    </span>
   )
 }
 
@@ -1162,64 +1056,13 @@ export function HomeSections() {
           and their twelve-month shape now read as one block: what it is, then where it is going. */}
       {/* The window is stated on the tile you open, not twice on the way to it — see the
           panel's own "· 12 months" line. */}
-      <SectionHead icon={SECTION_ICONS.trends} title="Trends" />
-      <Reveal>
-        <div className="grid grid-cols-2 gap-[var(--gap)] @[520px]:grid-cols-4">
-          {trends.map((t) => (
-            <TrendTile key={t.key} card={t} />
-          ))}
-        </div>
-      </Reveal>
+      <TrendsSection />
 
-      <SectionHead
-        icon={SECTION_ICONS.alerts}
-        title="Critical Alerts"
-        aside={`${alertsUrgent} urgent`}
-        tone="bad"
-      />
-      <Reveal>
-        {/* One column on a phone, two once the column can carry a pair without the
-            label and the count colliding. */}
-        <div className="grid gap-[var(--gap)] @[560px]:grid-cols-2">
-          {criticalAlerts.map((a) => (
-            <AlertTile key={a.key} alert={a} />
-          ))}
-        </div>
-      </Reveal>
-
-      <SectionHead
-        icon={SECTION_ICONS.approvals}
-        title="Needs My Approval"
-        aside={`${approvalsPending} pending · ${approvalsOverdue} late`}
-        tone="warn"
-      />
-      <Reveal>
-        <div className="grid grid-cols-2 gap-[var(--gap)] @[520px]:grid-cols-3 @[820px]:grid-cols-6">
-          {approvals.map((g) => (
-            <ApprovalTile key={g.key} group={g} />
-          ))}
-        </div>
-      </Reveal>
       <SectionHead icon={SECTION_ICONS.upcoming} title="Upcoming" aside="7 / 30 days" />
       <Reveal>
         <Upcoming />
       </Reveal>
 
-      {/* The composite, in its own section beside the other scores rather than above the hero.
-          Four indices are the standing answer to "is anything wrong" — worth reading, and not worth
-          the first screen, which belongs to the figure the app is opened for. */}
-      <SectionHead icon={SECTION_ICONS.zooHealth} title="Zoo Health" aside={`${zooHealthScore} / 100`} />
-      <Reveal>
-        <ScoreStrip />
-      </Reveal>
-      <SectionHead icon={SECTION_ICONS.health} title="Executive Health" aside="against target" />
-      <Reveal>
-        <div className="grid gap-[var(--gap)] @[460px]:grid-cols-2 @[820px]:grid-cols-3">
-          {executiveHealth.map((m) => (
-            <MeasureTile key={m.key} measure={m} />
-          ))}
-        </div>
-      </Reveal>
       <SectionHead icon={SECTION_ICONS.risks} title="Risk Indicators" aside={`${risks.length} tracked`} />
       <Reveal>
         <div className={`${CARD} p-[var(--pad-card)]`}>

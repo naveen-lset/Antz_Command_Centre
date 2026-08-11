@@ -199,7 +199,7 @@ function PreventiveHero() {
   )
 
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <div className="flex items-end justify-between gap-4">
           <span>

@@ -337,25 +337,32 @@ export default function Animals() {
           page's own — the as-of statement, search over the collection, and the secondary
           filters. Putting them here rather than in the shared header keeps every other module
           exactly as it was. */}
-      <Toolbar
-        scopeName={scopeName}
-        asOf={longDate(win.to)}
-        sites={siteKey ? 1 : SITES.length}
-        species={allSpecies.length}
-        query={query}
-        onQuery={setQuery}
-        facets={facets}
-        holdings={allHoldings}
-        onApply={applyFacets}
-        onOpenAnimal={(id, name) =>
-          open({ title: id, eyebrow: name, body: <AnimalPanel record={animalFromId(id, name)} /> })
-        }
-        win={win}
-      />
+      {/* 1 · HERO, WITH THE TOOLBAR INSIDE IT. The strongest thing on the page and only three
+          supporting figures — the brief's "do not create multiple oversized KPI cards".
 
-      {/* 2 · HERO. The strongest thing on the page, and only three supporting figures — the
-          brief's "do not create multiple oversized KPI cards". */}
+          The toolbar was a card of its own directly above this one: an as-of line, a search
+          field and the secondary filters. It reads as part of the hero because it governs the
+          hero, and two cards to say "here is where you are, here is the number" was one card
+          more than the page needed. */}
       <Hero
+        head={
+          <Toolbar
+            bare
+            scopeName={scopeName}
+            asOf={longDate(win.to)}
+            sites={siteKey ? 1 : SITES.length}
+            species={allSpecies.length}
+            query={query}
+            onQuery={setQuery}
+            facets={facets}
+            holdings={allHoldings}
+            onApply={applyFacets}
+            onOpenAnimal={(id, name) =>
+              open({ title: id, eyebrow: name, body: <AnimalPanel record={animalFromId(id, name)} /> })
+            }
+            win={win}
+          />
+        }
         icon={PawPrint}
         value={fmt(lensed ? total : delta.closing)}
         label={lensed ? `Animals · filtered of ${fmt(collection)}` : 'Total animals'}
@@ -368,186 +375,148 @@ export default function Animals() {
         stats={[
           { value: fmt(species.length), label: 'Species' },
           { value: String(siteKey ? 1 : SITES.length), label: 'Sites' },
-          { value: String(enclosures), label: 'Enclosures' },
+          { value: fmt(enclosures), label: 'Enclosures' },
         ]}
       />
 
+      {/*
+        FOUR CONTAINERS, NOT EIGHTEEN.
+        =============================
+        This page carried eighteen white cards down one column: population change, trend,
+        composition, regulatory standing, CITES, the schedules, IUCN, sites, species, sex,
+        births, mortality, transfers, escapes, fetal death and leaders, each in a card of its
+        own. Every one was the right card and the stack was the wrong shape — eighteen cards of
+        equal weight say these are eighteen equally important things to consider, and a reader
+        looking for the species list scrolled past nine of them to reach it.
+
+        They are grouped by the QUESTION each answers, and NOTHING WAS DROPPED: every block that
+        was a card is a block inside one. `Section bare` prints its label as a hairline
+        sub-heading instead of opening a card — see the note on that prop in `exec/system.tsx` —
+        so the hierarchy reads group, then block, then rows, and a group animates in as one
+        thing rather than as eighteen separate arrivals.
+
+        The grouping is the reader's, not the schema's:
+          WHAT WE HOLD          the standing collection — its shape, its sites, its species
+          WHAT CHANGED          the flows that moved it, and the curve they add up to
+          WHAT WE ANSWER FOR    the three regulatory instruments
+      */}
       <Stack>
-        {/* 3 · POPULATION CHANGE. One card, not six — the two balances as bookends, the flows
-            that moved between them as a signed ledger, and the part the records do not explain
-            named rather than hidden inside the total. Every flow row opens its own sheet. */}
         <Wide>
-          <PopulationChangeCard siteKey={siteKey} />
-        </Wide>
-
-        {/* 4 · TREND. Real readings on a zero-based axis, drawn for whichever range the reader
-            picks. The range control belongs to the chart; the page's own as-of date and its
-            flow window still come from the global scope. */}
-        <Wide>
-          <TrendCard siteKey={siteKey} scopeName={scopeName} globalWin={win} />
-        </Wide>
-
-        {/* 5 · COLLECTION COMPOSITION, as a treemap — because the AREA is the share.
-            Nine classes running from 178,240 animals down to 41 cannot be drawn as bars: at
-            true scale eight of the nine are invisible, and floored they lie about the shape of
-            the collection. Every cell is a door into its species. */}
-        <Wide>
-          <Section icon={Layers} label="Collection composition" aside={plural(classes.length, 'class')}>
+          <Section icon={PawPrint} label="What we hold" aside={`as of ${longDate(win.to)}`}>
+            {/* Composition first: the shape of the collection before any list of it. */}
+            <Section bare icon={Layers} label="Collection composition" aside={plural(classes.length, 'class')}>
             <Treemap
-              items={classes.map((c) => ({
-                key: c.cls,
-                label: c.cls,
-                value: c.animals,
-                meta: `${c.species} species`,
-                onPick: () => openClass(c.cls),
-              }))}
+            items={classes.map((c) => ({
+            key: c.cls,
+            label: c.cls,
+            value: c.animals,
+            meta: `${c.species} species`,
+            onPick: () => openClass(c.cls),
+            }))}
             />
             <Rule label="By class" />
             <RankList
-              rank={false}
-              items={classes.map((c) => ({
-                key: c.cls,
-                title: c.cls,
-                meta: `${c.species} species`,
-                value: fmt(c.animals),
-                share: c.percent,
-                lead: classGlyph(c.cls),
-                onPick: () => openClass(c.cls),
-              }))}
+            rank={false}
+            items={classes.map((c) => ({
+            key: c.cls,
+            title: c.cls,
+            meta: `${c.species} species`,
+            value: fmt(c.animals),
+            share: c.percent,
+            lead: classGlyph(c.cls),
+            onPick: () => openClass(c.cls),
+            }))}
             />
+            </Section>
+
+            <SexCard bare siteKey={siteKey} facets={facets} />
+            <SitesCard bare rows={sites} scoped={siteKey} onOpen={openSite} />
+            <SpeciesCard bare rows={species} query={query} onQuery={setQuery} onOpen={openSpecies} />
+            <LeadersCard bare siteKey={siteKey} facets={facets} />
           </Section>
         </Wide>
 
-        {/* 6 · REGULATORY. Two parts, so two percentages facing each other over one ribbon —
-            not two bars, which is what this was and which stated the same number twice. The
-            split does NOT overlap: an animal carrying both a CITES listing and a schedule is
-            counted once here, which is why the appendix and schedule cards below are separate. */}
-        <Section icon={ScrollText} label="Regulatory standing" aside={`${pct(reg.regulated.percent)} regulated`}>
-          <PercentSplit
+        <Wide>
+          <Section icon={Sparkles} label="What changed" aside={win.window}>
+            <PopulationChangeCard bare siteKey={siteKey} />
+            <TrendCard bare siteKey={siteKey} scopeName={scopeName} globalWin={win} />
+            <BirthsCard bare siteKey={siteKey} />
+            <MortalityCard bare siteKey={siteKey} />
+            <TransfersCard bare siteKey={siteKey} />
+            <EscapesCard bare siteKey={siteKey} />
+            <FetalCard bare siteKey={siteKey} />
+          </Section>
+        </Wide>
+
+        <Wide>
+          <Section icon={ScrollText} label="What we answer for" aside={`${pct(reg.regulated.percent)} regulated`}>
+            {/* THE THREE INSTRUMENTS STAY APART INSIDE THE GROUP. CITES is a trade convention,
+                the Schedules are Indian domestic law and the Red List is an assessment of
+                extinction risk. An animal routinely carries two of them or all three, so they do
+                NOT sum and must never be drawn as one distribution. Grouping them in one card is
+                a statement about where a reader looks, not about the figures adding up. */}
+            <Section bare icon={ScrollText} label="Regulatory standing" aside={`${pct(reg.regulated.percent)} regulated`}>
+            <PercentSplit
             unit="animals"
             left={{
-              label: 'Regulatory',
-              value: reg.regulated.animals,
-              meta: `${reg.regulated.species} species`,
-              onPick: () => openRegulatory(true),
+            label: 'Regulatory',
+            value: reg.regulated.animals,
+            meta: `${reg.regulated.species} species`,
+            onPick: () => openRegulatory(true),
             }}
             right={{
-              label: 'Non-regulatory',
-              value: reg.open.animals,
-              meta: `${reg.open.species} species`,
-              onPick: () => openRegulatory(false),
+            label: 'Non-regulatory',
+            value: reg.open.animals,
+            meta: `${reg.open.species} species`,
+            onPick: () => openRegulatory(false),
             }}
-          />
-        </Section>
+            />
+            </Section>
 
-        {/* 7 · CITES — a trade convention, and a segmented composition rather than three
-            identical bars: the ribbon is the relative distribution across the three appendices,
-            the rows carry the counts, the species and the share each is of the collection. Kept
-            apart from the schedules below, because an animal routinely carries both. */}
-        <Section icon={ShieldAlert} label="CITES" aside={`${pct(citesShare)} of collection listed`}>
-          <Ribbon items={cites.map((b) => ({ label: b.label, value: b.animals }))} height={11} />
-          <div className="mt-4">
+            <Section bare icon={ShieldAlert} label="CITES" aside={`${pct(citesShare)} of collection listed`}>
+            <Ribbon items={cites.map((b) => ({ label: b.label, value: b.animals }))} height={11} />
+            <div className="mt-4">
             <RankList
-              rank={false}
-              showShare={false}
-              items={cites.map((b) => ({
-                key: b.key,
-                title: b.label,
-                meta: `${b.species} species · ${pct(b.percent)} of collection`,
-                value: fmt(b.animals),
-                share: citesTotal ? (b.animals / citesTotal) * 100 : 0,
-                onPick: b.animals > 0 ? () => openCites(b.key as CitesAppendix) : undefined,
-              }))}
-            />
-          </div>
-        </Section>
-
-        {/* 8 · SCHEDULE — Indian domestic law, and three named classes rather than a ranking, so
-            three tiles: the count, the species behind it, its share of the collection, and an arc
-            for its share of everything scheduled. */}
-        <Section icon={ScrollText} label="Wildlife Protection Act" aside="Schedule I · II · III">
-          <CompareTiles
-            items={schedules.map((b) => ({
-              key: b.key,
-              kicker: `Schedule ${b.key}`,
-              value: b.animals,
-              share: scheduleTotal ? (b.animals / scheduleTotal) * 100 : 0,
-              facts: [`${b.species} species`, `${pct(b.percent)} of collection`],
-              onPick: b.animals > 0 ? () => openSchedule(b.key as ScheduleClass) : undefined,
+            rank={false}
+            showShare={false}
+            items={cites.map((b) => ({
+            key: b.key,
+            title: b.label,
+            meta: `${b.species} species · ${pct(b.percent)} of collection`,
+            value: fmt(b.animals),
+            share: citesTotal ? (b.animals / citesTotal) * 100 : 0,
+            onPick: b.animals > 0 ? () => openCites(b.key as CitesAppendix) : undefined,
             }))}
-          />
-        </Section>
-
-        {/* 9 · IUCN. The published badges, in the published colours — a curator reads these on
-            the Red List and on enclosure signage, so they are not ours to restyle. */}
-        <Wide>
-          <Section icon={ShieldAlert} label="IUCN conservation status" aside="tap a category">
-            <RedList
-              counts={iucnCounts(rows)}
-              onOpen={(code) =>
-                open({
-                  title: RED_LIST.find((c) => c.code === code)?.name ?? code,
-                  eyebrow: 'IUCN Red List',
-                  body: <IucnGroup code={code} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
-                })
-              }
             />
+            </div>
+            </Section>
+
+            <Section bare icon={ScrollText} label="Wildlife Protection Act" aside="Schedule I · II · III">
+            <CompareTiles
+            items={schedules.map((b) => ({
+            key: b.key,
+            kicker: `Schedule ${b.key}`,
+            value: b.animals,
+            share: scheduleTotal ? (b.animals / scheduleTotal) * 100 : 0,
+            facts: [`${b.species} species`, `${pct(b.percent)} of collection`],
+            onPick: b.animals > 0 ? () => openSchedule(b.key as ScheduleClass) : undefined,
+            }))}
+            />
+            </Section>
+
+            <Section bare icon={ShieldAlert} label="IUCN conservation status" aside="tap a category">
+            <RedList
+            counts={iucnCounts(rows)}
+            onOpen={(code) =>
+            open({
+            title: RED_LIST.find((c) => c.code === code)?.name ?? code,
+            eyebrow: 'IUCN Red List',
+            body: <IucnGroup code={code} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
+            })
+            }
+            />
+            </Section>
           </Section>
-        </Wide>
-
-        {/* 10 · SITES. All of them, sorted on whichever column the reader picks — dense table
-            where there is room, stacked rows where there is not. */}
-        <Wide>
-          <SitesCard rows={sites} scoped={siteKey} onOpen={openSite} />
-        </Wide>
-
-        {/* 11 · SPECIES. All of them, searchable and paged rather than four hundred cards. */}
-        <Wide>
-          <SpeciesCard rows={species} query={query} onQuery={setQuery} onOpen={openSpecies} />
-        </Wide>
-
-        {/* 12 · SEX — a ring, which is the mark for three parts of one whole. Compact by design:
-            undetermined is the majority ANSWER in a collection four fifths made of fish and
-            invertebrates, not a gap in the record. */}
-        <SexCard siteKey={siteKey} facets={facets} />
-
-        {/* 13 · BIRTHS — an event flow, so columns and a real calendar rather than a bar chart.
-            A line through births per day would claim a value between the days and there isn't
-            one. The card answers how many, against when, where and which species. */}
-        <Wide>
-          <BirthsCard siteKey={siteKey} />
-        </Wide>
-
-        {/* 14 · MORTALITY. Population context, and the one thing a total cannot say: WHERE the
-            impact fell. The trend is the event flow, the band names the species carrying it, and
-            the ranked lists below are the site and species tails. Cause analysis stays on the
-            Mortality module; nothing medical is mixed in here. */}
-        <Wide>
-          <MortalityCard siteKey={siteKey} />
-        </Wide>
-
-        {/* 15 · EXTERNAL TRANSFERS — direction first. Two counts in a column say nothing about
-            which way the animals went; the glyph, the side and the net do it before a number is
-            read. The routes below name what the record names — a counterparty kind, not an
-            invented collection — and internal moves are stated so nobody reads them as change. */}
-        <TransfersCard siteKey={siteKey} />
-
-        {/* 16 · ESCAPES — an incident rail, because what is asked about an escape is when it
-            happened, what got out and whether it is back. The critical band appears only while
-            something is still out; an amber board over a clear one is how a reader learns to
-            stop looking. */}
-        <EscapesCard siteKey={siteKey} />
-
-        {/* 17 · FETAL DEATH, kept apart from mortality. A stillbirth is not a death in the
-            collection register, and merging the two would overstate mortality and understate the
-            breeding programme's own loss rate. An outcome split, because these are terminal
-            states of one population rather than a ranking of two things. */}
-        <FetalCard siteKey={siteKey} />
-
-        {/* 18 · LEADERS. Five extremes, computed rather than chosen, each opening the thing it
-            names. Numbers and labels only. */}
-        <Wide>
-          <LeadersCard siteKey={siteKey} facets={facets} />
         </Wide>
       </Stack>
     </>
@@ -566,13 +535,13 @@ export default function Animals() {
  * is a function of the window and the window is theirs.
  */
 
-function PopulationChangeCard({ siteKey }: { siteKey: string | null }) {
+function PopulationChangeCard({ siteKey, bare }: { siteKey: string | null; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
   const { move, openFlow } = useFlowSheets(siteKey, win)
   const delta = useMemo(() => change(siteKey, win), [siteKey, win])
 
   return (
-    <Section icon={Sparkles} label="Population change" aside={pill}>
+    <Section bare={bare} icon={Sparkles} label="Population change" aside={pill}>
       <Pair
         a={{ value: fmt(delta.opening), label: `Opening · ${shortDate(Math.max(0, win.from - 1))}` }}
         b={{ value: fmt(delta.closing), label: `Current · ${shortDate(win.to)}` }}
@@ -629,13 +598,13 @@ function PopulationChangeCard({ siteKey }: { siteKey: string | null }) {
   )
 }
 
-function SexCard({ siteKey, facets }: { siteKey: string | null; facets: Facets }) {
+function SexCard({ siteKey, facets, bare }: { siteKey: string | null; facets: Facets; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
   const { species } = useLens(siteKey, win, facets)
   const sexes = useMemo(() => sexTotals(species), [species])
 
   return (
-    <Section icon={Venus} label="Sex distribution" aside={pill}>
+    <Section bare={bare} icon={Venus} label="Sex distribution" aside={pill}>
       <SplitRing
         label="Animals"
         unit="animals"
@@ -650,7 +619,7 @@ function SexCard({ siteKey, facets }: { siteKey: string | null; facets: Facets }
   )
 }
 
-function BirthsCard({ siteKey }: { siteKey: string | null }) {
+function BirthsCard({ siteKey, bare }: { siteKey: string | null; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
   const { move, openFlow, openFlowSite } = useFlowSheets(siteKey, win)
   const births = useFlowCard('births', siteKey, win)
@@ -662,7 +631,7 @@ function BirthsCard({ siteKey }: { siteKey: string | null }) {
   )
 
   return (
-    <Section icon={Sparkles} label="Births" aside={pill}>
+    <Section bare={bare} icon={Sparkles} label="Births" aside={pill}>
       <EventTrend
         points={births.points}
         compare={births.compare}
@@ -703,14 +672,14 @@ function BirthsCard({ siteKey }: { siteKey: string | null }) {
   )
 }
 
-function MortalityCard({ siteKey }: { siteKey: string | null }) {
+function MortalityCard({ siteKey, bare }: { siteKey: string | null; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
   const { move, openFlow, openFlowSite } = useFlowSheets(siteKey, win)
   const deaths = useFlowCard('mortality', siteKey, win)
   const delta = useMemo(() => change(siteKey, win), [siteKey, win])
 
   return (
-    <Section icon={Activity} label="Mortality" aside={pill}>
+    <Section bare={bare} icon={Activity} label="Mortality" aside={pill}>
       <EventTrend
         points={deaths.points}
         compare={deaths.compare}
@@ -778,7 +747,7 @@ function MortalityCard({ siteKey }: { siteKey: string | null }) {
   )
 }
 
-function TransfersCard({ siteKey }: { siteKey: string | null }) {
+function TransfersCard({ siteKey, bare }: { siteKey: string | null; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
   const { move, openFlow } = useFlowSheets(siteKey, win)
   const prevMove = useMemo(() => movement(siteKey, previous(win)), [siteKey, win])
@@ -808,7 +777,7 @@ function TransfersCard({ siteKey }: { siteKey: string | null }) {
   )
 
   return (
-    <Section icon={ArrowLeftRight} label="External transfers" aside={pill}>
+    <Section bare={bare} icon={ArrowLeftRight} label="External transfers" aside={pill}>
       <FlowSplit
         unit="animals"
         net={move.transfers.net}
@@ -835,7 +804,7 @@ function TransfersCard({ siteKey }: { siteKey: string | null }) {
   )
 }
 
-function EscapesCard({ siteKey }: { siteKey: string | null }) {
+function EscapesCard({ siteKey, bare }: { siteKey: string | null; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
   const { open } = useSheet()
   const { move, openFlow } = useFlowSheets(siteKey, win)
@@ -867,7 +836,7 @@ function EscapesCard({ siteKey }: { siteKey: string | null }) {
   )
 
   return (
-    <Section icon={Footprints} label="Escaped animals" aside={pill}>
+    <Section bare={bare} icon={Footprints} label="Escaped animals" aside={pill}>
       {move.escapes.atLarge > 0 ? (
         <Band
           label="Critical"
@@ -898,13 +867,13 @@ function EscapesCard({ siteKey }: { siteKey: string | null }) {
   )
 }
 
-function FetalCard({ siteKey }: { siteKey: string | null }) {
+function FetalCard({ siteKey, bare }: { siteKey: string | null; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
   const { move, openFlow, openFlowSite } = useFlowSheets(siteKey, win)
   const fetal = useFlowCard('fetal', siteKey, win)
 
   return (
-    <Section icon={Baby} label="Fetal death" aside={pill}>
+    <Section bare={bare} icon={Baby} label="Fetal death" aside={pill}>
       <EventTrend
         points={fetal.points}
         compare={fetal.compare}
@@ -956,7 +925,7 @@ function FetalCard({ siteKey }: { siteKey: string | null }) {
   )
 }
 
-function LeadersCard({ siteKey, facets }: { siteKey: string | null; facets: Facets }) {
+function LeadersCard({ siteKey, facets, bare }: { siteKey: string | null; facets: Facets; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
   const { open } = useSheet()
   const { species } = useLens(siteKey, win, facets)
@@ -968,7 +937,7 @@ function LeadersCard({ siteKey, facets }: { siteKey: string | null; facets: Face
     open({ title: row.name, eyebrow: row.siteName, body: <SpeciesPanel row={row} win={win} /> })
 
   return (
-    <Section icon={Trophy} label="Population leaders" aside={pill}>
+    <Section bare={bare} icon={Trophy} label="Population leaders" aside={pill}>
       <div className="grid grid-cols-2 gap-x-4 gap-y-5 @[560px]:grid-cols-3">
         {leaders(species, sites).map((l) => (
           <LeaderTile
@@ -1231,6 +1200,7 @@ function Toolbar({
   onApply,
   onOpenAnimal,
   win,
+  bare,
 }: {
   scopeName: string
   asOf: string
@@ -1242,6 +1212,8 @@ function Toolbar({
   holdings: Holding[]
   onApply: (f: Facets) => void
   onOpenAnimal: (id: string, name: string) => void
+  /** Rendered inside the hero's card rather than as one of its own. */
+  bare?: boolean
   win: Win
 }) {
   const { open } = useSheet()
@@ -1252,15 +1224,14 @@ function Toolbar({
      will never contain it. */
   const hits = useMemo(() => (query.trim().length >= 3 ? searchAnimals(query, null, win, 3) : []), [query, win])
 
-  return (
-    <div className="px-[var(--gutter-lg)] pb-3">
-      <div className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card-sm)]">
+  const body = (
+    <>
         <div className="flex items-baseline justify-between gap-3">
           <p className="min-w-0 truncate text-small font-medium text-[#1c1a16]">
             {scopeName} · as of {asOf}
           </p>
           <p className="shrink-0 text-caption whitespace-nowrap" style={{ color: FAINT }}>
-            {sites} {sites === 1 ? 'site' : 'sites'} · {species} species
+            {sites} {sites === 1 ? 'site' : 'sites'} · {fmt(species)} species
           </p>
         </div>
         <div className="mt-3 flex items-center gap-2">
@@ -1358,7 +1329,16 @@ function Toolbar({
             </button>
           </div>
         )}
-      </div>
+    </>
+  )
+
+  /* Bare inside the hero's card; its own card everywhere else, so the component stays usable
+     on a page that has not been grouped. */
+  return bare ? (
+    body
+  ) : (
+    <div className="px-[var(--gutter)] pb-3">
+      <div className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card-sm)]">{body}</div>
     </div>
   )
 }
@@ -1466,7 +1446,7 @@ function FacetSheet({
           />
         </Section>
       </Stack>
-      <div className="flex gap-2 px-[var(--gutter-lg)] pt-1 pb-3">
+      <div className="flex gap-2 px-[var(--gutter)] pt-1 pb-3">
         <button
           type="button"
           onClick={() => {
@@ -1530,12 +1510,10 @@ function Chips({
 function TrendCard({
   siteKey,
   scopeName,
-  globalWin,
-}: {
+  globalWin, bare }: {
   siteKey: string | null
   scopeName: string
-  globalWin: Win
-}) {
+  globalWin: Win; bare?: boolean }) {
   const { open } = useSheet()
   const [range, setRange] = useState('30d')
 
@@ -1560,7 +1538,7 @@ function TrendCard({
   const low = values.length ? Math.min(...values) : 0
 
   return (
-    <Section icon={TrendingUp} label="Population trend">
+    <Section bare={bare} icon={TrendingUp} label="Population trend">
       <div className="-mx-1 mb-3.5 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
         {[...TREND_RANGES.map((r) => [r.key, r.label] as [string, string]), ['custom', 'Custom'] as [string, string]].map(
           ([key, label]) => {
@@ -1645,17 +1623,15 @@ const SITE_SORTS: [SiteSort, string][] = [
 function SitesCard({
   rows,
   scoped,
-  onOpen,
-}: {
+  onOpen, bare }: {
   rows: SiteRow[]
   scoped: string | null
-  onOpen: (key: string) => void
-}) {
+  onOpen: (key: string) => void; bare?: boolean }) {
   const [sort, setSort] = useState<SiteSort>('animals')
   const shown = useMemo(() => sortSites(scoped ? rows.filter((r) => r.key === scoped) : rows, sort), [rows, scoped, sort])
 
   return (
-    <Section icon={MapPin} label="Site population" aside={`${shown.length} of ${rows.length} sites`}>
+    <Section bare={bare} icon={MapPin} label="Site population" aside={`${shown.length} of ${rows.length} sites`}>
       <Chips
         options={SITE_SORTS.map(([k, l]) => [k, l] as [string, string])}
         value={sort}
@@ -1707,13 +1683,11 @@ function SpeciesCard({
   rows,
   query,
   onQuery,
-  onOpen,
-}: {
+  onOpen, bare }: {
   rows: SpeciesRow[]
   query: string
   onQuery: (v: string) => void
-  onOpen: (row: SpeciesRow) => void
-}) {
+  onOpen: (row: SpeciesRow) => void; bare?: boolean }) {
   const [sort, setSort] = useState<SpeciesSort>('animals')
   const matched = useMemo(() => sortSpecies(searchSpecies(rows, query), sort), [rows, query, sort])
   const paged = usePaged<SpeciesRow>(
@@ -1735,6 +1709,7 @@ function SpeciesCard({
 
   return (
     <Section
+      bare={bare}
       icon={Dna}
       label="Species population"
       aside={query ? `${matched.length} of ${rows.length}` : `${rows.length} species`}

@@ -47,7 +47,7 @@ export class Boundary extends Component<Props, State> {
     if (!error) return this.props.children
 
     return (
-      <div className="px-[var(--gutter-lg)] pt-2" role="alert">
+      <div className="px-[var(--gutter)] pt-2" role="alert">
         <div className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <span
             className="grid size-9 place-items-center rounded-full"

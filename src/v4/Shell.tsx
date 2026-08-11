@@ -1,48 +1,111 @@
 /**
- * The tablet and desktop shell — sidebar, content, executive panel.
+ * The tablet and desktop shell — sidebar and content.
  *
- * THREE COLUMNS, ONE SCROLLBAR. The columns are a single flex row and each side
- * column is `sticky`, so the page keeps one scroll position. Independent per-column
- * scrolling looks identical until the content is short, at which point three scroll
- * positions become three things that can disagree.
+ * TWO COLUMNS, ONE SCROLLBAR. The columns are a single flex row and the sidebar is
+ * `sticky`, so the page keeps one scroll position. Independent per-column scrolling
+ * looks identical until the content is short, at which point two scroll positions
+ * become two things that can disagree.
  *
  * THE CONTENT COLUMN IS THE MEASURING STICK. `content-box` makes it a container and
  * `tier` is the child the container queries in `index.css` are allowed to restyle, so
  * every card inside sizes itself off the room it actually has rather than off the
- * window. This is load-bearing rather than tidy: a 1280px desktop hands the content
- * column ~600px once the rail and the panel take their share, while a 1194px tablet
- * landscape hands it ~900px. Sizing off the window would put desktop type into the
- * narrower of the two columns.
+ * window. This is load-bearing rather than tidy: sizing off the window would put
+ * desktop type into a column that may be much narrower than the window suggests.
+ *
+ * THE EXECUTIVE PANEL IS GONE. A third column carried the weather, the decision queues,
+ * the risk list and a recent-activity feed, and appeared at 1280px by taking 296px from
+ * the content. Removed on request. Two consequences worth knowing: the content column is
+ * now the full width beside the sidebar at every tier, so a desktop reader crosses the
+ * 900px container step and gets the wider type scale; and `ExecPanel.tsx` is still on
+ * disk, simply not rendered, so restoring it is one import and one line here.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Sidebar } from './Sidebar'
-import { ExecutivePanel } from './ExecPanel'
 import { Landscape } from './landscape'
+
+/**
+ * The page's ground — the sage the whole product stands on, and on the home the light green
+ * carried down out of the illustration.
+ *
+ * ONE GROUND FOR THE WHOLE WINDOW. Painted on the content column instead, the home's descent
+ * from canopy green back to sage made the column seventeen levels greener than the page
+ * around it — a tinted panel floating on a paler ground, with the twenty-pixel shell margin
+ * drawing its outline. That is exactly the "separate container behind every section" this
+ * work exists to remove. So the shell paints it edge to edge and the column carries none.
+ *
+ * `--env-offset` is the distance from wherever this layer starts to the top of the content
+ * column, because the column's top is what `--env-top` is measured from. Zero on the phone,
+ * where the frame IS the column; the shell's own padding under the shell.
+ *
+ * TWO WAYS OF GETTING BEHIND THE CONTENT, and the difference is not arbitrary.
+ *
+ * In the phone frame it is `-z-20`, under `Landscape`'s `-z-10` and under the page, which is
+ * in flow and therefore paints above every negative layer. That frame already isolates, so a
+ * negative layer has a stacking context to be negative INSIDE.
+ *
+ * The shell's does not, and must not. A negative z-index resolves against the nearest
+ * ancestor stacking context, and the shell's outer element is not one — so `-z-20` there
+ * escapes to the root and paints UNDERNEATH the shell's own background colour, which is to
+ * say it does not paint at all. Making the shell isolate would fix that and would also trap
+ * the search overlay's `z-50` inside it, putting an open sheet's `z-40` — a sibling out in
+ * the root — on top of a search the reader has just opened. So the shell's ground carries no
+ * z-index and relies on paint order instead: it is the first child, and the column row after
+ * it is `relative`, so two positioned siblings paint in the order they are written.
+ *
+ * Either way it is `pointer-events-none` and `aria-hidden`: it can never take a tap or reach
+ * a screen reader.
+ */
+function Ground({ home, shell }: { home?: boolean; shell?: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={`page-ground${home ? ' is-home' : ''}${shell ? ' is-shell' : ''} pointer-events-none absolute inset-0 ${
+        shell ? '' : '-z-20'
+      }`}
+    />
+  )
+}
 
 export function AppShell({
   route,
-  panel,
   children,
 }: {
   route: string
-  /** Desktop only — there is no width for a third column below 1280. */
-  panel: boolean
   children: ReactNode
 }) {
   return (
-    <div className="min-h-dvh bg-[#e7f0ea] font-sans">
-      <div className="flex items-start gap-[var(--shell-gap)] p-[var(--shell-pad)]">
+    /* `relative` so the ground can be a layer over the whole window rather than a
+       background on the column — see `Ground` above for why that distinction matters. */
+    <div className="relative min-h-dvh bg-[var(--env-ground)] font-sans">
+      <Ground home={route === '#/'} shell />
+      {/* `mx-auto` + `--shell-max` is the whole of the very-wide-screen behaviour: past
+          1800px the columns stop growing and the window's extra width becomes equal
+          margin either side. Capping the CONTENT column alone would have left the rail
+          pinned to the screen edge with a gap in the middle, which is the one
+          arrangement worse than stretching. */}
+      {/* `relative` is load-bearing: it puts this row and the ground above it in the same
+          positioned-sibling paint order, which is how the ground gets behind the page
+          without a z-index — see `Ground`. */}
+      <div className="relative mx-auto flex max-w-[var(--shell-max)] items-start gap-[var(--shell-gap)] p-[var(--shell-pad)]">
         <Sidebar route={route} />
 
         {/* `relative isolate` so the landscape can sit on its own layer behind the
-            column's content without escaping the rounded clip. */}
-        <div className="content-box relative isolate min-w-0 flex-1 overflow-hidden rounded-[22px] bg-[#e7f0ea]">
-          <Landscape />
+            column's content without escaping the rounded clip.
+
+            NO BACKGROUND ON THE COLUMN. The ground is painted on the shell above, across the
+            whole window, so the column and the twenty pixels of shell margin around it are
+            the same surface at every height. The rounded corners stay and now have nothing
+            to be a corner between — which is the intent: the column is a measuring stick and
+            a clip, not a panel. */}
+        <div className="content-box relative isolate min-w-0 flex-1 overflow-hidden rounded-[22px]">
+          {/* The home opens on the illustration, so its environment starts under the
+              illustration's own fade rather than at the top of the column — see the two
+              `.env-*` profiles in `index.css`. Every other page starts at the top. */}
+          <Landscape variant={route === '#/' ? 'home' : 'page'} />
           <div className="tier">{children}</div>
         </div>
-        {panel && <ExecutivePanel />}
       </div>
     </div>
   )
@@ -65,7 +128,7 @@ export function ModuleHeader({
   onBack?: () => void
 }) {
   return (
-    <header className="flex items-center gap-3 px-[var(--gutter-lg)] pt-7 pb-5">
+    <header className="flex items-center gap-3 px-[var(--gutter)] pt-7 pb-5">
       {onBack && (
         <button
           type="button"
@@ -161,13 +224,21 @@ export function ModulePane({ children }: { children: ReactNode }) {
  * for both tiers, so this is just the frame: the gradient ground, the `content-box` container
  * and the safe-area padding. One header, two frames — rather than two of each.
  */
-export function PhoneFrame({ children }: { children: ReactNode }) {
+export function PhoneFrame({ home, children }: { home?: boolean; children: ReactNode }) {
   return (
-    <div
-      className="content-box relative isolate min-h-dvh font-sans"
-      style={{ background: 'linear-gradient(180deg, #ddeae3 0%, #c6ddd1 100%)' }}
-    >
-      <Landscape />
+    /**
+     * THE SAME GROUND AS THE SHELL, rather than the `#ddeae3 → #c6ddd1` gradient this frame
+     * used to carry on its own. Two frames with two different grounds is how the phone ended
+     * up with the illustration's fade finishing on `#e7f0ea` over a ground fourteen levels
+     * darker — a pale strip exactly where the artwork was meant to disappear. One `Ground`
+     * for both tiers, and the direction the old gradient had is now the home's own descent
+     * from the canopy colour back to the settled sage.
+     */
+    <div className="content-box relative isolate min-h-dvh bg-[var(--env-ground)] font-sans">
+      {/* Same split as the shell above: on the home the ground and the environment are both
+          shaped around the foot of the illustration, everywhere else they start at the top. */}
+      <Ground home={home} />
+      <Landscape variant={home ? 'home' : 'page'} />
       <div className="tier pb-[max(48px,env(safe-area-inset-bottom))]">{children}</div>
     </div>
   )
@@ -202,7 +273,7 @@ export function PhonePage({
   return (
     <div className="content-box min-h-dvh font-sans" style={{ background: 'linear-gradient(180deg, #ddeae3 0%, #c6ddd1 100%)' }}>
       <div className="tier">
-        <header className="flex items-center gap-3 px-[var(--gutter-lg)] pt-[max(20px,env(safe-area-inset-top))] pb-4">
+        <header className="flex items-center gap-3 px-[var(--gutter)] pt-[max(20px,env(safe-area-inset-top))] pb-4">
           <button
             type="button"
             onClick={onBack}

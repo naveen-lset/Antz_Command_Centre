@@ -60,7 +60,7 @@ export function Bone({ w = '100%', h = 12, r = 6 }: { w?: string | number; h?: n
 export function PageSkeleton() {
   return (
     <div className="animate-fade-up" role="status" aria-label="Loading">
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <div className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Bone w={168} h={44} r={10} />
           <div className="mt-3">
@@ -71,7 +71,7 @@ export function PageSkeleton() {
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-[var(--gap)] px-[var(--gutter-lg)]">
+      <div className="flex flex-col gap-[var(--gap)] px-[var(--gutter)]">
         {[0, 1].map((card) => (
           <div key={card} className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
             <Bone w={110} h={11} />

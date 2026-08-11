@@ -112,7 +112,7 @@ function SheetHero({
   badge?: (typeof RED_LIST)[number]
 }) {
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <div className="flex items-center gap-3">
           {badge && (
@@ -471,7 +471,7 @@ export function GroupPanel({
           </>
         )}
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">{eyebrow}</p>
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#9b958b]">{eyebrow}</p>
     </>
   )
 }

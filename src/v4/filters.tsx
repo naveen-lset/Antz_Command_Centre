@@ -391,7 +391,7 @@ export function ScopeNote() {
   /* The bleed lives here rather than on a wrapper at the call site, so that when this
      returns null there is no empty flex child left behind holding a gap. */
   return (
-    <div className="-mx-[var(--gutter)] px-[var(--gutter-lg)] pb-2">
+    <div className="-mx-[var(--gutter)] px-[var(--gutter)] pb-2">
       <div className="flex items-center gap-2 rounded-[12px] px-3 py-2" style={{ backgroundColor: mix('#b45309', 0.1) }}>
         <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: '#b45309' }} aria-hidden />
         <span className="min-w-0 flex-1 truncate text-caption font-medium" style={{ color: '#b45309' }}>

@@ -127,7 +127,7 @@ function Hero({
   tone?: keyof typeof TONE
 }) {
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={value} unit={unit} size={48} color={tone ? TONE[tone] : HERO_INK} />
         <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
@@ -581,7 +581,7 @@ function ScopeConflict({ entity }: { entity: Entity }) {
   if (!home) return null
 
   return (
-    <div className="px-[var(--gutter-lg)] pb-3">
+    <div className="px-[var(--gutter)] pb-3">
       <div className="flex items-center gap-2 rounded-[12px] px-3 py-2.5" style={{ backgroundColor: mix(TONE.warn, 0.1) }}>
         <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: TONE.warn }} aria-hidden />
         <span className="min-w-0 flex-1 text-caption font-medium" style={{ color: TONE.warn }}>
@@ -617,7 +617,7 @@ function FollowScope({ entity }: { entity: Entity }) {
   if (!site || scope.site?.key === site.key) return null
 
   return (
-    <div className="px-[var(--gutter-lg)] pb-3">
+    <div className="px-[var(--gutter)] pb-3">
       <button
         type="button"
         onClick={() => setSite(site)}
@@ -957,7 +957,7 @@ function AnimalPage({ id }: { id: string }) {
 
       {/* The tab strip scrolls rather than wrapping: nine tabs will not fit across a phone,
           and a wrapped second row of tabs reads as a second, different control. */}
-      <div className="px-[var(--gutter-lg)] pb-3">
+      <div className="px-[var(--gutter)] pb-3">
         <div
           className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hidden"
           role="tablist"
@@ -1036,7 +1036,7 @@ function AnimalPage({ id }: { id: string }) {
 
         {active.metrics.length > 0 && <AnimalTab animal={animal} tab={active} />}
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         <a href={href(`e/species/${animal.speciesId}`)} className="font-medium underline">
           All {animal.speciesName}
         </a>
@@ -1128,7 +1128,7 @@ function DepartmentPage({ entity }: { entity: Entity }) {
           <ul className="flex flex-col">
             {paged.rows.map((u) => {
               const e = resolve('user', u.id)
-              return e ? <EntityRow key={u.id} entity={e} value={u.status === 'never' ? '—' : ago(u.lastActive)} /> : null
+              return e ? <EntityRow key={u.id} entity={e} value={u.lastActive === null ? '—' : ago(u.lastActive)} /> : null
             })}
           </ul>
           <MoreRows page={paged} noun="staff" />
@@ -1137,6 +1137,16 @@ function DepartmentPage({ entity }: { entity: Entity }) {
     </>
   )
 }
+
+/**
+ * A staff account's site.
+ *
+ * `users.site_access` is a semicolon-separated list and is empty on 84 of the 529 accounts, so
+ * a user genuinely may not have one. Stated rather than blanked — an empty cell reads as a
+ * rendering fault, "No site assigned" reads as the fact it is.
+ */
+const siteLabel = (key: string | null): string =>
+  key ? (siteOf(key)?.name ?? key) : 'No site assigned'
 
 function UserPage({ entity }: { entity: Entity }) {
   const user = USERS.find((u) => u.id === entity.id)
@@ -1149,7 +1159,7 @@ function UserPage({ entity }: { entity: Entity }) {
       <Hero
         value={user.name}
         label={user.role}
-        sub={`${dept?.name ?? user.departmentId} · ${siteOf(user.siteKey)?.name ?? user.siteKey}`}
+        sub={`${dept?.name ?? user.departmentId} · ${siteLabel(user.siteKey)}`}
         icon={UsersIcon}
         tone={user.status === 'active' ? 'good' : user.status === 'never' ? 'bad' : 'warn'}
       />
@@ -1160,10 +1170,10 @@ function UserPage({ entity }: { entity: Entity }) {
               { label: 'User ID', value: user.id },
               { label: 'Role', value: user.role },
               { label: 'Department', value: dept?.name ?? user.departmentId },
-              { label: 'Site', value: siteOf(user.siteKey)?.name ?? user.siteKey },
+              { label: 'Site', value: siteLabel(user.siteKey) },
               {
                 label: 'Last signed in',
-                value: user.status === 'never' ? 'Never' : `${longDate(user.lastActive)} · ${ago(user.lastActive)}`,
+                value: user.lastActive === null ? 'Never' : `${longDate(user.lastActive)} · ${ago(user.lastActive)}`,
                 tone: user.status === 'active' ? 'good' : user.status === 'never' ? 'bad' : 'warn',
               },
               { label: 'Sessions · 90 days', value: fmt(user.sessions90) },
@@ -1172,7 +1182,7 @@ function UserPage({ entity }: { entity: Entity }) {
         </Section>
         <Section icon={MapPin} label="Belongs to">
           <ul className="flex flex-col">
-            {[resolve('department', user.departmentId), resolve('site', user.siteKey)]
+            {[resolve('department', user.departmentId), user.siteKey ? resolve('site', user.siteKey) : undefined]
               .filter((e): e is Entity => Boolean(e))
               .map((e) => (
                 <EntityRow key={`${e.kind}-${e.id}`} entity={e} />

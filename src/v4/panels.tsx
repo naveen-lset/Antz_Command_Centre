@@ -317,7 +317,7 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={headline} unit={rate ? '%' : undefined} size={48} color={HERO_INK} />
           {/* The UNIT here, not the module name — the sheet header two inches above
@@ -335,7 +335,7 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
       {/* THE FACET BAR IS THE NAVIGATION. It is the only thing on the page that says
           how far in you are, so it is present at every depth — greyed at the root
           rather than absent, or its first appearance would look like a new control. */}
-      <div className="-mx-1 mb-2 flex items-center gap-1.5 overflow-x-auto px-[calc(var(--gutter-lg)+4px)] pb-2 scrollbar-hidden">
+      <div className="-mx-1 mb-2 flex items-center gap-1.5 overflow-x-auto px-[calc(var(--gutter)+4px)] pb-2 scrollbar-hidden">
         <Chip label="Zoo-wide" on={!site} onClick={() => { setSite(null); setSpecies(null) }} />
         {site && <Sep />}
         {site && <Chip label={site.name} on onClear={() => { setSite(null); setSpecies(null) }} />}
@@ -526,7 +526,7 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <p className="font-display text-n-lg font-bold text-[#2f2424]">{r.id}</p>
           <p className="mt-2 flex items-center gap-2 text-body text-[#3d3a34]">
@@ -597,7 +597,7 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
       {/* No level below. The record is the answer to "which animal"; everything
           past it — samples, doses, keeper notes — is the working screen of the
           person who owns the animal, not the executive question that opened this. */}
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
         Animal record · deepest level
       </p>
     </>
@@ -612,7 +612,7 @@ export function AlertPanel({ alert }: { alert: CriticalAlert }) {
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={String(alert.count)} size={48} color={TONE[tone]} />
           <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
@@ -680,7 +680,7 @@ export function ApprovalPanel({ group }: { group: ApprovalGroup }) {
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={String(pending.length)} size={48} color={HERO_INK} />
           <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
@@ -781,7 +781,7 @@ export function UpcomingPanel({ group, horizon }: { group: UpcomingGroup; horizo
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={fmt(total)} size={48} color={HERO_INK} />
           <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
@@ -834,7 +834,7 @@ export function RiskPanel({ risk }: { risk: Risk }) {
   const tone = LEVEL_TONE[risk.level]
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={risk.value} size={48} color={TONE[tone]} />
           <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
@@ -876,7 +876,7 @@ export function MeasurePanel({ measure }: { measure: Measure }) {
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={measure.value} unit={measure.unit} size={48} color={TONE[measure.tone]} />
           <p className="mt-1 text-body text-[#3d3a34]">{measure.label}</p>
@@ -918,7 +918,7 @@ export function TrendPanel({ card }: { card: TrendCard }) {
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={value} size={48} color={HERO_INK} />
           <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
@@ -979,7 +979,7 @@ export function ZooHealthPanel({
 }) {
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)] text-center">
           <Figure value={String(score)} unit="/ 100" size={64} color={HERO_INK} />
           <p className="mt-1 text-body text-[#3d3a34]">Zoo Health</p>

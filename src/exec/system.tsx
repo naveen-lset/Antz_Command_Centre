@@ -323,6 +323,7 @@ export function Section({
   label,
   aside,
   tight = false,
+  bare = false,
   children,
 }: {
   icon?: Icon
@@ -330,9 +331,40 @@ export function Section({
   aside?: ReactNode
   /** Half-width cards inside a `Duo` — 20px of padding would eat the number. */
   tight?: boolean
+  /**
+   * A BLOCK INSIDE ANOTHER SECTION'S CARD, rather than a card of its own.
+   *
+   * Some pages carry eighteen sections, and eighteen white cards down a column reads as
+   * eighteen equally-weighted things to consider rather than as four questions with their
+   * evidence under each. `bare` drops the card, the padding and the reveal, and prints the
+   * label as a hairline sub-heading instead — so a group can nest its blocks and the
+   * hierarchy is card title, then block heading, then rows.
+   *
+   * The reveal goes with the card deliberately: the GROUP animates in as one thing. Fading
+   * each block separately inside a card that has already arrived is motion with nothing to
+   * say.
+   */
+  bare?: boolean
   children: ReactNode
 }) {
   const accent = useAccent()
+
+  if (bare) {
+    return (
+      <section className="min-w-0" aria-label={label}>
+        {label && (
+          <div className="mt-6 mb-3 flex items-center gap-3 first:mt-0">
+            {Glyph && <Glyph size={13} strokeWidth={2} style={{ color: accent }} aria-hidden />}
+            <h3 className="text-overline font-semibold whitespace-nowrap text-[#3d3a34] uppercase">{label}</h3>
+            <span className="h-px flex-1" style={{ backgroundColor: HAIR }} aria-hidden />
+            {aside && <span className="shrink-0 text-caption whitespace-nowrap text-[#9b958b]">{aside}</span>}
+          </div>
+        )}
+        {children}
+      </section>
+    )
+  }
+
   return (
     /* Each card fades up as it scrolls in; the marks inside read the same signal
        through their own observer, so a card and its data animate together. */
@@ -386,7 +418,7 @@ export function Stack({ children }: { children: ReactNode }) {
      class name that tells the motion layer "these are the sections". Every module and
      record page renders through here, so marking it once marks all of them. */
   return (
-    <div className="page-stack flex w-full flex-col gap-[var(--gap)] px-[var(--gutter-lg)] pb-2 @[760px]:grid @[760px]:grid-cols-2 @[760px]:items-start">
+    <div className="page-stack flex w-full flex-col gap-[var(--gap)] px-[var(--gutter)] pb-2 @[760px]:grid @[760px]:grid-cols-2 @[760px]:items-start">
       {children}
     </div>
   )
@@ -462,6 +494,7 @@ export function Hero({
   status,
   tone = 'neutral',
   align = 'left',
+  head,
 }: {
   icon?: Icon
   value: string
@@ -474,17 +507,27 @@ export function Hero({
   status?: string
   tone?: Tone
   align?: 'left' | 'center'
+  /**
+   * A row above the figure, inside the same card.
+   *
+   * For the page whose toolbar — an as-of line, a search field and a filter button — was a
+   * separate card immediately above the hero. Two cards to say "here is where you are and
+   * here is the number" is one card too many, and the toolbar reads as part of the hero
+   * because it governs it.
+   */
+  head?: ReactNode
 }) {
   const accent = useAccent()
   const centred = align === 'center'
   return (
     /* The hero is a card like every other section — sitting bare on the sage
        ground left it reading as page chrome rather than as the module's headline. */
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section
         className={`animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)] ${centred ? 'text-center' : ''}`}
         aria-label={label}
       >
+        {head && <div className="mb-4 border-b border-[#f0efec] pb-4">{head}</div>}
         <Figure value={value} unit={unit} size={64} color={HERO_INK} />
         <p
           className={`mt-1 flex items-center gap-2 text-body text-[#3d3a34] ${centred ? 'justify-center' : ''}`}

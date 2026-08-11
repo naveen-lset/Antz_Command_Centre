@@ -133,7 +133,7 @@ export default function Eggs() {
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <Controls
           nurseryId={nurseryId}
           speciesName={speciesName}
@@ -451,7 +451,7 @@ function EggHero({
   )
 
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={fmt(t.laid)} size={64} color={HERO_INK} />
         <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">

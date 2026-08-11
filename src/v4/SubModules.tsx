@@ -25,7 +25,7 @@ export function SubModules({ slug }: { slug: string }) {
   if (kids.length === 0) return null
 
   return (
-    <div className="flex w-full flex-col px-[var(--gutter-lg)] pb-2">
+    <div className="flex w-full flex-col px-[var(--gutter)] pb-2">
       <Section label={`In ${titleOf(slug)}`} aside={`${kids.length}`}>
         <ul className="flex flex-col">
           {kids.map((kid) => (

@@ -87,7 +87,7 @@ function SheetHero({
   tone?: 'good' | 'warn' | 'bad'
 }) {
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={value} unit={unit} size={48} color={tone ? TONE[tone] : HERO_INK} />
         <p className="mt-1 text-body text-[#3d3a34]">{label}</p>
@@ -352,7 +352,7 @@ export function AnimalPreventiveSheet({
           )}
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         Deepest level
       </p>
     </>
@@ -460,7 +460,7 @@ export function SpeciesSheet({
         </Section>
       </Stack>
       {speciesId && (
-        <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
+        <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
           {speciesId}
         </p>
       )}
@@ -1119,7 +1119,7 @@ export function StreamSheet({ stream }: { stream: Stream }) {
           />
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-3 text-center text-caption" style={{ color: ACCENT_INK }}>
+      <p className="px-[var(--gutter)] pt-1 pb-3 text-center text-caption" style={{ color: ACCENT_INK }}>
         {dueLabelHint(stream)}
       </p>
     </AccentProvider>

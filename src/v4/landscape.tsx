@@ -310,19 +310,30 @@ function Drift({ seed }: { seed: number }) {
  * product at phone width; anything beyond the container is clipped rather than laid
  * out, so a short page costs nothing. Alternate bands are mirrored so the three scenes
  * do not read as a three-step loop.
+ *
+ * TWO PROFILES, AND THE DIFFERENCE IS WHETHER THERE IS A HERO ABOVE IT.
+ *
+ * `page` is what every module and record page gets and is unchanged: the layer starts at
+ * the top of the column, because on those pages there is nothing above it to start after.
+ *
+ * `home` is shaped around the illustration. It holds at nothing for the height of the
+ * hero — the artwork IS the environment there, and a second drawing register underneath it
+ * is what put grey canopies immediately below the seam — then comes up through the
+ * atmospheric fade at the artwork's foot, so the vector scenery is what the photograph
+ * dissolves INTO rather than something that starts after it. From there it thins the whole
+ * way down: strongest where the illustration has just left, quiet behind the KPI grid,
+ * barely present under the lower dashboard. See `.env-home` in `index.css` for the ramp
+ * and for where the hero's foot actually lands at each column width.
+ *
+ * Both profiles' opacity and mask live in CSS rather than here, because the home ramp is
+ * measured in pixels from the top of the content column and those pixels differ per tier —
+ * which is a container query, and a container query cannot be written in a style attribute.
  */
-export function Landscape({ bands = 14 }: { bands?: number }) {
+export function Landscape({ bands = 14, variant = 'page' }: { bands?: number; variant?: 'page' | 'home' }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 -z-10 overflow-hidden select-none"
-      style={{
-        opacity: 0.1,
-        maskImage:
-          'linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.88) 20%, rgba(0,0,0,0.74) 46%, rgba(0,0,0,0.6) 74%, rgba(0,0,0,0.5) 100%)',
-        WebkitMaskImage:
-          'linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.88) 20%, rgba(0,0,0,0.74) 46%, rgba(0,0,0,0.6) 74%, rgba(0,0,0,0.5) 100%)',
-      }}
+      className={`${variant === 'home' ? 'env-home' : 'env-page'} pointer-events-none absolute inset-0 -z-10 overflow-hidden select-none`}
     >
       <div className="flex w-full flex-col">
         {Array.from({ length: bands }, (_, i) => {

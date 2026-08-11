@@ -49,7 +49,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <div className="flex items-center gap-3">
             {/* 40px here, against 22 in the list. The badge is the subject of this
@@ -144,7 +144,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
           </>
         )}
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
         IUCN Red List · {cat.name}
       </p>
     </>

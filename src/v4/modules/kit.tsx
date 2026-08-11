@@ -86,7 +86,7 @@ export function ModuleHero({
   }
 
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={shown} unit={unit ?? (split?.kind === 'rate' ? '%' : undefined)} size={64} color={HERO_INK} />
         <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
@@ -235,7 +235,7 @@ export function NodePanel({
 
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={fmt(total)} size={48} color={HERO_INK} />
           <p className="mt-1 text-body text-[#3d3a34]">
@@ -286,7 +286,7 @@ export function NodePanel({
 export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
   return (
     <>
-      <div className="w-full px-[var(--gutter-lg)] pb-3">
+      <div className="w-full px-[var(--gutter)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={fmt(node.value)} unit={node.unit} size={48} color={node.tone ? TONE[node.tone] : HERO_INK} />
           <p className="mt-1 text-body text-[#3d3a34]">{node.label}</p>
@@ -313,7 +313,7 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
           </ul>
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">Deepest level</p>
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#9b958b]">Deepest level</p>
     </>
   )
 }
