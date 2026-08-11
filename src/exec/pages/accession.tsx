@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   TrendingUp,
 } from 'lucide-react'
-import { report } from '../report'
 import {
   Bars,
   Facts,
@@ -125,7 +124,7 @@ export default function Accession() {
           />
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }

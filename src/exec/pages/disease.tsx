@@ -16,7 +16,6 @@ import {
   Siren,
   TrendingUp,
 } from 'lucide-react'
-import { report } from '../report'
 import {
   Band,
   Bars,
@@ -149,7 +148,7 @@ export default function Disease() {
           />
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }

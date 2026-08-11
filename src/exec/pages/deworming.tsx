@@ -20,7 +20,6 @@ import {
   Pill,
   TriangleAlert,
 } from 'lucide-react'
-import { report } from '../report'
 import {
   Events,
   Facts,
@@ -133,7 +132,7 @@ export default function Deworming() {
           />
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }

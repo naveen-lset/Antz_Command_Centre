@@ -16,7 +16,6 @@ import {
   MapPin,
   Stethoscope,
 } from 'lucide-react'
-import { report } from '../report'
 import {
   Facts,
   More,
@@ -134,7 +133,7 @@ export default function Fetal() {
           />
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }

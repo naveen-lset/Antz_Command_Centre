@@ -23,7 +23,6 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react'
-import { report } from '../report'
 import { useSiteDrill } from '../../v4/panels'
 import {
   Band,
@@ -203,7 +202,7 @@ export default function Births() {
           <Facts items={[{ label: 'Live births counted above', sub: 'Excludes all 5 losses', value: '45' }]} />
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }

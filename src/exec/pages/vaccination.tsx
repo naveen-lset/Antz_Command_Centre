@@ -21,7 +21,6 @@ import {
   Syringe,
   TriangleAlert,
 } from 'lucide-react'
-import { report } from '../report'
 import { useSiteDrill } from '../../v4/panels'
 import {
   Bars,
@@ -172,7 +171,7 @@ export default function Vaccination() {
         </Section>
 
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }

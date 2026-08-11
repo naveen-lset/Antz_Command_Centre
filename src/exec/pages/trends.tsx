@@ -11,7 +11,6 @@
  */
 
 import { Activity, Baby, Stethoscope } from 'lucide-react'
-import { report } from '../report'
 import { Bars, Donut, Hero, Ladder, More, Rule, Section, Stack, Stamp, Trend } from '../system'
 
 const WEEKS = ['Week 1', 'Week 2', 'Week 3', 'Week 4']
@@ -94,7 +93,7 @@ export default function Trends() {
           />
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }

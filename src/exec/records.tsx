@@ -44,7 +44,6 @@ import {
   type RosterGroup,
   type Tone,
 } from './system'
-import { report } from './report'
 
 type Icon = ComponentType<{ size?: number | string; strokeWidth?: number; style?: object }>
 
@@ -884,7 +883,7 @@ export function RecordsView({ page }: { page: RecordPage }) {
           one site, and a footer claiming fifteen rows are shown while five are would be
           the page contradicting itself. What is *shown* is on the chips, which count it
           exactly. This line describes the extract the page was cut from. */}
-      <Stamp asOf={report.asOf} source={`${rows} of ${page.stats[0].value} rows in this extract`} />
+      <Stamp source={`${rows} of ${page.stats[0].value} rows in this extract`} />
     </>
   )
 }

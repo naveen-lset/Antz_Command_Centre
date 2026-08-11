@@ -16,6 +16,8 @@
 import { createContext, useContext, useId, useState, type ComponentType, type ReactNode } from 'react'
 import { Search, X } from 'lucide-react'
 import { AnimatedValue, Reveal, usePlay } from '../motion'
+import { TODAY, longDate } from '../core/calendar'
+import { SITES } from '../core/world'
 import { usePeriod } from './period'
 import { siteCut } from './sites'
 
@@ -3356,15 +3358,28 @@ export function PeriodHero({
  * Provenance, closing the page. A month's figures without the month they were
  * cut on are unciteable — the printed report stamps every page for this reason.
  *
- * `asOf` is overridden by the selected window: a page cut to last week that still
- * stamps the month's closing date is citing the wrong thing.
+ * IT TAKES NO PROPS, AND THAT IS THE POINT. Every page used to stamp itself from
+ * `exec/report.ts`, a hand-typed `{ period: 'July 2025', asOf: '01 Aug 2025',
+ * source: 'Jamnagar Zoo · 6 sites' }`. When the product moved onto the database the
+ * clock went to 20 May 2026 and the estate to 50 anonymised sites, and fourteen
+ * pages went on citing a month and a zoo that the loaded extract does not contain —
+ * real figures under a false date, which is worse than either alone.
+ *
+ * A page cannot get the DATE wrong any more because a page no longer supplies it. The
+ * as-of comes from the world clock `core/checks.ts` asserts against the extract's
+ * own horizon, and the estate line is counted from the loaded sites. Re-run the ETL
+ * over a newer dump and every page's footer moves with it.
+ *
+ * `source` replaces the estate line only — the records table uses it to say which slice
+ * of the extract it drew, which is a fact about the table rather than about the clock.
+ * There is deliberately no way to override the date.
  */
-export function Stamp({ asOf, source }: { asOf: string; source?: string }) {
+export function Stamp({ source }: { source?: string }) {
   const { period } = usePeriod()
   return (
     <p className="px-1 pt-1 pb-2 text-center text-caption text-[#9b958b]">
-      {period.key === 'month' ? `As of ${asOf}` : period.window}
-      {source && ` · ${source}`}
+      {period.key === 'month' ? `As of ${longDate(TODAY)}` : period.window}
+      {` · ${source ?? `${SITES.length} sites`}`}
     </p>
   )
 }

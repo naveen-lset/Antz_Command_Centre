@@ -15,7 +15,6 @@ import {
   MapPin,
   Search,
 } from 'lucide-react'
-import { report } from '../report'
 import {
   Bars,
   Donut,
@@ -121,7 +120,7 @@ export default function Discarded() {
           />
         </Section>
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }

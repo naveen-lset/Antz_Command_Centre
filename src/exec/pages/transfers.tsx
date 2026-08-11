@@ -22,7 +22,6 @@ import {
   TriangleAlert,
   Truck,
 } from 'lucide-react'
-import { report } from '../report'
 import { useSiteDrill } from '../../v4/panels'
 import {
   Band,
@@ -197,7 +196,7 @@ export default function Transfers() {
         </Section>
 
       </Stack>
-      <Stamp asOf={report.asOf} source={report.source} />
+      <Stamp />
     </>
   )
 }
