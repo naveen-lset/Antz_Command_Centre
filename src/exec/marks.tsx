@@ -2149,3 +2149,121 @@ function squarify(
 
   return out
 }
+
+/* ── small multiples ─────────────────────────────────────────────────────── */
+
+export interface Tile {
+  key: string
+  /** The short form — a site code, a class initial. Carries identity at tile scale. */
+  code: string
+  /** The full name, for the tooltip and the screen reader. */
+  label: string
+  value: number
+  /** 0–100, drives the meter under the figure. */
+  share: number
+  /** Signed movement, already formatted. Omitted where there is nothing to say. */
+  change?: string
+  changeTone?: Tone
+}
+
+/**
+ * FIFTY THINGS, ALL OF THEM, IN THE SPACE OF EIGHT ROWS.
+ *
+ * The estate has 50 sites and `population.ts` is explicit that this is not a top-five: "every
+ * site, always all of them". Drawn as list rows that is 3,211px — five screens of scrolling to
+ * see one card, which is most of why the Animal Population page ran to eighteen thousand
+ * pixels. Truncating to a top eight would have fixed the height by breaking the brief.
+ *
+ * So the row is dropped instead of the data. A list row is wide because it carries prose — a
+ * name, a code, a species count, an enclosure count — and prose is not what the reader is here
+ * for. The question a director brings to fifty sites is WHERE IS THE COLLECTION, which is a
+ * comparison, and a comparison wants small multiples: identical cells, one variable, ordered.
+ * Each tile carries the code, the figure and a meter, all fifty fit in about 800px, and nothing
+ * is behind a control. The name survives as the tile's `title` and its accessible label.
+ *
+ * WHY A METER AND NOT A BAR CHART. The tiles are already ordered by size and their figures are
+ * printed, so a full bar would encode the ranking a third time. The meter is doing a different
+ * job: it reads against the WIDEST tile, so a reader can see at a glance that the leader holds
+ * roughly twice the fifth-placed site without reading either number.
+ */
+export function TileGrid({
+  items,
+  onPick,
+  min = 132,
+}: {
+  items: Tile[]
+  onPick?: (key: string) => void
+  /** Minimum tile width. The grid fills whatever the column gives it. */
+  min?: number
+}) {
+  const accent = useAccent()
+  const { ref, animate } = usePlay()
+  const hi = Math.max(...items.map((i) => i.share), 1)
+
+  if (items.length === 0) return null
+
+  return (
+    <div
+      ref={ref}
+      className="grid gap-[6px]"
+      style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))` }}
+    >
+      {items.map((it, i) => {
+        const body = (
+          <>
+            <span className="flex items-baseline justify-between gap-1.5">
+              <span
+                className="truncate text-tick font-semibold tracking-[0.04em] uppercase"
+                style={{ color: MUTED }}
+              >
+                {it.code}
+              </span>
+              {it.change && (
+                <span
+                  className="shrink-0 text-tick tabular-nums"
+                  style={{ color: it.changeTone && it.changeTone !== 'neutral' ? TONE[it.changeTone] : FAINT }}
+                >
+                  {it.change}
+                </span>
+              )}
+            </span>
+            <span className="mt-1 block truncate text-small font-medium tabular-nums" style={{ color: VALUE }}>
+              {fmt(it.value)}
+            </span>
+            {/* The meter reads against the largest tile, not against 100% — at 8% of the
+                collection the leader would otherwise be a sliver and all fifty would look
+                equally empty. */}
+            <span className="mt-1.5 block h-[3px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+              <span
+                className={`block h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
+                style={{
+                  width: `${Math.max(2, (it.share / hi) * 100)}%`,
+                  backgroundColor: mix(accent, 0.55),
+                  animationDelay: animate ? `${Math.min(i * 12, 400)}ms` : undefined,
+                }}
+              />
+            </span>
+          </>
+        )
+        const shell = 'block w-full rounded-[10px] px-2.5 py-2 text-left'
+        return onPick ? (
+          <button
+            key={it.key}
+            type="button"
+            title={it.label}
+            aria-label={`${it.label} — ${fmt(it.value)}`}
+            onClick={() => onPick(it.key)}
+            className={`card-press ${shell}`}
+            style={{ backgroundColor: mix(accent, 0.055) }}
+          >
+            {body}
+          </button>
+        ) : (
+          <span key={it.key} title={it.label} className={shell} style={{ backgroundColor: mix(accent, 0.055) }}>
+            {body}
+          </span>
+        )
+      })}
+    </div>
+  )
+}

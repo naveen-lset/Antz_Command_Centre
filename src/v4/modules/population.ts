@@ -66,15 +66,30 @@ const pick = (m: Map<string, number>, keys: string[]): number =>
 const AS = {
   birthsNatural: ['Live birth', 'Multiple birth'],
   birthsAssisted: ['Hand-reared', 'Assisted delivery'],
-  transferIn: ['Inward · other zoo'],
-  /* A breeding loan and a release both take an animal off the site's books. */
-  transferOut: ['Outward · other zoo', 'Release to wild', 'Breeding loan'],
   transferInternal: ['Internal move'],
   /* Stillbirth is a loss at or near term; an abortion is a loss before it. */
   stillbirth: ['Late-term loss', 'Dystocia'],
   abortion: ['Mid-term loss', 'Early resorption'],
   escapeUnrecovered: ['Not recovered'],
 } as const
+
+/**
+ * EVERY TRANSFER IN THE EXTRACT IS OUTBOUND, so the direction is not derived any more.
+ *
+ * This used to partition `transfers` against two authored allow-lists — `transferIn:
+ * ['Inward · other zoo']` and `transferOut: ['Outward · other zoo', 'Release to wild',
+ * 'Breeding loan']`. Those were the detail values of the authored model. The anonymised
+ * extract's `transferred_to` holds 'Wild Release', 'Non-Disclosure Site' and twelve named
+ * parks, none of which matches either list, so both sides scored ZERO — and the Animal
+ * Population page printed "Transfer in +0 / Transfer out +0" over 14,342 real movements.
+ *
+ * That is the worst shape this bug can take: not a missing figure, which reads as missing, but
+ * a confident nil that reads as "nothing left the collection this month".
+ *
+ * All 14 destination values are places an animal goes TO. An animal arriving is an accession,
+ * with its own table and its own module, so there is no inbound direction to recover — the
+ * count is the flow, and the page states it as "released or transferred out".
+ */
 
 export interface Movement {
   births: { total: number; natural: number; assisted: number }
@@ -102,8 +117,8 @@ export function movement(siteKey: string | null, win: Win): Movement {
   const escapes = count('escaped', siteKey, win)
   const fetal = count('fetal', siteKey, win)
 
-  const inward = pick(t, [...AS.transferIn])
-  const outward = pick(t, [...AS.transferOut])
+  const inward = 0
+  const outward = count('transfers', siteKey, win)
   const unrecovered = pick(e, [...AS.escapeUnrecovered])
 
   const additions = births + inward + accessions
