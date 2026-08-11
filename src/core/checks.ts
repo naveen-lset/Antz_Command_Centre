@@ -34,7 +34,7 @@
  */
 
 import { HISTORY_DAYS, WINDOWS, WORLD_TODAY, resolveWindow, toInput, type Win } from './calendar'
-import { METRICS } from './metrics'
+import { METRICS, UNSOURCED } from './metrics'
 import { readSite } from './series'
 import { bySpecies, figure } from './query'
 import { count } from './events'
@@ -42,34 +42,6 @@ import { SITES, speciesCount, classCount, enclosureCount, USERS, SPECIES } from 
 import { speciesStock } from './animals'
 import { data } from './store'
 import type { Scope } from './scope'
-
-/**
- * Metrics with no source in `species_mgmt_anon`, and what is missing.
- *
- * Listed so the console says WHY a module is empty rather than leaving someone to work it out
- * from a blank card. Each of these was a real metric in the authored model and is now absent
- * on purpose — see the header of `metrics.ts`.
- */
-const UNSOURCED: Record<string, string> = {
-  eggs: 'no egg, clutch or incubation table',
-  hatched: 'no hatch record',
-  discarded: 'no egg record',
-  fetal: 'no fetal-loss record',
-  escaped: 'no escape record',
-  escapedOpen: 'no escape record',
-  lab: 'no lab test table — only a lab_test_id_count column',
-  labOpen: 'no lab test table',
-  approvals: 'no approvals table',
-  tasks: 'no tasks table',
-  attendance: 'no attendance table',
-  alerts: 'no alerts table',
-  alertsCritical: 'no alerts table',
-  welfare: 'assessments exist but carry no pass/fail',
-  breeding: 'no pairing outcome record',
-  healthScore: 'no composite index in the source',
-  wastage: 'no feed record — vaccination/deworming wastage is a dose figure, not feed',
-  preventive: 'superseded by the per-programme coverage rates',
-}
 
 export function runChecks(): void {
   const fails: string[] = []

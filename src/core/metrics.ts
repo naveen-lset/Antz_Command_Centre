@@ -76,6 +76,40 @@ export interface Metric {
 export const METRICS: Record<string, Metric> = {}
 
 /**
+ * Metrics with no source in `species_mgmt_anon`, and what is missing.
+ *
+ * ONE REGISTRY, READ BY BOTH THE ASSERTION AND THE PAGE. This lived privately in
+ * `core/checks.ts`, which printed it to the console so a developer could learn why a module
+ * was empty. The reader of the product could not: they got a blank card and no account of it.
+ * Now the module pages render the same strings, so the explanation a developer sees in the
+ * console and the one a director sees on the screen cannot drift apart — there is only one.
+ *
+ * `checks.ts` still asserts the other direction: a slug listed here that HAS acquired a metric
+ * is a stale entry and fails the boot, which is what stops this list quietly outliving the gap
+ * it describes.
+ */
+export const UNSOURCED: Record<string, string> = {
+  eggs: 'no egg, clutch or incubation table',
+  hatched: 'no hatch record',
+  discarded: 'no egg record',
+  fetal: 'no fetal-loss record',
+  escaped: 'no escape record',
+  escapedOpen: 'no escape record',
+  lab: 'no lab test table — only a lab_test_id_count column',
+  labOpen: 'no lab test table',
+  approvals: 'no approvals table',
+  tasks: 'no tasks table',
+  attendance: 'no attendance table',
+  alerts: 'no alerts table',
+  alertsCritical: 'no alerts table',
+  welfare: 'assessments exist but carry no pass/fail',
+  breeding: 'no pairing outcome record',
+  healthScore: 'no composite index in the source',
+  wastage: 'no feed record — vaccination/deworming wastage is a dose figure, not feed',
+  preventive: 'superseded by the per-programme coverage rates',
+}
+
+/**
  * Prose for the metrics whose figure is a derivation rather than a count, printed wherever the
  * UI has room for a caption.
  *
