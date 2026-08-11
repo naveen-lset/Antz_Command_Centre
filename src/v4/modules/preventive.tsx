@@ -38,6 +38,7 @@ import {
   Syringe,
   TriangleAlert,
 } from 'lucide-react'
+import { shortDate } from '../../core/calendar'
 import { sumIn } from '../../core/series'
 import { bySpecies, byDimension } from '../../core/query'
 import { siteKeyOf } from '../../core/scope'
@@ -46,7 +47,6 @@ import { decodeAnimalId } from '../../core/animals'
 import {
   ACCENT_INK,
   AccentProvider,
-  Columns,
   FAINT,
   Facts,
   Figure,
@@ -56,14 +56,18 @@ import {
   Snapshot,
   Stack,
   TONE,
-  Trend,
   fmt,
   mix,
 } from '../../exec/system'
+import { EventTrend } from '../../exec/marks'
 import { MoreRows, usePaged } from '../perf'
 import { FindField } from '../filters'
 import { useScope } from '../scope'
 import { useSheet } from '../sheet'
+
+/** A bucket's own dates — one day states the day, a span states both ends. */
+const spanOf = (from: number, to: number): string =>
+  from >= to ? shortDate(from) : `${shortDate(from)} – ${shortDate(to)}`
 import { DrillList, DrillRow } from './kit'
 import { OverdueLadder, RotationCycle, ScheduleGrid, SortableList, UsageSplit, gridCells, type Column } from './preventiveMarks'
 import {
@@ -859,11 +863,15 @@ function DewormingTrend() {
 
   return (
     <Section icon={Activity} label="Deworming trend" aside={`${scope.win.label.toLowerCase()} · ${n} periods`}>
-      <Columns
-        values={buckets.map((b) => b.value)}
-        labels={[scope.win.window]}
-        highlight={buckets.indexOf(peak)}
-        unit={`${stream.noun} · ${scope.win.window}`}
+      {/* An event flow, so columns — and the axis now names the periods it was summed over
+          rather than repeating the window once under twelve of them. Scrub it and each period
+          states its own count. */}
+      <EventTrend
+        points={buckets.map((b) => ({ label: spanOf(b.from, b.to), value: b.value }))}
+        span={scope.win.window}
+        unit={stream.noun}
+        marks={peak && peak.value > 0 ? [{ index: buckets.indexOf(peak), note: `Peak · ${peak.value}` }] : undefined}
+        empty={`No ${stream.noun} recorded in ${scope.win.window}.`}
       />
       <Rule label="Periods" />
       <DrillList>
@@ -960,10 +968,13 @@ function SupplementTrend() {
 
   return (
     <Section icon={ClipboardList} label="Supplement trend" aside={scope.win.window}>
-      <Trend
-        values={buckets.map((b) => b.value)}
-        labels={[scope.win.window]}
-        unit={`${stream.noun} · ${scope.win.window}`}
+      {/* Doses given per period are a count, not a level, so they are columns like every other
+          flow in the product — a line between two periods would claim a value between them. */}
+      <EventTrend
+        points={buckets.map((b) => ({ label: spanOf(b.from, b.to), value: b.value }))}
+        span={scope.win.window}
+        unit={stream.noun}
+        empty={`No ${stream.noun} recorded in ${scope.win.window}.`}
       />
       <Rule label="By site" />
       <DrillList>

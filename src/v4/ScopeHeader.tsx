@@ -268,9 +268,18 @@ export function ScopeHeader({
             type="button"
             onClick={onBack}
             aria-label="Back"
-            className="-ml-2 mt-1 grid size-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-white/70 active:bg-white/60"
+            className="-ml-2 mt-0.5 grid size-[calc(var(--fs-name)*1.3)] shrink-0 place-items-center rounded-full transition-colors hover:bg-white/70 active:bg-white/60"
           >
-            <ChevronRight size={20} strokeWidth={2} className="rotate-180 text-[#55524a]" aria-hidden />
+            {/* THE CHEVRON IS SIZED OFF THE TITLE, not off a fixed 20px. A 20px mark beside a
+                30px semibold heading reads as a stray glyph rather than the way back, and it
+                only got worse up the tiers, where the title grows to 38px and the icon did
+                not. Both the mark and its target now scale with `--fs-name`, so the pair keeps
+                one proportion on a phone and on a desktop column. */}
+            <ChevronRight
+              strokeWidth={2}
+              className="size-[calc(var(--fs-name)*0.84)] rotate-180 text-[#55524a]"
+              aria-hidden
+            />
           </button>
         )}
         <div className="min-w-0 flex-1">

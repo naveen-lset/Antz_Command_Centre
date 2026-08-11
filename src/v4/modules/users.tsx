@@ -22,9 +22,7 @@ import {
   Users as UsersIcon,
 } from 'lucide-react'
 import {
-  Bars,
   Bullet,
-  Composition,
   Events,
   Facts,
   Highlights,
@@ -36,8 +34,8 @@ import {
   Stack,
   StatusList,
   Table,
-  Trend,
 } from '../../exec/system'
+import { AreaTrend, RankList, SplitRing } from '../../exec/marks'
 import { DrillList, DrillRow, ModuleHero, NodePanel, useSheet } from './kit'
 
 const USER = (name: string, role: string, last: string, tone?: 'good' | 'warn' | 'bad') => ({
@@ -100,6 +98,12 @@ const USAGE = [
 
 const ADOPTION = [186, 198, 204, 212, 221, 228, 231, 236, 238, 240, 242, 243]
 
+/** The month each reading belongs to, so a scrubbed point can name itself. */
+const ADOPTION_MONTHS = [
+  'Aug 24', 'Sep 24', 'Oct 24', 'Nov 24', 'Dec 24', 'Jan 25',
+  'Feb 25', 'Mar 25', 'Apr 25', 'May 25', 'Jun 25', 'Jul 25',
+]
+
 export default function Users() {
   const { open } = useSheet()
 
@@ -140,12 +144,13 @@ export default function Users() {
           />
         </Section>
 
+        {/* Twelve monthly averages, scrubbable — the same readings the old chart drew, with the
+            month under the finger stating its own figure instead of a four-label axis. */}
         <Section icon={TrendingUp} label="Adoption" aside="12 months">
-          <Trend
-            values={ADOPTION}
-            labels={['Aug 24', 'Nov 24', 'Feb 25', 'Jul 25']}
-            unit="Daily active users · monthly average"
-            tone="good"
+          <AreaTrend
+            points={ADOPTION.map((value, i) => ({ label: ADOPTION_MONTHS[i], value }))}
+            unit="daily active users · monthly average"
+            height={140}
           />
         </Section>
 
@@ -188,16 +193,19 @@ export default function Users() {
           </DrillList>
         </Section>
 
+        {/* Five parts of one estate, so a ring with the total at its centre — the stacked bar it
+            replaces put "Laboratory · 8" as a 2% sliver with its label somewhere underneath. */}
         <Section icon={UserCog} label="By role" aside="312 accounts">
-          <Composition
-            items={[
-              { label: 'Keepers', value: 213 },
-              { label: 'Veterinary', value: 41 },
-              { label: 'Administration', value: 38 },
-              { label: 'Management', value: 12 },
-              { label: 'Laboratory', value: 8 },
-            ]}
+          <SplitRing
+            label="Accounts"
             unit="accounts"
+            items={[
+              { key: 'keepers', label: 'Keepers', value: 213, meta: 'Field entry' },
+              { key: 'vet', label: 'Veterinary', value: 41, meta: 'Clinical records' },
+              { key: 'admin', label: 'Administration', value: 38, meta: 'Approvals, procurement' },
+              { key: 'mgmt', label: 'Management', value: 12, meta: 'Command centre' },
+              { key: 'lab', label: 'Laboratory', value: 8, meta: 'Results entry' },
+            ]}
           />
         </Section>
 
@@ -232,15 +240,17 @@ export default function Users() {
           />
         </Section>
 
+        {/* Weakest first, which is the point of the card — so the ordering carries the ranking
+            and the rows carry the rate against the headcount it was computed from. */}
         <Section icon={Building2} label="Weakest adoption" aside="by department">
-          <Bars
+          <RankList
+            showShare={false}
             items={[
-              { label: 'Carnivore Ridge · keepers', value: 67, sub: '20 of 30' },
-              { label: 'Aquatic Halls · administration', value: 50, sub: '7 of 14' },
-              { label: 'Savanna · administration', value: 60, sub: '6 of 10' },
-              { label: 'Aviary · administration', value: 58, sub: '7 of 12' },
+              { key: 'aq-admin', title: 'Aquatic Halls · administration', meta: '7 of 14 signed in', value: '50%', share: 50 },
+              { key: 'av-admin', title: 'Aviary · administration', meta: '7 of 12 signed in', value: '58%', share: 58 },
+              { key: 'sv-admin', title: 'Savanna · administration', meta: '6 of 10 signed in', value: '60%', share: 60 },
+              { key: 'cr-keep', title: 'Carnivore Ridge · keepers', meta: '20 of 30 signed in', value: '67%', share: 67 },
             ]}
-            unit="% active"
           />
         </Section>
 

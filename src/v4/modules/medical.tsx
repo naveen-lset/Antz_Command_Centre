@@ -47,7 +47,6 @@ import { HOSPITALS, hospitalOf } from '../../core/world'
 import {
   ACCENT_INK,
   AccentProvider,
-  Bars,
   FAINT,
   Figure,
   HERO_INK,
@@ -59,6 +58,7 @@ import {
   fmt,
   mix,
 } from '../../exec/system'
+import { RankList } from '../../exec/marks'
 import { MoreRows, usePaged } from '../perf'
 import { FindField } from '../filters'
 import { useScope } from '../scope'
@@ -772,19 +772,11 @@ function Recovery({ hospitalId }: { hospitalId?: string }) {
 
       {rows.length > 0 && (
         <>
+          {/* ONE LIST, NOT A BAR STACK ABOVE A COPY OF IT. This card drew every hospital's rate
+              as a bar and then listed the same hospitals with the same rates underneath. The rate
+              is on the row, and the rail beside it is measured against 100 rather than against
+              the best hospital — scaled to the leader, 84% would read as a failure beside 94%. */}
           <Rule label="By hospital" />
-          {/* Bars against 100, not against the best hospital: a recovery rate is measured
-              against everyone recovering, and scaling to the leader would make 84% look
-              like a failure next to 94%. */}
-          <Bars
-            items={rows.map((r) => ({
-              label: r.hospital.name,
-              value: Math.round(r.rate ?? 0),
-              sub: `${r.n} discharged`,
-            }))}
-            unit="%"
-          />
-          <Rule label="Outcomes" />
           <DrillList>
             {rows.map((r) => (
               <DrillRow
@@ -1076,6 +1068,7 @@ function CaseRecords({ hospitalId }: { hospitalId?: string }) {
 
   const rows = useMemo(() => casesIn(scope, hospitalId), [scope, hospitalId])
   const complaints = useMemo(() => byComplaintSlice(rows), [rows])
+  const caseTotal = rows.length
   const page = usePaged<MedCase>(
     (offset, limit) => ({ rows: rows.slice(offset, offset + limit), total: rows.length }),
     15,
@@ -1087,10 +1080,14 @@ function CaseRecords({ hospitalId }: { hospitalId?: string }) {
       <Section icon={ClipboardList} label="Medical cases" aside={`${fmt(rows.length)} · ${scope.win.window}`}>
         {complaints.length > 0 && (
           <>
-            <Bars
-              items={complaints.map((c) => ({ label: c.label, value: c.value }))}
-              unit="cases"
-              showShare
+            <RankList
+              rank={false}
+              items={complaints.map((c) => ({
+                key: c.label,
+                title: c.label,
+                value: fmt(c.value),
+                share: caseTotal ? (c.value / caseTotal) * 100 : 0,
+              }))}
             />
             <Rule label="Records" />
           </>

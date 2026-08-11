@@ -56,6 +56,7 @@ import {
   mix,
   useAccent,
 } from '../exec/system'
+import { Rail } from '../exec/marks'
 import {
   DRILL,
   animalRecord,
@@ -111,7 +112,16 @@ export function TapRow({
   onOpen?: () => void
   /** A small tinted glyph tile, for lists whose rows are kinds rather than records. */
   lead?: LucideIcon
-  /** 0–100. Draws the row's share as a hairline bar under it. */
+  /**
+   * 0–100. The row's share, drawn as the weight of a rail down its left edge.
+   *
+   * IT USED TO BE A FULL-WIDTH PROGRESS BAR, and eighty call sites of it were the single
+   * biggest reason the product read as a dashboard: every list on every page was a stack of
+   * identical bars, each one drawing a ranking the row order already stated. The rail says the
+   * same thing — where this row sits in the spread — in three pixels, and a list of twenty
+   * rails reads as a gradient rather than as twenty charts. See `RankList` in `exec/marks.tsx`,
+   * which is the same decision made for the lists that were built out of bars.
+   */
   bar?: number
   /** Currently the selected facet — tinted, so the filter's cause stays visible. */
   active?: boolean
@@ -159,17 +169,10 @@ export function TapRow({
   )
 
   const body = (
-    <>
-      <span className="flex items-center gap-3">{inner}</span>
-      {bar !== undefined && (
-        <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-          <span
-            className="block h-full rounded-full"
-            style={{ width: `${Math.max(3, Math.min(100, bar))}%`, backgroundColor: mix(accent, 0.72) }}
-          />
-        </span>
-      )}
-    </>
+    <span className="flex items-stretch gap-3">
+      {bar !== undefined && <Rail share={bar} />}
+      <span className="flex min-w-0 flex-1 items-center gap-3">{inner}</span>
+    </span>
   )
 
   return (

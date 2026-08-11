@@ -19,11 +19,16 @@
  * page is a door into it. None of those doors is a route: they all swap the content of the one
  * sheet, so four levels deep is still one panel and one gesture back out.
  *
- * NO TWO SECTIONS LOOK ALIKE. Seventeen sections of identical rows is a spreadsheet. The
- * composition is a stacked bar over tappable class rows, movement is a signed ledger around a
- * centre axis, the trend is a real axis, sites are a sortable table, species a searchable one,
- * the Red List is its published badges, and the leaders are five tiles. The design system is
- * unchanged; what varies is which of its marks each question deserves.
+ * THE MARK IS CHOSEN BY THE SHAPE OF THE QUESTION, and `exec/marks.tsx` holds one mark per
+ * shape. What this page used to be was seventeen cards of title-number-bar-chevron: regulatory
+ * standing was two bars, CITES three, the schedules three more of the same, sites six, species
+ * twenty. None of those is the same question, and drawing them identically said they were. Now
+ * the trend is a scrubbable curve against the period before it, the class composition is a
+ * treemap, regulatory standing is two percentages over one ribbon, CITES is a segmented
+ * composition, the schedules are three comparison tiles, sites and species are ranked lists
+ * with no bars in them at all, sex is a ring, births and deaths are event trends over a real
+ * calendar, transfers are a flow, escapes an incident rail, and fetal loss an outcome split.
+ * Nothing about the DATA changed in that move — every figure is the same query it was.
  *
  * NOTHING IS EXPLAINED, ONLY STATED. There is no prose, no recommendation and no insight — every
  * string on this page names a number or a filter.
@@ -32,7 +37,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   Activity,
+  ArrowDownLeft,
   ArrowLeftRight,
+  ArrowUpRight,
   Baby,
   Dna,
   Footprints,
@@ -50,16 +57,14 @@ import {
   Venus,
   X,
 } from 'lucide-react'
-import { longDate, shortDate, type Win } from '../../core/calendar'
+import { longDate, previous, shortDate, type Win } from '../../core/calendar'
 import { searchAnimals } from '../../core/animals'
+import { page as eventPage } from '../../core/events'
 import { SITES, siteOf } from '../../core/world'
 import { CLASS_ICONS } from '../../exec/classIcons'
 import {
-  ACCENT,
   ACCENT_INK,
   Band,
-  Composition,
-  Duo,
   FAINT,
   Facts,
   Figure,
@@ -67,20 +72,34 @@ import {
   Pair,
   RED_LIST,
   Rule,
-  Scoreboard,
   Section,
   Snapshot,
   Stack,
   TONE,
-  TRACK,
-  Trend,
   RedList,
-  VALUE,
   fmt,
   mix,
   useAccent,
   type RedListCode,
 } from '../../exec/system'
+import {
+  AreaTrend,
+  CompareTiles,
+  Concentration,
+  DayHeat,
+  EventTrend,
+  FlowSplit,
+  IncidentRail,
+  OutcomeSplit,
+  PercentSplit,
+  RankList,
+  Ribbon,
+  SplitRing,
+  Treemap,
+  pct,
+  type RankItem,
+} from '../../exec/marks'
+import { compareOf, dayCells, peakOf, pointsOf } from '../plot'
 import { AnimalPanel, TapList, TapRow } from '../panels'
 import { useSheet } from '../sheet'
 import { useScope } from '../scope'
@@ -97,6 +116,7 @@ import {
   regulatorySplit,
   scheduleBands,
   standingLabel,
+  standingOf,
   totalOf,
   type CitesAppendix,
   type Holding,
@@ -105,7 +125,9 @@ import {
 import {
   TREND_RANGES,
   change,
+  flowByCause,
   flowBySite,
+  flowBySpecies,
   leaders,
   movement,
   sexTotals,
@@ -114,7 +136,6 @@ import {
   sortSpecies,
   searchSpecies,
   speciesRows,
-  trend,
   type Leader,
   type SiteRow,
   type SiteSort,
@@ -233,6 +254,114 @@ export default function Animals() {
   const openSpecies = (row: SpeciesRow) =>
     open({ title: row.name, eyebrow: row.siteName, body: <SpeciesPanel row={row} win={win} /> })
 
+  /* THE SAME FOUR SHEETS THE ROWS ALWAYS OPENED, named rather than inlined five times over.
+     What changed on this page is which mark carries the tap, never where the tap goes. */
+  const openClass = (cls: string) =>
+    open({
+      title: cls,
+      eyebrow: 'Collection composition',
+      body: <ClassGroup cls={cls} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
+    })
+  const openRegulatory = (regulated: boolean) =>
+    open({
+      title: regulated ? 'Regulatory' : 'Non-regulatory',
+      eyebrow: 'Regulatory standing',
+      body: <RegulatoryGroup regulated={regulated} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
+    })
+  const openCites = (appendix: CitesAppendix) =>
+    open({
+      title: `CITES Appendix ${appendix}`,
+      eyebrow: 'Regulatory',
+      body: <CitesGroup appendix={appendix} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
+    })
+  const openSchedule = (schedule: ScheduleClass) =>
+    open({
+      title: `Schedule ${schedule}`,
+      eyebrow: 'Regulatory',
+      body: <ScheduleGroup schedule={schedule} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
+    })
+  /** A flow, scoped to one site — the second level of the Births → Site → Species → Animal drill. */
+  const openFlowSite = (key: keyof typeof specs, siteOfRow: string) =>
+    open({
+      title: siteOf(siteOfRow)?.name ?? siteOfRow,
+      eyebrow: specs[key].title,
+      body: <FlowPanel spec={specs[key]} siteKey={siteOfRow} win={win} />,
+    })
+
+  /* ── what the marks are fed ────────────────────────────────────────────────
+     Every one of these is an aggregation of `rows`, `species` or the event stream under the
+     scope in force — the same reads the page always made, grouped once here instead of being
+     recomputed inside the JSX three times per card. */
+  const classes = useMemo(() => classBands(rows), [rows])
+  const reg = useMemo(() => regulatorySplit(rows), [rows])
+  const cites = useMemo(() => citesBands(rows), [rows])
+  const schedules = useMemo(() => scheduleBands(rows), [rows])
+  const sexes = useMemo(() => sexTotals(species), [species])
+  const citesTotal = cites.reduce((n, b) => n + b.animals, 0)
+  const scheduleTotal = schedules.reduce((n, b) => n + b.animals, 0)
+  const citesShare = total ? (citesTotal / total) * 100 : 0
+
+  const prevMove = useMemo(() => movement(siteKey, previous(win)), [siteKey, win])
+  const births = useFlowCard('births', siteKey, win)
+  const deaths = useFlowCard('mortality', siteKey, win)
+  const fetal = useFlowCard('fetal', siteKey, win)
+
+  /* The calendar is drawn only where it can say something a total cannot: a window of under a
+     week is a handful of cells, and an empty window is an empty grid. */
+  const birthDays = useMemo(
+    () => (win.days >= 7 && move.births.total > 0 ? dayCells('births', siteKey, win).cells : undefined),
+    [siteKey, win, move.births.total],
+  )
+
+  /* Escapes are read as RECORDS, not as a count: the six most recent, each with the outcome its
+     own event carries — "Not recovered" is an open incident, every other outcome is a closed one. */
+  const escapes = useMemo(
+    () =>
+      eventPage('escaped', siteKey, win, 0, 6).rows.map((ev) => ({
+        key: ev.id,
+        when: shortDate(ev.day),
+        title: ev.speciesName,
+        meta: `${siteOf(ev.siteKey)?.name ?? ev.siteKey} · ${ev.animalId} · ${ev.detail.toLowerCase()}`,
+        /* TWO STATES, NOT FOUR. The record's own outcome — same day, within seven days, off site
+           — belongs in the meta line; the chip answers the only question asked of an escape,
+           which is whether the animal is back. */
+        status:
+          ev.detail === 'Not recovered'
+            ? { label: 'Open', tone: 'bad' as const }
+            : { label: 'Recovered', tone: 'good' as const },
+        onPick: () =>
+          open({
+            title: ev.animalId,
+            eyebrow: `Escape · ${shortDate(ev.day)}`,
+            body: <AnimalPanel record={animalFromId(ev.animalId, ev.speciesName)} />,
+          }),
+      })),
+    [siteKey, win, open],
+  )
+
+  /* Transfer routes name the counterparty the RECORD names — "other zoo", "the wild" — and
+     nothing more. The data has a kind of counterparty, not an institution, so neither does this. */
+  const transferRoutes = useMemo(
+    () =>
+      flowByCause('transfers', siteKey, win).map((c) => {
+        const direction = TRANSFER_DIRECTION[c.label] ?? 'internal'
+        return {
+          key: c.key,
+          label: c.label,
+          meta: TRANSFER_META[c.label],
+          value: c.value,
+          direction,
+          onPick:
+            direction === 'in'
+              ? () => openFlow('transferIn')
+              : direction === 'out'
+                ? () => openFlow('transferOut')
+                : undefined,
+        }
+      }),
+    [siteKey, win],
+  )
+
   return (
     <>
       {/* 1 · TOOLBAR. The router's header already carries the back chevron, the title, the
@@ -342,131 +471,95 @@ export default function Animals() {
           <TrendCard siteKey={siteKey} scopeName={scopeName} globalWin={win} />
         </Wide>
 
-        {/* 5 · COLLECTION COMPOSITION. The share as one stacked bar, then the classes as rows
-            that open their species — the count answers "what is it made of", and the only
-            useful next question is "which ones". */}
-        <Section icon={Layers} label="Collection composition" aside={plural(classBands(rows).length, 'class')}>
-          <Composition
-            items={compositionBars(classBands(rows).map((c) => ({ label: c.cls, value: c.animals })))}
+        {/* 5 · COLLECTION COMPOSITION, as a treemap — because the AREA is the share.
+            Nine classes running from 178,240 animals down to 41 cannot be drawn as bars: at
+            true scale eight of the nine are invisible, and floored they lie about the shape of
+            the collection. Every cell is a door into its species. */}
+        <Wide>
+          <Section icon={Layers} label="Collection composition" aside={plural(classes.length, 'class')}>
+            <Treemap
+              items={classes.map((c) => ({
+                key: c.cls,
+                label: c.cls,
+                value: c.animals,
+                meta: `${c.species} species`,
+                onPick: () => openClass(c.cls),
+              }))}
+            />
+            <Rule label="By class" />
+            <RankList
+              rank={false}
+              items={classes.map((c) => ({
+                key: c.cls,
+                title: c.cls,
+                meta: `${c.species} species`,
+                value: fmt(c.animals),
+                share: c.percent,
+                lead: classGlyph(c.cls),
+                onPick: () => openClass(c.cls),
+              }))}
+            />
+          </Section>
+        </Wide>
+
+        {/* 6 · REGULATORY. Two parts, so two percentages facing each other over one ribbon —
+            not two bars, which is what this was and which stated the same number twice. The
+            split does NOT overlap: an animal carrying both a CITES listing and a schedule is
+            counted once here, which is why the appendix and schedule cards below are separate. */}
+        <Section icon={ScrollText} label="Regulatory standing" aside={`${pct(reg.regulated.percent)} regulated`}>
+          <PercentSplit
             unit="animals"
+            left={{
+              label: 'Regulatory',
+              value: reg.regulated.animals,
+              meta: `${reg.regulated.species} species`,
+              onPick: () => openRegulatory(true),
+            }}
+            right={{
+              label: 'Non-regulatory',
+              value: reg.open.animals,
+              meta: `${reg.open.species} species`,
+              onPick: () => openRegulatory(false),
+            }}
           />
-          <Rule label="By class" />
-          <TapList>
-            {classBands(rows).map((c) => (
-              <TapRow
-                key={c.cls}
-                lead={classGlyph(c.cls)}
-                label={c.cls}
-                sub={`${c.species} species · ${c.percent.toFixed(1)}%`}
-                value={fmt(c.animals)}
-                bar={(c.animals / Math.max(1, classBands(rows)[0]?.animals ?? 1)) * 100}
-                onOpen={() =>
-                  open({
-                    title: c.cls,
-                    eyebrow: 'Collection composition',
-                    body: <ClassGroup cls={c.cls} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
-                  })
-                }
-              />
-            ))}
-          </TapList>
         </Section>
 
-        {/* 6 · REGULATORY. The one split on this page that does NOT overlap: an animal carrying
-            both a CITES listing and a schedule is counted once, which is why it is drawn as a
-            single stacked bar and the two cards below it are not. */}
-        <Section icon={ScrollText} label="Regulatory standing" aside={`${regulatorySplit(rows).regulated.percent.toFixed(1)}% regulated`}>
-          <Composition
-            items={[
-              { label: 'Non-regulatory', value: regulatorySplit(rows).open.animals },
-              { label: 'Regulatory', value: regulatorySplit(rows).regulated.animals },
-            ]}
-            unit="animals"
-          />
-          <Rule label="Tap to drill" />
-          <TapList>
-            {[regulatorySplit(rows).regulated, regulatorySplit(rows).open].map((b, i) => (
-              <TapRow
-                key={b.key}
-                label={b.label}
-                sub={`${b.species} species · ${b.percent.toFixed(1)}%`}
-                value={fmt(b.animals)}
-                bar={b.percent}
-                onOpen={() =>
-                  open({
-                    title: b.label,
-                    eyebrow: 'Regulatory standing',
-                    body: <RegulatoryGroup regulated={i === 0} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
-                  })
-                }
-              />
-            ))}
-          </TapList>
+        {/* 7 · CITES — a trade convention, and a segmented composition rather than three
+            identical bars: the ribbon is the relative distribution across the three appendices,
+            the rows carry the counts, the species and the share each is of the collection. Kept
+            apart from the schedules below, because an animal routinely carries both. */}
+        <Section icon={ShieldAlert} label="CITES" aside={`${pct(citesShare)} of collection listed`}>
+          <Ribbon items={cites.map((b) => ({ label: b.label, value: b.animals }))} height={11} />
+          <div className="mt-4">
+            <RankList
+              rank={false}
+              showShare={false}
+              items={cites.map((b) => ({
+                key: b.key,
+                title: b.label,
+                meta: `${b.species} species · ${pct(b.percent)} of collection`,
+                value: fmt(b.animals),
+                share: citesTotal ? (b.animals / citesTotal) * 100 : 0,
+                onPick: b.animals > 0 ? () => openCites(b.key as CitesAppendix) : undefined,
+              }))}
+            />
+          </div>
         </Section>
 
-        {/* 7 · CITES — a trade convention. Kept apart from the schedules below, because an
-            animal routinely carries both and one merged chart would double-count it. */}
-        <Section icon={ShieldAlert} label="CITES" aside="Appendix I · II · III">
-          <TapList>
-            {citesBands(rows).map((b) => (
-              <TapRow
-                key={b.key}
-                label={b.label}
-                sub={`${b.species} species · ${b.percent.toFixed(2)}%`}
-                value={fmt(b.animals)}
-                bar={b.animals ? Math.max(4, (b.animals / Math.max(1, Math.max(...citesBands(rows).map((x) => x.animals)))) * 100) : 0}
-                onOpen={
-                  b.animals > 0
-                    ? () =>
-                        open({
-                          title: `CITES Appendix ${b.key}`,
-                          eyebrow: 'Regulatory',
-                          body: (
-                            <CitesGroup
-                              appendix={b.key as CitesAppendix}
-                              rows={rows}
-                              win={win}
-                              siteKey={siteKey ?? undefined}
-                            />
-                          ),
-                        })
-                    : undefined
-                }
-              />
-            ))}
-          </TapList>
-        </Section>
-
-        {/* 8 · SCHEDULE — Indian domestic law, its own card for the same reason. */}
+        {/* 8 · SCHEDULE — Indian domestic law, and three named classes rather than a ranking, so
+            three tiles: the count, the species behind it, its share of the collection, and an arc
+            for its share of everything scheduled. */}
         <Section icon={ScrollText} label="Wildlife Protection Act" aside="Schedule I · II · III">
-          <TapList>
-            {scheduleBands(rows).map((b) => (
-              <TapRow
-                key={b.key}
-                label={b.label}
-                sub={`${b.species} species · ${b.percent.toFixed(2)}%`}
-                value={fmt(b.animals)}
-                bar={b.animals ? Math.max(4, (b.animals / Math.max(1, Math.max(...scheduleBands(rows).map((x) => x.animals)))) * 100) : 0}
-                onOpen={
-                  b.animals > 0
-                    ? () =>
-                        open({
-                          title: `Schedule ${b.key}`,
-                          eyebrow: 'Regulatory',
-                          body: (
-                            <ScheduleGroup
-                              schedule={b.key as ScheduleClass}
-                              rows={rows}
-                              win={win}
-                              siteKey={siteKey ?? undefined}
-                            />
-                          ),
-                        })
-                    : undefined
-                }
-              />
-            ))}
-          </TapList>
+          <CompareTiles
+            items={schedules.map((b) => ({
+              key: b.key,
+              kicker: `Schedule ${b.key}`,
+              value: b.animals,
+              share: scheduleTotal ? (b.animals / scheduleTotal) * 100 : 0,
+              facts: [`${b.species} species`, `${pct(b.percent)} of collection`],
+              onPick: b.animals > 0 ? () => openSchedule(b.key as ScheduleClass) : undefined,
+            }))}
+          />
         </Section>
 
         {/* 9 · IUCN. The published badges, in the published colours — a curator reads these on
@@ -497,92 +590,167 @@ export default function Animals() {
           <SpeciesCard rows={species} query={query} onQuery={setQuery} onOpen={openSpecies} />
         </Wide>
 
-        {/* 12 · SEX. Compact by design — undetermined is the majority ANSWER in a collection
-            four fifths made of fish and invertebrates, not a gap in the record. */}
-        <Section icon={Venus} label="Sex distribution" aside={fmt(sexTotals(species).total)}>
-          <Scoreboard
-            items={[
-              { value: fmt(sexTotals(species).male), label: 'Male' },
-              { value: fmt(sexTotals(species).female), label: 'Female' },
-              { value: fmt(sexTotals(species).unknown), label: 'Undetermined' },
-            ]}
-          />
-          <Rule label="Share" />
-          <Composition
-            items={[
-              { label: 'Undetermined', value: sexTotals(species).unknown },
-              { label: 'Male', value: sexTotals(species).male },
-              { label: 'Female', value: sexTotals(species).female },
-            ]}
+        {/* 12 · SEX — a ring, which is the mark for three parts of one whole. Compact by design:
+            undetermined is the majority ANSWER in a collection four fifths made of fish and
+            invertebrates, not a gap in the record. */}
+        <Section icon={Venus} label="Sex distribution" aside={`${fmt(sexes.total)} animals`}>
+          <SplitRing
+            label="Animals"
             unit="animals"
+            items={[
+              { key: 'u', label: 'Undetermined', value: sexes.unknown, meta: 'Shoals, colonies, unsexed' },
+              { key: 'm', label: 'Male', value: sexes.male },
+              { key: 'f', label: 'Female', value: sexes.female },
+            ]}
           />
         </Section>
 
-        {/* 13 · 14 · Births and deaths, side by side. Population context only — the cause
-            analysis belongs to the Mortality page and the breeding detail to Natality. */}
-        <Duo>
-          <Section icon={Sparkles} label="Births" tight aside={win.noun}>
-            <Figure value={fmt(move.births.total)} size={34} />
-            <p className="mt-0.5 text-[12px] text-[#6d6860]">births</p>
-            <div className="mt-3">
+        {/* 13 · BIRTHS — an event flow, so columns and a real calendar rather than a bar chart.
+            A line through births per day would claim a value between the days and there isn't
+            one. The card answers how many, against when, where and which species. */}
+        <Wide>
+          <Section icon={Sparkles} label="Births" aside={win.window}>
+            <EventTrend
+              points={births.points}
+              compare={births.compare}
+              span={win.window}
+              unit="births"
+              marks={births.peak ? [births.peak] : undefined}
+              empty={`No births recorded in ${win.window}.`}
+            />
+            {birthDays && (
+              <>
+                <Rule label="Date distribution" />
+                <DayHeat days={birthDays} />
+              </>
+            )}
+            <div className="mt-4 border-t border-[#f0efec] pt-3">
               <Facts
                 items={[
                   { label: 'Natural', value: fmt(move.births.natural) },
-                  { label: 'Assisted', value: fmt(move.births.assisted) },
-                  { label: 'Sites', value: String(flowBySite('births', siteKey, win).length) },
+                  { label: 'Assisted', value: fmt(move.births.assisted), sub: 'Hand-reared or assisted delivery' },
                 ]}
               />
             </div>
-            <OpenPill label="Records" onOpen={() => openFlow('births')} />
+            {births.sites.length > 0 && (
+              <>
+                <Rule label="By site" />
+                <RankList items={siteRank(births.sites, births.total, (key) => openFlowSite('births', key))} />
+              </>
+            )}
+            {births.species.length > 0 && (
+              <>
+                <Rule label="By species" />
+                <RankList items={nameRank(births.species, births.total)} />
+              </>
+            )}
+            <OpenPill label="Birth records" onOpen={() => openFlow('births')} />
           </Section>
+        </Wide>
 
-          <Section icon={Activity} label="Deaths" tight aside={win.noun}>
-            <Figure value={fmt(move.deaths)} size={34} color={move.deaths > 0 ? TONE.bad : VALUE} />
-            <p className="mt-0.5 text-[12px] text-[#6d6860]">deaths</p>
-            <div className="mt-3">
+        {/* 14 · MORTALITY. Population context, and the one thing a total cannot say: WHERE the
+            impact fell. The trend is the event flow, the band names the species carrying it, and
+            the ranked lists below are the site and species tails. Cause analysis stays on the
+            Mortality module; nothing medical is mixed in here. */}
+        <Wide>
+          <Section icon={Activity} label="Mortality" aside={win.window}>
+            <EventTrend
+              points={deaths.points}
+              compare={deaths.compare}
+              span={win.window}
+              unit="deaths"
+              marks={deaths.peak ? [{ ...deaths.peak, tone: 'bad' as const }] : undefined}
+              empty={`No deaths recorded in ${win.window}.`}
+            />
+
+            {deaths.species[0] && (
+              <>
+                <Rule label="Highest mortality impact" />
+                <Band
+                  label="Species"
+                  title={deaths.species[0].label}
+                  sub={`${pct((deaths.species[0].value / Math.max(1, deaths.total)) * 100)} of deaths${
+                    deaths.causes[0] ? ` · leading cause ${deaths.causes[0].label.toLowerCase()}` : ''
+                  }`}
+                  value={fmt(deaths.species[0].value)}
+                  unit="deaths"
+                  tone="bad"
+                />
+              </>
+            )}
+
+            <div className="mt-4 border-t border-[#f0efec] pt-3">
               <Facts
                 items={[
-                  { label: 'Rate', value: `${((move.deaths / Math.max(1, delta.closing)) * 100).toFixed(3)}%` },
-                  { label: 'Sites', value: String(flowBySite('mortality', siteKey, win).length) },
-                  { label: 'Net of births', value: signed(move.births.total - move.deaths) },
+                  {
+                    label: 'Mortality rate',
+                    sub: 'Of the closing headcount',
+                    value: `${((move.deaths / Math.max(1, delta.closing)) * 100).toFixed(3)}%`,
+                  },
+                  {
+                    label: 'Regulatory species',
+                    sub: 'CITES-listed or scheduled',
+                    value: `${fmt(deaths.regulated)} of ${fmt(deaths.total)}`,
+                  },
+                  { label: 'Net of births', value: signed(move.births.total - move.deaths), tone: netTone(move.births.total - move.deaths) },
                 ]}
               />
             </div>
-            <OpenPill label="Records" onOpen={() => openFlow('mortality')} />
-          </Section>
-        </Duo>
 
-        {/* 15 · EXTERNAL TRANSFERS. In and out as two ends of one figure, with the internal
-            moves stated beside them so nobody reads them as a population change. */}
+            {deaths.sites.length > 0 && (
+              <>
+                <Rule label="By site" />
+                <RankList items={siteRank(deaths.sites, deaths.total, (key) => openFlowSite('mortality', key))} />
+              </>
+            )}
+            {deaths.species.length > 0 && (
+              <>
+                <Rule label="By species" />
+                <RankList items={nameRank(deaths.species, deaths.total)} />
+              </>
+            )}
+            {deaths.causes.length > 0 && (
+              <>
+                <Rule label="Recorded cause" />
+                <RankList rank={false} items={nameRank(deaths.causes, deaths.total)} />
+              </>
+            )}
+            <OpenPill label="Mortality records" onOpen={() => openFlow('mortality')} />
+          </Section>
+        </Wide>
+
+        {/* 15 · EXTERNAL TRANSFERS — direction first. Two counts in a column say nothing about
+            which way the animals went; the glyph, the side and the net do it before a number is
+            read. The routes below name what the record names — a counterparty kind, not an
+            invented collection — and internal moves are stated so nobody reads them as change. */}
         <Section icon={ArrowLeftRight} label="External transfers" aside={win.noun}>
-          <Pair
-            a={{ value: fmt(move.transfers.in), label: 'External in' }}
-            b={{ value: fmt(move.transfers.out), label: 'External out' }}
-            relation={`net ${signed(move.transfers.net)}`}
-            tone={netTone(move.transfers.net)}
+          <FlowSplit
+            unit="animals"
+            net={move.transfers.net}
+            inward={{
+              label: 'External in',
+              value: move.transfers.in,
+              meta: 'From other collections',
+              change: move.transfers.in - prevMove.transfers.in,
+              icon: ArrowDownLeft,
+              onPick: () => openFlow('transferIn'),
+            }}
+            outward={{
+              label: 'External out',
+              value: move.transfers.out,
+              meta: 'Releases, loans, transfers',
+              change: move.transfers.out - prevMove.transfers.out,
+              icon: ArrowUpRight,
+              onPick: () => openFlow('transferOut'),
+            }}
+            routes={transferRoutes}
           />
-          <Rule label="Movement" />
-          <TapList>
-            <TapRow
-              label="External in"
-              sub="Arrivals from other collections"
-              value={fmt(move.transfers.in)}
-              tone="good"
-              onOpen={() => openFlow('transferIn')}
-            />
-            <TapRow
-              label="External out"
-              sub="Departures, releases and loans"
-              value={fmt(move.transfers.out)}
-              tone={move.transfers.out > 0 ? 'bad' : undefined}
-              onOpen={() => openFlow('transferOut')}
-            />
-            <TapRow label="Internal moves" sub="Between own sites · no net change" value={fmt(move.transfers.internal)} />
-          </TapList>
         </Section>
 
-        {/* 16 · ESCAPES. The critical treatment when anything is still out, and never otherwise
-            — an amber band over a clear board is how a reader learns to stop looking at it. */}
+        {/* 16 · ESCAPES — an incident rail, because what is asked about an escape is when it
+            happened, what got out and whether it is back. The critical band appears only while
+            something is still out; an amber board over a clear one is how a reader learns to
+            stop looking. */}
         <Section icon={Footprints} label="Escaped animals" aside={win.noun}>
           {move.escapes.atLarge > 0 ? (
             <Band
@@ -600,44 +768,68 @@ export default function Animals() {
             cols={3}
             items={[
               { label: 'Escaped in window', value: fmt(move.escapes.total) },
-              { label: 'Recovered', value: fmt(move.escapes.recovered), tone: 'good' },
-              { label: 'Unrecovered', value: fmt(move.escapes.unrecovered), tone: move.escapes.unrecovered > 0 ? 'bad' : undefined },
+              { label: 'Resolved', value: fmt(move.escapes.recovered), tone: 'good' },
+              { label: 'Open', value: fmt(move.escapes.unrecovered), tone: move.escapes.unrecovered > 0 ? 'bad' : undefined },
             ]}
           />
-          <div className="mt-4 border-t border-[#f0efec] pt-2">
-            <TapList>
-              <TapRow label="Escape records" sub="By site, species and animal" value="Open" onOpen={() => openFlow('escaped')} />
-            </TapList>
-          </div>
+          <Rule label="Recent incidents" />
+          <IncidentRail items={escapes} empty={`No escapes recorded in ${win.window}.`} />
+          {move.escapes.total > escapes.length && (
+            <OpenPill label="All escape records" onOpen={() => openFlow('escaped')} />
+          )}
         </Section>
 
         {/* 17 · FETAL DEATH, kept apart from mortality. A stillbirth is not a death in the
-            collection register, and merging the two would overstate mortality and understate
-            the breeding programme's own loss rate. */}
+            collection register, and merging the two would overstate mortality and understate the
+            breeding programme's own loss rate. An outcome split, because these are terminal
+            states of one population rather than a ranking of two things. */}
         <Section icon={Baby} label="Fetal death" aside="not animal mortality">
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Total', value: fmt(move.fetal.total), note: 'fetal loss' },
-              { label: 'Stillbirth', value: fmt(move.fetal.stillbirth), note: 'late term' },
-              { label: 'Abortion', value: fmt(move.fetal.abortion), note: 'mid term' },
-            ]}
+          <EventTrend
+            points={fetal.points}
+            compare={fetal.compare}
+            span={win.window}
+            unit="fetal losses"
+            height={96}
+            empty={`No fetal loss recorded in ${win.window}.`}
           />
-          <Rule label="Where" />
-          <TapList>
-            {flowBySite('fetal', siteKey, win).map((s) => (
-              <TapRow
-                key={s.key}
-                label={s.label}
-                sub={siteOf(s.key)?.code}
-                value={fmt(s.value)}
-                onOpen={() => openFlow('fetal')}
+          {move.fetal.total > 0 && (
+            <>
+              <Rule label="Outcome" />
+              <OutcomeSplit
+                lead={false}
+                total={move.fetal.total}
+                label="fetal losses"
+                outcomes={[
+                  {
+                    key: 'stillbirth',
+                    label: 'Stillbirth',
+                    value: move.fetal.stillbirth,
+                    meta: 'Late-term loss · dystocia',
+                    onPick: () => openFlow('fetal'),
+                  },
+                  {
+                    key: 'abortion',
+                    label: 'Abortion',
+                    value: move.fetal.abortion,
+                    meta: 'Mid-term loss · early resorption',
+                    onPick: () => openFlow('fetal'),
+                  },
+                ]}
               />
-            ))}
-            {flowBySite('fetal', siteKey, win).length === 0 && (
-              <TapRow label="No fetal loss recorded" value="0" />
-            )}
-          </TapList>
+            </>
+          )}
+          {fetal.sites.length > 0 && (
+            <>
+              <Rule label="By site" />
+              <RankList items={siteRank(fetal.sites, fetal.total, (key) => openFlowSite('fetal', key))} />
+            </>
+          )}
+          {fetal.species.length > 0 && (
+            <>
+              <Rule label="By species" />
+              <RankList items={nameRank(fetal.species, fetal.total)} />
+            </>
+          )}
         </Section>
 
         {/* 18 · LEADERS. Five extremes, computed rather than chosen, each opening the thing it
@@ -702,12 +894,86 @@ function sexOfHolding(h: Holding, sex: 'M' | 'F' | 'U'): number {
   return sex === 'M' ? male : h.count - unknown - male
 }
 
-/** Six segments at most, so a nine-class collection does not become nine unreadable slivers. */
-function compositionBars(items: { label: string; value: number }[]) {
-  if (items.length <= 6) return items
-  const head = items.slice(0, 5)
-  const tail = items.slice(5)
-  return [...head, { label: `Other · ${tail.length} classes`, value: tail.reduce((n, i) => n + i.value, 0) }]
+/* ── what an event card needs, in one read ───────────────────────────────── */
+
+/**
+ * One flow, as everything the card built from it asks for.
+ *
+ * Births, deaths and fetal losses are all read the same five ways — a bucketed series, the same
+ * span one period earlier, the peak, and the site, species and cause tallies — so the reads are
+ * grouped rather than repeated three times over. Nothing here is derived twice: `total` is the
+ * sum of the site tally, which is the same figure `count` returns, and `regulated` is that tally
+ * re-asked of the species' published standing.
+ */
+function useFlowCard(slug: string, siteKey: string | null, win: Win, max = 24) {
+  return useMemo(() => {
+    const points = pointsOf(slug, siteKey, win, max)
+    const sites = flowBySite(slug, siteKey, win)
+    const species = flowBySpecies(slug, siteKey, win)
+    const causes = flowByCause(slug, siteKey, win)
+    return {
+      points,
+      compare: compareOf(slug, siteKey, win, max),
+      peak: peakOf(points),
+      sites,
+      species,
+      causes,
+      total: sites.reduce((n, s) => n + s.value, 0),
+      regulated: species
+        .filter((s) => isRegulated(standingOf(s.label)))
+        .reduce((n, s) => n + s.value, 0),
+    }
+  }, [slug, siteKey, win, max])
+}
+
+/** A site tally as ranked rows, each opening its own site. */
+function siteRank(
+  rows: { key: string; label: string; value: number }[],
+  total: number,
+  onPick?: (key: string) => void,
+): RankItem[] {
+  return rows.map((r) => ({
+    key: r.key,
+    title: r.label,
+    meta: siteOf(r.key)?.code,
+    value: fmt(r.value),
+    share: total ? (r.value / total) * 100 : 0,
+    onPick: onPick ? () => onPick(r.key) : undefined,
+  }))
+}
+
+/**
+ * A species or cause tally as ranked rows, capped.
+ *
+ * NO CHEVRON, and that is deliberate rather than an omission: there is no species-level event
+ * panel to open, and a chevron that opens the whole flow instead of the row it sits on is worse
+ * than no chevron. The records pill under the card is the door, and the drill it opens —
+ * flow → site → species → animal — is the one that already existed.
+ */
+function nameRank(rows: { key: string; label: string; value: number }[], total: number, cap = 8): RankItem[] {
+  return rows.slice(0, cap).map((r) => ({
+    key: r.key,
+    title: r.label,
+    value: fmt(r.value),
+    share: total ? (r.value / total) * 100 : 0,
+  }))
+}
+
+/** Which way each recorded transfer cause moves an animal, and what the record means by it. */
+const TRANSFER_DIRECTION: Record<string, 'in' | 'out' | 'internal'> = {
+  'Inward · other zoo': 'in',
+  'Outward · other zoo': 'out',
+  'Release to wild': 'out',
+  'Breeding loan': 'out',
+  'Internal move': 'internal',
+}
+
+const TRANSFER_META: Record<string, string> = {
+  'Inward · other zoo': 'Arrival from another collection',
+  'Outward · other zoo': 'Departure to another collection',
+  'Release to wild': 'Released to the wild',
+  'Breeding loan': 'Loaned out for breeding',
+  'Internal move': 'Between own sites · no net change',
 }
 
 /**
@@ -1155,8 +1421,18 @@ function TrendCard({
      the product has — so the chip opens the existing date sheet rather than growing a second
      date picker that could disagree with it. */
   const win = range === 'custom' ? globalWin : (TREND_RANGES.find((r) => r.key === range) ?? TREND_RANGES[1]).win
-  const { values, labels } = useMemo(() => trend(siteKey, win, win.days > 200 ? 24 : 30), [siteKey, win])
+  const max = win.days > 200 ? 24 : 30
+  const points = useMemo(() => pointsOf('animals', siteKey, win, max), [siteKey, win, max])
+  /* THE COMPARISON IS A FIGURE HERE, NOT A GHOST CURVE. A headcount wobbles from day to day in
+     the ledger, and two wobbling curves over each other is noise on noise — the earlier span's
+     closing reading and the delta say the same thing and can be read at a glance. The event
+     trends below DO draw their ghost, because a count per day is a much calmer series. */
+  const compare = useMemo(() => {
+    const c = compareOf('animals', siteKey, win, max)
+    return c && { ...c, series: undefined }
+  }, [siteKey, win, max])
 
+  const values = points.map((p) => p.value)
   const last = values[values.length - 1] ?? 0
   const high = values.length ? Math.max(...values) : 0
   const low = values.length ? Math.min(...values) : 0
@@ -1189,30 +1465,34 @@ function TrendCard({
         )}
       </div>
 
-      {values.length > 1 ? (
-        <>
-          <Trend values={values} labels={labels} unit={`animals held · ${scopeName.toLowerCase()}`} height={148} />
-          {/* A READOUT OF THE CURVE, NOT A SECOND NET CHANGE. The population card above owns
-              the delta and owns the window it was measured over; a change computed here across
-              a different range would sit two cards away from it reading as a contradiction.
-              High, low and latest are properties of the line that is drawn. */}
-          <div className="mt-4 border-t border-[#f0efec] pt-3">
-            <Snapshot
-              cols={3}
-              items={[
-                { label: 'Latest', value: fmt(last) },
-                { label: 'Range high', value: fmt(high) },
-                { label: 'Range low', value: fmt(low) },
-              ]}
-            />
-          </div>
-        </>
-      ) : (
-        /* The honest empty state the brief asks for: a range too short to plot is stated as
-           such rather than drawn as a single point pretending to be a line. */
-        <p className="py-4 text-[13px] text-[#6d6860]">
-          {win.window} is a single reading — pick a longer range to see the curve.
-        </p>
+      {/* THE CURVE IS SCRUBBABLE, and the headline figure is whatever is under the finger.
+          That is the whole difference between a chart and a readout: the number a director
+          quotes comes from the axis they are pointing at, not from a legend. The dashed line
+          behind it is the same span one period earlier — real readings, drawn in neutral ink so
+          it cannot be mistaken for part of the series it is being compared against. */}
+      <AreaTrend
+        points={points}
+        compare={compare}
+        unit={`animals held · ${scopeName.toLowerCase()}`}
+        height={156}
+        empty={`${win.window} is a single reading — pick a longer range to see the curve.`}
+      />
+
+      {points.length > 1 && (
+        /* A READOUT OF THE CURVE, NOT A SECOND NET CHANGE. The population card above owns the
+           delta and the window it was measured over; a change computed here across a different
+           range would sit two cards away from it reading as a contradiction. High, low and
+           latest are properties of the line that is drawn. */
+        <div className="mt-4 border-t border-[#f0efec] pt-3">
+          <Snapshot
+            cols={3}
+            items={[
+              { label: 'Latest', value: fmt(last) },
+              { label: 'Range high', value: fmt(high) },
+              { label: 'Range low', value: fmt(low) },
+            ]}
+          />
+        </div>
       )}
     </Section>
   )
@@ -1228,12 +1508,17 @@ const SITE_SORTS: [SiteSort, string][] = [
 ]
 
 /**
- * Every site, sorted on any of its four columns.
+ * EVERY SITE, AS A RANKED LIST — one rendering, not two.
  *
- * TWO RENDERINGS OF ONE DATASET, chosen on the width of the CONTENT COLUMN rather than the
- * window — with a sidebar and an executive panel flanking it, a 1280px desktop hands this card
- * less room than a tablet in landscape. Past 560px it is a dense table; below it the same rows
- * stack, because a four-column table squeezed to 390px is four unreadable columns.
+ * This card used to be a six-column table above 560px and, below it, six stacked rows each
+ * carrying a full-width progress bar. Both were drawing the ranking twice: the rows are already
+ * in order, so the bar was a chart of the fact that row one is above row two. What a director
+ * reads off a site is its position, its headcount, its share and which way it moved — all four
+ * of which are type — so the only mark left is the rail down the left edge, whose weight carries
+ * the share.
+ *
+ * One rendering means the tablet and the desktop get the same list with more room in it rather
+ * than a different component, and the phone stops being the version with a bar in it.
  */
 function SitesCard({
   rows,
@@ -1246,7 +1531,6 @@ function SitesCard({
 }) {
   const [sort, setSort] = useState<SiteSort>('animals')
   const shown = useMemo(() => sortSites(scoped ? rows.filter((r) => r.key === scoped) : rows, sort), [rows, scoped, sort])
-  const widest = Math.max(...shown.map((r) => r.animals), 1)
 
   return (
     <Section icon={MapPin} label="Site population" aside={`${shown.length} of ${rows.length} sites`}>
@@ -1255,87 +1539,21 @@ function SitesCard({
         value={sort}
         onPick={(v) => setSort(v as SiteSort)}
       />
-
-      {/* Dense table where there is room. */}
-      <div className="mt-3.5 hidden @[560px]:block">
-        <table className="w-full">
-          <thead>
-            <tr>
-              {['Site', 'Animals', 'Species', 'Enclosures', 'Share', 'Change'].map((h, i) => (
-                <th
-                  key={h}
-                  className={`pb-2 text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap uppercase ${
-                    i === 0 ? 'text-left' : 'pl-3 text-right'
-                  }`}
-                  style={{ color: FAINT }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((r) => (
-              <tr key={r.key} className="border-t border-[#f0efec]">
-                <td className="py-0">
-                  <button type="button" onClick={() => onOpen(r.key)} className="card-press block w-full py-2.5 text-left">
-                    <span className="block text-[13.5px] leading-[17px] text-[#1c1a16]">{r.name}</span>
-                    <span className="mt-0.5 block text-[11px] leading-[14px]" style={{ color: FAINT }}>
-                      {r.code}
-                    </span>
-                  </button>
-                </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums" style={{ color: VALUE }}>
-                  {fmt(r.animals)}
-                </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">{r.species}</td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">{r.enclosures}</td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">
-                  {r.percent.toFixed(1)}%
-                </td>
-                <td
-                  className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums"
-                  style={{ color: r.net === 0 ? FAINT : TONE[netTone(r.net)] }}
-                >
-                  {signed(r.net)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Stacked rows on a phone — the same six facts, laid out for a thumb. */}
-      <div className="mt-3.5 @[560px]:hidden">
-        <ul className="flex flex-col">
-          {shown.map((r) => (
-            <li key={r.key} className="border-b border-[#f0efec] last:border-0">
-              <button type="button" onClick={() => onOpen(r.key)} className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left">
-                <span className="flex items-baseline gap-3">
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
-                  <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
-                    {fmt(r.animals)}
-                  </span>
-                  <span
-                    className="w-[52px] shrink-0 text-right text-[12px] font-medium tabular-nums"
-                    style={{ color: r.net === 0 ? FAINT : TONE[netTone(r.net)] }}
-                  >
-                    {signed(r.net)}
-                  </span>
-                </span>
-                <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
-                  {r.code} · {r.species} species · {r.enclosures} enclosures · {r.percent.toFixed(1)}%
-                </span>
-                <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${Math.max(3, (r.animals / widest) * 100)}%`, backgroundColor: mix(ACCENT, 0.72) }}
-                  />
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      <div className="mt-2">
+        <RankList
+          items={shown.map((r) => ({
+            key: r.key,
+            title: r.name,
+            meta: `${r.code} · ${r.species} species · ${r.enclosures} enclosures`,
+            value: fmt(r.animals),
+            share: r.percent,
+            /* One decimal here, not the calm whole number: at six sites the reader is comparing
+               9.8 against 10.4, and both round to the same figure. */
+            shareText: `${r.percent.toFixed(1)}%`,
+            change: r.net === 0 ? undefined : signed(r.net),
+            onPick: () => onOpen(r.key),
+          }))}
+        />
       </div>
     </Section>
   )
@@ -1351,11 +1569,17 @@ const SPECIES_SORTS: [SpeciesSort, string][] = [
 ]
 
 /**
- * Every species, searched and paged.
+ * EVERY SPECIES, searched, sorted and paged — with the distribution stated once above the list
+ * instead of drawn on four hundred rows.
  *
- * NOT four hundred cards. The list is the whole registry under the scope, narrowed by the
- * toolbar's search box and paged twenty at a time — `MoreRows` states the real total beside
- * the page, so a list showing twenty rows can never be read as twenty species.
+ * The concentration ribbon is the whole reason this card does not need a bar per row. Before
+ * scrolling anything, the reader wants to know whether this is a collection of a few enormous
+ * shoals or of four hundred comparable holdings — that is one ribbon and one percentage, and
+ * once it is stated, every row below it can go back to being what it is: a name, a count, a
+ * share, a change and a door.
+ *
+ * The sex split moves into the row's own meta line rather than into three table columns that
+ * only appeared past 640px. Same five facts, no second rendering to keep in step.
  */
 function SpeciesCard({
   rows,
@@ -1375,7 +1599,17 @@ function SpeciesCard({
     20,
     [matched],
   )
-  const widest = Math.max(...matched.map((r) => r.animals), 1)
+
+  /* Concentration is a property of the WHOLE registry under the scope, so it is computed from
+     `rows` rather than from the search results — a ribbon that recut itself on every keystroke
+     would be answering a different question each time. */
+  const spread = useMemo(() => {
+    const top = [...rows].sort((a, b) => b.animals - a.animals).slice(0, 5)
+    return {
+      items: top.map((r) => ({ label: r.name, value: r.animals })),
+      total: rows.reduce((n, r) => n + r.animals, 0),
+    }
+  }, [rows])
 
   return (
     <Section
@@ -1383,6 +1617,12 @@ function SpeciesCard({
       label="Species population"
       aside={query ? `${matched.length} of ${rows.length}` : `${rows.length} species`}
     >
+      {rows.length > 5 && (
+        <div className="mb-4 border-b border-[#f0efec] pb-4">
+          <Concentration items={spread.items} total={spread.total} of={rows.length} unit="animals" />
+        </div>
+      )}
+
       <Chips
         options={SPECIES_SORTS.map(([k, l]) => [k, l] as [string, string])}
         value={sort}
@@ -1398,97 +1638,20 @@ function SpeciesCard({
         </p>
       )}
 
-      {/* Dense table where there is room; the sex columns wait for a little more of it. */}
-      <div className="mt-3.5 hidden @[560px]:block">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="pb-2 text-left text-[9.5px] font-medium tracking-[0.08em] uppercase" style={{ color: FAINT }}>
-                Species
-              </th>
-              {['Animals', 'M', 'F', 'U', 'Sites', 'Share'].map((h) => (
-                <th
-                  key={h}
-                  className={`pb-2 pl-3 text-right text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap uppercase ${
-                    'MFU'.includes(h) && h.length === 1 ? 'hidden @[640px]:table-cell' : ''
-                  }`}
-                  style={{ color: FAINT }}
-                >
-                  {h}
-                </th>
-              ))}
-              <th className="pb-2 pl-3 text-right text-[9.5px] font-medium tracking-[0.08em] uppercase" style={{ color: FAINT }}>
-                Standing
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {paged.rows.map((r) => (
-              <tr key={r.id} className="border-t border-[#f0efec]">
-                <td className="py-0">
-                  <button type="button" onClick={() => onOpen(r)} className="card-press block w-full py-2.5 text-left">
-                    <span className="block text-[13.5px] leading-[17px] text-[#1c1a16]">{r.name}</span>
-                    <span className="mt-0.5 block text-[11px] leading-[14px]" style={{ color: FAINT }}>
-                      {r.cls} · {r.siteName}
-                    </span>
-                  </button>
-                </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums" style={{ color: VALUE }}>
-                  {fmt(r.animals)}
-                </td>
-                <td className="hidden py-2.5 pl-3 text-right text-[12.5px] tabular-nums text-[#3d3a34] @[640px]:table-cell">
-                  {fmt(r.male)}
-                </td>
-                <td className="hidden py-2.5 pl-3 text-right text-[12.5px] tabular-nums text-[#3d3a34] @[640px]:table-cell">
-                  {fmt(r.female)}
-                </td>
-                <td className="hidden py-2.5 pl-3 text-right text-[12.5px] tabular-nums text-[#3d3a34] @[640px]:table-cell">
-                  {fmt(r.unknown)}
-                </td>
-                <td className="py-2.5 pl-3 text-right text-[12.5px] tabular-nums text-[#3d3a34]">{r.sites}</td>
-                <td className="py-2.5 pl-3 text-right text-[12.5px] tabular-nums text-[#3d3a34]">
-                  {r.percent < 0.01 ? '<0.01' : r.percent.toFixed(2)}%
-                </td>
-                <td className="py-2.5 pl-3 text-right text-[11px] whitespace-nowrap" style={{ color: FAINT }}>
-                  {standingLabel(r.standing)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Stacked rows on a phone. */}
-      <div className="mt-3.5 @[560px]:hidden">
-        <ul className="flex flex-col">
-          {paged.rows.map((r) => (
-            <li key={r.id} className="border-b border-[#f0efec] last:border-0">
-              <button type="button" onClick={() => onOpen(r)} className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left">
-                <span className="flex items-baseline gap-3">
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
-                  <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
-                    {fmt(r.animals)}
-                  </span>
-                  <span
-                    className="w-[46px] shrink-0 text-right text-[12px] font-medium tabular-nums"
-                    style={{ color: r.net === 0 ? FAINT : TONE[netTone(r.net)] }}
-                  >
-                    {signed(r.net)}
-                  </span>
-                </span>
-                <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
-                  {fmt(r.male)} M · {fmt(r.female)} F · {fmt(r.unknown)} U · {r.siteName} · {standingLabel(r.standing)}
-                </span>
-                <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${Math.max(3, (r.animals / widest) * 100)}%`, backgroundColor: mix(ACCENT, 0.72) }}
-                  />
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      <div className="mt-2">
+        <RankList
+          rank={sort === 'animals'}
+          items={paged.rows.map((r) => ({
+            key: r.id,
+            title: r.name,
+            meta: `${r.cls} · ${r.siteName}`,
+            meta2: `${standingLabel(r.standing)} · ${fmt(r.male)} M · ${fmt(r.female)} F · ${fmt(r.unknown)} U`,
+            value: fmt(r.animals),
+            share: r.percent,
+            change: r.net === 0 ? undefined : signed(r.net),
+            onPick: () => onOpen(r),
+          }))}
+        />
       </div>
 
       <MoreRows page={paged} noun="species" />

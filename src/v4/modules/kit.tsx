@@ -27,10 +27,10 @@ import {
   Section,
   Stack,
   TONE,
-  TRACK,
   useAccent,
   VALUE,
 } from '../../exec/system'
+import { Rail } from '../../exec/marks'
 import { useSheet } from '../sheet'
 import { useSite } from '../filters'
 
@@ -151,8 +151,11 @@ export function DrillRow({
   const accent = useAccent()
   const Glyph = lead
   const body = (
-    <>
-      <span className="flex items-center gap-3">
+    <span className="flex items-stretch gap-3">
+      {/* The row's share as the weight of a rail, not as a bar under the row — see the note on
+          `TapRow`'s `bar` in `v4/panels.tsx`. */}
+      {bar !== undefined && <Rail share={bar} />}
+      <span className="flex min-w-0 flex-1 items-center gap-3">
         {Glyph && (
           <span
             className="grid size-7 shrink-0 place-items-center rounded-[9px]"
@@ -179,15 +182,7 @@ export function DrillRow({
           <ChevronRight size={13} strokeWidth={2.25} />
         </span>
       </span>
-      {bar !== undefined && (
-        <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-          <span
-            className="block h-full rounded-full"
-            style={{ width: `${Math.max(3, Math.min(100, bar))}%`, backgroundColor: mix(accent, 0.72) }}
-          />
-        </span>
-      )}
-    </>
+    </span>
   )
   return (
     <li className="border-b border-[#f0efec] last:border-0">

@@ -280,6 +280,31 @@ export const mix = (hex: string, a: number) => {
   return `rgb(${m((n >> 16) & 255)} ${m((n >> 8) & 255)} ${m(n & 255)})`
 }
 
+/**
+ * THE SHARE RAIL — three pixels down the left edge of a row, weighted by its share.
+ *
+ * Lives here rather than in `exec/marks.tsx` for one reason: `Bars` below needs it, and
+ * `marks` already imports this file. `marks` re-exports it, so every call site outside this
+ * file can go on importing it from there with the rest of the visualisation language.
+ *
+ * The mark it replaced was the full-width progress bar that used to sit under every row of
+ * every list in the product. That bar drew a ranking the row order already stated, and it made
+ * twenty different questions look like one chart. The rail says where a row sits in the spread
+ * — dark at the top, nearly invisible at the tail — small enough that a list of twenty reads as
+ * a gradient rather than as twenty bars.
+ */
+export function Rail({ share, top = 100, color }: { share: number; top?: number; color?: string }) {
+  const accent = useAccent()
+  const weight = 0.16 + Math.min(1, Math.max(0, share) / Math.max(1, top)) * 0.62
+  return (
+    <span
+      className="w-[3px] shrink-0 self-stretch rounded-full"
+      style={{ backgroundColor: mix(color ?? accent, weight) }}
+      aria-hidden
+    />
+  )
+}
+
 export const fmt = (n: number) => n.toLocaleString('en-US')
 export const compact = (n: number) => {
   const a = Math.abs(n)
@@ -556,70 +581,106 @@ export function MetricGrid({
 }
 
 /**
- * Ranked composition — bar length is the message, accent step is the rank.
+ * A RANKING — rows in order, with the share as a rail rather than as a bar apiece.
  *
- * `color` overrides the accent step for one row, and exists for scales whose colours
- * mean something OUTSIDE this app. The IUCN Red List categories are the case:
- * "Critically Endangered" is red the world over, and rendering it as the palest step
- * of a green ramp because it happens to be the smallest number would be throwing away
- * the one piece of encoding every reader already knows. Use it for published scales
- * only — never to give an ordinary series its own hues.
+ * This was twenty-five stacks of full-width bars across the product, and it was the single
+ * biggest reason every page read as the same page: the bar drew the ordering that the row
+ * order already states, so a ranking of causes, of species and of sites all came out as one
+ * chart repeated. The rows now carry the figure and the share as type, and the rail carries
+ * the spread. `precise` puts the bar back for the rare card where comparing lengths IS the
+ * question.
+ *
+ * `color` overrides the accent for one row, and exists for scales whose colours mean something
+ * OUTSIDE this app. The IUCN Red List categories are the case: "Critically Endangered" is red
+ * the world over, and rendering it as the palest step of a green ramp because it happens to be
+ * the smallest number would be throwing away the one piece of encoding every reader already
+ * knows. Use it for published scales only — never to give an ordinary series its own hues.
  */
 export function Bars({
   items,
   unit,
   showShare = false,
+  precise = false,
 }: {
   items: { label: string; value: number; sub?: string; color?: string }[]
   unit?: string
   showShare?: boolean
+  /**
+   * Draw the full-width bar instead of the rail.
+   *
+   * For the rare card where comparing MAGNITUDES is the point rather than reading the ranking
+   * — two lengths side by side answer "twice as many?" faster than two numbers do. Everywhere
+   * else the rows are already in order and the bar was drawing that ordering a second time.
+   */
+  precise?: boolean
 }) {
   const accent = useAccent()
   const { ref, animate } = usePlay<HTMLUListElement>()
   const max = Math.max(...items.map((i) => i.value), 1)
   const total = items.reduce((s, i) => s + i.value, 0) || 1
+
+  /* A decimal below 1%, because `toFixed(0)` printed "0%" beside 388 Critically Endangered
+     animals — a real figure rounded into nothing. Whole numbers everywhere else. */
+  const shareText = (v: number) => {
+    const p = (v / total) * 100
+    return `${p >= 1 || p === 0 ? p.toFixed(0) : p.toFixed(1)}%`
+  }
+
   return (
-    <ul ref={ref} className="flex flex-col gap-3.5">
-      {items.map((it, i) => (
-        <li key={it.label}>
-          <div className="flex items-baseline gap-3">
-            <span className="min-w-0 flex-1 truncate text-[14px] text-[#1c1a16]">{it.label}</span>
-            {it.sub && <span className="shrink-0 text-[11px] text-[#9b958b]">{it.sub}</span>}
-            <span className="shrink-0 text-[14px] font-medium tabular-nums text-[#1c1a16]">
+    <ul ref={ref} className={precise ? 'flex flex-col gap-3.5' : 'flex flex-col'}>
+      {items.map((it, i) => {
+        const figure = (
+          <span className="shrink-0 text-right">
+            <span className="block text-[14px] font-medium tabular-nums text-[#1c1a16]">
               {compact(it.value)}
               {unit && <span className="ml-0.5 text-[11px] font-normal text-[#9b958b]">{unit}</span>}
-              {showShare && (
-                /* A decimal below 1%, because `toFixed(0)` printed "0%" beside 388
-                   Critically Endangered animals — a real figure rounded into
-                   nothing. Whole numbers everywhere else. */
-                <span className="ml-1.5 text-[11px] font-normal text-[#9b958b]">
-                  {(() => {
-                    const pct = (it.value / total) * 100
-                    return pct >= 1 || pct === 0 ? pct.toFixed(0) : pct.toFixed(1)
-                  })()}
-                  %
-                </span>
-              )}
             </span>
-          </div>
-          <div className="mt-1.5 h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-            <div
-              className={`h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
-              style={{
-                /* Floor of 4%, not 2%. On a distribution as skewed as the IUCN
-                   categories — 178,240 against 388, a 460× spread — a 2% stub
-                   rendered as a dot too small to take a colour from, which defeats
-                   the point of colouring it. 4% is the least that reads as a bar.
-                   The number and share beside it carry the magnitude; the bar's job
-                   at this end is to be identifiably red. */
-                width: `${Math.max(4, (it.value / max) * 100)}%`,
-                backgroundColor: it.color ?? mix(accent, step(i)),
-                animationDelay: animate ? `${i * 60}ms` : undefined,
-              }}
-            />
-          </div>
-        </li>
-      ))}
+            {showShare && (
+              <span className="mt-0.5 block text-[11px] tabular-nums text-[#9b958b]">{shareText(it.value)}</span>
+            )}
+          </span>
+        )
+
+        if (precise) {
+          return (
+            <li key={it.label}>
+              <div className="flex items-baseline gap-3">
+                <span className="min-w-0 flex-1 truncate text-[14px] text-[#1c1a16]">{it.label}</span>
+                {it.sub && <span className="shrink-0 text-[11px] text-[#9b958b]">{it.sub}</span>}
+                {figure}
+              </div>
+              <div className="mt-1.5 h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+                <div
+                  className={`h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
+                  style={{
+                    /* Floor of 4%: on a spread as skewed as the IUCN categories — 178,240
+                       against 388 — a 2% stub rendered as a dot too small to take a colour
+                       from, which defeats the point of colouring it. */
+                    width: `${Math.max(4, (it.value / max) * 100)}%`,
+                    backgroundColor: it.color ?? mix(accent, step(i)),
+                    animationDelay: animate ? `${i * 60}ms` : undefined,
+                  }}
+                />
+              </div>
+            </li>
+          )
+        }
+
+        return (
+          <li key={it.label} className="border-b border-[#f0efec] last:border-0">
+            <div className="flex items-stretch gap-2.5 py-2.5 first:pt-0">
+              <Rail share={(it.value / max) * 100} color={it.color} />
+              <span className="min-w-0 flex-1 self-center">
+                <span className="block truncate text-[13.5px] leading-[18px] text-[#1c1a16]">{it.label}</span>
+                {it.sub && (
+                  <span className="mt-0.5 block truncate text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>
+                )}
+              </span>
+              <span className="self-center">{figure}</span>
+            </div>
+          </li>
+        )
+      })}
     </ul>
   )
 }
@@ -2895,7 +2956,13 @@ export function Sites({
           /* Spans, not divs — the row is wrapped in a button when it drills, and a button may
              only carry phrasing content. The marks and the measurements are unchanged. */
           const row = (
-            <>
+            /* A RATE KEEPS ITS BAR, A COUNT GETS THE RAIL. Coverage is measured against 100%
+               and a track that fills is the fact — how far along, at a glance. A count has no
+               ceiling, so the bar could only be scaled to the widest row, which draws the
+               ranking the rows are already in. See `Rail` above. */
+            <span className={rate ? 'block' : 'flex items-stretch gap-2.5'}>
+              {!rate && <Rail share={r.percent} top={Math.max(...cut.rows.map((x) => x.percent), 1)} />}
+              <span className="min-w-0 flex-1">
               <span className="flex items-baseline justify-between gap-3">
                 <span className="flex min-w-0 items-baseline gap-2">
                   <span className="truncate text-[13.5px] text-[#1c1a16]">{r.site.name}</span>
@@ -2919,26 +2986,22 @@ export function Sites({
                   )}
                 </span>
               </span>
-              <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-                <span
-                  className="block h-full rounded-full"
-                  style={{
-                    /* A rate is measured against 100% — a coverage bar scaled so the
-                       best site fills the track would say Reptile House is doing fine.
-                       A count has no natural ceiling, so there the widest row fills it;
-                       scaling counts against the total leaves every bar a stub on a
-                       six-way split. */
-                    width: `${clamp(
-                      rate ? r.percent : (r.percent / Math.max(...cut.rows.map((x) => x.percent), 1)) * 100,
-                    )}%`,
-                    /* Shade comes from the site's rank in the FULL list, not its
-                       position in the filtered one — searching for "reptile" should not
-                       repaint that row the darkest step just because it is now first. */
-                    backgroundColor: mix(accent, step(cut.rows.indexOf(r))),
-                  }}
-                />
+              {rate && (
+                <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+                  <span
+                    className="block h-full rounded-full"
+                    style={{
+                      width: `${clamp(r.percent)}%`,
+                      /* Shade comes from the site's rank in the FULL list, not its position in
+                         the filtered one — searching for "reptile" should not repaint that row
+                         the darkest step just because it is now first. */
+                      backgroundColor: mix(accent, step(cut.rows.indexOf(r))),
+                    }}
+                  />
+                </span>
+              )}
               </span>
-            </>
+            </span>
           )
 
           return (

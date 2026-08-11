@@ -23,7 +23,8 @@
 
 import type { ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
-import { FAINT, TONE, TRACK, VALUE, mix, useAccent, type Tone } from '../../exec/system'
+import { FAINT, TONE, VALUE, useAccent, type Tone } from '../../exec/system'
+import { Rail } from '../../exec/marks'
 
 export interface Col<T> {
   key: string
@@ -179,7 +180,13 @@ export function RankTable<T>({
           const chips = columns.slice(1).filter((c) => c.compact !== false)
           const leadTone = lead?.tone?.(r)
           const body = (
-            <>
+            /* The share is the WEIGHT OF THE RAIL down the row's left edge, not a bar under it.
+               Four sections of this page render through here, and four stacks of full-width
+               progress bars were four charts of an ordering the rows already state — see the
+               note on `TapRow`'s `bar` in `v4/panels.tsx`. */
+            <span className="flex items-stretch gap-3">
+              {bar && <Rail share={bar(r)} />}
+              <span className="min-w-0 flex-1">
               <span className="flex items-baseline gap-3">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13.5px] text-[#1c1a16]">{name(r)}</span>
@@ -209,18 +216,6 @@ export function RankTable<T>({
                 )}
               </span>
 
-              {bar && (
-                <span
-                  className="mt-1.5 block h-[5px] overflow-hidden rounded-full"
-                  style={{ backgroundColor: TRACK }}
-                >
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${Math.max(2, Math.min(100, bar(r)))}%`, backgroundColor: mix(accent, 0.72) }}
-                  />
-                </span>
-              )}
-
               {chips.length > 0 && (
                 <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
                   {chips.map((c) => {
@@ -239,7 +234,8 @@ export function RankTable<T>({
                   })}
                 </span>
               )}
-            </>
+              </span>
+            </span>
           )
 
           return (

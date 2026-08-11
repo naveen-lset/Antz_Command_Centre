@@ -62,6 +62,7 @@ import {
   mix,
   useAccent,
 } from '../../exec/system'
+import { Lifecycle, RankList } from '../../exec/marks'
 import { DrillList, DrillRow, useSheet, useSite } from './kit'
 import {
   FIRST_HATCHES,
@@ -182,7 +183,7 @@ export default function Eggs() {
           {t.laid === 0 && t.hatched === 0 ? (
             <Nil>No egg activity in this window</Nil>
           ) : (
-            <Lifecycle totals={t} onStage={stage} rows={{ laid, hatched, discarded, survived, lost }} />
+            <EggLifecycle totals={t} onStage={stage} rows={{ laid, hatched, discarded, survived, lost }} />
           )}
         </Section>
 
@@ -519,51 +520,75 @@ function EggHero({
 
 /* ── the lifecycle ───────────────────────────────────────────────────────── */
 
-function Lifecycle({ totals: t, rows, onStage }: { totals: Totals; rows: Sets; onStage: Stage }) {
-  const accent = useAccent()
-  const widest = Math.max(t.laid, t.hatched, 1)
+/**
+ * THE LIFECYCLE, AS A FUNNEL — and the two losses that hang off it, as rows.
+ *
+ * This card was five indented progress bars, which is the shape that hid the only thing it
+ * exists to say. Set, hatched and survived are a real chain — each a subset of the one above —
+ * and a funnel is the mark for that: the taper IS the conversion, and the percentage beside
+ * each stage names it.
+ *
+ * DISCARD AND MORTALITY ARE NOT STAGES OF THAT CHAIN, and drawing them as two more bars in the
+ * same list is exactly how a reader comes to believe a discarded egg is a dead hatchling. They
+ * sit under their own rule, each stating the base it is a share OF — discard off the eggs set,
+ * mortality off the hatchlings — which is the distinction the note at the bottom of the card
+ * spells out.
+ */
+function EggLifecycle({ totals: t, rows, onStage }: { totals: Totals; rows: Sets; onStage: Stage }) {
   const surv = survivalRate(t)
   const hatch = hatchRate(t)
 
-  const bar = (
-    key: string,
-    label: string,
-    value: number,
-    note: string,
-    colour: string,
-    depth: 0 | 1 | 2,
-    onClick?: () => void,
-  ) => (
-    <li key={key} className="relative" style={{ paddingLeft: depth * 16 }}>
-      {depth > 0 && (
-        <span className="absolute top-0 bottom-[10px] w-px" style={{ left: depth * 16 - 9, backgroundColor: '#e6e4df' }} aria-hidden />
-      )}
-      <button type="button" onClick={onClick} disabled={!onClick} className="card-press block w-full text-left disabled:cursor-default">
-        <span className="flex items-baseline gap-3">
-          <span className="min-w-0 flex-1 truncate" style={{ fontSize: depth === 0 ? 14 : 13, color: depth === 0 ? INK : '#3d3a34' }}>
-            {label}
-          </span>
-          <span className="shrink-0 text-[11px] whitespace-nowrap" style={{ color: FAINT }}>{note}</span>
-          <span className="font-display shrink-0 text-[15px] leading-none font-bold tabular-nums" style={{ color: value ? VALUE : '#c2beb6' }}>
-            {fmt(value)}
-          </span>
-        </span>
-        <span className="mt-1.5 block h-[8px] w-full overflow-hidden rounded-[4px]" style={{ backgroundColor: TRACK }}>
-          <span className="block h-full rounded-[4px]" style={{ width: `${Math.max(1.5, (value / widest) * 100)}%`, backgroundColor: colour }} />
-        </span>
-      </button>
-    </li>
-  )
-
   return (
     <>
-      <ul className="flex flex-col gap-3">
-        {bar('laid', 'Eggs set', t.laid, 'by set date', mix(accent, 0.28), 0, onStage(rows.laid, 'Eggs set', `${t.laid} eggs set down in this window.`))}
-        {bar('disc', 'Discarded', t.discarded, hatch === null ? 'of eggs set' : `${Math.round(pct(t.discarded, t.laid))}% of set`, mix(TONE.warn, 0.55), 1, onStage(rows.discarded, 'Discarded', `${t.discarded} eggs removed before hatching. Not mortality.`))}
-        {bar('hatch', 'Hatched', t.hatched, hatch === null ? 'by hatch date' : `${Math.round(hatch)}% hatch rate`, accent, 0, onStage(rows.hatched, 'Hatched', `${t.hatched} hatchings recorded in this window.`))}
-        {bar('surv', 'Survived', t.survived, surv === null ? 'of hatched' : `${Math.round(surv)}% of hatched`, mix(accent, 0.78), 1, onStage(rows.survived, 'Survived', `${t.survived} of ${t.hatched} hatchlings alive as of today.`))}
-        {bar('mort', 'Mortality', t.mortality, surv === null ? 'of hatched' : `${100 - Math.round(surv)}% of hatched`, mix(TONE.bad, 0.6), 1, onStage(rows.lost, 'Mortality', `${t.mortality} hatchlings hatched alive and died.`))}
-      </ul>
+      <Lifecycle
+        stages={[
+          {
+            key: 'laid',
+            label: 'Eggs set',
+            value: t.laid,
+            meta: 'by set date',
+            onPick: onStage(rows.laid, 'Eggs set', `${t.laid} eggs set down in this window.`),
+          },
+          {
+            key: 'hatched',
+            label: 'Hatched',
+            value: t.hatched,
+            meta: hatch === null ? 'by hatch date' : `${Math.round(hatch)}% hatch rate`,
+            onPick: onStage(rows.hatched, 'Hatched', `${t.hatched} hatchings recorded in this window.`),
+          },
+          {
+            key: 'survived',
+            label: 'Survived',
+            value: t.survived,
+            meta: surv === null ? 'of hatched' : `${Math.round(surv)}% of hatched`,
+            onPick: onStage(rows.survived, 'Survived', `${t.survived} of ${t.hatched} hatchlings alive as of today.`),
+          },
+        ]}
+      />
+
+      <Rule label="Losses, and what each is a share of" />
+      <RankList
+        rank={false}
+        showShare={false}
+        items={[
+          {
+            key: 'discarded',
+            title: 'Discarded',
+            meta: t.laid === 0 ? 'of eggs set' : `${Math.round(pct(t.discarded, t.laid))}% of the eggs set`,
+            value: fmt(t.discarded),
+            share: t.laid === 0 ? 0 : pct(t.discarded, t.laid),
+            onPick: onStage(rows.discarded, 'Discarded', `${t.discarded} eggs removed before hatching. Not mortality.`),
+          },
+          {
+            key: 'mortality',
+            title: 'Mortality',
+            meta: surv === null ? 'of hatched' : `${100 - Math.round(surv)}% of the hatchlings`,
+            value: fmt(t.mortality),
+            share: surv === null ? 0 : 100 - surv,
+            onPick: onStage(rows.lost, 'Mortality', `${t.mortality} hatchlings hatched alive and died.`),
+          },
+        ]}
+      />
       <p className="mt-4 border-t pt-3 text-[11px] leading-[16px]" style={{ borderColor: HAIR, color: FAINT }}>
         Discard hangs off the eggs set, not off the hatchlings: an egg that was thrown away never
         hatched, so it is never mortality. Set and hatched are counted on their own dates — a clutch

@@ -44,7 +44,6 @@ import { resolveWindow, shortDate, type Win, type WindowKey } from '../../core/c
 import { SITES } from '../../core/world'
 import {
   ACCENT_INK,
-  Composition,
   FAINT,
   Facts,
   Figure,
@@ -54,13 +53,13 @@ import {
   Snapshot,
   Stack,
   TONE,
-  TRACK,
   VALUE,
   fmt,
   mix,
   step,
   useAccent,
 } from '../../exec/system'
+import { Rail, Ribbon } from '../../exec/marks'
 import { TapList, TapRow } from '../panels'
 import { useSheet } from '../sheet'
 import { useScope } from '../scope'
@@ -232,7 +231,10 @@ export default function Pharmacy() {
           label="Usage by category"
           aside={facets.category === 'all' ? `${fmt(use.total)} units` : facets.category}
         >
-          <Composition items={use.categories.map((c) => ({ label: c.category, value: c.units }))} unit="units issued" />
+          {/* ONE composition mark, not a second copy of the rows below it. The stacked bar and
+              its legend restated every category name and share that the tappable rows already
+              carry; the ribbon states the shape and the rows state the facts. */}
+          <Ribbon items={use.categories.map((c) => ({ label: c.category, value: c.units }))} height={11} />
           <Rule label="Tap to drill" />
           <TapList>
             {use.categories
@@ -319,11 +321,12 @@ export default function Pharmacy() {
                 site — clear the site filter to see it.
               </p>
             ) : (
-              <Composition
+              <Ribbon
                 items={[
                   { label: 'Central', value: expiry.central.cost },
                   { label: 'Local', value: expiry.local.cost },
                 ]}
+                height={11}
               />
             )}
             <div className="mt-4">
@@ -1017,22 +1020,19 @@ function SiteRequestsCard({
               <button
                 type="button"
                 onClick={() => open({ title: r.name, eyebrow: 'Site pharmacy', body: <SitePharmacyPanel siteKey={r.key} scope={{ ...scope, siteKey: r.key }} /> })}
-                className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left"
+                className="card-press -mx-2 flex w-full items-stretch gap-3 rounded-[10px] px-2 py-2.5 text-left"
               >
+                <Rail share={(r[sort] / widest) * 100} />
+                <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-3">
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
-                  <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
-                    {inr(r.cost)}
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
+                    <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                      {inr(r.cost)}
+                    </span>
                   </span>
-                </span>
-                <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
-                  {fmt(r.requests)} requests · {fmt(r.qty)} units · {r.pending} pending
-                </span>
-                <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${Math.max(3, (r[sort] / widest) * 100)}%`, backgroundColor: mix('#2f9e5b', 0.72) }}
-                  />
+                  <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
+                    {fmt(r.requests)} requests · {fmt(r.qty)} units · {r.pending} pending
+                  </span>
                 </span>
               </button>
             </li>
@@ -1289,24 +1289,21 @@ function SiteOverviewCard({
         <ul className="flex flex-col">
           {shown.map((r) => (
             <li key={r.key} className="border-b border-[#f0efec] last:border-0">
-              <button type="button" onClick={() => openSite(r)} className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left">
+              <button type="button" onClick={() => openSite(r)} className="card-press -mx-2 flex w-full items-stretch gap-3 rounded-[10px] px-2 py-2.5 text-left">
+                <Rail share={(r[sort] / widest) * 100} />
+                <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-3">
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
-                  <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
-                    {fmt(r.units)}
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
+                    <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                      {fmt(r.units)}
+                    </span>
+                    <span className="w-[52px] shrink-0 text-right text-[12px] tabular-nums" style={{ color: FAINT }}>
+                      {inr(r.cost)}
+                    </span>
                   </span>
-                  <span className="w-[52px] shrink-0 text-right text-[12px] tabular-nums" style={{ color: FAINT }}>
-                    {inr(r.cost)}
+                  <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
+                    {r.code} · {fmt(r.requests)} requests · {r.pending} pending · {inr(r.expired)} expired · {r.unavailable} nil
                   </span>
-                </span>
-                <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
-                  {r.code} · {fmt(r.requests)} requests · {r.pending} pending · {inr(r.expired)} expired · {r.unavailable} nil
-                </span>
-                <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${Math.max(3, (r[sort] / widest) * 100)}%`, backgroundColor: mix('#2f9e5b', 0.72) }}
-                  />
                 </span>
               </button>
             </li>
@@ -1456,28 +1453,25 @@ function MedicineRecords({
               <button
                 type="button"
                 onClick={() => open({ title: r.name, eyebrow: 'Medicine', body: <MedicinePanel medicineId={r.id} scope={scope} /> })}
-                className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left"
+                className="card-press -mx-2 flex w-full items-stretch gap-3 rounded-[10px] px-2 py-2.5 text-left"
               >
+                <Rail share={(r.units / widest) * 100} />
+                <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-3">
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
-                  <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
-                    {fmt(r.units)}
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
+                    <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                      {fmt(r.units)}
+                    </span>
+                    <span
+                      className="w-[64px] shrink-0 text-right text-[11px] tabular-nums"
+                      style={{ color: tone(r) ? TONE[tone(r)!] : FAINT }}
+                    >
+                      {status(r)}
+                    </span>
                   </span>
-                  <span
-                    className="w-[64px] shrink-0 text-right text-[11px] tabular-nums"
-                    style={{ color: tone(r) ? TONE[tone(r)!] : FAINT }}
-                  >
-                    {status(r)}
+                  <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
+                    {r.category} · {r.requests} requests · {inr(r.cost)} · {inr(r.price)} per unit
                   </span>
-                </span>
-                <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
-                  {r.category} · {r.requests} requests · {inr(r.cost)} · {inr(r.price)} per unit
-                </span>
-                <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${Math.max(3, (r.units / widest) * 100)}%`, backgroundColor: mix('#2f9e5b', 0.72) }}
-                  />
                 </span>
               </button>
             </li>

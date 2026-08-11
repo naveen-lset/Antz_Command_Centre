@@ -37,6 +37,7 @@ import {
   useAccent,
   type Tone,
 } from '../../exec/system'
+import { Rail } from '../../exec/marks'
 
 /* ── vaccination · the schedule grid ─────────────────────────────────────── */
 
@@ -297,17 +298,19 @@ export function UsageSplit({
   items: { id: string; label: string; value: number }[]
   onOpen?: (id: string) => void
 }) {
-  const accent = useAccent()
-  const { ref, animate } = usePlay<HTMLUListElement>()
+  const { ref } = usePlay<HTMLUListElement>()
   const total = items.reduce((n, i) => n + i.value, 0) || 1
 
   return (
     <ul ref={ref} className="flex flex-col">
-      {items.map((it, i) => {
+      {items.map((it) => {
         const share = (it.value / total) * 100
         const body = (
-          <>
-            <span className="flex items-baseline gap-3">
+          /* The share is the rail's weight, not a bar under the row — see the note on `TapRow`'s
+             `bar` in `v4/panels.tsx`. */
+          <span className="flex items-stretch gap-3">
+            <Rail share={share} />
+            <span className="flex min-w-0 flex-1 items-baseline gap-3">
               <span className="min-w-0 flex-1 truncate text-[13px]" style={{ color: INK }}>
                 {it.label}
               </span>
@@ -318,17 +321,7 @@ export function UsageSplit({
                 {share.toFixed(1)}%
               </span>
             </span>
-            <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-              <span
-                className={`block h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
-                style={{
-                  width: `${Math.max(2, share)}%`,
-                  backgroundColor: mix(accent, step(i)),
-                  animationDelay: animate ? `${i * 60}ms` : undefined,
-                }}
-              />
-            </span>
-          </>
+          </span>
         )
         return (
           <li key={it.id} className="border-b border-[#f0efec] py-2.5 last:border-0">

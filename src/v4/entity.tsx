@@ -75,7 +75,6 @@ import {
 import {
   ACCENT,
   ACCENT_INK,
-  Bars,
   FAINT,
   Facts,
   Figure,
@@ -84,11 +83,11 @@ import {
   Section,
   Stack,
   TONE,
-  TRACK,
   compact,
   fmt,
   mix,
 } from '../exec/system'
+import { Rail, RankList, SplitRing } from '../exec/marks'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
 
@@ -157,8 +156,11 @@ function EntityRow({
   const Glyph = KIND_ICON[entity.kind]
   return (
     <li className="border-b border-[#f0efec] last:border-0">
-      <a href={href(entityHref(entity).slice(2))} className="card-press -mx-2 block rounded-[10px] px-2 py-2.5">
-        <span className="flex items-center gap-3">
+      <a href={href(entityHref(entity).slice(2))} className="card-press -mx-2 flex items-stretch gap-3 rounded-[10px] px-2 py-2.5">
+        {/* The row's share as the weight of a rail rather than a bar under it — see the note on
+            `TapRow`'s `bar` in `v4/panels.tsx`. */}
+        {bar !== undefined && <Rail share={bar} color={ACCENT} />}
+        <span className="flex min-w-0 flex-1 items-center gap-3">
           <span
             className="grid size-7 shrink-0 place-items-center rounded-[9px]"
             style={{ backgroundColor: mix(ACCENT, 0.1) }}
@@ -182,14 +184,6 @@ function EntityRow({
           )}
           <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
         </span>
-        {bar !== undefined && (
-          <span className="mt-1.5 block h-[5px] overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-            <span
-              className="block h-full rounded-full"
-              style={{ width: `${Math.max(3, Math.min(100, bar))}%`, backgroundColor: mix(ACCENT, 0.72) }}
-            />
-          </span>
-        )}
       </a>
     </li>
   )
@@ -779,10 +773,19 @@ function Breakdown({ slug, by, label, siteKey }: { slug: string; by: Dimension; 
     () => byDimension({ site: siteKey ? (siteOf(siteKey) ?? null) : null, win: scope.win }, slug, by).slice(0, 8),
     [slug, by, siteKey, scope.win],
   )
+  const total = rows.reduce((n, r) => n + r.value, 0)
   if (rows.length === 0) return null
   return (
     <Section icon={Layers} label={label} aside={`${rows.length}`}>
-      <Bars items={rows.map((r) => ({ label: r.label, value: r.value }))} unit={METRICS[slug]?.unit} />
+      <RankList
+        rank={false}
+        items={rows.map((r) => ({
+          key: r.label,
+          title: r.label,
+          value: fmt(r.value),
+          share: total ? (r.value / total) * 100 : 0,
+        }))}
+      />
     </Section>
   )
 }
@@ -833,13 +836,14 @@ function SpeciesPage({ entity }: { entity: Entity }) {
       <Stack>
         {split && (
           <Section icon={Layers} label="Sex" aside="derived from class">
-            <Bars
-              items={[
-                { label: 'Undetermined', value: split.undetermined },
-                { label: 'Male', value: split.male },
-                { label: 'Female', value: split.female },
-              ]}
+            <SplitRing
+              label="Animals"
               unit="animals"
+              items={[
+                { key: 'u', label: 'Undetermined', value: split.undetermined },
+                { key: 'm', label: 'Male', value: split.male },
+                { key: 'f', label: 'Female', value: split.female },
+              ]}
             />
           </Section>
         )}
@@ -1115,13 +1119,14 @@ function DepartmentPage({ entity }: { entity: Entity }) {
       />
       <Stack>
         <Section icon={UsersIcon} label="Adoption">
-          <Bars
-            items={[
-              { label: 'Active', value: active },
-              { label: 'Dormant', value: staff.filter((u) => u.status === 'dormant').length },
-              { label: 'Never signed in', value: staff.filter((u) => u.status === 'never').length },
-            ]}
+          <SplitRing
+            label="Accounts"
             unit="accounts"
+            items={[
+              { key: 'active', label: 'Active', value: active, meta: 'Signed in within 30 days' },
+              { key: 'dormant', label: 'Dormant', value: staff.filter((u) => u.status === 'dormant').length },
+              { key: 'never', label: 'Never signed in', value: staff.filter((u) => u.status === 'never').length },
+            ]}
           />
         </Section>
         <Section icon={UsersIcon} label="Staff" aside={fmt(staff.length)}>
