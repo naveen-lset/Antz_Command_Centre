@@ -1,99 +1,142 @@
 /**
- * 30-DAY TRENDS — the three series that move, on one window.
+ * TRENDS — every flow the database records, on one window and one axis.
  *
- * The point of collecting them here is comparability. Each module carries its own
- * trend, but read one at a time nobody notices that the new-case rise in week two
- * and the mortality rise in week three are the same aquatic event eight days apart.
- * Same window, same buckets, same axis treatment on all three.
+ * REBUILT ON THE SAME SERIES THE MODULES READ. The point of collecting them here is
+ * comparability, and that premise was right in the authored version: read one at a time, nobody
+ * notices that a rise in one series and a rise in another are the same event days apart.
  *
- * Under each trend sits the ranked breakdown that explains it, then the link down
- * to the animals behind it — shape, then cause, then names.
+ * WHAT WAS WRONG WITH IT was that comparability was the one thing it did not have. The three
+ * trends were fifteen typed values each, invented independently, under labels claiming four
+ * weeks; one carried a comment dating an aviary respiratory outbreak to 21 July, which is a
+ * finding asserted about a chart that was authored to show it. Every series here now comes from
+ * `pointsOf` over the SAME window with the SAME bucket count, so two series are genuinely on
+ * one axis and a coincidence between them is a fact about the collection rather than about the
+ * person who typed them.
+ *
+ * IT COVERS ALL EIGHT FLOWS, not three. The old page picked natality, mortality and new cases
+ * because those were the three that had been authored. The registry now has every flow the ETL
+ * found, so the page shows what exists — and the ones with no source do not appear at all
+ * rather than appearing flat at zero, because `METRICS[slug]` is undefined for them and this
+ * page iterates the registry rather than a hand-written list. Extend the ETL and a ninth series
+ * arrives here without anyone editing this file.
+ *
+ * THE TITLE IS NO LONGER "30-DAY". It reads the global window like every other page, and a page
+ * called 30-Day Trends showing a six-month cut was the same class of contradiction as the July
+ * 2025 footer. The registry title is left alone; the page states the real span.
  */
 
-import { Activity, Baby, Stethoscope } from 'lucide-react'
-import { Bars, Donut, Hero, Ladder, More, Rule, Section, Stack, Stamp, Trend } from '../system'
+import { useMemo } from 'react'
+import { Activity } from 'lucide-react'
+import { METRICS } from '../../core/metrics'
+import { figure } from '../../core/query'
+import { AccentProvider, FAINT, Figure, HERO_INK, Section, Stack, Stamp, fmt } from '../system'
+import { EventTrend } from '../marks'
+import { compareOf, peakOf, pointsOf } from '../../v4/plot'
+import { useScope } from '../../v4/scope'
 
-const WEEKS = ['Week 1', 'Week 2', 'Week 3', 'Week 4']
+const TRENDS_ACCENT = '#2f5f6b'
+
+/**
+ * The order the series are read in — collection events first, then clinical, then preventive.
+ *
+ * A hand-written ORDER over a registry-driven list, which is the one thing authored here: the
+ * registry's own key order is the ETL's, and "vaccinationDue before admissions" is an artefact
+ * of how the tables were parsed rather than a reading order. Any flow not named here still
+ * renders, after these, so adding a metric to the ETL cannot silently drop it from this page.
+ */
+const ORDER = [
+  'births',
+  'accession',
+  'mortality',
+  'transfers',
+  'admissions',
+  'disease',
+  'pharmacy',
+  'vaccinations',
+  'deworming',
+  'supplement',
+]
+
+/** Mortality is the one series where a rise is bad — the same inversion `mortality.tsx` makes. */
+const INVERTED = new Set(['mortality', 'disease'])
 
 export default function Trends() {
+  const { scope } = useScope()
+
+  const slugs = useMemo(() => {
+    const flows = Object.keys(METRICS).filter((s) => METRICS[s].kind === 'flow')
+    const known = ORDER.filter((s) => flows.includes(s))
+    return [...known, ...flows.filter((s) => !known.includes(s))]
+  }, [])
+
   return (
-    <>
-      <Hero
-        icon={Activity}
-        value="30"
-        unit="d"
-        label="Trend window"
-        status="02 Jul – 01 Aug"
-        stats={[
-          { value: '45', label: 'Births' },
-          { value: '23', label: 'Deaths' },
-          { value: '50', label: 'New cases' },
-        ]}
-      />
+    <AccentProvider value={TRENDS_ACCENT}>
+      <div className="w-full px-[var(--gutter)] pb-3">
+        <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
+          <div className="flex items-end justify-between gap-4">
+            <span>
+              <Figure value={fmt(scope.win.days)} unit="d" size={48} color={HERO_INK} />
+              <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
+                <Activity size={15} strokeWidth={1.75} style={{ color: TRENDS_ACCENT }} aria-hidden />
+                Trend window · {slugs.length} series
+              </p>
+            </span>
+            <span className="shrink-0 pb-1 text-right text-caption" style={{ color: FAINT }}>
+              {scope.site?.name ?? 'All sites'}
+              <br />
+              {scope.win.window}
+            </span>
+          </div>
+        </section>
+      </div>
       <Stack>
-        <Section icon={Baby} label="Natality" aside={<More href="#/births/records" />}>
-          <Trend
-            values={[2, 2, 3, 3, 4, 4, 3, 3, 3, 4, 3, 3, 3, 3, 2]}
-            labels={WEEKS}
-            unit="45 births · 2-day buckets"
-          />
-          <Rule label="Top species" />
-          <Ladder
-            leader={{ label: 'Zebra Finch', sub: 'Open Aviary 4 · 2 clutches', value: '18' }}
-            rest={[
-              { label: 'Blackbuck', sub: 'Savanna Paddocks · 4 dams', value: '7' },
-              { label: 'Nilgai', sub: 'Wetland Reserve', value: '6' },
-              { label: 'Indian Peafowl', sub: 'Aviary Complex', value: '5' },
-              { label: 'Others', sub: '20 species', value: '9' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Activity} label="Mortality" aside={<More href="#/mortality/records" />}>
-          <Trend
-            tone="bad"
-            values={[1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 4, 3, 1]}
-            labels={WEEKS}
-            unit="23 deaths · 2-day buckets"
-          />
-          <Rule label="Causes" />
-          <Donut
-            label="Deaths"
-            items={[
-              { label: 'Natural causes', value: 9 },
-              { label: 'Disease', value: 5 },
-              { label: 'Injury', value: 3 },
-              { label: 'Trauma', value: 2, tone: 'bad' },
-              { label: 'Undetermined', value: 2 },
-              { label: 'Other · 3 causes', value: 2 },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Stethoscope} label="New cases" aside={<More href="#/health/records" />}>
-          {/* Rises through week 3 and falls in week 4 — the aviary respiratory
-              outbreak, which Disease & Outbreak dates to 21 July. */}
-          <Trend
-            values={[2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 6, 5, 4, 2, 1]}
-            labels={WEEKS}
-            unit="50 cases · 2-day buckets"
-          />
-          <Rule label="Top complaints" />
-          <Bars
-            showShare
-            items={[
-              { label: 'Laboured breathing', value: 11, sub: 'Aviary' },
-              { label: 'Reduced appetite', value: 9 },
-              { label: 'Lameness · limping', value: 8 },
-              { label: 'Open wound', value: 7 },
-              { label: 'Skin redness', value: 6 },
-              { label: 'Fungal patches', value: 5, sub: 'Aquatic' },
-              { label: 'Other · 6 complaints', value: 4 },
-            ]}
-          />
-        </Section>
+        {slugs.map((slug) => (
+          <Series key={slug} slug={slug} />
+        ))}
       </Stack>
       <Stamp />
-    </>
+    </AccentProvider>
   )
+}
+
+/** One flow, on the shared window. Nothing here knows which flow it is beyond the registry. */
+function Series({ slug }: { slug: string }) {
+  const { scope } = useScope()
+  const site = scope.site?.key ?? null
+  const metric = METRICS[slug]
+
+  const points = useMemo(() => pointsOf(slug, site, scope.win), [slug, site, scope.win])
+  const compare = useMemo(() => compareOf(slug, site, scope.win), [slug, site, scope.win])
+  const peak = useMemo(() => peakOf(points), [points])
+  const total = figure(scope, slug).value
+
+  return (
+    <Section label={LABELS[slug] ?? slug} aside={`${fmt(total)} ${metric?.unit ?? ''}`}>
+      <EventTrend
+        points={points}
+        unit={metric?.unit}
+        span={scope.win.window}
+        compare={compare}
+        tone={INVERTED.has(slug) ? 'bad' : undefined}
+        marks={peak ? [{ index: peak.index, note: peak.note }] : undefined}
+        empty={`Nothing recorded in ${scope.win.window}.`}
+      />
+    </Section>
+  )
+}
+
+/** The reader's name for each series. The registry's slug is the ETL's name, not a heading. */
+const LABELS: Record<string, string> = {
+  births: 'Natality',
+  accession: 'Accession',
+  mortality: 'Mortality',
+  transfers: 'Movement out',
+  admissions: 'Consultations',
+  disease: 'Diagnoses',
+  pharmacy: 'Prescriptions',
+  vaccinations: 'Vaccinations',
+  deworming: 'Deworming',
+  supplement: 'Supplements',
+  vaccinationDue: 'Vaccinations pending',
+  dewormingDue: 'Deworming pending',
 }

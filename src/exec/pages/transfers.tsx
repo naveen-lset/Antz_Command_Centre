@@ -1,202 +1,221 @@
 /**
- * ANIMAL MOVEMENT — the dispatch board.
+ * ANIMAL MOVEMENT — where animals went, and to whom.
  *
- * Opens on what is moving right now: live counts, then the two named consignments
- * on the road. Lanes are the signature mark and appear nowhere else in the set.
- * Numbers only — every word here names a figure, none explains one.
+ * REBUILT ON `report_transfers` — 14,342 rows.
  *
- * Movement is counted on two independent axes, which is why the taxonomy card
- * carries five figures and not one list. Scope (intersite / external / in-house)
- * is a regulatory question; direction (in / out / internal) is a population one.
- * The same twenty-eight movements answer both, and collapsing them into a single
- * five-row list would double-count every animal.
+ * IT IS AN OUTBOUND PAGE, AND IT NOW SAYS SO. The old composition led with "Transfer in +0 /
+ * Transfer out +0" over an in/out balance. Every one of the 14 distinct `transferred_to` values
+ * in the source is a destination — Wild Release, Non-Disclosure Site, named parks — and 84% of
+ * the rows are Wild Release. There is no inbound direction to report, because an animal
+ * arriving is an ACCESSION and has its own table and its own module. So the inbound row is gone
+ * rather than printed as a zero: a "+0 in" line invites the reading that nothing arrived this
+ * month, when what is true is that arrivals are not transfers. The handoff flagged both.
+ *
+ * THE DESTINATION IS THE PAGE. A release to the wild and a transfer to another institution are
+ * different outcomes for the animal and different things for a board to know, and the source
+ * distinguishes them, so the ranked destination list leads and everything else supports it.
+ *
+ * WHAT WENT. Transport legs, crate manifests, vehicle and escort, permit status and in-transit
+ * tracking. None of it exists — a transfer row is one animal, one destination, one site, one day.
  */
 
-import {
-  ArrowDownLeft,
-  ArrowLeftRight,
-  ArrowUpRight,
-  Gauge,
-  MapPin,
-  Route,
-  TriangleAlert,
-  Truck,
-} from 'lucide-react'
+import { useMemo } from 'react'
+import { ArrowLeftRight, Dna, MapPin, Search, Send, TrendingUp } from 'lucide-react'
+import { shortDate } from '../../core/calendar'
+import { byDimension, bySpecies, figure, records } from '../../core/query'
+import { siteName } from '../../core/world'
+import { AccentProvider, FAINT, Figure, HERO_INK, Section, Stack, Stamp, fmt } from '../system'
+import { Concentration, EventTrend, RankList } from '../marks'
+import { compareOf, peakOf, pointsOf } from '../../v4/plot'
+import { useScope } from '../../v4/scope'
 import { useSiteDrill } from '../../v4/panels'
-import {
-  Band,
-  Bullet,
-  Facts,
-  Lanes,
-  More,
-  PeriodHero,
-  Records,
-  Rule,
-  Section,
-  Sites,
-  Snapshot,
-  Stack,
-  Stamp,
-  StatusList,
-} from '../system'
+import { MoreRows, usePaged } from '../../v4/perf'
+import { DrillList, DrillRow, SiteSplit } from '../../v4/modules/kit'
+
+const TRANSFER_ACCENT = '#5a4b7a'
 
 export default function Transfers() {
-  /* The page a KPI card lands on is where the drill is entered: a site row opens the
-     existing sheet, scoped to that site. */
-  const openSite = useSiteDrill('transfers', 'Animal Movement')
-
   return (
-    <>
-      <PeriodHero
-        slug="transfers"
-        icon={ArrowLeftRight}
-        value="28"
-        label="Transfers"
-        status="96% On schedule"
-        tone="good"
-        stats={[
-          { value: '2', label: 'In transit' },
-          { value: '25', label: 'Completed' },
-          { value: '1', label: 'Pending' },
-        ]}
-      />
+    <AccentProvider value={TRANSFER_ACCENT}>
+      <TransferHero />
       <Stack>
-        {/* Counts first, then the two consignments they describe — a dispatch board
-            is read for the live state before it is read for the month. */}
-        <Section icon={MapPin} label="Now" aside="2 in transit">
-          <Snapshot
-            cols={4}
-            items={[
-              { label: 'In transit', value: '2', tone: 'warn' },
-              { label: 'Pending', value: '1', tone: 'bad' },
-              { label: 'Today', value: '3', tone: 'good' },
-              { label: 'Delayed', value: '2', tone: 'warn' },
-            ]}
-          />
-          <Rule label="On road" />
-          <StatusList
-            items={[
-              { label: 'VH-01 · 4 Blackbuck → Wetland', value: '40 min', tone: 'warn' },
-              { label: 'TRF-1180 · 2 Bengal Fox · CZA', value: 'Day 4', tone: 'bad' },
-            ]}
-          />
-        </Section>
-
-        {/* Overall stated above the six sites it is the sum of. */}
-        <Section icon={MapPin} label="Sites" aside="tap to drill">
-          <Sites slug="transfers" onOpenSite={openSite} />
-        </Section>
-
-        <Section icon={ArrowLeftRight} label="Movements" aside="July">
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Intersite', value: '7', note: 'Own 6 sites' },
-              { label: 'External', value: '21', note: 'Partners' },
-              { label: 'In-house', value: '46', note: 'Within a site' },
-            ]}
-          />
-          {/* Same 28 movements, cut by direction instead of by scope. In-house moves
-              sit above and are excluded here — they change no site's population. */}
-          <Rule label="Direction · 28" />
-          <Facts
-            items={[
-              { label: 'Transfer in', sub: '4 sources · 6 rescue', value: '12' },
-              { label: 'Transfer out', sub: '4 destinations · 4 breeding loan', value: '9' },
-              { label: 'Internal', sub: 'Between own sites', value: '7' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={ArrowDownLeft} label="Transfer in" aside={<More href="#/transfers/in" />}>
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Animals', value: '12' },
-              { label: 'Species', value: '7' },
-              { label: 'Sources', value: '4' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={ArrowUpRight} label="Transfer out" aside={<More href="#/transfers/out" />}>
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Animals', value: '9' },
-              { label: 'Species', value: '5' },
-              { label: 'Blocked', value: '1', tone: 'bad' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Route} label="Lanes" aside="5">
-          <Lanes
-            routes={[
-              { from: 'Jamnagar Core', to: 'Wetland Reserve', value: 9, sub: '4 runs' },
-              { from: 'Sasan Rescue', to: 'Quarantine', value: 6, sub: 'Intake' },
-              { from: 'Aviary Complex', to: 'Open Aviary 7', value: 6, sub: 'Internal' },
-              { from: 'Jamnagar Core', to: 'Junagadh Zoo', value: 4, sub: 'Breeding loan' },
-              { from: 'Marine Zone', to: 'Aquatic Halls', value: 3, sub: 'Internal' },
-            ]}
-          />
-          <div className="mt-4">
-            <Band
-              label="Longest"
-              title="Jamnagar Core → Junagadh Zoo"
-              sub="5 h 40 m · 2 stops"
-              value="214"
-              unit="km"
-            />
-          </div>
-        </Section>
-
-        <Section icon={Truck} label="Fleet" aside="4 vehicles">
-          <StatusList
-            items={[
-              { label: 'VH-01 · Wetland Reserve', value: 'ETA 16:40', tone: 'warn' },
-              { label: 'VH-02 · Junagadh · empty', value: 'ETA 19:10', tone: 'warn' },
-              { label: 'VH-03 · Jamnagar Core', value: 'Ready', tone: 'good' },
-              { label: 'VH-04 · brake inspection', value: 'Day 2', tone: 'bad' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={Gauge} label="Performance">
-          <Bullet label="Success" value="96%" percent={96} target={95} note="24 of 25 · Target 95%" />
-          <Rule label="Operating" />
-          <Facts
-            items={[
-              { label: 'Average time', sub: 'Door to door', value: '6.4 h' },
-              { label: 'Completed today', sub: 'Internal 2 · Intake 1', value: '3' },
-              { label: 'Completed month', sub: 'Of 28', value: '25' },
-              { label: 'Pending clearance', sub: 'CZA · Day 4', value: '1', tone: 'bad' },
-              { label: 'Delayed', sub: 'Regulatory 1 · Welfare 1', value: '2', tone: 'warn' },
-            ]}
-          />
-        </Section>
-
-        <Section icon={TriangleAlert} label="Delayed" aside="2 open">
-          <Records
-            items={[
-              {
-                label: 'TRF-1180 · 2 Bengal Fox',
-                sub: 'Jamnagar Core → Junagadh Zoo · CZA · 30 Jul',
-                value: '4 d',
-                tone: 'bad',
-              },
-              {
-                label: 'TRF-1176 · 5 Silver Barb',
-                sub: 'Wetland Reserve → Aquatic Hall 3 · tank temperature',
-                value: '1 d',
-                tone: 'warn',
-              },
-            ]}
-          />
-        </Section>
-
+        <Destinations />
+        <Trend />
+        <Species />
+        <Sites />
+        <Records />
       </Stack>
       <Stamp />
-    </>
+    </AccentProvider>
+  )
+}
+
+function TransferHero() {
+  const { scope } = useScope()
+  const { total, destinations, top } = useMemo(() => {
+    const rows = byDimension(scope, 'transfers', 'detail')
+    return { total: figure(scope, 'transfers').value, destinations: rows.length, top: rows[0] }
+  }, [scope])
+
+  return (
+    <div className="w-full px-[var(--gutter)] pb-3">
+      <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
+        <div className="flex items-end justify-between gap-4">
+          <span>
+            <Figure value={fmt(total)} size={48} color={HERO_INK} />
+            <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
+              <ArrowLeftRight size={15} strokeWidth={1.75} style={{ color: TRANSFER_ACCENT }} aria-hidden />
+              Released or transferred out · {scope.win.label.toLowerCase()}
+            </p>
+          </span>
+          <span className="shrink-0 pb-1 text-right text-caption" style={{ color: FAINT }}>
+            {scope.site?.name ?? 'All sites'}
+            <br />
+            {scope.win.window}
+          </span>
+        </div>
+        <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
+          <span className="min-w-0 flex-1 pr-4">
+            <Figure value={fmt(destinations)} size={28} />
+            <span className="mt-0.5 block truncate text-caption text-[#6d6860]">Destinations</span>
+          </span>
+          <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
+            <Figure value={top ? `${Math.round(top.percent)}` : '—'} unit={top ? '%' : undefined} size={28} />
+            <span className="mt-0.5 block truncate text-caption text-[#6d6860]">
+              {top ? `To ${top.label}` : 'Nothing moved'}
+            </span>
+          </span>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+/**
+ * Where they went, ranked, over a concentration mark.
+ *
+ * `Concentration` rather than a ring: with 84% of movements going to one destination, a ring
+ * reads as one colour and a rank list alone hides how lopsided the split is. How concentrated
+ * the outflow is *is* the finding.
+ */
+function Destinations() {
+  const { scope } = useScope()
+  const rows = useMemo(() => byDimension(scope, 'transfers', 'detail'), [scope])
+
+  return (
+    <Section icon={Send} label="Destination" aside={rows.length ? `${rows.length} named` : undefined}>
+      {rows.length ? (
+        <>
+          <Concentration
+            items={rows.slice(0, 3).map((r) => ({ label: r.label, value: r.value }))}
+            total={rows.reduce((n, r) => n + r.value, 0)}
+            of={rows.length}
+            unit="movements"
+          />
+          <div className="mt-4">
+            <RankList
+              items={rows.slice(0, 10).map((r, i) => ({
+                key: `${r.id}-${i}`,
+                title: r.label,
+                value: fmt(r.value),
+                share: r.percent,
+              }))}
+            />
+          </div>
+        </>
+      ) : (
+        <p className="py-3 text-small" style={{ color: FAINT }}>
+          Nothing left the collection in {scope.win.window}.
+        </p>
+      )}
+    </Section>
+  )
+}
+
+function Trend() {
+  const { scope } = useScope()
+  const site = scope.site?.key ?? null
+  const points = useMemo(() => pointsOf('transfers', site, scope.win), [site, scope.win])
+  const compare = useMemo(() => compareOf('transfers', site, scope.win), [site, scope.win])
+  const peak = useMemo(() => peakOf(points), [points])
+
+  return (
+    <Section icon={TrendingUp} label="Trend" aside={scope.win.label}>
+      <EventTrend
+        points={points}
+        unit="movements"
+        span={scope.win.window}
+        compare={compare}
+        marks={peak ? [{ index: peak.index, note: peak.note }] : undefined}
+        empty={`Nothing left the collection in ${scope.win.window}.`}
+      />
+    </Section>
+  )
+}
+
+function Species() {
+  const { scope } = useScope()
+  const rows = useMemo(() => bySpecies(scope, 'transfers'), [scope])
+  const top = rows.slice(0, 8)
+  const rest = rows.slice(8)
+  const restTotal = rest.reduce((n, r) => n + r.value, 0)
+
+  return (
+    <Section icon={Dna} label="Species" aside={rows.length ? `${fmt(rows.length)} moved` : undefined}>
+      {top.length ? (
+        <>
+          <RankList items={top.map((r, i) => ({ key: `${r.id}-${i}`, title: r.label, meta: r.sub, value: fmt(r.value), share: r.percent }))} />
+          {rest.length > 0 && (
+            <div className="mt-3 border-t border-[#f0efec] pt-3">
+              <DrillList>
+                <DrillRow label="Others" sub={`${fmt(rest.length)} species`} value={fmt(restTotal)} />
+              </DrillList>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="py-3 text-small" style={{ color: FAINT }}>
+          Nothing left the collection in {scope.win.window}.
+        </p>
+      )}
+    </Section>
+  )
+}
+
+function Sites() {
+  const { scope } = useScope()
+  const openSite = useSiteDrill('transfers', 'Movement')
+  return (
+    <Section icon={MapPin} label="Origin site" aside={scope.site ? 'scoped' : 'tap to drill'}>
+      <SiteSplit slug="transfers" onOpenSite={openSite} />
+    </Section>
+  )
+}
+
+function Records() {
+  const { scope } = useScope()
+  const page = usePaged(
+    (offset, limit) => {
+      const p = records(scope, 'transfers', offset, limit)
+      return { rows: p.rows, total: p.total }
+    },
+    15,
+    [scope.win.key, scope.win.from, scope.win.to, scope.site?.key],
+  )
+
+  return (
+    <Section icon={Search} label="Records" aside={`${fmt(page.total)} · ${scope.win.window}`}>
+      <DrillList>
+        {page.rows.map((ev, i) => (
+          <DrillRow
+            key={`${ev.id}-${i}`}
+            label={ev.speciesName}
+            sub={`→ ${ev.detail} · from ${siteName(ev.siteKey)}`}
+            value={shortDate(ev.day)}
+          />
+        ))}
+      </DrillList>
+      <MoreRows page={page} noun="movements" />
+    </Section>
   )
 }

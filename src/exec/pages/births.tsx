@@ -207,8 +207,8 @@ function Species() {
       {top.length ? (
         <>
           <RankList
-            items={top.map((r) => ({
-              key: r.id,
+            items={top.map((r, i) => ({
+              key: `${r.id}-${i}`,
               title: r.label,
               meta: r.sub,
               value: fmt(r.value),
@@ -264,9 +264,9 @@ function Records() {
   return (
     <Section icon={Search} label="Records" aside={`${fmt(page.total)} · ${scope.win.window}`}>
       <DrillList>
-        {page.rows.map((ev) => (
+        {page.rows.map((ev, i) => (
           <DrillRow
-            key={ev.id}
+            key={`${ev.id}-${i}`}
             label={ev.speciesName}
             sub={`${ev.animalId || 'unidentified'} · ${siteName(ev.siteKey)}`}
             value={shortDate(ev.day)}
