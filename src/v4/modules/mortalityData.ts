@@ -67,19 +67,10 @@
  */
 
 import { TODAY, dateAt, previous, type Win } from '../../core/calendar'
-import { eventAt, type Ev, type Tone } from '../../core/events'
+import { eventAt, facetAt, type Ev, type Tone } from '../../core/events'
 import { daily } from '../../core/series'
 import { siteKeyOf, type Scope } from '../../core/scope'
-import { draw } from '../../core/seed'
-import {
-  HOSPITALS,
-  LABS,
-  LAB_DEPARTMENTS,
-  SITES,
-  SPECIES,
-  siteOf,
-  type ClassName,
-} from '../../core/world'
+import { SITES, siteOf, speciesOf, type ClassName } from '../../core/world'
 import {
   isRegulated,
   standingLabel,
@@ -95,119 +86,49 @@ export const DEATHS = 'mortality'
 /** MD3_Antz Error — deaths are the one module whose ramp is the error hue. */
 export const MORTALITY_ACCENT = '#e93353'
 
-/* ── necropsy centres · every one a facility that already exists ──────────── */
-
-export type CentreKind = 'Laboratory' | 'Field'
-
-export interface Centre {
-  id: string
-  name: string
-  code: string
-  /** Where the bench physically sits. It still receives from every site. */
-  siteKey: string
-  kind: CentreKind
-  /**
-   * Working days from the bench starting to a finding being signed off.
-   *
-   * Real for the two laboratories — the turnaround their own Histopathology and Toxicology
-   * departments declare in `core/world.ts`. A field post-mortem records gross findings the
-   * next day, which is what makes the two kinds worth telling apart: the same death takes a
-   * day or a week to answer depending on which bench it goes to.
-   */
-  turnaround: number
-  /** What the bench can actually do. Named on the centre sheet, drawn from the real departments. */
-  work: string
-}
-
-const deptTurnaround = (labId: string, name: string): number =>
-  LAB_DEPARTMENTS.find((d) => d.labId === labId && d.name === name)?.turnaround ?? 7
+/* ── the necropsy, as the source records it ───────────────────────────────── */
 
 /**
- * The six benches, laboratories first.
+ * WHAT THIS REPLACES, AND WHY IT HAD TO GO.
  *
- * Two laboratories and four post-mortem rooms, and not one of them is a building invented
- * for this page: `LABS` and `HOSPITALS` both come straight out of `core/world.ts` with their
- * own codes and sites. The order is the order the centre table sorts by default — the
- * definitive benches above the fast ones.
+ * There used to be a necropsy MODEL here: four centres derived from the hospital and
+ * laboratory registries, a referral coin weighted by cause of death, a turnaround per centre,
+ * a backlog, a due date, a confirmed finding and a "revised" flag saying whether the bench
+ * disagreed with the enclosure. It was carefully reasoned and every part of it was invented,
+ * because nothing in the product had a necropsy record to read.
+ *
+ * `report_deaths` has one. Three columns, on every row:
+ *
+ *   necropsy_status           Pending 34,201 · Completed 4,478
+ *   carcass_condition         Fresh, Moderately Autolyzed, Severely Autolyzed, Not Usable …
+ *   carcass_disposal_method   Incinerated, Burial, Discarded, Preserved …
+ *
+ * So the necropsy is now read, not modelled. The centre, the turnaround, the due date and the
+ * finding are gone rather than approximated — there is no necropsy facility in the schema, no
+ * date the bench received the animal and no confirmed cause distinct from the recorded one.
+ *
+ * THE HEADLINE FIGURE MOVES A LONG WAY, and it should. The modelled version referred roughly
+ * three quarters of deaths and completed most of them; the record says 88% of all necropsies
+ * are still PENDING. That is the single most actionable fact on this page and the model was
+ * hiding it.
  */
-export const CENTRES: Centre[] = [
-  ...LABS.map((l) => ({
-    id: l.id,
-    name: l.name,
-    code: l.code,
-    siteKey: l.siteKey,
-    kind: 'Laboratory' as const,
-    turnaround: l.id === 'cdl' ? deptTurnaround('cdl', 'Histopathology') : deptTurnaround('fpl', 'Toxicology'),
-    work:
-      l.id === 'cdl'
-        ? 'Full necropsy · histopathology · molecular'
-        : 'Field necropsy · toxicology · parasitology',
-  })),
-  ...HOSPITALS.map((h) => ({
-    id: h.id,
-    name: `${h.name} · post-mortem`,
-    code: h.code,
-    siteKey: h.siteKey,
-    kind: 'Field' as const,
-    turnaround: 1,
-    work: 'Gross post-mortem · samples referred',
-  })),
-]
 
-export const centreOf = (id: string): Centre | undefined => CENTRES.find((c) => c.id === id)
-
-/** The two laboratories, by the site they serve. A statutory case goes to one of these. */
-const LAB_FOR: Record<string, string> = {
-  aquatic: 'fpl',
-  reptile: 'fpl',
-  savanna: 'cdl',
-  aviary: 'cdl',
-  primate: 'cdl',
-  carnivore: 'cdl',
-}
-
-/** The nearest post-mortem room to each site — where a gross examination is done on the spot. */
-const FIELD_FOR: Record<string, string> = {
-  aquatic: 'ahu',
-  aviary: 'arc',
-  reptile: 'qib',
-  savanna: 'cvh',
-  primate: 'cvh',
-  carnivore: 'cvh',
-}
-
-/* ── the necropsy ────────────────────────────────────────────────────────── */
-
-export const STATUSES = ['Completed', 'In progress', 'Awaiting'] as const
+export const STATUSES = ['Completed', 'Pending'] as const
 export type NecropsyStatus = (typeof STATUSES)[number]
 
 export const STATUS_TONE: Record<NecropsyStatus, Tone> = {
   Completed: 'good',
-  'In progress': 'warn',
-  Awaiting: 'bad',
+  Pending: 'warn',
 }
 
 export interface Necropsy {
   /** The record id. Derived from the death's own event id, so it is stable and unique. */
   id: string
-  centreId: string
-  centreName: string
-  centreCode: string
-  centreKind: CentreKind
-  /** Ledger index the bench received the animal. */
-  receivedOn: number
-  /** Ledger index a finding is due. `receivedOn` + the centre's turnaround + any backlog. */
-  dueOn: number
   status: NecropsyStatus
-  /**
-   * The confirmed cause, and only once the work is complete.
-   *
-   * Absent while the case is open — printing a provisional finding would invent the single
-   * field a director would act on. See `findingLabel`.
-   */
-  finding?: string
-  /** Whether the finding differs from the cause recorded at the enclosure. */
-  revised: boolean
+  /** How the carcass presented — the bench's own first observation. */
+  condition: string
+  /** What was done with it afterwards. */
+  disposal: string
 }
 
 export interface Death {
@@ -229,55 +150,33 @@ export interface Death {
   regulated: boolean
   cites?: CitesAppendix
   schedule?: ScheduleClass
-  /** Absent where the death was not referred to a bench, which is most husbandry deaths. */
+  /**
+   * Present where the record names a necropsy status at all.
+   *
+   * Four rows in 38,684 carry none, and those are shown as unreferred rather than assigned a
+   * status — a blank in the source is not a decision not to investigate.
+   */
   necropsy?: Necropsy
 }
-
-/**
- * How likely a cause is to be referred to a bench.
- *
- * The shape a curator would recognise: an undetermined death is the one that must be
- * investigated, disease and parasitic load are usually worth confirming, and old age in a
- * short-lived species is a husbandry record. These are the eight causes `core/events.ts`
- * actually declares for this metric — no ninth category is introduced here.
- */
-const REFER: Record<string, number> = {
-  Undetermined: 0.94,
-  Disease: 0.82,
-  'Parasitic load': 0.64,
-  'Trauma / injury': 0.58,
-  'Neonatal loss': 0.52,
-  Nutritional: 0.48,
-  Predation: 0.36,
-  'Old age': 0.17,
-}
-
-/** The floor a regulated animal's referral rate cannot fall below. */
-const REGULATED_FLOOR = 0.78
-
-/** Causes a bench can land on when it revises the field diagnosis. */
-const CAUSES = Object.keys(REFER)
 
 const deathCache = new Map<string, Death>()
 
 /**
  * One mortality event, read as the death record it is.
  *
- * Pure in the event, so every section that asks about the same death gets the same object
- * and the page cannot hold two opinions about whether it was necropsied.
+ * Pure in the event, so every section that asks about the same death gets the same object and
+ * the page cannot hold two opinions about whether it was necropsied.
  */
-export function deathOf(ev: Ev): Death {
+export function deathOf(ev: Ev, i: number): Death {
   const hit = deathCache.get(ev.id)
   if (hit) return hit
 
   const standing = standingOf(ev.speciesName)
-  const regulated = isRegulated(standing)
-  /* Statutory: a Schedule I or Appendix I animal is investigated as a matter of law. */
-  const statutory = standing.schedule === 'I' || standing.cites === 'I'
 
-  const base = REFER[ev.detail] ?? 0.5
-  const chance = statutory ? 1 : regulated ? Math.max(base, REGULATED_FLOOR) : base
-  const referred = draw(`${ev.id}:ref`) < chance
+  /* The index within the day is passed in rather than recovered from the event, because that
+     is what addresses the row — see `facetAt`. The walk that builds these already has it. */
+  const at = (name: string) => facetAt(DEATHS, ev.siteKey, ev.day, i, name)
+  const status = at('necropsy')
 
   const built: Death = {
     id: ev.id,
@@ -291,105 +190,38 @@ export function deathOf(ev: Ev): Death {
     cause: ev.detail,
     tone: ev.tone,
     standing,
-    regulated,
+    regulated: isRegulated(standing),
     cites: standing.cites,
     schedule: standing.schedule,
-    necropsy: referred ? necropsyFor(ev, statutory) : undefined,
+    /* A row with no recorded status is not a necropsy — four rows in 38,684. */
+    necropsy:
+      status === 'Completed' || status === 'Pending'
+        ? {
+            id: `NEC-${ev.id.slice(4)}`,
+            status,
+            condition: at('condition') ?? 'Not recorded',
+            disposal: at('disposal') ?? 'Not recorded',
+          }
+        : undefined,
   }
 
   deathCache.set(ev.id, built)
   return built
 }
 
-/**
- * The event's class. `Ev` carries the species name; `SPECIES` carries the class.
- *
- * A name rather than an id, because the same species held in two sites is one species to a
- * curator and the species rows merge by name for exactly that reason.
- */
-const SPECIES_CLS = new Map<string, ClassName>(SPECIES.map((s) => [s.name, s.cls]))
-
-const clsOf = (ev: Ev): ClassName => SPECIES_CLS.get(ev.speciesName) ?? 'Mammalia'
-
-/**
- * The necropsy a referred death goes through.
- *
- * WHERE. A statutory case goes to the laboratory that serves its site, because a Schedule I
- * finding has to stand up to a regulator and that means histopathology. Otherwise the case is
- * examined at the nearest post-mortem room, unless the cause is one that cannot be answered by
- * gross examination — an undetermined death, a suspected disease, a parasitic or nutritional
- * case — in which case it is escalated to the laboratory too.
- *
- * WHEN. Received a day or two after death, worked in the centre's own turnaround, plus a
- * backlog where the bench is behind. Status is then purely a reading of the clock against
- * `dueOn`, which is what keeps completed + in progress + awaiting summing to the referrals at
- * every window the reader can pick.
- */
-function necropsyFor(ev: Ev, statutory: boolean): Necropsy {
-  const cause = ev.detail
-  const needsLab = statutory || LAB_CAUSES.has(cause) || draw(`${ev.id}:esc`) < 0.18
-  const centreId = needsLab ? (LAB_FOR[ev.siteKey] ?? 'cdl') : (FIELD_FOR[ev.siteKey] ?? 'cvh')
-  const centre = centreOf(centreId)!
-
-  const receivedOn = Math.min(TODAY, ev.day + Math.floor(draw(`${ev.id}:rec`) * 3))
-  /* Most cases start on time. A fifth sit in a queue, which is the only honest way for a
-     case to be awaiting rather than in progress — and the queue is what the pending column
-     on the centre table is actually counting. */
-  const q = draw(`${ev.id}:q`)
-  const backlog = q < 0.8 ? 0 : Math.ceil((q - 0.8) * 5 * centre.turnaround)
-  const dueOn = receivedOn + centre.turnaround + backlog
-
-  const status: NecropsyStatus =
-    TODAY >= dueOn ? 'Completed' : backlog > 0 && TODAY < receivedOn + backlog ? 'Awaiting' : 'In progress'
-
-  /* A finding exists only where the work is done. A bench confirms the enclosure's cause most
-     of the time and revises it sometimes — which is the reason a necropsy is performed. */
-  const revised = status === 'Completed' && draw(`${ev.id}:rev`) < 0.16
-  const finding =
-    status === 'Completed'
-      ? revised
-        ? CAUSES[Math.floor(draw(`${ev.id}:fnd`) * CAUSES.length)]
-        : cause
-      : undefined
-
-  return {
-    id: necropsyId(ev),
-    centreId,
-    centreName: centre.name,
-    centreCode: centre.code,
-    centreKind: centre.kind,
-    receivedOn,
-    dueOn,
-    status,
-    /* Where the draw lands back on the same cause it is not a revision at all. */
-    finding,
-    revised: revised && finding !== cause,
-  }
-}
-
-/** Causes a gross post-mortem cannot close out on its own. */
-const LAB_CAUSES = new Set(['Undetermined', 'Disease', 'Parasitic load', 'Nutritional'])
-
-/** `NEC-04821` — derived from the death's own event id, so it is stable and collision-free. */
-const necropsyId = (ev: Ev): string =>
-  `NEC-${String(Math.floor(draw(`${ev.id}:nid`) * 90000) + 10000)}`
-
-/** "Confirmed · Disease", "Revised · Undetermined", or what it is still waiting on. */
 export const findingLabel = (n: Necropsy): string =>
-  n.finding ? `${n.revised ? 'Revised' : 'Confirmed'} · ${n.finding}` : `${n.status} · finding pending`
+  n.status === 'Completed' ? `Completed · ${n.disposal}` : 'Awaiting the bench'
 
 /* ── walking the stream ──────────────────────────────────────────────────── */
 
-const sitesFor = (siteKey: string | null): string[] => (siteKey ? [siteKey] : SITES.map((s) => s.key))
+const sitesFor = (siteKey: string | null): string[] =>
+  siteKey ? [siteKey] : SITES.map((x) => x.key)
 
-/**
- * Every death between two ledger days, newest first.
- *
- * Materialised rather than paged, because every figure on this page is an aggregate over the
- * window's deaths and there are few of them — 23 in a month, 160 in six months. The deaths
- * themselves are cached by event id, and the list is cached by window, so the twelve sections
- * that each need "this window's deaths" build it once between them rather than twelve times.
- */
+/** The species' class, from the registry rather than from the event. */
+const clsOf = (ev: Ev): ClassName => speciesOf(ev.speciesId)?.cls ?? 'Unknown'
+
+/* Bounded, because "All time" across fifty sites is a big array and a reader can pick a lot
+   of windows in one session. */
 const listCache = new Map<string, Death[]>()
 
 export function deathsBetween(siteKey: string | null, from: number, to: number): Death[] {
@@ -401,7 +233,7 @@ export function deathsBetween(siteKey: string | null, from: number, to: number):
   for (const k of sitesFor(siteKey)) {
     const s = daily(DEATHS, k)
     for (let day = Math.max(0, from); day <= Math.min(TODAY, to); day++) {
-      for (let i = 0; i < s[day]; i++) out.push(deathOf(eventAt(DEATHS, k, day, i)))
+      for (let i = 0; i < s[day]; i++) out.push(deathOf(eventAt(DEATHS, k, day, i), i))
     }
   }
   out.sort((a, b) => b.day - a.day)
@@ -445,11 +277,10 @@ export interface MortalitySummary {
   species: number
   sites: number
   causes: number
-  /** Referred to a bench. */
+  /** Deaths carrying a necropsy record. */
   necropsies: number
   completed: number
-  inProgress: number
-  awaiting: number
+  pending: number
   /** Necropsies ÷ deaths. Undefined where nothing died — never a zero. */
   rate?: number
 }
@@ -472,8 +303,7 @@ export function summarise(scope: Scope): MortalitySummary {
     causes: new Set(rows.map((d) => d.cause)).size,
     necropsies: necropsied.length,
     completed: withStatus(rows, 'Completed').length,
-    inProgress: withStatus(rows, 'In progress').length,
-    awaiting: withStatus(rows, 'Awaiting').length,
+    pending: withStatus(rows, 'Pending').length,
     rate: rows.length ? (necropsied.length / rows.length) * 100 : undefined,
   }
 }
@@ -520,15 +350,24 @@ export const bySpeciesSlice = (rows: Death[]): Slice[] =>
 export const byClassSlice = (rows: Death[]): Slice[] =>
   distribute(rows, (d) => ({ id: d.cls, label: d.cls }))
 
-export const byCentre = (rows: Death[]): Slice[] =>
-  distribute(rows, (d) =>
-    d.necropsy ? { id: d.necropsy.centreId, label: d.necropsy.centreName, sub: d.necropsy.centreKind } : undefined,
-  )
-
 export const byStatus = (rows: Death[]): Slice[] =>
   distribute(rows, (d) =>
     d.necropsy ? { id: d.necropsy.status, label: d.necropsy.status, tone: STATUS_TONE[d.necropsy.status] } : undefined,
   )
+
+/**
+ * How the carcass presented, and what was done with it.
+ *
+ * The two dimensions that replace the necropsy centre. A centre was a facility this schema
+ * does not have; these are columns on every death row, and between them they answer the
+ * question the centre breakdown was standing in for — what state the bench received the
+ * animal in, and whether the case was closed out.
+ */
+export const byCondition = (rows: Death[]): Slice[] =>
+  distribute(rows, (d) => (d.necropsy ? { id: d.necropsy.condition, label: d.necropsy.condition } : undefined))
+
+export const byDisposal = (rows: Death[]): Slice[] =>
+  distribute(rows, (d) => (d.necropsy ? { id: d.necropsy.disposal, label: d.necropsy.disposal } : undefined))
 
 /* ── the sortable tables ────────────────────────────────────────────────── */
 
@@ -640,54 +479,6 @@ export function speciesLines(rows: Death[]): SpeciesLine[] {
     })
     .sort((a, b) => b.deaths - a.deaths)
 }
-
-export interface CentreLine {
-  centre: Centre
-  necropsies: number
-  completed: number
-  inProgress: number
-  awaiting: number
-  pending: number
-  species: number
-  /** Share of the window's necropsies this bench handled. */
-  percent: number
-  /** Completed ÷ received — the bench's own clearance, not the collection's necropsy rate. */
-  clearance?: number
-  topCause: string
-}
-
-/**
- * One line per necropsy centre — ALL six, including the benches that received nothing.
- *
- * A bench with no cases this month is not a missing row; it is the answer to "where is the
- * work concentrated". Scoping to a site does NOT filter the centre LIST, because a centre
- * receives from every site — what changes is the cases counted into it, which is why the rows
- * passed in are the source rather than the centre's own site.
- */
-export function centreLines(rows: Death[]): CentreLine[] {
-  const necropsied = necropsiesOf(rows)
-  const total = necropsied.length || 1
-
-  return CENTRES.map((centre) => {
-    const mine = necropsied.filter((d) => d.necropsy!.centreId === centre.id)
-    const completed = mine.filter((d) => d.necropsy!.status === 'Completed').length
-    const causes = byCause(mine)
-    return {
-      centre,
-      necropsies: mine.length,
-      completed,
-      inProgress: mine.filter((d) => d.necropsy!.status === 'In progress').length,
-      awaiting: mine.filter((d) => d.necropsy!.status === 'Awaiting').length,
-      pending: mine.length - completed,
-      species: new Set(mine.map((d) => d.speciesName)).size,
-      percent: (mine.length / total) * 100,
-      clearance: mine.length ? (completed / mine.length) * 100 : undefined,
-      topCause: causes[0]?.label ?? '—',
-    }
-  })
-}
-
-/* ── regulatory · read from the standing table, never typed ──────────────── */
 
 export interface RegBand {
   key: string
@@ -820,10 +611,9 @@ export function searchDeaths(rows: Death[], query: string): Death[] {
       d.cls,
       standingLabel(d.standing),
       d.necropsy?.id,
-      d.necropsy?.centreName,
-      d.necropsy?.centreCode,
       d.necropsy?.status,
-      d.necropsy?.finding,
+      d.necropsy?.condition,
+      d.necropsy?.disposal,
     ]
       .filter(Boolean)
       .some((f) => (f as string).toLowerCase().includes(q)),

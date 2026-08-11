@@ -35,7 +35,6 @@ import {
   ClipboardList,
   Dna,
   FileSearch,
-  FlaskConical,
   MapPin,
   PawPrint,
   ScrollText,
@@ -63,12 +62,11 @@ import { DrillList, DrillRow } from './kit'
 import {
   STATUS_TONE,
   byCause,
-  byCentre,
+  byCondition,
+  byDisposal,
   bySiteSlice,
   bySpeciesSlice,
   byStatus,
-  centreOf,
-  findingLabel,
   necropsiesOf,
   regulatorySplit,
   scopeLine,
@@ -96,7 +94,7 @@ function SheetHero({
   tone?: 'good' | 'warn' | 'bad'
 }) {
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={value} unit={unit} size={48} color={tone ? TONE[tone] : HERO_INK} />
         <p className="mt-1 text-body text-[#3d3a34]">{label}</p>
@@ -183,7 +181,7 @@ export function NecropsyRows({ rows, eyebrow }: { rows: Death[]; eyebrow: string
           <DrillRow
             key={d.id}
             label={`${d.necropsy!.id} · ${d.speciesName}`}
-            sub={`${d.animalId} · ${d.necropsy!.centreCode} · died ${shortDate(d.day)}`}
+            sub={`${d.animalId} · ${d.necropsy!.condition} · died ${shortDate(d.day)}`}
             value={d.necropsy!.status}
             tone={STATUS_TONE[d.necropsy!.status]}
             onOpen={() =>
@@ -215,7 +213,6 @@ function Splits({
   onSite,
   onSpecies,
   onCause,
-  onCentre,
 }: {
   rows: Death[]
   eyebrow: string
@@ -223,12 +220,11 @@ function Splits({
   onSite?: (id: string) => void
   onSpecies?: (name: string) => void
   onCause?: (cause: string) => void
-  onCentre?: (id: string) => void
 }) {
   const sites = useMemo(() => bySiteSlice(rows), [rows])
   const species = useMemo(() => bySpeciesSlice(rows), [rows])
   const causes = useMemo(() => byCause(rows), [rows])
-  const centres = useMemo(() => byCentre(rows), [rows])
+  const disposal = useMemo(() => byDisposal(rows), [rows])
   const statuses = useMemo(() => byStatus(rows), [rows])
   const referred = useMemo(() => necropsiesOf(rows), [rows])
 
@@ -298,18 +294,15 @@ function Splits({
                 <DrillRow key={s.id} label={s.label} value={fmt(s.value)} tone={s.tone} />
               ))}
             </DrillList>
-            {!skip.includes('centre') && centres.length > 0 && (
+            {!skip.includes('centre') && disposal.length > 0 && (
               <>
-                <Rule label="Centres" />
+                {/* Disposal, where the centre breakdown used to be. It is the other thing the
+                    record states about a carcass, and unlike a centre it exists. The rows do
+                    not open — there is nothing below a disposal method to drill into. */}
+                <Rule label="Disposal" />
                 <DrillList>
-                  {centres.map((c) => (
-                    <DrillRow
-                      key={c.id}
-                      label={c.label}
-                      sub={c.sub}
-                      value={fmt(c.value)}
-                      onOpen={onCentre ? () => onCentre(c.id) : undefined}
-                    />
+                  {disposal.map((c) => (
+                    <DrillRow key={c.id} label={c.label} value={fmt(c.value)} />
                   ))}
                 </DrillList>
               </>
@@ -391,13 +384,6 @@ export function DeathListSheet({
           }}
           onSpecies={(name) => into(name, 'Species', (d) => d.speciesName === name, ['species'])}
           onCause={(cause) => into(cause, 'Cause', (d) => d.cause === cause, ['cause'])}
-          onCentre={(id) =>
-            open({
-              title: centreOf(id)?.name ?? id,
-              eyebrow: `${title} › Centre`,
-              body: <CentreSheet centreId={id} rows={rows} />,
-            })
-          }
         />
       </Stack>
     </>
@@ -508,13 +494,6 @@ function SiteSplits({ rows, title }: { rows: Death[]; title: string }) {
           ),
         })
       }
-      onCentre={(id) =>
-        open({
-          title: centreOf(id)?.name ?? id,
-          eyebrow: `${title} › Centre`,
-          body: <CentreSheet centreId={id} rows={rows} />,
-        })
-      }
     />
   )
 }
@@ -612,7 +591,6 @@ export function CauseSheet({ cause, rows }: { cause: string; rows: Death[] }) {
   const completed = referred.filter((d) => d.necropsy!.status === 'Completed')
   /* What the benches actually concluded about this cause — the one figure a cause card cannot
      show on its own, and the reason the necropsy sits inside the mortality flow. */
-  const revised = completed.filter((d) => d.necropsy!.revised).length
   const share = rows.length ? (mine.length / rows.length) * 100 : 0
 
   return (
@@ -636,22 +614,15 @@ export function CauseSheet({ cause, rows }: { cause: string; rows: Death[] }) {
           />
           {completed.length > 0 && (
             <>
-              <Rule label="Confirmed at the bench" />
+              {/* CONFIRMED / REVISED IS GONE. It compared the cause recorded at the enclosure
+                  against the bench's own finding, and the schema has no finding — only whether
+                  the necropsy is done. What survives is the completion count, which is real. */}
+              <Rule label="At the bench" />
               <Snapshot
                 cols={2}
                 items={[
-                  {
-                    label: 'Confirmed',
-                    value: fmt(completed.length - revised),
-                    note: `of ${completed.length} completed`,
-                    tone: 'good',
-                  },
-                  {
-                    label: 'Revised on necropsy',
-                    value: fmt(revised),
-                    note: revised ? 'field cause differed' : 'none',
-                    tone: revised ? 'warn' : 'neutral',
-                  },
+                  { label: 'Completed', value: fmt(completed.length), tone: 'good' },
+                  { label: 'Still pending', value: fmt(referred.length - completed.length), tone: 'warn' },
                 ]}
               />
             </>
@@ -684,13 +655,6 @@ export function CauseSheet({ cause, rows }: { cause: string; rows: Death[] }) {
               title: name,
               eyebrow: `${cause} › Species`,
               body: <SpeciesMortalitySheet speciesName={name} rows={mine} within={cause} />,
-            })
-          }
-          onCentre={(id) =>
-            open({
-              title: centreOf(id)?.name ?? id,
-              eyebrow: `${cause} › Centre`,
-              body: <CentreSheet centreId={id} rows={mine} />,
             })
           }
         />
@@ -816,13 +780,6 @@ export function RegulatorySheet({
               ),
             })
           }
-          onCentre={(id) =>
-            open({
-              title: centreOf(id)?.name ?? id,
-              eyebrow: `${title} › Centre`,
-              body: <CentreSheet centreId={id} rows={rows} />,
-            })
-          }
         />
       </Stack>
     </>
@@ -830,97 +787,6 @@ export function RegulatorySheet({
 }
 
 /* ── one necropsy centre · the brief's §10 ──────────────────────────────── */
-
-/**
- * A bench's queue.
- *
- * `rows` is whatever set of deaths the caller was already looking at, so opening the Central
- * Diagnostic Laboratory from inside Aquatic Halls shows CDL's Aquatic Halls cases — not its
- * collection-wide caseload under a heading that says Aquatic Halls. That is the brief's §16,
- * and it is the single rule the old page broke hardest.
- */
-export function CentreSheet({ centreId, rows }: { centreId: string; rows: Death[] }) {
-  const { scope } = useScope()
-  const { open } = useSheet()
-  const centre = centreOf(centreId)
-  const mine = useMemo(() => rows.filter((d) => d.necropsy?.centreId === centreId), [rows, centreId])
-  const completed = mine.filter((d) => d.necropsy!.status === 'Completed').length
-  const inProgress = mine.filter((d) => d.necropsy!.status === 'In progress').length
-  const awaiting = mine.filter((d) => d.necropsy!.status === 'Awaiting').length
-
-  return (
-    <>
-      <SheetHero
-        value={fmt(mine.length)}
-        label={`Necropsies · ${centre?.name ?? centreId}`}
-        note={`${centre?.kind ?? ''} · ${centre?.turnaround ?? 0} day turnaround · ${scope.win.window}`}
-        tone={awaiting ? 'bad' : inProgress ? 'warn' : undefined}
-      />
-      <Stack>
-        <Section icon={FlaskConical} label="Centre" aside={centre?.code}>
-          <Facts
-            items={[
-              { label: 'Centre', sub: centre?.work, value: centre?.name ?? centreId },
-              { label: 'Type', value: centre?.kind ?? '—' },
-              { label: 'Turnaround', value: `${centre?.turnaround ?? 0} d` },
-              { label: 'Necropsies received', value: fmt(mine.length) },
-              { label: 'Species', value: fmt(new Set(mine.map((d) => d.speciesName)).size) },
-              {
-                label: 'Clearance',
-                value: mine.length ? `${Math.round((completed / mine.length) * 100)}%` : '—',
-                tone: mine.length ? 'good' : undefined,
-              },
-            ]}
-          />
-          <Rule label="Queue" />
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Completed', value: fmt(completed), tone: 'good' },
-              { label: 'In progress', value: fmt(inProgress), tone: inProgress ? 'warn' : 'neutral' },
-              { label: 'Awaiting', value: fmt(awaiting), tone: awaiting ? 'bad' : 'neutral' },
-            ]}
-          />
-        </Section>
-
-        {mine.length > 0 && (
-          <>
-            <Section icon={Dna} label="Species at this bench" aside={`${new Set(mine.map((d) => d.speciesName)).size}`}>
-              <DrillList>
-                {bySpeciesSlice(mine).map((s) => (
-                  <DrillRow
-                    key={s.id}
-                    label={s.label}
-                    sub={s.sub}
-                    value={fmt(s.value)}
-                    onOpen={() =>
-                      open({
-                        title: s.label,
-                        eyebrow: `${centre?.name ?? centreId} › Species`,
-                        body: <SpeciesNecropsySheet speciesName={s.label} rows={mine} within={centre?.name} />,
-                      })
-                    }
-                  />
-                ))}
-              </DrillList>
-            </Section>
-            <Section icon={Skull} label="Major causes" aside={`${byCause(mine).length}`}>
-              <DrillList>
-                {byCause(mine).map((c) => (
-                  <DrillRow key={c.id} label={c.label} value={fmt(c.value)} tone={c.tone} />
-                ))}
-              </DrillList>
-            </Section>
-          </>
-        )}
-
-        <Section icon={FileSearch} label="Necropsy records" aside={`${mine.length}`}>
-          <NecropsyRows rows={mine} eyebrow={centre?.name ?? centreId} />
-        </Section>
-      </Stack>
-    </>
-  )
-}
 
 /* ── species-wise necropsy · the brief's §11 ────────────────────────────── */
 
@@ -971,10 +837,12 @@ export function SpeciesNecropsySheet({
 
         {referred.length > 0 && (
           <>
-            <Section icon={Building2} label="Centres" aside={`${byCentre(referred).length}`}>
+            {/* Carcass condition, where the centre list used to be — the record's own first
+                observation about each animal that reached the bench. */}
+            <Section icon={Building2} label="Carcass condition" aside={`${byCondition(referred).length}`}>
               <DrillList>
-                {byCentre(referred).map((c) => (
-                  <DrillRow key={c.id} label={c.label} sub={c.sub} value={fmt(c.value)} />
+                {byCondition(referred).map((c) => (
+                  <DrillRow key={c.id} label={c.label} value={fmt(c.value)} />
                 ))}
               </DrillList>
             </Section>
@@ -1015,14 +883,13 @@ export function SpeciesNecropsySheet({
 export function NecropsyRecordSheet({ death: d }: { death: Death }) {
   const { open } = useSheet()
   const n = d.necropsy!
-  const centre = centreOf(n.centreId)
 
   return (
     <>
       <SheetHero
         value={n.status === 'Completed' ? 'Complete' : n.status}
         label={`${n.id} · ${d.speciesName}`}
-        note={`${centre?.name ?? n.centreName} · died ${longDate(d.day)}`}
+        note={`${d.siteName} · died ${longDate(d.day)}`}
         tone={hero(STATUS_TONE[n.status])}
       />
       <Stack>
@@ -1034,26 +901,16 @@ export function NecropsyRecordSheet({ death: d }: { death: Death }) {
               { label: 'Species', sub: d.cls, value: d.speciesName },
               { label: 'Site', value: d.siteName },
               { label: 'Date of death', value: longDate(d.day) },
-              { label: 'Received at centre', value: longDate(n.receivedOn) },
-              { label: 'Necropsy centre', sub: centre?.kind, value: n.centreName },
-              { label: 'Turnaround', value: `${centre?.turnaround ?? 0} d` },
-              {
-                label: n.status === 'Completed' ? 'Finding signed off' : 'Finding due',
-                value: longDate(n.dueOn),
-                tone: n.status === 'Completed' ? 'good' : 'warn',
-              },
               { label: 'Status', value: n.status, tone: STATUS_TONE[n.status] },
               { label: 'Cause recorded at enclosure', value: d.cause, tone: d.tone },
-              /* Only where the bench has finished. A provisional finding is the one field on
-                 this sheet a director would act on, so it is not guessed. */
-              {
-                label: 'Necropsy finding',
-                value: n.finding ?? 'Pending',
-                tone: n.finding ? (n.revised ? 'warn' : 'good') : 'neutral',
-              },
-              ...(n.revised
-                ? [{ label: 'Cause revised', value: `${d.cause} → ${n.finding}`, tone: 'warn' as const }]
-                : []),
+              { label: 'Carcass condition', value: n.condition },
+              { label: 'Disposal', value: n.disposal },
+              /* THE FIELDS THAT ARE NOT HERE. A necropsy centre, the date the bench received
+                 the animal, a turnaround, a due date, a confirmed finding and a "cause
+                 revised" flag were all on this sheet, and every one of them was modelled.
+                 `report_deaths` records a status, a carcass condition and a disposal method,
+                 and nothing else about the examination — so this sheet now shows three real
+                 fields instead of nine, four of which a director might have acted on. */
             ]}
           />
         </Section>
@@ -1161,21 +1018,15 @@ export function AnimalMortalitySheet({ death: d }: { death: Death }) {
                 items={[
                   { label: 'Necropsy ID', value: n.id },
                   { label: 'Status', value: n.status, tone: STATUS_TONE[n.status] },
-                  { label: 'Centre', sub: n.centreKind, value: n.centreName },
-                  { label: 'Received', value: longDate(n.receivedOn) },
-                  {
-                    label: n.status === 'Completed' ? 'Signed off' : 'Due',
-                    value: longDate(n.dueOn),
-                    tone: n.status === 'Completed' ? 'good' : 'warn',
-                  },
-                  { label: 'Finding', value: findingLabel(n), tone: n.finding ? (n.revised ? 'warn' : 'good') : 'neutral' },
+                  { label: 'Carcass condition', value: n.condition },
+                  { label: 'Disposal', value: n.disposal },
                 ]}
               />
               <Rule label="Record" />
               <DrillList>
                 <DrillRow
                   label={n.id}
-                  sub={`${n.centreName} · ${n.status}`}
+                  sub={`${n.condition} · ${n.status}`}
                   value="Open"
                   tone={STATUS_TONE[n.status]}
                   onOpen={() =>
@@ -1197,7 +1048,7 @@ export function AnimalMortalitySheet({ death: d }: { death: Death }) {
           )}
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         Deepest level
       </p>
     </>

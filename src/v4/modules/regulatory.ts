@@ -27,7 +27,7 @@
 
 import type { Win } from '../../core/calendar'
 import { speciesStock } from '../../core/animals'
-import { SITES, type ClassName, type Species } from '../../core/world'
+import { SITES, speciesByName, type ClassName, type Species } from '../../core/world'
 import type { RedListCode } from '../../exec/system'
 
 export type CitesAppendix = 'I' | 'II' | 'III'
@@ -43,128 +43,72 @@ export interface Standing {
 }
 
 /**
- * Every species in `core/world.ts`, with its published standing.
+ * A species' published standing, read from the reference table.
  *
- * All 97 are present rather than the interesting ones: a species missing from this table
- * would silently fall to Not Evaluated and non-regulatory, which is a claim about the animal
- * rather than an admission about the table. `standingOf` still defaults, so a species added
- * to the world tomorrow renders as unassessed instead of crashing — but it will also show up
- * in the Not Evaluated count, where somebody will notice it.
+ * WHAT THIS REPLACES. There was a hand-authored table here — all 97 species in the old
+ * `core/world.ts`, each with an IUCN category, a CITES appendix and a Wildlife Protection Act
+ * schedule typed against it. It was the right answer while the collection was authored: the
+ * standing belongs to the species rather than to a category, so attaching it here made every
+ * regulatory figure on the page a sum over `speciesStock` and therefore scopeable.
+ *
+ * The species are the database's now, all 2,411 of them, and `species` carries `iucn_status`
+ * and `cites_appendix` on every row. So the standing is read. The 97-row table would have
+ * matched none of them — the names are anonymised — and every species would have fallen to
+ * Not Evaluated, which is what the Mortality page's "0 regulatory" was telling us.
+ *
+ * THE SCHEDULE IS GONE, AND THAT IS A REAL LOSS. There is no Wildlife Protection Act column
+ * anywhere in the schema. `schedule` stays on the interface because the page's Schedule I/II/III
+ * bands read it, and it is now always undefined — so those bands render empty rather than
+ * wrong, and `isRegulated` falls back to the CITES listing alone.
  */
-const STANDING: Record<string, Standing> = {
-  /* ── Aquatic Halls ─────────────────────────────────────────────────────── */
-  'Common Carp': { iucn: 'VU' },
-  'Nile Tilapia': { iucn: 'LC' },
-  Rohu: { iucn: 'LC' },
-  'Silver Barb': { iucn: 'LC' },
-  'Mrigal Carp': { iucn: 'LC' },
-  Catla: { iucn: 'LC' },
-  'Rose Shrimp': { iucn: 'NE' },
-  'Giant River Prawn': { iucn: 'LC' },
-  'Indian Mud Crab': { iucn: 'DD' },
-  'Fiddler Crab': { iucn: 'NE' },
-  'Apple Snail': { iucn: 'NE' },
-  'Freshwater Mussel': { iucn: 'DD' },
-  Mosquitofish: { iucn: 'LC' },
-  'Zebra Danio': { iucn: 'LC' },
-  'Climbing Perch': { iucn: 'DD' },
-  'Snakehead Murrel': { iucn: 'LC' },
-  'Blacktip Reef Shark': { iucn: 'VU' },
-  'Whitespotted Bamboo Shark': { iucn: 'NT' },
-  'Freshwater Stingray': { iucn: 'VU', schedule: 'II' },
-  'Honeycomb Whipray': { iucn: 'EN', schedule: 'II' },
-  'Indian Bullfrog': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Common Skittering Frog': { iucn: 'LC' },
 
-  /* ── Aviary Complex ────────────────────────────────────────────────────── */
-  'Zebra Finch': { iucn: 'LC' },
-  'Rock Pigeon': { iucn: 'LC' },
-  'Indian Peafowl': { iucn: 'LC', schedule: 'I' },
-  'Grey Francolin': { iucn: 'LC', schedule: 'II' },
-  'Red Avadavat': { iucn: 'LC', schedule: 'II' },
-  'Common Myna': { iucn: 'LC' },
-  'Rose-ringed Parakeet': { iucn: 'LC', cites: 'III', schedule: 'II' },
-  'Painted Stork': { iucn: 'NT', schedule: 'II' },
-  'Black-headed Ibis': { iucn: 'NT', schedule: 'II' },
-  'Lesser Whistling Duck': { iucn: 'LC', schedule: 'II' },
-  'Indian Skimmer': { iucn: 'EN', schedule: 'I' },
-  'Sarus Crane': { iucn: 'VU', cites: 'II', schedule: 'I' },
-  'Greater Flamingo': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Spot-billed Pelican': { iucn: 'NT', schedule: 'I' },
-  'Barn Owl': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Indian Eagle-Owl': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Oriental Darter': { iucn: 'NT', schedule: 'II' },
-  'White-rumped Vulture': { iucn: 'CR', cites: 'II', schedule: 'I' },
-  'Crested Serpent Eagle': { iucn: 'LC', cites: 'II', schedule: 'I' },
+/** The eight IUCN strings the reference table uses, folded to the codes `RedList` draws. */
+const IUCN: [RegExp, RedListCode][] = [
+  [/critically endangered/i, 'CR'],
+  [/^endangered|very high risk/i, 'EN'],
+  [/vulnerable/i, 'VU'],
+  [/near threatened/i, 'NT'],
+  [/least concern/i, 'LC'],
+  [/data deficient/i, 'DD'],
+  [/extinct in the wild/i, 'EW'],
+  [/extinct/i, 'EX'],
+]
 
-  /* ── Savanna ───────────────────────────────────────────────────────────── */
-  Chital: { iucn: 'LC', schedule: 'III' },
-  Blackbuck: { iucn: 'LC', cites: 'III', schedule: 'I' },
-  Sambar: { iucn: 'VU', schedule: 'III' },
-  Nilgai: { iucn: 'LC', schedule: 'III' },
-  'Indian Gazelle': { iucn: 'LC', cites: 'III', schedule: 'I' },
-  'Sangai Deer': { iucn: 'EN', cites: 'I', schedule: 'I' },
-  'Hog Deer': { iucn: 'EN', cites: 'I', schedule: 'III' },
-  'Wild Boar': { iucn: 'LC', schedule: 'III' },
-  'Four-horned Antelope': { iucn: 'VU', cites: 'III', schedule: 'I' },
-  'Indian Bison': { iucn: 'VU', cites: 'I', schedule: 'I' },
-  Barasingha: { iucn: 'VU', cites: 'I', schedule: 'I' },
-  'Asiatic Wild Ass': { iucn: 'NT', cites: 'II', schedule: 'I' },
-  'Blue Bull Calf Herd': { iucn: 'LC', schedule: 'III' },
-  'Indian Hare': { iucn: 'LC', schedule: 'III' },
-  'Indian Crested Porcupine': { iucn: 'LC', schedule: 'II' },
-
-  /* ── Reptile House ─────────────────────────────────────────────────────── */
-  'Indian Flapshell Turtle': { iucn: 'LC', cites: 'II', schedule: 'I' },
-  'Indian Rock Python': { iucn: 'NT', cites: 'I', schedule: 'I' },
-  'Bengal Monitor': { iucn: 'LC', cites: 'I', schedule: 'I' },
-  'Indian Star Tortoise': { iucn: 'VU', cites: 'I', schedule: 'I' },
-  'Marsh Crocodile': { iucn: 'VU', cites: 'I', schedule: 'I' },
-  'Indian Cobra': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Russell’s Viper': { iucn: 'LC', schedule: 'II' },
-  'Malabar Pit Viper': { iucn: 'LC', schedule: 'II' },
-  'Common Rat Snake': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Checkered Keelback': { iucn: 'LC', schedule: 'II' },
-  'Garden Lizard': { iucn: 'LC' },
-  Gharial: { iucn: 'CR', cites: 'I', schedule: 'I' },
-  'King Cobra': { iucn: 'VU', cites: 'II', schedule: 'II' },
-  'Indian Chameleon': { iucn: 'LC', cites: 'II', schedule: 'I' },
-  'Common Indian Toad': { iucn: 'LC' },
-  'Bombay Bush Frog': { iucn: 'VU' },
-  'Atlas Moth': { iucn: 'NE' },
-  'Common Rose Butterfly': { iucn: 'NE', schedule: 'II' },
-  'Giant Wood Spider Beetle': { iucn: 'NE' },
-
-  /* ── Primate Forest ────────────────────────────────────────────────────── */
-  'Rhesus Macaque': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Hanuman Langur': { iucn: 'LC', cites: 'I', schedule: 'II' },
-  'Bonnet Macaque': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Lion-tailed Macaque': { iucn: 'EN', cites: 'I', schedule: 'I' },
-  'Nilgiri Langur': { iucn: 'VU', cites: 'II', schedule: 'I' },
-  'Slow Loris': { iucn: 'EN', cites: 'I', schedule: 'I' },
-  'Capped Langur': { iucn: 'VU', cites: 'I', schedule: 'I' },
-  'Assamese Macaque': { iucn: 'NT', cites: 'II', schedule: 'II' },
-  'Hoolock Gibbon': { iucn: 'EN', cites: 'I', schedule: 'I' },
-  'Slender Loris': { iucn: 'LC', cites: 'II', schedule: 'I' },
-
-  /* ── Carnivore Ridge ───────────────────────────────────────────────────── */
-  'Bengal Fox': { iucn: 'LC', cites: 'III', schedule: 'II' },
-  'Jungle Cat': { iucn: 'LC', cites: 'II', schedule: 'II' },
-  'Striped Hyena': { iucn: 'NT', cites: 'III', schedule: 'III' },
-  'Asiatic Lion': { iucn: 'EN', cites: 'I', schedule: 'I' },
-  'Fishing Cat': { iucn: 'VU', cites: 'II', schedule: 'I' },
-  'Indian Leopard': { iucn: 'VU', cites: 'I', schedule: 'I' },
-  'Golden Jackal': { iucn: 'LC', cites: 'III', schedule: 'III' },
-  'Rusty-spotted Cat': { iucn: 'NT', cites: 'I', schedule: 'I' },
-  'Sloth Bear': { iucn: 'VU', cites: 'I', schedule: 'I' },
-  'Indian Grey Mongoose': { iucn: 'LC', cites: 'III', schedule: 'II' },
-  'Honey Badger': { iucn: 'LC', cites: 'III', schedule: 'I' },
-  Caracal: { iucn: 'LC', cites: 'I', schedule: 'I' },
+/**
+ * CITES, folded to the appendix a card counts.
+ *
+ * A MULTI-LISTED SPECIES COUNTS AS ITS STRICTEST APPENDIX. 34 rows read "Appendix I/II" or
+ * "Appendix I/II/III" — different populations of one species listed differently — and the
+ * appendix bands must not double-count, so each row lands in exactly one. Appendix I is the
+ * one a permit officer plans around, so that is the one it lands in.
+ */
+function citesOf(raw: string | null | undefined): CitesAppendix | undefined {
+  if (!raw) return undefined
+  if (/appendix\s*i(\s|\/|$)/i.test(raw)) return 'I'
+  if (/appendix\s*ii(\s|\/|$)/i.test(raw)) return 'II'
+  if (/appendix\s*iii/i.test(raw)) return 'III'
+  return undefined
 }
 
 const UNASSESSED: Standing = { iucn: 'NE' }
 
-export const standingOf = (speciesName: string): Standing => STANDING[speciesName] ?? UNASSESSED
+const cache = new Map<string, Standing>()
+
+export const standingOf = (speciesName: string): Standing => {
+  const hit = cache.get(speciesName)
+  if (hit) return hit
+
+  /* Any population of the name — the reference row is per species, not per site, so the first
+     holding answers for all of them. */
+  const sp = speciesByName(speciesName)[0]
+  if (!sp) return UNASSESSED
+
+  const raw = sp.iucn ?? ''
+  const iucn = IUCN.find(([test]) => test.test(raw))?.[1] ?? 'NE'
+  const built: Standing = { iucn, cites: citesOf(sp.cites) }
+  cache.set(speciesName, built)
+  return built
+}
 
 /** Under a permit or a schedule — the one line that splits the collection in two. */
 export const isRegulated = (s: Standing): boolean => Boolean(s.cites || s.schedule)

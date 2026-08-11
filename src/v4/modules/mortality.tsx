@@ -43,7 +43,6 @@
 import { useMemo, useState } from 'react'
 import {
   Activity,
-  Building2,
   ClipboardList,
   Dna,
   FileSearch,
@@ -85,7 +84,6 @@ import { RankTable, type Col } from './mortalityTable'
 import {
   AnimalMortalitySheet,
   CauseSheet,
-  CentreSheet,
   DeathRows,
   DeathListSheet,
   NecropsyRows,
@@ -97,13 +95,11 @@ import {
   SpeciesNecropsySheet,
 } from './mortalitySheets'
 import {
-  CENTRES,
   MORTALITY_ACCENT,
   STATUSES,
   STATUS_TONE,
   byCause,
   bySpeciesSlice,
-  centreLines,
   changeLabel,
   changeTone,
   citesBands,
@@ -118,7 +114,6 @@ import {
   siteLines,
   speciesLines,
   trend,
-  type CentreLine,
   type Death,
   type Grain,
   type SiteLine,
@@ -206,9 +201,6 @@ export default function Mortality() {
         <NecropsyOverview rows={rows} />
 
         <Wide>
-          <CentreWise rows={rows} />
-        </Wide>
-        <Wide>
           <NecropsySpeciesWise rows={rows} />
         </Wide>
         <Wide>
@@ -254,7 +246,7 @@ function MortalityHero({ rows, prev, cut }: { rows: Death[]; prev: Death[]; cut:
   const active = cutLabel(cut)
 
   return (
-    <div className="w-full px-[var(--gutter-lg)] pb-3">
+    <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <div className="flex items-end justify-between gap-4">
           <span className="min-w-0">
@@ -1041,8 +1033,7 @@ function NecropsyOverview({ rows }: { rows: Death[] }) {
   const { open } = useSheet()
   const referred = useMemo(() => necropsiesOf(rows), [rows])
   const completed = referred.filter((d) => d.necropsy!.status === 'Completed')
-  const inProgress = referred.filter((d) => d.necropsy!.status === 'In progress')
-  const awaiting = referred.filter((d) => d.necropsy!.status === 'Awaiting')
+  const pending = referred.filter((d) => d.necropsy!.status === 'Pending')
   const notReferred = rows.filter((d) => !d.necropsy)
 
   const into = (title: string, list: Death[], label: string, tone?: 'good' | 'warn' | 'bad') =>
@@ -1070,19 +1061,22 @@ function NecropsyOverview({ rows }: { rows: Death[] }) {
             ]}
           />
           <Rule label="Status" />
-          {/* All four bars are a share of DEATHS, not of referrals.
-              The three statuses partition the referrals and "not referred" is the complement, so
-              on one denominator the four rows partition every death in the window and the bars
-              sum to the full track. Drawing the first three against referrals and the fourth
-              against deaths — which is what this list did first — puts four bars in one column on
-              two different bases, where a 2 looks bigger than a 5. */}
+          {/* All three bars are a share of DEATHS, not of referrals.
+              The two statuses partition the referrals and "not referred" is the complement, so
+              on one denominator the three rows partition every death in the window and the bars
+              sum to the full track. Drawing the first two against referrals and the third
+              against deaths — which is what this list did first — puts three bars in one column
+              on two different bases, where a 2 looks bigger than a 5.
+
+              TWO STATUSES, NOT THREE. `necropsy_status` has exactly two values, Pending and
+              Completed. "In progress" and "Awaiting" were a modelled split of pending against a
+              turnaround this schema does not record. */}
           <DrillList>
             {(
               [
-                ['Completed', 'finding signed off', completed, 'good'],
-                ['In progress', 'at the bench', inProgress, 'warn'],
-                ['Awaiting', 'queued, not yet started', awaiting, 'bad'],
-                ['Not referred', 'husbandry death · no necropsy required', notReferred, undefined],
+                ['Completed', 'findings signed off', completed, 'good'],
+                ['Pending', 'still at the bench', pending, 'warn'],
+                ['Not referred', 'no necropsy status recorded', notReferred, undefined],
               ] as const
             ).map(([label, sub, list, tone]) => (
               <DrillRow
@@ -1123,69 +1117,14 @@ function NecropsyOverview({ rows }: { rows: Death[] }) {
   )
 }
 
-/* ── 10 · centre-wise · the brief's §10 ──────────────────────────────── */
-
-const CENTRE_SORTS: Record<string, (r: CentreLine) => number> = {
-  necropsies: (r) => r.necropsies,
-  completed: (r) => r.completed,
-  pending: (r) => r.pending,
-  species: (r) => r.species,
-}
-
-/** ALL six benches, including the ones that received nothing in the window. */
-function CentreWise({ rows }: { rows: Death[] }) {
-  const { scope } = useScope()
-  const { open } = useSheet()
-  const [sortKey, setSortKey] = useState('necropsies')
-
-  /* Derived from the FILTERED rows, not from the scope — a page cut to Schedule I must show
-     each bench's Schedule I caseload, not its whole queue. */
-  const lines = useMemo(() => {
-    const by = CENTRE_SORTS[sortKey] ?? CENTRE_SORTS.necropsies
-    return centreLines(rows).sort((a, b) => by(b) - by(a))
-  }, [rows, sortKey])
-
-  const cols: Col<CentreLine>[] = [
-    { key: 'necropsies', head: 'Cases', cell: (r) => fmt(r.necropsies), sort: CENTRE_SORTS.necropsies },
-    { key: 'completed', head: 'Completed', cell: (r) => fmt(r.completed), sort: CENTRE_SORTS.completed, tone: (r) => (r.completed ? 'good' : undefined) },
-    {
-      key: 'pending',
-      head: 'Pending',
-      cell: (r) => fmt(r.pending),
-      sort: CENTRE_SORTS.pending,
-      tone: (r) => (r.awaiting ? 'bad' : r.pending ? 'warn' : undefined),
-    },
-    { key: 'species', head: 'Species', cell: (r) => fmt(r.species), sort: CENTRE_SORTS.species },
-    { key: 'clearance', head: 'Clearance', cell: (r) => (r.clearance === undefined ? '—' : `${Math.round(r.clearance)}%`) },
-    { key: 'share', head: 'Share', cell: (r) => `${Math.round(r.percent)}%`, compact: false },
-  ]
-
-  return (
-    <Section icon={Building2} label="Necropsy centre-wise" aside={`${CENTRES.length} centres`}>
-      <RankTable
-        rows={lines}
-        columns={cols}
-        head="Necropsy centre"
-        name={(r) => r.centre.name}
-        sub={(r) => `${r.centre.code} · ${r.centre.kind} · ${r.centre.turnaround} d turnaround`}
-        sortKey={sortKey}
-        onSort={setSortKey}
-        onOpen={(r) =>
-          open({
-            title: r.centre.name,
-            eyebrow: 'Necropsy centre',
-            body: <CentreSheet centreId={r.centre.id} rows={rows} />,
-          })
-        }
-        empty={<NoDeaths window={scope.win.window} />}
-      />
-      <p className="mt-3 text-caption" style={{ color: FAINT }}>
-        A laboratory signs off histopathology and toxicology; a field bench records gross findings the next day. A
-        centre receives from every site, so scoping to one site changes the cases counted, not the list.
-      </p>
-    </Section>
-  )
-}
+/* ── 10 · the necropsy centre-wise table is gone ─────────────────────────── */
+/*
+ * It ranked six benches by caseload, completion, clearance and turnaround. Every one of those
+ * benches was derived from the hospital and laboratory registries, which this schema does not
+ * have — `report_deaths` records that a necropsy is pending or complete and says nothing about
+ * where. Carcass condition and disposal, which it does record, are on the necropsy drill and
+ * on each record instead.
+ */
 
 /* ── 11 · necropsy species-wise · the brief's §11 ────────────────────── */
 

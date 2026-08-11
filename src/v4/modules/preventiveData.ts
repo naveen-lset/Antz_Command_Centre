@@ -33,13 +33,13 @@
  */
 
 import { TODAY, longDate, shortDate, type Win } from '../../core/calendar'
-import { detailsFor, protocolSpecies } from '../../core/events'
+import { eventAt } from '../../core/events'
+import { daily } from '../../core/series'
 import { METRICS } from '../../core/metrics'
 import { bySpecies, figure, records as recordsIn } from '../../core/query'
 import { siteKeyOf, type Scope } from '../../core/scope'
-import { apportion, draw } from '../../core/seed'
-import { animalAt, animalId, type Animal } from '../../core/animals'
-import { SITES, siteOf, speciesIn, type Site, type Species } from '../../core/world'
+import { animalById, type Animal } from '../../core/animals'
+import { SITES, siteOf, speciesIn, type Site } from '../../core/world'
 
 /* ── the three programmes ────────────────────────────────────────────────── */
 
@@ -52,6 +52,14 @@ export interface Stream {
   activity: string
   /** The rate metric — how much of the herd is protected. Absent where there is no protocol. */
   cover?: string
+  /**
+   * The flow metric of doses SCHEDULED AND NOT GIVEN.
+   *
+   * This is what the source means by overdue: a `vaccination` or `deworming` row whose status
+   * is Pending and whose `administered_on` is null. It replaces the coverage-gap derivation —
+   * see the note on `rosterFor`.
+   */
+  due?: string
   /** What one administration is called on a record row. */
   noun: string
   /** The classifying dimension's own name: a vaccine, a drug, a supplement. */
@@ -65,6 +73,7 @@ export const STREAMS: Record<StreamKey, Stream> = {
     label: 'Vaccination',
     activity: 'vaccinations',
     cover: 'vaccination',
+    due: 'vaccinationDue',
     noun: 'vaccinations',
     agent: 'Vaccine',
     accent: '#00afd6',
@@ -74,6 +83,7 @@ export const STREAMS: Record<StreamKey, Stream> = {
     label: 'Deworming',
     activity: 'deworming',
     cover: 'dewormingCover',
+    due: 'dewormingDue',
     noun: 'treatments',
     agent: 'Treatment',
     accent: '#006d35',
@@ -130,29 +140,18 @@ export function coverageOf(siteKey: string | null, stream: Stream): Coverage | u
 /* ── the outstanding roster ──────────────────────────────────────────────── */
 
 /**
- * The four buckets, and the weights the gap is split across them.
+ * The four buckets an outstanding dose falls into, by how late it is.
  *
- * Weights, not counts — the counts come from apportioning the site's own coverage gap, so
- * they sum to it exactly at every site and therefore across the collection. Vaccination
- * carries the longer tail because a missed booster round slips a month; a worming round is
- * repeated on a shorter cycle, so its lateness clusters nearer the due date.
+ * COUNTED FROM REAL SCHEDULED DATES, not apportioned across weights. There used to be a table
+ * of bucket weights here — vaccination `[8, 34, 28, 30]` — because the roster was a derivation
+ * from a coverage gap and the gap carried no dates. Every pending row in the source carries the
+ * date the dose was scheduled for, so lateness is a subtraction and the buckets are a count.
  */
 export const BUCKETS = ['Due today', '1–7 days', '8–15 days', 'Over 15 days'] as const
 export type Bucket = (typeof BUCKETS)[number]
 
-const BUCKET_WEIGHTS: Record<StreamKey, number[]> = {
-  vaccination: [8, 34, 28, 30],
-  deworming: [6, 33, 30, 31],
-  supplement: [0, 0, 0, 0],
-}
-
-/** The day ranges each bucket covers, used to give a record a real due date. */
-const BUCKET_DAYS: [number, number][] = [
-  [0, 0],
-  [1, 7],
-  [8, 15],
-  [16, 96],
-]
+const bucketFor = (days: number): Bucket =>
+  days <= 0 ? 'Due today' : days <= 7 ? '1–7 days' : days <= 15 ? '8–15 days' : 'Over 15 days'
 
 export interface OverdueRow {
   animalId: string
@@ -160,25 +159,31 @@ export interface OverdueRow {
   speciesName: string
   siteKey: string
   siteName: string
-  /** The vaccine or the anthelmintic that is outstanding. */
+  /** The vaccine or the anthelmintic that is outstanding — the row's own medicine name. */
   agent: string
-  /** Ledger index the dose was due on. */
+  /** Ledger index the dose was scheduled for. */
   dueOn: number
   daysOverdue: number
   bucket: Bucket
-  /** Ledger index of the last administration, where the animal has had one before. */
+  /** Ledger index of the last administration, where the animal has had one. */
   lastOn?: number
 }
 
 /**
- * One site's outstanding animals, in full.
+ * One site's outstanding doses, in full.
  *
- * Built rather than stored, and built the same way every time: the eligible herd is
- * apportioned across the site's species, the tail of each species' roster is the part that
- * is outstanding, and the agent and the exact lateness are seeded on the animal's own id.
+ * WHAT THIS REPLACES, AND WHY IT HAD TO GO. The roster used to be built from the coverage gap:
+ * eligible herd minus covered animals, apportioned across species, with the lateness of each
+ * animal drawn from a seeded coin. That was sound when coverage was an authored rate against
+ * an authored eligible herd. Against the database it is not: there is no protocol table, so the
+ * "eligible herd" became every housed animal, so the gap became 110,020 − 9,942 per stream and
+ * the page reported 186,477 animals overdue. That figure was an artefact of the denominator,
+ * not a fact about the collection.
  *
- * Bounded by construction — the largest site's gap is 63 animals — so this returns the
- * whole list and the callers page it for display rather than the other way round.
+ * The source answers the question directly. A `vaccination` or `deworming` row with status
+ * Pending is a dose that was scheduled and not given — 1,781 and 5,098 of them — and each
+ * carries its animal, its species, its site, its medicine and the date it was due. So the
+ * roster is those rows, and "days overdue" is today minus that date.
  */
 const rosterCache = new Map<string, OverdueRow[]>()
 
@@ -186,94 +191,37 @@ export function rosterFor(siteKey: string, stream: Stream): OverdueRow[] {
   const cacheKey = `${stream.key}:${siteKey}`
   const hit = rosterCache.get(cacheKey)
   if (hit) return hit
+  if (!stream.due) return []
 
-  if (!stream.cover) return []
-  const row = levelsOf(stream.cover).find((r) => r.site === siteKey)
   const site = siteOf(siteKey)
-  if (!row || !site) return []
+  if (!site) return []
 
-  const herd = row.of ?? 0
-  const gap = Math.max(0, herd - row.now)
-  if (gap === 0) return []
-
-  /* THE PROTOCOL HERD, NOT THE WHOLE SITE. Apportioning across every species Aquatic Halls
-     holds puts a tenth of the roster on prawns and snails, which no vaccine reaches — so the
-     species pool is the one the record stream draws from, which is the classes the
-     vocabulary can actually treat. The herd and the gap both land inside it, so the counts
-     still sum to the coverage metric exactly. */
-  const species = protocolSpecies(siteKey, stream.activity)
-  const perSpeciesHerd = apportion(herd, species.map((s) => s.weight))
-  const perSpeciesGap = apportion(gap, species.map((s) => s.weight))
-
+  /* Everything scheduled from the start of the ledger to today. A dose scheduled for a future
+     date is not overdue and is not in the window. */
+  const win: Win = { key: 'all', label: '', noun: '', from: 0, to: TODAY, days: TODAY + 1, window: '' }
   const out: OverdueRow[] = []
-  species.forEach((sp: Species, i) => {
-    const eligible = perSpeciesHerd[i]
-    const short = Math.min(perSpeciesGap[i], eligible)
-    if (short <= 0) return
 
-    /* The agent vocabulary this species can actually receive — the same rule the record
-       stream draws under, so the vaccine an animal is overdue for is one it could be given.
-       Resolved once per species rather than once per animal. */
-    const agents = detailsFor(stream.activity, sp.cls)
-    const total = agents.reduce((n, a) => n + a.weight, 0) || 1
-
-    /* The tail of the species' own roster. A rule rather than a random draw, so the same
-       animal is outstanding on every read and a record opened twice is the same record. */
-    for (let k = 0; k < short; k++) {
-      const n = eligible - k
-      if (n < 1) break
-      const id = animalId(sp.id, n)
-      let t = draw(`${stream.key}:${id}:agent`) * total
-      let agent = agents[agents.length - 1].label
-      for (const a of agents) {
-        t -= a.weight
-        if (t <= 0) {
-          agent = a.label
-          break
-        }
-      }
+  const s = daily(stream.due, siteKey)
+  for (let day = Math.min(TODAY, win.to); day >= 0; day--) {
+    for (let i = 0; i < s[day]; i++) {
+      const ev = eventAt(stream.due, siteKey, day, i)
+      const daysOverdue = TODAY - ev.day
       out.push({
-        animalId: id,
-        speciesId: sp.id,
-        speciesName: sp.name,
+        animalId: ev.animalId,
+        speciesId: ev.speciesId,
+        speciesName: ev.speciesName,
         siteKey,
         siteName: site.name,
-        agent,
-        dueOn: TODAY,
-        daysOverdue: 0,
-        bucket: 'Due today',
+        agent: ev.detail,
+        dueOn: ev.day,
+        daysOverdue,
+        bucket: bucketFor(daysOverdue),
       })
     }
-  })
+  }
 
-  /* Lateness is apportioned over the whole site rather than drawn per animal, so the four
-     buckets sum to the coverage gap instead of landing near it. */
-  const counts = apportion(out.length, BUCKET_WEIGHTS[stream.key])
-  let at = 0
-  counts.forEach((n, b) => {
-    const [lo, hi] = BUCKET_DAYS[b]
-    for (let i = 0; i < n && at < out.length; i++, at++) {
-      const r = out[at]
-      const days = lo + Math.floor(draw(`${stream.key}:${r.animalId}:late`) * (hi - lo + 1))
-      r.daysOverdue = days
-      r.dueOn = Math.max(0, TODAY - days)
-      r.bucket = BUCKETS[b]
-      /* A previous administration exists for most of the herd — the programme has run for
-         years — but never before the animal existed. A six-month-old calf with a booster
-         dated last year is the kind of detail that makes a reader stop believing the page,
-         so the animal's own birth is the floor and a younger one simply has no prior. */
-      const prior = draw(`${stream.key}:${r.animalId}:prior`)
-      const last = r.dueOn - 120 - Math.floor(prior * 240)
-      const born = animalAt(r.speciesId, Number(r.animalId.slice(-5)))?.bornOn ?? 0
-      if (prior > 0.18 && last > born) r.lastOn = last
-    }
-  })
-
-  /* Latest first: the animal 40 days late is the one an executive wants at the top. */
+  /* Latest first: the animal forty days late is the one an executive wants at the top. */
   const sorted = out.sort((a, b) => b.daysOverdue - a.daysOverdue)
-  /* Cached for the session. The roster depends on the coverage metric and nothing else —
-     not on the window, not on anything the reader can change — so rebuilding it on every
-     render of six sections would be pure waste. */
   rosterCache.set(cacheKey, sorted)
   return sorted
 }
@@ -289,7 +237,7 @@ export interface BucketTally {
   value: number
 }
 
-/** The four buckets under a scope. Sums to the coverage gap, by construction. */
+/** The four buckets under a scope. Sums to the outstanding count, by construction. */
 export function buckets(siteKey: string | null, stream: Stream): BucketTally[] {
   const rows = roster(siteKey, stream)
   return BUCKETS.map((bucket) => ({ bucket, value: rows.filter((r) => r.bucket === bucket).length }))
@@ -492,11 +440,17 @@ export interface AnimalCard {
   siteName: string
 }
 
-/** The animal behind an overdue row, built on demand. */
+/**
+ * The animal behind an overdue row.
+ *
+ * A register lookup on the row's own database id. It used to slice an ordinal out of the
+ * composite id and rebuild the animal from it, because ids encoded position rather than
+ * identity. `animal` is undefined where the dose was scheduled against an animal no longer
+ * housed, which the card already handles.
+ */
 export function animalOf(row: OverdueRow): AnimalCard {
-  const n = Number(row.animalId.slice(-5))
   return {
-    animal: animalAt(row.speciesId, n),
+    animal: animalById(row.animalId),
     id: row.animalId,
     speciesName: row.speciesName,
     siteName: row.siteName,
