@@ -42,10 +42,10 @@ export function SubModules({ slug }: { slug: string }) {
                   <kid.icon size={15} strokeWidth={1.75} style={{ color: accent }} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-[#1c1a16]">{kid.label}</span>
+                  <span className="block truncate text-small text-[#1c1a16]">{kid.label}</span>
                   {/* The registry's own keywords, which are the words someone would search
                       for — so the row says what the page is for without a sentence. */}
-                  <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                     {(execPages[kid.slug]?.keywords ?? []).slice(0, 3).join(' · ')}
                   </span>
                 </span>

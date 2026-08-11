@@ -30,7 +30,6 @@ import {
   useAccent,
   VALUE,
 } from '../../exec/system'
-import { Rail } from '../../exec/marks'
 import { useSheet } from '../sheet'
 import { useSite } from '../filters'
 
@@ -89,15 +88,15 @@ export function ModuleHero({
   return (
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-        <Figure value={shown} unit={unit ?? (split?.kind === 'rate' ? '%' : undefined)} size={58} color={HERO_INK} />
-        <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+        <Figure value={shown} unit={unit ?? (split?.kind === 'rate' ? '%' : undefined)} size={64} color={HERO_INK} />
+        <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
           {Glyph && <Glyph size={15} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
           {label}
         </p>
         {scopeNote && (
           <p className="mt-3 flex items-center gap-2">
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone] }} aria-hidden />
-            <span className="text-[13px] font-medium" style={{ color: TONE[tone] }}>
+            <span className="text-small font-medium" style={{ color: TONE[tone] }}>
               {scopeNote}
             </span>
           </p>
@@ -112,7 +111,7 @@ export function ModuleHero({
                 }`}
               >
                 <Figure value={s.value} unit={s.unit} size={24} />
-                <span className="mt-0.5 block truncate text-[12px] text-[#6d6860]">{s.label}</span>
+                <span className="mt-0.5 block truncate text-caption text-[#6d6860]">{s.label}</span>
               </span>
             ))}
           </div>
@@ -135,7 +134,6 @@ export function DrillRow({
   value,
   unit,
   tone,
-  bar,
   onOpen,
   lead,
 }: {
@@ -144,7 +142,6 @@ export function DrillRow({
   value: string
   unit?: string
   tone?: Tone
-  bar?: number
   onOpen?: () => void
   lead?: LucideIcon
 }) {
@@ -154,7 +151,6 @@ export function DrillRow({
     <span className="flex items-stretch gap-3">
       {/* The row's share as the weight of a rail, not as a bar under the row — see the note on
           `TapRow`'s `bar` in `v4/panels.tsx`. */}
-      {bar !== undefined && <Rail share={bar} />}
       <span className="flex min-w-0 flex-1 items-center gap-3">
         {Glyph && (
           <span
@@ -166,17 +162,17 @@ export function DrillRow({
           </span>
         )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] text-[#1c1a16]">{label}</span>
-          {sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{sub}</span>}
+          <span className="block truncate text-small text-[#1c1a16]">{label}</span>
+          {sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{sub}</span>}
         </span>
         <span className="shrink-0 text-right">
           <span
-            className="text-[14px] font-medium tabular-nums"
+            className="text-small font-medium tabular-nums"
             style={{ color: tone && tone !== 'neutral' ? TONE[tone] : VALUE }}
           >
             {value}
           </span>
-          {unit && <span className="ml-1 text-[11px] text-[#9b958b]">{unit}</span>}
+          {unit && <span className="ml-1 text-caption text-[#9b958b]">{unit}</span>}
         </span>
         <span className="w-[10px] shrink-0" style={{ color: onOpen ? ACCENT_INK : 'transparent' }} aria-hidden>
           <ChevronRight size={13} strokeWidth={2.25} />
@@ -236,18 +232,17 @@ export function NodePanel({
 }) {
   const { open } = useSheet()
   const total = nodes.reduce((n, c) => n + c.value, 0)
-  const widest = Math.max(...nodes.map((n) => n.value), 1)
 
   return (
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={fmt(total)} size={48} color={HERO_INK} />
-          <p className="mt-1 text-[15px] text-[#3d3a34]">
+          <p className="mt-1 text-body text-[#3d3a34]">
             {title}
             {unit ? ` · ${unit}` : ''}
           </p>
-          {trail.length > 0 && <p className="mt-2.5 text-[12px] text-[#9b958b]">{trail.join(' › ')}</p>}
+          {trail.length > 0 && <p className="mt-2.5 text-caption text-[#9b958b]">{trail.join(' › ')}</p>}
         </section>
       </div>
       <Stack>
@@ -261,7 +256,6 @@ export function NodePanel({
                 value={fmt(n.value)}
                 unit={n.unit}
                 tone={n.tone}
-                bar={(n.value / widest) * 100}
                 onOpen={
                   n.children?.length
                     ? () =>
@@ -295,8 +289,8 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={fmt(node.value)} unit={node.unit} size={48} color={node.tone ? TONE[node.tone] : HERO_INK} />
-          <p className="mt-1 text-[15px] text-[#3d3a34]">{node.label}</p>
-          {node.sub && <p className="mt-2.5 text-[12px] text-[#9b958b]">{node.sub}</p>}
+          <p className="mt-1 text-body text-[#3d3a34]">{node.label}</p>
+          {node.sub && <p className="mt-2.5 text-caption text-[#9b958b]">{node.sub}</p>}
         </section>
       </div>
       <Stack>
@@ -305,11 +299,11 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
             {(node.facts ?? []).map((f) => (
               <li key={f.label} className="flex items-baseline gap-3 py-2.5 first:pt-0 last:pb-0">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13.5px] text-[#1c1a16]">{f.label}</span>
-                  {f.sub && <span className="mt-0.5 block text-[11px] text-[#9b958b]">{f.sub}</span>}
+                  <span className="block text-small text-[#1c1a16]">{f.label}</span>
+                  {f.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{f.sub}</span>}
                 </span>
                 <span
-                  className="shrink-0 text-[14px] font-medium tabular-nums"
+                  className="shrink-0 text-small font-medium tabular-nums"
                   style={{ color: f.tone && f.tone !== 'neutral' ? TONE[f.tone] : VALUE }}
                 >
                   {f.value}
@@ -319,7 +313,7 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
           </ul>
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px] text-[#9b958b]">Deepest level</p>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">Deepest level</p>
     </>
   )
 }
@@ -341,7 +335,6 @@ export function SiteSplit({ slug, onOpenSite }: { slug: string; onOpenSite?: (ke
   if (!split) return null
 
   const rate = split.kind === 'rate'
-  const widest = Math.max(...split.rows.map((r) => r.percent), 1)
 
   return (
     <DrillList>
@@ -352,7 +345,6 @@ export function SiteSplit({ slug, onOpenSite }: { slug: string; onOpenSite?: (ke
           sub={`${r.site.code} · ${r.site.enclosures} enclosures`}
           value={rate ? `${Math.round(r.percent)}%` : fmt(r.value)}
           unit={rate && r.of ? `${fmt(r.value)}/${fmt(r.of)}` : undefined}
-          bar={rate ? r.percent : (r.percent / widest) * 100}
           onOpen={onOpenSite && r.value > 0 ? () => onOpenSite(r.site.key, r.site.name) : undefined}
         />
       ))}
@@ -370,10 +362,10 @@ export function OfChip({ n, of, label }: { n: number; of: number; label: string 
   const accent = useAccent()
   return (
     <span className="inline-flex items-baseline gap-1.5 rounded-full px-2.5 py-1" style={{ backgroundColor: mix(accent, 0.1) }}>
-      <span className="font-display text-[13px] font-bold tabular-nums" style={{ color: ACCENT_INK }}>
+      <span className="font-display text-small font-bold tabular-nums" style={{ color: ACCENT_INK }}>
         {compact(n)}
       </span>
-      <span className="text-[10.5px]" style={{ color: FAINT }}>
+      <span className="text-caption" style={{ color: FAINT }}>
         of {compact(of)} {label}
       </span>
     </span>

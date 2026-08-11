@@ -185,6 +185,17 @@ export function useKpi(kpi: KpiSpec): ResolvedKpi {
   return useMemo(() => {
     const slug = kpi.metric
 
+    /**
+     * Joins the parts of a note with " · ", DROPPING THE EMPTY ONES.
+     *
+     * The parts used to be interpolated into a template and trimmed, which is correct
+     * only while every part is non-empty. A KPI whose noun is deliberately blank — the
+     * three headline cards whose label already names what they count, see `data.ts` —
+     * then composed " · Aquatic Halls", and trimming the outer space leaves a separator
+     * with nothing on its left.
+     */
+    const join = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(' · ')
+
     /* No metric: the card's own authored figures, and a note that says it is not scoped so
        the reader is never left to assume a collection-wide number is a site's. */
     if (!slug) {
@@ -194,7 +205,7 @@ export function useKpi(kpi: KpiSpec): ResolvedKpi {
         value: String(authored),
         unit: kpi.unit,
         note: sentenceCase(
-          scope.site ? `${kpi.note ?? ''} · not site-attributed`.trim() : (kpi.note ?? ''),
+          scope.site ? join(kpi.note, 'not site-attributed') : (kpi.note ?? ''),
         ),
         delta: d ? String(d) : undefined,
         deltaSign: typeof d === 'string' && d.startsWith('−') ? -1 : d ? 1 : 0,
@@ -223,11 +234,11 @@ export function useKpi(kpi: KpiSpec): ResolvedKpi {
          noun to be understood. */
       fraction = pair.length > 13 ? pair : `${pair} ${base}`.trim()
     } else {
-      fraction = scope.site ? `${base} · ${scope.site.name}`.trim() : base
+      fraction = scope.site ? join(base, scope.site.name) : base
     }
     /* Sentence case, applied once here rather than at each card — the line is built from a
        metric's unit noun and reads as a fragment otherwise. See `sentenceCase`. */
-    const note = sentenceCase(kpi.target ? `${fraction} · target ${kpi.target}`.trim() : fraction)
+    const note = sentenceCase(kpi.target ? join(fraction, `target ${kpi.target}`) : fraction)
     const shape = shapeOf(scope, slug)
 
     return {

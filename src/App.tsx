@@ -105,8 +105,13 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
       case 'module': {
         const page = findExecPage(route.slug)!
         return {
+          /* NO EYEBROW ON A MODULE PAGE. It used to print "Monthly report" or "Operations"
+             above the title — a classification of the page rather than information about it,
+             and one the reader has no use for: nobody arrives at Animal Population needing to
+             be told which track it belongs to, and the word "monthly" actively misleads once
+             the date filter is on a week. Record and entity pages keep their eyebrow, because
+             theirs names the parent or the kind, which is a fact about the thing on screen. */
           title: titleOf(route.slug),
-          eyebrow: page.ops ? 'Operations' : 'Monthly report',
           moduleTitle: titleOf(route.slug),
           onBack: phone ? home : undefined,
           /* The module, then its chapters. `SubModules` renders nothing for a module that
@@ -125,8 +130,10 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
       case 'record': {
         const page = findRecordPage(route.slug)!
         return {
+          /* No eyebrow here either, for a plainer reason than on a module: it printed the
+             parent module's name, and the breadcrumb one row above it already ends on that
+             exact word. Two copies of "Mortality" stacked over "Mortality Records". */
           title: page.title,
-          eyebrow: page.parentTitle,
           moduleTitle: page.parentTitle,
           /* `{ back: true }` on every one of these. It does not change where the chevron
              goes — that is still the computed parent rather than the previous history
@@ -186,10 +193,10 @@ function Missing({ path }: { path: string }) {
   return (
     <div className="px-[var(--gutter-lg)] pt-2">
       <div className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-        <p className="text-[13.5px] text-[#3d3a34]">
+        <p className="text-small text-[#3d3a34]">
           Nothing is routed at <span className="tabular-nums">#/{path}</span>.
         </p>
-        <a href="#/" className="mt-3 inline-block text-[13px] font-semibold text-[#1a6b40]">
+        <a href="#/" className="mt-3 inline-block text-small font-semibold text-[#1a6b40]">
           Back to the command centre
         </a>
       </div>

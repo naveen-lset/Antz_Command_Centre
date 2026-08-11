@@ -78,7 +78,7 @@ export function Summary({ rows, note }: { rows: LabRecord[]; note?: string }) {
           { label: 'Flagged', value: String(t.flagged), tone: t.flagged ? 'bad' : undefined },
         ]}
       />
-      <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+      <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
         {note ??
           `${t.reported} reported, ${t.pending} still with the bench${t.rejected ? `, ${t.rejected} rejected` : ''}. Positive and negative are the reported results only — pending and rejected requests carry neither.`}
       </p>
@@ -110,7 +110,7 @@ export function RecordList({
   return (
     <Section icon={FlaskConical} label={label} aside={`${rows.length}`}>
       {rows.length === 0 ? (
-        <p className="py-5 text-center text-[12.5px]" style={{ color: FAINT }}>
+        <p className="py-5 text-center text-caption" style={{ color: FAINT }}>
           {empty}
         </p>
       ) : (
@@ -131,7 +131,7 @@ export function RecordList({
             <button
               type="button"
               onClick={() => setShown((n) => n + PAGE)}
-              className="mt-3 w-full rounded-full py-2 text-[12.5px] font-medium"
+              className="mt-3 w-full rounded-full py-2 text-body font-medium"
               style={{ backgroundColor: '#f2f1ed', color: '#1a6b40' }}
             >
               Show {Math.min(PAGE, rows.length - shown)} more · {rows.length - shown} remaining
@@ -160,11 +160,10 @@ function Breakdown({
   empty: string
 }) {
   const live = groups.filter((g) => g[metric] > 0)
-  const widest = Math.max(...live.map((g) => g[metric]), 1)
   if (live.length === 0)
     return (
       <Section icon={icon} label={label}>
-        <p className="py-5 text-center text-[12.5px]" style={{ color: FAINT }}>
+        <p className="py-5 text-center text-caption" style={{ color: FAINT }}>
           {empty}
         </p>
       </Section>
@@ -180,7 +179,6 @@ function Breakdown({
                turnaround would both read as dashes. State the sub alone there. */
             sub={g.reported ? `${g.sub} · ${g.reported} reported · ${tatLabel(g.tat)}` : g.sub}
             value={String(g[metric])}
-            bar={(g[metric] / widest) * 100}
             onOpen={() => onOpen(g)}
           />
         ))}
@@ -270,8 +268,7 @@ export function RequestBody({ record: r }: { record: LabRecord }) {
           ]}
         />
       </Section>
-
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px]" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         Deepest level
       </p>
     </Stack>
@@ -298,7 +295,6 @@ export function DeptBody({
   return (
     <Stack>
       <Summary rows={set} />
-
       <Section icon={Hourglass} label="Turnaround" aside={dept ? `standard ${dept.turnaround} d` : undefined}>
         <Snapshot
           cols={3}
@@ -309,7 +305,7 @@ export function DeptBody({
           ]}
         />
         {dept && t.reported > 0 && (
-          <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+          <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
             {t.withinSla} of {t.reported} reported inside this bench's {dept.turnaround}-day standard ·{' '}
             {Math.round(pct(t.withinSla, t.reported))}%
           </p>
@@ -331,7 +327,6 @@ export function DeptBody({
         onOpen={(g) => open({ title: g.label, eyebrow: `${name} · site`, body: <SiteBody rows={g.rows} /> })}
         empty="No sites recorded"
       />
-
       <RecordList rows={set} />
     </Stack>
   )
@@ -381,7 +376,7 @@ export function SpeciesBody({ rows }: { rows: LabRecord[] }) {
             ]}
             unit="results"
           />
-          <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+          <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
             {Math.round(pct(t.positive, t.reported))}% positive of {t.reported} reported
             {t.flagged ? ` · ${t.flagged} flagged for review` : ''}
           </p>
@@ -395,7 +390,6 @@ export function SpeciesBody({ rows }: { rows: LabRecord[] }) {
         onOpen={(g) => open({ title: g.label, eyebrow: 'Animal', body: <AnimalBody rows={g.rows} /> })}
         empty="No animal specimens"
       />
-
       <RecordList rows={rows} />
     </Stack>
   )
@@ -492,12 +486,11 @@ export function TatBody({ rows, name }: { rows: LabRecord[]; name: string }) {
             { label: 'Over', value: String(t.reported - t.withinSla), tone: t.reported - t.withinSla ? 'warn' : undefined },
           ]}
         />
-        <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+        <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
           Turnaround is sample received → result reported. The standard is each department's own
           turnaround from the laboratory registry, not a target set here.
         </p>
       </Section>
-
       <Section icon={ClipboardList} label="Queue" aside={`${t.pending} pending`}>
         <Snapshot
           cols={3}
@@ -508,7 +501,6 @@ export function TatBody({ rows, name }: { rows: LabRecord[]; name: string }) {
           ]}
         />
       </Section>
-
       <RecordList rows={slowest} label="Slowest reported" empty="Nothing reported in this window" />
       <RecordList rows={rows} label="All requests" />
     </Stack>
@@ -553,7 +545,7 @@ export function FoodToxBody({ rows }: { rows: LabRecord[] }) {
             { label: 'Flagged', value: String(t.flagged), tone: t.flagged ? 'bad' : undefined },
           ]}
         />
-        <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+        <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
           Toxicology is the only bench whose specimen is a feed batch rather than an animal, so these
           results carry no species. Average turnaround {tatLabel(t.tat)}.
         </p>
@@ -566,7 +558,6 @@ export function FoodToxBody({ rows }: { rows: LabRecord[] }) {
         onOpen={(g) => open({ title: g.label, eyebrow: 'Feed batch', body: <BatchBody rows={g.rows} /> })}
         empty="No batches tested in this window"
       />
-
       <RecordList rows={rows} label="Toxicology results" empty="No toxicology results in this window" />
     </Stack>
   )
@@ -646,7 +637,7 @@ export function FlaggedBody({ rows }: { rows: LabRecord[] }) {
             { label: 'Negative', value: String(rows.filter((r) => r.result === 'negative').length) },
           ]}
         />
-        <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+        <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
           A flag is a review state on a reported result, not a third outcome — a flagged request is
           still counted in positive or negative above.
         </p>

@@ -200,7 +200,7 @@ export function MoreRows({
   if (page.total === 0) return null
   return (
     <div className="flex items-center gap-3 pt-3">
-      <span className="shrink-0 text-[11px] tabular-nums" style={{ color: FAINT }}>
+      <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
         {page.shown.toLocaleString('en-US')} of {page.total.toLocaleString('en-US')} {noun}
       </span>
       <span className="h-px flex-1" style={{ backgroundColor: TRACK }} aria-hidden />
@@ -208,7 +208,7 @@ export function MoreRows({
         <button
           type="button"
           onClick={page.more}
-          className="card-press shrink-0 rounded-full bg-[#f2f1ed] px-3 py-1 text-[11.5px] font-semibold text-[#3d3a34]"
+          className="card-press shrink-0 rounded-full bg-[#f2f1ed] px-3 py-1 text-caption font-semibold text-[#3d3a34]"
         >
           {label}
         </button>

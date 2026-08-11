@@ -37,7 +37,6 @@ import {
   useAccent,
   type Tone,
 } from '../../exec/system'
-import { Rail } from '../../exec/marks'
 
 /* ── vaccination · the schedule grid ─────────────────────────────────────── */
 
@@ -78,15 +77,20 @@ export function ScheduleGrid({
   const pad = grain === 'day' ? (cells[0]?.weekday ?? 0) : 0
 
   return (
-    /* A DAY GRID IS CAPPED, the coarser grains are not. Seven square cells across a
-       thousand-pixel tablet column are 140px each — a wall of tiles rather than a calendar,
-       and a calendar is the whole reason this mark exists. Thirteen weeks or twelve months
-       across the same width are already the right size, so only the day grain is held. */
-    <div ref={ref} className={grain === 'day' ? 'max-w-[480px]' : undefined}>
+    /*
+     * EVERY GRAIN IS CAPPED, not just the day.
+     *
+     * Seven square cells across a thousand-pixel tablet column are 140px each — a wall of tiles
+     * rather than a calendar, and a calendar is the whole reason this mark exists. That was
+     * already held for days; weeks and months were not, and thirteen squares across the same
+     * width are 100px each, which is the same wall with fewer bricks. The cap is per column
+     * count so a square stays roughly a square inch of a phone at every grain.
+     */
+    <div ref={ref} style={{ maxWidth: cols * 68 }}>
       {grain === 'day' && (
         <div className="mb-1 grid grid-cols-7 gap-[3px]">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((w, i) => (
-            <span key={i} className="text-center text-[9.5px]" style={{ color: FAINT }}>
+            <span key={i} className="text-center text-tick" style={{ color: FAINT }}>
               {w}
             </span>
           ))}
@@ -101,12 +105,12 @@ export function ScheduleGrid({
           const lit = heat > 0.55
           const inner = (
             <>
-              <span className="text-[9.5px] leading-none tabular-nums" style={{ color: lit ? '#ffffff' : FAINT }}>
+              <span className="text-tick tabular-nums" style={{ color: lit ? '#ffffff' : FAINT }}>
                 {c.label}
               </span>
               {c.value > 0 && (
                 <span
-                  className="mt-[2px] font-display text-[11px] leading-none font-bold tabular-nums"
+                  className="mt-[2px] font-display text-caption font-bold tabular-nums"
                   style={{ color: lit ? '#ffffff' : INK }}
                 >
                   {c.value > 999 ? `${Math.round(c.value / 100) / 10}k` : c.value}
@@ -146,17 +150,17 @@ export function ScheduleGrid({
         })}
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-[10px] tracking-[0.06em] uppercase" style={{ color: '#b3aea6' }}>
+        <span className="text-overline uppercase" style={{ color: '#b3aea6' }}>
           One square · one {grain}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="text-[10px]" style={{ color: FAINT }}>
+          <span className="text-tick" style={{ color: FAINT }}>
             0
           </span>
           {[0.2, 0.4, 0.6, 0.8, 1].map((h) => (
             <span key={h} className="size-[9px] rounded-[3px]" style={{ backgroundColor: mix(accent, 0.18 + h * 0.7) }} />
           ))}
-          <span className="text-[10px] tabular-nums" style={{ color: FAINT }}>
+          <span className="text-tick tabular-nums" style={{ color: FAINT }}>
             {fmt(max)}
           </span>
         </span>
@@ -241,7 +245,6 @@ export function RotationCycle({
           />
         ))}
       </div>
-
       <ul className="mt-4 grid gap-x-4 gap-y-3 @[420px]:grid-cols-2">
         {items.map((it, i) => {
           const share = Math.round((it.value / total) * 100)
@@ -249,19 +252,19 @@ export function RotationCycle({
             <>
               <span className="flex items-center gap-2">
                 <span className="size-[9px] shrink-0 rounded-[3px]" style={{ backgroundColor: mix(accent, step(i)) }} aria-hidden />
-                <span className="min-w-0 flex-1 truncate text-[13px]" style={{ color: INK }}>
+                <span className="min-w-0 flex-1 truncate text-small" style={{ color: INK }}>
                   {it.label}
                 </span>
-                <span className="shrink-0 font-display text-[14px] font-bold tabular-nums" style={{ color: VALUE }}>
+                <span className="shrink-0 font-display text-small font-bold tabular-nums" style={{ color: VALUE }}>
                   {fmt(it.value)}
                 </span>
-                <span className="w-[30px] shrink-0 text-right text-[11px] tabular-nums" style={{ color: FAINT }}>
+                <span className="w-[30px] shrink-0 text-right text-caption tabular-nums" style={{ color: FAINT }}>
                   {share}%
                 </span>
               </span>
               {/* The rotation position, stated as a step rather than a rank — "3 of 4" says
                   where in the cycle this drug sits, which a bar's length cannot. */}
-              <span className="mt-1 block text-[10.5px]" style={{ color: '#b3aea6' }}>
+              <span className="mt-1 block text-caption" style={{ color: '#b3aea6' }}>
                 Cycle position {i + 1} of {items.length}
                 {unit ? ` · ${unit}` : ''}
               </span>
@@ -309,15 +312,14 @@ export function UsageSplit({
           /* The share is the rail's weight, not a bar under the row — see the note on `TapRow`'s
              `bar` in `v4/panels.tsx`. */
           <span className="flex items-stretch gap-3">
-            <Rail share={share} />
             <span className="flex min-w-0 flex-1 items-baseline gap-3">
-              <span className="min-w-0 flex-1 truncate text-[13px]" style={{ color: INK }}>
+              <span className="min-w-0 flex-1 truncate text-small" style={{ color: INK }}>
                 {it.label}
               </span>
-              <span className="shrink-0 text-[13.5px] font-medium tabular-nums" style={{ color: VALUE }}>
+              <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
                 {fmt(it.value)}
               </span>
-              <span className="w-[34px] shrink-0 text-right text-[11px] tabular-nums" style={{ color: FAINT }}>
+              <span className="w-[34px] shrink-0 text-right text-caption tabular-nums" style={{ color: FAINT }}>
                 {share.toFixed(1)}%
               </span>
             </span>
@@ -370,13 +372,13 @@ export function OverdueLadder({
           <>
             <span className="flex items-baseline gap-3">
               <span
-                className={`min-w-0 flex-1 truncate ${bad ? 'text-[13.5px] font-semibold' : 'text-[13px]'}`}
+                className={`min-w-0 flex-1 truncate ${bad ? 'text-small font-semibold' : 'text-small'}`}
                 style={{ color: bad ? TONE.bad : INK }}
               >
                 {r.bucket}
               </span>
               <span
-                className={`shrink-0 font-display font-bold tabular-nums ${bad ? 'text-[22px]' : 'text-[15px]'}`}
+                className={`shrink-0 font-display font-bold tabular-nums ${bad ? 'text-n-sm' : 'text-body'}`}
                 style={{ color: bad ? TONE.bad : VALUE }}
               >
                 {fmt(r.value)}
@@ -468,7 +470,7 @@ export function SortableList<T>({
   const { ref, animate } = usePlay()
   const sortable = columns.filter((c) => c.sort)
 
-  if (rows.length === 0) return <>{empty ?? <p className="text-[12.5px]" style={{ color: FAINT }}>Nothing to show.</p>}</>
+  if (rows.length === 0) return <>{empty ?? <p className="text-caption" style={{ color: FAINT }}>Nothing to show.</p>}</>
 
   return (
     <div ref={ref}>
@@ -481,7 +483,7 @@ export function SortableList<T>({
             type="button"
             aria-pressed={sortKey === c.key}
             onClick={() => onSort(c.key)}
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+            className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
               sortKey === c.key ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
             }`}
           >
@@ -495,7 +497,7 @@ export function SortableList<T>({
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[#f0efec]">
-              <th className="pb-2 text-left text-[10.5px] font-semibold tracking-[0.07em] uppercase" style={{ color: FAINT }}>
+              <th className="pb-2 text-left text-overline font-semibold uppercase" style={{ color: FAINT }}>
                 Site
               </th>
               {columns.map((c) => (
@@ -504,14 +506,14 @@ export function SortableList<T>({
                     <button
                       type="button"
                       onClick={() => onSort(c.key)}
-                      className="text-[10.5px] font-semibold tracking-[0.07em] uppercase transition-colors"
+                      className="text-overline font-semibold uppercase transition-colors"
                       style={{ color: sortKey === c.key ? accent : FAINT }}
                     >
                       {c.head}
                       {sortKey === c.key ? ' ↓' : ''}
                     </button>
                   ) : (
-                    <span className="text-[10.5px] font-semibold tracking-[0.07em] uppercase" style={{ color: FAINT }}>
+                    <span className="text-overline font-semibold uppercase" style={{ color: FAINT }}>
                       {c.head}
                     </span>
                   )}
@@ -533,11 +535,11 @@ export function SortableList<T>({
                 onClick={onOpen ? () => onOpen(row) : undefined}
               >
                 <td className="py-2.5 pr-3">
-                  <span className="block truncate text-[13px]" style={{ color: INK }}>
+                  <span className="block truncate text-small" style={{ color: INK }}>
                     {name(row)}
                   </span>
                   {sub?.(row) && (
-                    <span className="mt-0.5 block truncate text-[10.5px]" style={{ color: FAINT }}>
+                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                       {sub(row)}
                     </span>
                   )}
@@ -547,7 +549,7 @@ export function SortableList<T>({
                   return (
                     <td
                       key={c.key}
-                      className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums"
+                      className="py-2.5 pl-3 text-right text-small font-medium tabular-nums"
                       style={{ color: tone && tone !== 'neutral' ? TONE[tone] : VALUE }}
                     >
                       {c.cell(row)}
@@ -569,23 +571,23 @@ export function SortableList<T>({
             <>
               <span className="flex items-baseline gap-3">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px]" style={{ color: INK }}>
+                  <span className="block truncate text-small" style={{ color: INK }}>
                     {name(row)}
                   </span>
                   {sub?.(row) && (
-                    <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                       {sub(row)}
                     </span>
                   )}
                 </span>
                 <span className="shrink-0 text-right">
                   <span
-                    className="font-display text-[17px] leading-none font-bold tabular-nums"
+                    className="font-display text-n-sm font-bold tabular-nums"
                     style={{ color: lead.tone?.(row) && lead.tone(row) !== 'neutral' ? TONE[lead.tone(row)!] : VALUE }}
                   >
                     {lead.cell(row)}
                   </span>
-                  <span className="mt-0.5 block text-[10px] tracking-[0.05em] uppercase" style={{ color: '#b3aea6' }}>
+                  <span className="mt-0.5 block text-overline uppercase" style={{ color: '#b3aea6' }}>
                     {lead.head}
                   </span>
                 </span>
@@ -596,7 +598,7 @@ export function SortableList<T>({
                   return (
                     <span
                       key={c.key}
-                      className="inline-flex items-baseline gap-1 rounded-full px-2 py-[3px] text-[10.5px]"
+                      className="inline-flex items-baseline gap-1 rounded-full px-2 py-[3px] text-caption"
                       style={{ backgroundColor: tone && tone !== 'neutral' ? mix(TONE[tone], 0.1) : '#f6f5f2' }}
                     >
                       <span style={{ color: FAINT }}>{c.head}</span>

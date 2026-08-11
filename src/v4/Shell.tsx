@@ -42,7 +42,6 @@ export function AppShell({
           <Landscape />
           <div className="tier">{children}</div>
         </div>
-
         {panel && <ExecutivePanel />}
       </div>
     </div>
@@ -78,8 +77,8 @@ export function ModuleHeader({
         </button>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium tracking-[0.06em] text-[#9b958b] uppercase">{eyebrow}</p>
-        <h1 className="mt-[3px] truncate text-[length:var(--fs-name)] leading-[1.2] font-semibold tracking-[-0.02em] text-[#16150f]">
+        <p className="text-overline font-medium text-[#9b958b] uppercase">{eyebrow}</p>
+        <h1 className="mt-[3px] truncate text-[length:var(--fs-name)] leading-[var(--lh-name)] font-semibold tracking-[-0.4px] text-[#16150f]">
           {title}
         </h1>
       </div>
@@ -213,8 +212,8 @@ export function PhonePage({
             <ChevronLeft size={20} strokeWidth={2} className="text-[#55524a]" aria-hidden />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-medium tracking-[0.06em] text-[#9b958b] uppercase">{eyebrow}</p>
-            <h1 className="mt-[3px] truncate text-[21px] leading-7 font-semibold tracking-[-0.02em] text-[#16150f]">
+            <p className="truncate text-overline font-medium text-[#9b958b] uppercase">{eyebrow}</p>
+            <h1 className="mt-[3px] truncate text-h2 font-semibold text-[#16150f]">
               {title}
             </h1>
           </div>

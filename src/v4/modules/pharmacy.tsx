@@ -40,7 +40,7 @@ import {
   Warehouse,
   X,
 } from 'lucide-react'
-import { resolveWindow, shortDate, type Win, type WindowKey } from '../../core/calendar'
+import { shortDate, type Win } from '../../core/calendar'
 import { SITES } from '../../core/world'
 import {
   ACCENT_INK,
@@ -59,7 +59,8 @@ import {
   step,
   useAccent,
 } from '../../exec/system'
-import { Rail, Ribbon } from '../../exec/marks'
+import { Ribbon, strip } from '../../exec/marks'
+import { RangeTabs, useChartRange } from '../../exec/range'
 import { TapList, TapRow } from '../panels'
 import { useSheet } from '../sheet'
 import { useScope } from '../scope'
@@ -67,8 +68,6 @@ import { MoreRows, usePaged } from '../perf'
 import {
   AGING,
   CATEGORIES,
-  RANGES,
-  rangeForWindow,
   agingBuckets,
   expirySplit,
   inr,
@@ -132,7 +131,7 @@ const facetsOn = (f: Facets) => Object.values(f).filter((v) => v !== 'all').leng
 /* ── the page ────────────────────────────────────────────────────────────── */
 
 export default function Pharmacy() {
-  const { scope: global, windowKey } = useScope()
+  const { scope: global } = useScope()
   const { open } = useSheet()
   const win = global.win
   const siteKey = global.site?.key ?? null
@@ -221,7 +220,7 @@ export default function Pharmacy() {
             period, so the total and its composition are read in a single glance rather than in
             four charts stacked down the card. */}
         <Wide>
-          <UsageTrend scope={scope} scopeName={scopeName} windowKey={windowKey} />
+          <UsageTrend scope={scope} scopeName={scopeName} />
         </Wide>
 
         {/* 4 · USAGE BY CATEGORY. Compact by instruction — four rows, not four cards. */}
@@ -245,7 +244,6 @@ export default function Pharmacy() {
                   label={c.category}
                   sub={`${c.medicines} items · ${c.percent.toFixed(1)}% · ${inr(requestedCost.get(c.category) ?? 0)} requested`}
                   value={fmt(c.units)}
-                  bar={c.percent}
                   onOpen={
                     c.units > 0
                       ? () => open({ title: c.category, eyebrow: 'Usage', body: <CategoryPanel category={c.category} scope={scope} /> })
@@ -309,14 +307,14 @@ export default function Pharmacy() {
         <Wide>
           <Section icon={PackageX} label="Expired medicine cost" aside={`${expiry.central.lots + expiry.local.lots} batches`}>
             <div className="flex items-baseline gap-3">
-              <Figure value={inr(expiry.total)} size={34} color={expiry.total ? TONE.bad : VALUE} />
-              <span className="text-[12px]" style={{ color: FAINT }}>
+              <Figure value={inr(expiry.total)} size={32} color={expiry.total ? TONE.bad : VALUE} />
+              <span className="text-caption" style={{ color: FAINT }}>
                 written off in {win.window}
               </span>
             </div>
             <Rule label={siteKey ? 'Site dispensary' : 'Central against local'} />
             {siteKey ? (
-              <p className="text-[12px]" style={{ color: FAINT }}>
+              <p className="text-caption" style={{ color: FAINT }}>
                 Central Pharmacy stock is held for the whole collection and is not attributed to a
                 site — clear the site filter to see it.
               </p>
@@ -370,13 +368,12 @@ export default function Pharmacy() {
                 label={b.name}
                 sub={`${b.code} · ${b.lots} ${b.lots === 1 ? 'batch' : 'batches'}`}
                 value={inr(b.cost)}
-                bar={(b.cost / Math.max(1, expiry.bySite[0]?.cost ?? 1)) * 100}
                 onOpen={b.lots ? () => open({ title: b.name, eyebrow: 'Expired medicine', body: <ExpiredPanel side="local" scope={scope} pharmacySite={b.key} /> }) : undefined}
               />
             ))}
           </TapList>
           {expiry.bySite.every((b) => b.lots === 0) && (
-            <p className="text-[13px] text-[#6d6860]">Nothing expired at a site pharmacy in {win.window}.</p>
+            <p className="text-small text-[#6d6860]">Nothing expired at a site pharmacy in {win.window}.</p>
           )}
         </Section>
         </Wide>
@@ -390,7 +387,7 @@ export default function Pharmacy() {
             aside={`${shortages.length} · ${fmt(shortages.reduce((n, u) => n + u.sites.length, 0))} site requests`}
           >
             {shortages.length === 0 ? (
-              <p className="text-[13px] text-[#6d6860]">Every request was supplied in this scope.</p>
+              <p className="text-small text-[#6d6860]">Every request was supplied in this scope.</p>
             ) : (
               <TapList>
                 {shortages.map((u) => (
@@ -401,7 +398,6 @@ export default function Pharmacy() {
                     sub={`${u.category} · ${fmt(u.qty)} units requested`}
                     value={`${u.sites.length} ${u.sites.length === 1 ? 'site' : 'sites'}`}
                     tone="bad"
-                    bar={(u.sites.length / Math.max(1, shortages[0].sites.length)) * 100}
                     onOpen={() => open({ title: u.name, eyebrow: 'Unavailable', body: <AvailabilityPanel medicineId={u.medicineId} scope={scope} /> })}
                   />
                 ))}
@@ -430,8 +426,7 @@ export default function Pharmacy() {
           />
         </Wide>
       </Stack>
-
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
         {scopeName} · pharmacy {win.window}
         {lensed ? ' · filtered' : ''}
       </p>
@@ -481,16 +476,16 @@ function PharmacyHero({
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <button type="button" onClick={onOpenUsage} className="card-press block text-left">
-          <Figure value={fmt(units)} size={58} color={HERO_INK} />
-          <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+          <Figure value={fmt(units)} size={64} color={HERO_INK} />
+          <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
             <Pill size={15} strokeWidth={1.75} style={{ color: accent }} aria-hidden />
             Units issued
-            <span className="text-[12px]" style={{ color: ACCENT_INK }} aria-hidden>
+            <span className="text-caption" style={{ color: ACCENT_INK }} aria-hidden>
               ›
             </span>
           </p>
         </button>
-        <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>
+        <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
           {window}
         </p>
         <div className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4 border-t border-[#f0efec] pt-4 @[460px]:grid-cols-4">
@@ -503,9 +498,9 @@ function PharmacyHero({
                 i === 0 ? '@[460px]:pl-0' : ''
               }`}
             >
-              <Figure value={t.value} size={22} color={t.tone ? TONE[t.tone] : VALUE} />
-              <span className="mt-0.5 block truncate text-[12px] text-[#3d3a34]">{t.label}</span>
-              <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+              <Figure value={t.value} size={24} color={t.tone ? TONE[t.tone] : VALUE} />
+              <span className="mt-0.5 block truncate text-small text-[#3d3a34]">{t.label}</span>
+              <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                 {t.note}
               </span>
             </button>
@@ -542,14 +537,13 @@ function Toolbar({
     <div className="px-[var(--gutter-lg)] pb-3">
       <div className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card-sm)]">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="min-w-0 truncate text-[13px] font-medium text-[#1c1a16]">
+          <p className="min-w-0 truncate text-small font-medium text-[#1c1a16]">
             {scopeName} · {win.window}
           </p>
-          <p className="shrink-0 text-[11px] whitespace-nowrap" style={{ color: FAINT }}>
+          <p className="shrink-0 text-caption whitespace-nowrap" style={{ color: FAINT }}>
             {medicines} medicines issued
           </p>
         </div>
-
         <div className="mt-3 flex items-center gap-2">
           <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
             <Search size={14} strokeWidth={2} className="shrink-0" style={{ color: FAINT }} aria-hidden />
@@ -559,7 +553,7 @@ function Toolbar({
               placeholder="Medicine, category or code"
               aria-label="Search medicines"
               autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+              className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
             />
             {query && (
               <button
@@ -576,7 +570,7 @@ function Toolbar({
             type="button"
             onClick={() => open({ title: 'Filters', eyebrow: 'Pharmacy', body: <FacetSheet initial={facets} onApply={onApply} /> })}
             aria-label="Filters"
-            className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium ${
+            className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-caption font-medium ${
               on ? 'bg-[#123a2c] text-white' : 'bg-[#f7f6f3] text-[#3d3a34]'
             }`}
           >
@@ -591,7 +585,7 @@ function Toolbar({
             {chipsOf(facets).map((c) => (
               <span
                 key={c.key}
-                className="inline-flex items-center gap-1 rounded-full bg-[#f4f3ef] py-[4px] pr-1.5 pl-2.5 text-[11.5px] font-medium text-[#55524a]"
+                className="inline-flex items-center gap-1 rounded-full bg-[#f4f3ef] py-[4px] pr-1.5 pl-2.5 text-caption font-medium text-[#55524a]"
               >
                 {c.label}
                 <button
@@ -607,7 +601,7 @@ function Toolbar({
             <button
               type="button"
               onClick={() => onApply(NO_FACETS)}
-              className="rounded-full px-2 py-[4px] text-[11.5px] font-semibold"
+              className="rounded-full px-2 py-[4px] text-caption font-semibold"
               style={{ color: ACCENT_INK }}
             >
               Clear all
@@ -692,7 +686,7 @@ function FacetSheet({ initial, onApply }: { initial: Facets; onApply: (f: Facets
             onApply(NO_FACETS)
             back()
           }}
-          className="card-press flex-1 rounded-[11px] border border-[#eceae5] bg-white py-2.5 text-[13px] font-semibold text-[#3d3a34]"
+          className="card-press flex-1 rounded-[11px] border border-[#eceae5] bg-white py-2.5 text-small font-semibold text-[#3d3a34]"
         >
           Reset
         </button>
@@ -702,7 +696,7 @@ function FacetSheet({ initial, onApply }: { initial: Facets; onApply: (f: Facets
             onApply(draft)
             back()
           }}
-          className="card-press flex-[2] rounded-[11px] py-2.5 text-[13px] font-semibold text-white"
+          className="card-press flex-[2] rounded-[11px] py-2.5 text-small font-semibold text-white"
           style={{ backgroundColor: '#123a2c' }}
         >
           Apply
@@ -732,7 +726,7 @@ function Chips({
             type="button"
             aria-pressed={on}
             onClick={() => onPick(key)}
-            className={`shrink-0 rounded-full px-2.5 py-[5px] text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+            className={`shrink-0 rounded-full px-2.5 py-[5px] text-caption font-medium whitespace-nowrap transition-colors ${
               on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
             }`}
           >
@@ -758,31 +752,26 @@ function Chips({
  * Bands are lightness steps of the one accent, in a fixed order — Medication darkest — so the
  * legend is learnt once and holds across every column and every scope.
  */
-function UsageTrend({ scope, scopeName, windowKey }: { scope: Scope; scopeName: string; windowKey: WindowKey }) {
+function UsageTrend({ scope, scopeName }: { scope: Scope; scopeName: string }) {
   const accent = useAccent()
   const { open } = useSheet()
-  /**
-   * The chart FOLLOWS the page's window until the reader picks a chip, then holds.
-   *
-   * `null` means following. It cannot be a `useState` initialiser: the page does not remount
-   * when the window changes — the router keys on the route, deliberately, so that re-cutting
-   * the dates re-reads the figures in place — so an initialiser would latch the window the
-   * reader arrived on and the chart would go on saying July under a hero saying last week.
-   * Following by default also makes the chart's total the hero's total, rather than a span
-   * that lands a day off it and reads as a contradiction two inches below.
+  /*
+   * The chart FOLLOWS the page's window until the reader picks a chip, then holds — the
+   * reasoning, and the trap of latching it in a `useState` initialiser, now live in
+   * `exec/range.tsx`, along with the same control for every other trend in the product. This
+   * card is where that behaviour was worked out; it is no longer the only card with it.
    */
-  const [picked, setRange] = useState<string | null>(null)
-  const range = picked ?? rangeForWindow(windowKey)
+  const range = useChartRange()
+  const win = range.win
 
-  const win: Win = useMemo(() => {
-    if (range === 'custom') return scope.win
-    /* Every preset resolves through the global filter's own windows, so "This month" and
-       "6 months" mean the same spans here that the header would give. */
-    const spec = RANGES.find((r) => r.key === range)
-    return spec ? resolveWindow(spec.window) : scope.win
-  }, [range, scope.win])
-
-  const columns = win.days <= 1 ? 1 : win.days <= 7 ? 7 : win.days <= 31 ? 10 : win.days <= 92 ? 13 : 13
+  /*
+   * A one-day range really is one column — the ledger's finest grain is a day and there are no
+   * hours under it to draw. What that column must NOT be is the full width of the card, which
+   * is what it was: a rectangle the width of a tablet, stating inside it the same total already
+   * printed in the figure above. `strip` caps it to a bar and centres it, so a day reads as one
+   * mark on the same axis a month draws thirty of.
+   */
+  const columns = win.days <= 1 ? 1 : win.days <= 7 ? 7 : win.days <= 31 ? 10 : 13
   const { bands, totals, spans } = useMemo(
     () => usageBands(scope.siteKey, win, columns),
     [scope.siteKey, win, columns],
@@ -790,6 +779,7 @@ function UsageTrend({ scope, scopeName, windowKey }: { scope: Scope; scopeName: 
 
   const peak = Math.max(...totals, 1)
   const grand = totals.reduce((n, t) => n + t, 0)
+  const bars = strip(bands.length)
   const perCategory = CATEGORIES.map((c, i) => ({
     category: c,
     units: bands.reduce((n, b) => n + (b[i] ?? 0), 0),
@@ -797,30 +787,10 @@ function UsageTrend({ scope, scopeName, windowKey }: { scope: Scope; scopeName: 
 
   return (
     <Section icon={TrendingUp} label="Usage trend" aside={`${scopeName} · ${win.window}`}>
-      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
-        {[...RANGES.map((r) => [r.key, r.label] as [string, string]), ['custom', 'Custom'] as [string, string]].map(
-          ([key, label]) => {
-            const on = key === range
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setRange(key)}
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
-                  on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
-                }`}
-              >
-                {label}
-              </button>
-            )
-          },
-        )}
-      </div>
-
+      <RangeTabs range={range} />
       <div className="flex items-baseline gap-3">
-        <Figure value={fmt(grand)} size={30} />
-        <span className="text-[12px]" style={{ color: FAINT }}>
+        <Figure value={fmt(grand)} size={32} />
+        <span className="text-caption" style={{ color: FAINT }}>
           units issued · {win.window}
         </span>
       </div>
@@ -828,10 +798,10 @@ function UsageTrend({ scope, scopeName, windowKey }: { scope: Scope; scopeName: 
       {grand === 0 ? (
         /* The honest empty state: a range the ledger has nothing in says so rather than
            drawing a flat axis that reads as zero usage. */
-        <p className="py-6 text-[13px] text-[#6d6860]">Nothing was issued in {win.window}.</p>
+        <p className="py-6 text-small text-[#6d6860]">Nothing was issued in {win.window}.</p>
       ) : (
         <>
-          <div className="mt-4 flex h-[150px] items-end gap-[3px]">
+          <div className="mt-4 flex h-[150px] items-end gap-[3px]" style={bars}>
             {bands.map((column, ci) => (
               <div key={ci} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-[2px]">
                 {column
@@ -854,11 +824,12 @@ function UsageTrend({ scope, scopeName, windowKey }: { scope: Scope; scopeName: 
               </div>
             ))}
           </div>
-          <div className="mt-2 flex gap-[3px]">
+          {/* Same width as the bars, or the dates drift off their columns once capped. */}
+          <div className="mt-2 flex gap-[3px]" style={bars}>
             {spans.map((s, i) => (
               <span
                 key={i}
-                className={`min-w-0 flex-1 text-center text-[9.5px] ${
+                className={`min-w-0 flex-1 text-center text-tick ${
                   i === spans.length - 1 ? 'font-semibold text-[#1c1a16]' : 'text-[#9b958b]'
                 }`}
               >
@@ -868,7 +839,6 @@ function UsageTrend({ scope, scopeName, windowKey }: { scope: Scope; scopeName: 
               </span>
             ))}
           </div>
-
           <Rule label="Bands" />
           <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5">
             {perCategory.map((c, i) => (
@@ -883,8 +853,8 @@ function UsageTrend({ scope, scopeName, windowKey }: { scope: Scope; scopeName: 
                     style={{ backgroundColor: mix(accent, step(i)) }}
                     aria-hidden
                   />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-[#3d3a34]">{c.category}</span>
-                  <span className="shrink-0 text-[13px] font-medium tabular-nums text-[#1c1a16]">{fmt(c.units)}</span>
+                  <span className="min-w-0 flex-1 truncate text-small text-[#3d3a34]">{c.category}</span>
+                  <span className="shrink-0 text-small font-medium tabular-nums text-[#1c1a16]">{fmt(c.units)}</span>
                 </button>
               </li>
             ))}
@@ -947,7 +917,6 @@ function SiteRequestsCard({
   }, [rows, queue, scoped])
 
   const shown = sortRequests(sites, sort)
-  const widest = Math.max(...shown.map((r) => r[sort]), 1)
   const totalCost = shown.reduce((n, r) => n + r.cost, 0)
 
   return (
@@ -959,7 +928,7 @@ function SiteRequestsCard({
       <Chips options={REQUEST_SORTS.map(([k, l]) => [k, l] as [string, string])} value={sort} onPick={(v) => setSort(v as RequestSort)} />
 
       {lens.category !== 'all' || lens.status !== 'all' ? (
-        <p className="mt-3 text-[11px]" style={{ color: FAINT }}>
+        <p className="mt-3 text-caption" style={{ color: FAINT }}>
           Filtered to {[lens.category !== 'all' && lens.category, lens.status !== 'all' && lens.status].filter(Boolean).join(' · ')}
         </p>
       ) : null}
@@ -972,7 +941,7 @@ function SiteRequestsCard({
               {['Site', 'Requests', 'Quantity', 'Est. cost', 'Pending'].map((h, i) => (
                 <th
                   key={h}
-                  className={`pb-2 text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap uppercase ${i === 0 ? 'text-left' : 'pl-3 text-right'}`}
+                  className={`pb-2 text-overline font-medium whitespace-nowrap uppercase ${i === 0 ? 'text-left' : 'pl-3 text-right'}`}
                   style={{ color: FAINT }}
                 >
                   {h}
@@ -989,19 +958,19 @@ function SiteRequestsCard({
                     onClick={() => open({ title: r.name, eyebrow: 'Site pharmacy', body: <SitePharmacyPanel siteKey={r.key} scope={{ ...scope, siteKey: r.key }} /> })}
                     className="card-press block w-full py-2.5 text-left"
                   >
-                    <span className="block text-[13.5px] leading-[17px] text-[#1c1a16]">{r.name}</span>
-                    <span className="mt-0.5 block text-[11px] leading-[14px]" style={{ color: FAINT }}>
+                    <span className="block text-small text-[#1c1a16]">{r.name}</span>
+                    <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                       {r.code}
                     </span>
                   </button>
                 </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">{fmt(r.requests)}</td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">{fmt(r.qty)}</td>
-                <td className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums text-[#3d3a34]">{fmt(r.requests)}</td>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums text-[#3d3a34]">{fmt(r.qty)}</td>
+                <td className="py-2.5 pl-3 text-right text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {inr(r.cost)}
                 </td>
                 <td
-                  className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums"
+                  className="py-2.5 pl-3 text-right text-small font-medium tabular-nums"
                   style={{ color: r.pending ? TONE.warn : FAINT }}
                 >
                   {fmt(r.pending)}
@@ -1022,15 +991,14 @@ function SiteRequestsCard({
                 onClick={() => open({ title: r.name, eyebrow: 'Site pharmacy', body: <SitePharmacyPanel siteKey={r.key} scope={{ ...scope, siteKey: r.key }} /> })}
                 className="card-press -mx-2 flex w-full items-stretch gap-3 rounded-[10px] px-2 py-2.5 text-left"
               >
-                <Rail share={(r[sort] / widest) * 100} />
                 <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-3">
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
-                    <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                    <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{r.name}</span>
+                    <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
                       {inr(r.cost)}
                     </span>
                   </span>
-                  <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                     {fmt(r.requests)} requests · {fmt(r.qty)} units · {r.pending} pending
                   </span>
                 </span>
@@ -1055,8 +1023,8 @@ function SiteRequestsSheet({ scope }: { scope: Scope }) {
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={inr(cost)} size={48} color={HERO_INK} />
-          <p className="mt-1 text-[15px] text-[#3d3a34]">Estimated request cost</p>
-          <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>
+          <p className="mt-1 text-body text-[#3d3a34]">Estimated request cost</p>
+          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
             {fmt(shown.reduce((n, r) => n + r.requests, 0))} requests · {scope.win.window}
           </p>
         </section>
@@ -1072,7 +1040,6 @@ function SiteRequestsSheet({ scope }: { scope: Scope }) {
                   label={r.name}
                   sub={`${r.code} · ${fmt(r.requests)} requests · ${fmt(r.qty)} units`}
                   value={inr(r.cost)}
-                  bar={(r.cost / Math.max(1, Math.max(...shown.map((x) => x.cost)))) * 100}
                   onOpen={() => open({ title: r.name, eyebrow: 'Site pharmacy', body: <SitePharmacyPanel siteKey={r.key} scope={{ ...scope, siteKey: r.key }} /> })}
                 />
               ))}
@@ -1093,8 +1060,8 @@ function ShortagesSheet({ scope }: { scope: Scope }) {
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={fmt(rows.length)} size={48} color={rows.length ? TONE.bad : HERO_INK} />
-          <p className="mt-1 text-[15px] text-[#3d3a34]">Unavailable medicines</p>
-          <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>
+          <p className="mt-1 text-body text-[#3d3a34]">Unavailable medicines</p>
+          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
             {fmt(rows.reduce((n, u) => n + u.qty, 0))} units requested and unfilled
           </p>
         </section>
@@ -1114,7 +1081,7 @@ function ShortagesSheet({ scope }: { scope: Scope }) {
               />
             ))}
           </TapList>
-          {rows.length === 0 && <p className="text-[13px] text-[#6d6860]">Every request was supplied in this scope.</p>}
+          {rows.length === 0 && <p className="text-small text-[#6d6860]">Every request was supplied in this scope.</p>}
         </Section>
       </Stack>
     </>
@@ -1154,7 +1121,7 @@ function AgingCard({
   return (
     <Section icon={Hourglass} label="Pending aging" aside={lens === 'all' ? `${fmt(total)} open` : (AGING.find((a) => a.key === lens)?.label ?? '')}>
       {total === 0 ? (
-        <p className="text-[13px] text-[#6d6860]">Nothing is waiting on the central store.</p>
+        <p className="text-small text-[#6d6860]">Nothing is waiting on the central store.</p>
       ) : (
         <>
           <div className="flex h-[14px] w-full gap-[2px] overflow-hidden">
@@ -1167,7 +1134,6 @@ function AgingCard({
               />
             ))}
           </div>
-
           <div className="mt-4">
             <TapList>
               {shown.map((b) => (
@@ -1177,7 +1143,6 @@ function AgingCard({
                   sub={`${inr(b.cost)} · ${fmt(b.qty)} units`}
                   value={fmt(b.count)}
                   tone={b.count === 0 ? undefined : b.key === '60+' ? 'bad' : b.key === '31-60' ? 'warn' : undefined}
-                  bar={total ? (b.count / total) * 100 : 0}
                   onOpen={b.count > 0 ? () => onOpen(b.key, b.label) : undefined}
                 />
               ))}
@@ -1230,7 +1195,6 @@ function SiteOverviewCard({
   const [sort, setSort] = useState<SiteSort>('units')
   const all = useMemo(() => siteOverview(win, asOf), [win, asOf])
   const shown = sortSites(scoped ? all.filter((r) => r.key === scoped) : all, sort)
-  const widest = Math.max(...shown.map((r) => r[sort]), 1)
 
   const openSite = (r: SiteRow) =>
     open({ title: r.name, eyebrow: 'Site pharmacy', body: <SitePharmacyPanel siteKey={r.key} scope={{ ...scope, siteKey: r.key }} /> })
@@ -1238,7 +1202,6 @@ function SiteOverviewCard({
   return (
     <Section icon={SquareStack} label="Site-wise pharmacy overview" aside={`${shown.length} of ${all.length} sites`}>
       <Chips options={SITE_SORTS.map(([k, l]) => [k, l] as [string, string])} value={sort} onPick={(v) => setSort(v as SiteSort)} />
-
       <div className="mt-3.5 hidden @[560px]:block">
         <table className="w-full">
           <thead>
@@ -1246,7 +1209,7 @@ function SiteOverviewCard({
               {['Site', 'Usage', 'Requests', 'Est. cost', 'Pending', 'Expired', 'Nil'].map((h, i) => (
                 <th
                   key={h}
-                  className={`pb-2 text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap uppercase ${i === 0 ? 'text-left' : 'pl-3 text-right'}`}
+                  className={`pb-2 text-overline font-medium whitespace-nowrap uppercase ${i === 0 ? 'text-left' : 'pl-3 text-right'}`}
                   style={{ color: FAINT }}
                 >
                   {h}
@@ -1259,24 +1222,24 @@ function SiteOverviewCard({
               <tr key={r.key} className="border-t border-[#f0efec]">
                 <td className="py-0">
                   <button type="button" onClick={() => openSite(r)} className="card-press block w-full py-2.5 text-left">
-                    <span className="block text-[13.5px] leading-[17px] text-[#1c1a16]">{r.name}</span>
-                    <span className="mt-0.5 block text-[11px] leading-[14px]" style={{ color: FAINT }}>
+                    <span className="block text-small text-[#1c1a16]">{r.name}</span>
+                    <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                       {r.code}
                     </span>
                   </button>
                 </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <td className="py-2.5 pl-3 text-right text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(r.units)}
                 </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">{fmt(r.requests)}</td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">{inr(r.cost)}</td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums" style={{ color: r.pending ? TONE.warn : FAINT }}>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums text-[#3d3a34]">{fmt(r.requests)}</td>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums text-[#3d3a34]">{inr(r.cost)}</td>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums" style={{ color: r.pending ? TONE.warn : FAINT }}>
                   {fmt(r.pending)}
                 </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums" style={{ color: r.expired ? TONE.bad : FAINT }}>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums" style={{ color: r.expired ? TONE.bad : FAINT }}>
                   {inr(r.expired)}
                 </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums" style={{ color: r.unavailable ? TONE.bad : FAINT }}>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums" style={{ color: r.unavailable ? TONE.bad : FAINT }}>
                   {fmt(r.unavailable)}
                 </td>
               </tr>
@@ -1284,24 +1247,22 @@ function SiteOverviewCard({
           </tbody>
         </table>
       </div>
-
       <div className="mt-3.5 @[560px]:hidden">
         <ul className="flex flex-col">
           {shown.map((r) => (
             <li key={r.key} className="border-b border-[#f0efec] last:border-0">
               <button type="button" onClick={() => openSite(r)} className="card-press -mx-2 flex w-full items-stretch gap-3 rounded-[10px] px-2 py-2.5 text-left">
-                <Rail share={(r[sort] / widest) * 100} />
                 <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-3">
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
-                    <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                    <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{r.name}</span>
+                    <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
                       {fmt(r.units)}
                     </span>
-                    <span className="w-[52px] shrink-0 text-right text-[12px] tabular-nums" style={{ color: FAINT }}>
+                    <span className="w-[52px] shrink-0 text-right text-caption tabular-nums" style={{ color: FAINT }}>
                       {inr(r.cost)}
                     </span>
                   </span>
-                  <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                     {r.code} · {fmt(r.requests)} requests · {r.pending} pending · {inr(r.expired)} expired · {r.unavailable} nil
                   </span>
                 </span>
@@ -1378,7 +1339,6 @@ function MedicineRecords({
   }, [use, requests, queue, shortages, facets.category, facets.availability, query])
 
   const paged = usePaged((offset, limit) => ({ rows: rows.slice(0, offset + limit), total: rows.length }), 20, [rows])
-  const widest = Math.max(...rows.map((r) => r.units), 1)
 
   const status = (r: (typeof rows)[number]) =>
     r.sites > 0 ? 'Unavailable' : r.pending > 0 ? `${r.pending} pending` : r.requests > 0 ? 'Fulfilled' : '—'
@@ -1391,7 +1351,7 @@ function MedicineRecords({
       aside={query ? `${rows.length} matching` : `${rows.length} medicines`}
     >
       {rows.length === 0 && (
-        <p className="text-[12.5px]" style={{ color: FAINT }}>
+        <p className="text-caption" style={{ color: FAINT }}>
           No medicine matches “{query.trim()}”.{' '}
           <button type="button" onClick={() => onQuery('')} className="font-semibold" style={{ color: ACCENT_INK }}>
             Clear
@@ -1406,7 +1366,7 @@ function MedicineRecords({
               {['Medicine', 'Usage', 'Requests', 'Est. cost', 'Status'].map((h, i) => (
                 <th
                   key={h}
-                  className={`pb-2 text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap uppercase ${i === 0 ? 'text-left' : 'pl-3 text-right'}`}
+                  className={`pb-2 text-overline font-medium whitespace-nowrap uppercase ${i === 0 ? 'text-left' : 'pl-3 text-right'}`}
                   style={{ color: FAINT }}
                 >
                   {h}
@@ -1423,19 +1383,19 @@ function MedicineRecords({
                     onClick={() => open({ title: r.name, eyebrow: 'Medicine', body: <MedicinePanel medicineId={r.id} scope={scope} /> })}
                     className="card-press block w-full py-2.5 text-left"
                   >
-                    <span className="block text-[13.5px] leading-[17px] text-[#1c1a16]">{r.name}</span>
-                    <span className="mt-0.5 block text-[11px] leading-[14px]" style={{ color: FAINT }}>
+                    <span className="block text-small text-[#1c1a16]">{r.name}</span>
+                    <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                       {r.category} · {r.kind} · {r.code}
                     </span>
                   </button>
                 </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <td className="py-2.5 pl-3 text-right text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(r.units)}
                 </td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">{fmt(r.requests)}</td>
-                <td className="py-2.5 pl-3 text-right text-[13px] tabular-nums text-[#3d3a34]">{inr(r.cost)}</td>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums text-[#3d3a34]">{fmt(r.requests)}</td>
+                <td className="py-2.5 pl-3 text-right text-small tabular-nums text-[#3d3a34]">{inr(r.cost)}</td>
                 <td
-                  className="py-2.5 pl-3 text-right text-[11.5px] whitespace-nowrap tabular-nums"
+                  className="py-2.5 pl-3 text-right text-caption whitespace-nowrap tabular-nums"
                   style={{ color: tone(r) ? TONE[tone(r)!] : FAINT }}
                 >
                   {status(r)}
@@ -1445,7 +1405,6 @@ function MedicineRecords({
           </tbody>
         </table>
       </div>
-
       <div className="@[560px]:hidden">
         <ul className="flex flex-col">
           {paged.rows.map((r) => (
@@ -1455,21 +1414,20 @@ function MedicineRecords({
                 onClick={() => open({ title: r.name, eyebrow: 'Medicine', body: <MedicinePanel medicineId={r.id} scope={scope} /> })}
                 className="card-press -mx-2 flex w-full items-stretch gap-3 rounded-[10px] px-2 py-2.5 text-left"
               >
-                <Rail share={(r.units / widest) * 100} />
                 <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-3">
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">{r.name}</span>
-                    <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                    <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{r.name}</span>
+                    <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
                       {fmt(r.units)}
                     </span>
                     <span
-                      className="w-[64px] shrink-0 text-right text-[11px] tabular-nums"
+                      className="w-[64px] shrink-0 text-right text-caption tabular-nums"
                       style={{ color: tone(r) ? TONE[tone(r)!] : FAINT }}
                     >
                       {status(r)}
                     </span>
                   </span>
-                  <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                     {r.category} · {r.requests} requests · {inr(r.cost)} · {inr(r.price)} per unit
                   </span>
                 </span>
@@ -1478,7 +1436,6 @@ function MedicineRecords({
           ))}
         </ul>
       </div>
-
       <MoreRows page={paged} noun="medicines" />
     </Section>
   )

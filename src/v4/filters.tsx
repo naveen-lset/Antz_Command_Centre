@@ -105,13 +105,13 @@ function Pill({
     <button
       type="button"
       onClick={onClick}
-      className={`card-press flex min-w-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-[12.5px] font-medium whitespace-nowrap transition-colors ${
+      className={`card-press flex min-w-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-body font-medium whitespace-nowrap transition-colors ${
         on ? 'bg-[#123a2c] text-white' : 'bg-white/85 text-[#3d3a34] backdrop-blur-sm'
       }`}
     >
       <Glyph size={13} strokeWidth={2} className="shrink-0" style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
       <span className="max-w-[130px] truncate">{label}</span>
-      <span className="shrink-0 text-[9px] opacity-60" aria-hidden>
+      <span className="shrink-0 text-caption opacity-60" aria-hidden>
         ▾
       </span>
     </button>
@@ -153,7 +153,6 @@ export function DateSheet() {
           ))}
         </ul>
       </Section>
-
       <Section icon={CalendarRange} label="Custom range" aside={span ? `${span} days` : undefined}>
         <div className="flex items-center gap-3">
           <DateField
@@ -163,7 +162,7 @@ export function DateSheet() {
             max={bounds.max}
             onChange={(from) => setDraft({ ...draft, from })}
           />
-          <span className="mt-4 shrink-0 text-[13px]" style={{ color: FAINT }} aria-hidden>
+          <span className="mt-4 shrink-0 text-small" style={{ color: FAINT }} aria-hidden>
             →
           </span>
           <DateField
@@ -180,7 +179,7 @@ export function DateSheet() {
             setCustom(draft)
             back()
           }}
-          className="card-press mt-4 w-full rounded-[11px] py-2.5 text-[13px] font-semibold text-white"
+          className="card-press mt-4 w-full rounded-[11px] py-2.5 text-body font-semibold text-white"
           style={{ backgroundColor: '#123a2c' }}
         >
           Apply range
@@ -189,7 +188,7 @@ export function DateSheet() {
             figure is summed over the days the reader picked, from the same daily series every
             preset above reads. What the inputs still can't offer is a date the ledger has no
             data for, which is why they are bounded rather than free. */}
-        <p className="mt-3 text-[11px] leading-[15px]" style={{ color: FAINT }}>
+        <p className="mt-3 text-caption" style={{ color: FAINT }}>
           Any range inside {bounds.min.slice(0, 4)}–{bounds.max.slice(0, 4)} is summed from daily
           records. Dates outside the ledger are not offered.
         </p>
@@ -213,7 +212,7 @@ function DateField({
 }) {
   return (
     <label className="min-w-0 flex-1">
-      <span className="block text-[10px] font-medium tracking-[0.09em] uppercase" style={{ color: FAINT }}>
+      <span className="block text-overline font-medium uppercase" style={{ color: FAINT }}>
         {label}
       </span>
       <input
@@ -222,7 +221,7 @@ function DateField({
         min={min}
         max={max}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-[10px] bg-[#f7f6f3] px-3 py-2 text-[13px] tabular-nums text-[#1c1a16] outline-none focus:ring-2 focus:ring-[#37bd69]/35"
+        className="mt-1 w-full rounded-[10px] bg-[#f7f6f3] px-3 py-2 text-small tabular-nums text-[#1c1a16] outline-none focus:ring-2 focus:ring-[#37bd69]/35"
       />
     </label>
   )
@@ -275,7 +274,7 @@ export function SiteSheet() {
           ))}
         </ul>
         {rows.length === 0 && (
-          <p className="pt-3 text-[12.5px]" style={{ color: FAINT }}>
+          <p className="pt-3 text-caption" style={{ color: FAINT }}>
             No site matches “{query.trim()}”.
           </p>
         )}
@@ -325,15 +324,15 @@ function Option({
         style={on ? { backgroundColor: mix(ACCENT, 0.09) } : undefined}
       >
         <span className="min-w-0 flex-1">
-          <span className={`block truncate text-[13.5px] ${on ? 'font-semibold' : ''} text-[#1c1a16]`}>{label}</span>
+          <span className={`block truncate text-small ${on ? 'font-semibold' : ''} text-[#1c1a16]`}>{label}</span>
           {sub && (
-            <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+            <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
               {sub}
             </span>
           )}
         </span>
         {value && (
-          <span className="shrink-0 text-[13px] font-medium tabular-nums" style={{ color: FAINT }}>
+          <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: FAINT }}>
             {value}
           </span>
         )}
@@ -363,7 +362,7 @@ export function FindField({
         placeholder={placeholder}
         aria-label={placeholder}
         autoComplete="off"
-        className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+        className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
       />
       {value && (
         <button
@@ -395,13 +394,13 @@ export function ScopeNote() {
     <div className="-mx-[var(--gutter)] px-[var(--gutter-lg)] pb-2">
       <div className="flex items-center gap-2 rounded-[12px] px-3 py-2" style={{ backgroundColor: mix('#b45309', 0.1) }}>
         <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: '#b45309' }} aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium" style={{ color: '#b45309' }}>
+        <span className="min-w-0 flex-1 truncate text-caption font-medium" style={{ color: '#b45309' }}>
           Scoped to {scope.site.name} · {scope.win.window}
         </span>
         <button
           type="button"
           onClick={() => setSite(null)}
-          className="shrink-0 rounded-full px-2 py-[2px] text-[11px] font-semibold"
+          className="shrink-0 rounded-full px-2 py-[2px] text-caption font-semibold"
           style={{ backgroundColor: mix('#b45309', 0.18), color: '#b45309' }}
         >
           Clear

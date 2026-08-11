@@ -96,20 +96,20 @@ function SheetHero({
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={value} size={48} color={HERO_INK} />
-        <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+        <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
           {Glyph && <Glyph size={15} strokeWidth={1.75} aria-hidden />}
           {label}
         </p>
         {status && (
           <p className="mt-3 flex items-center gap-2">
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone ?? 'neutral'] }} aria-hidden />
-            <span className="text-[13px] font-medium" style={{ color: TONE[tone ?? 'neutral'] }}>
+            <span className="text-small font-medium" style={{ color: TONE[tone ?? 'neutral'] }}>
               {status}
             </span>
           </p>
         )}
         {note && (
-          <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>
+          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
             {note}
           </p>
         )}
@@ -180,7 +180,7 @@ export function RequestPanel({ req, asOf }: { req: Req; asOf: number }) {
           </TapList>
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
         Request record · deepest level
       </p>
     </>
@@ -229,7 +229,7 @@ function RequestList({
           )
         })}
       </TapList>
-      {rows.length === 0 && <p className="text-[13px] text-[#6d6860]">No requests in this scope.</p>}
+      {rows.length === 0 && <p className="text-small text-[#6d6860]">No requests in this scope.</p>}
       <MoreRows page={paged} noun="requests" />
     </Section>
   )
@@ -294,7 +294,6 @@ export function CategoryPanel({ category, scope }: { category: Category; scope: 
             </>
           )}
         </Section>
-
         <Section icon={Pill} label="Items" aside={`${mine.length}`}>
           <TapList>
             {mine.map((m) => (
@@ -303,14 +302,13 @@ export function CategoryPanel({ category, scope }: { category: Category; scope: 
                 label={m.name}
                 sub={`${m.kind} · ${medCode(m.id)} · ${inr(unitCost(m.id))} per unit`}
                 value={fmt(m.units)}
-                bar={(m.units / Math.max(1, mine[0]?.units ?? 1)) * 100}
                 onOpen={() =>
                   open({ title: m.name, eyebrow: category, body: <MedicinePanel medicineId={m.id} scope={scope} /> })
                 }
               />
             ))}
           </TapList>
-          {mine.length === 0 && <p className="text-[13px] text-[#6d6860]">Nothing issued in this category.</p>}
+          {mine.length === 0 && <p className="text-small text-[#6d6860]">Nothing issued in this category.</p>}
         </Section>
 
         {sites.length > 0 && (
@@ -323,7 +321,6 @@ export function CategoryPanel({ category, scope }: { category: Category; scope: 
                   sub={`${s.code} · ${total ? ((s.units / total) * 100).toFixed(1) : '0'}% of this category`}
                   value={fmt(s.units)}
                   unit="units"
-                  bar={(s.units / Math.max(1, sites[0].units)) * 100}
                   onOpen={() =>
                     open({
                       title: s.name,
@@ -404,7 +401,6 @@ export function SitePharmacyPanel({ siteKey, scope }: { siteKey: string; scope: 
             ]}
           />
         </Section>
-
         <Section icon={Pill} label="Medicines requested" aside={`${byMedicine.length}`}>
           <TapList>
             {byMedicine.slice(0, 14).map((m) => (
@@ -413,16 +409,14 @@ export function SitePharmacyPanel({ siteKey, scope }: { siteKey: string; scope: 
                 label={m.name}
                 sub={`${m.category} · ${m.count} ${m.count === 1 ? 'request' : 'requests'} · ${fmt(m.qty)} units`}
                 value={inr(m.cost)}
-                bar={(m.cost / Math.max(1, byMedicine[0]?.cost ?? 1)) * 100}
                 onOpen={() =>
                   open({ title: m.name, eyebrow: site.name, body: <MedicinePanel medicineId={m.id} scope={scope} /> })
                 }
               />
             ))}
           </TapList>
-          {byMedicine.length === 0 && <p className="text-[13px] text-[#6d6860]">No requests in {win.window}.</p>}
+          {byMedicine.length === 0 && <p className="text-small text-[#6d6860]">No requests in {win.window}.</p>}
         </Section>
-
         <RequestList rows={raised} asOf={asOf} eyebrow={site.name} label="Request records" />
       </Stack>
     </>
@@ -519,7 +513,7 @@ export function LotPanel({ lot }: { lot: Lot }) {
           />
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
         Batch record · deepest level
       </p>
     </>
@@ -591,7 +585,6 @@ export function ExpiredPanel({
                     label={g.site.name}
                     sub={`${g.site.code} · ${g.lots} ${g.lots === 1 ? 'batch' : 'batches'}`}
                     value={inr(g.cost)}
-                    bar={(g.cost / Math.max(1, bySite[0].cost)) * 100}
                     onOpen={() =>
                       open({
                         title: g.site.name,
@@ -613,7 +606,6 @@ export function ExpiredPanel({
                 label={m.name}
                 sub={`${fmt(m.qty)} units · ${m.lots.length} ${m.lots.length === 1 ? 'batch' : 'batches'}`}
                 value={inr(m.cost)}
-                bar={(m.cost / Math.max(1, byMedicine[0]?.cost ?? 1)) * 100}
                 onOpen={() =>
                   open({
                     title: m.name,
@@ -625,7 +617,7 @@ export function ExpiredPanel({
             ))}
           </TapList>
           {byMedicine.length === 0 && (
-            <p className="text-[13px] text-[#6d6860]">Nothing expired here in {win.window}.</p>
+            <p className="text-small text-[#6d6860]">Nothing expired here in {win.window}.</p>
           )}
         </Section>
       </Stack>
@@ -703,7 +695,6 @@ export function AvailabilityPanel({ medicineId, scope }: { medicineId: string; s
             ]}
           />
         </Section>
-
         <Section icon={MapPin} label="Affected sites" aside={`${row.sites.length}`}>
           <TapList>
             {row.sites.map((s) => (
@@ -713,7 +704,6 @@ export function AvailabilityPanel({ medicineId, scope }: { medicineId: string; s
                 sub={`${s.code} · ${s.requests.length} ${s.requests.length === 1 ? 'request' : 'requests'}`}
                 value={fmt(s.qty)}
                 unit="units"
-                bar={(s.qty / Math.max(1, row.sites[0].qty)) * 100}
                 onOpen={() =>
                   open({
                     title: s.name,
@@ -725,7 +715,6 @@ export function AvailabilityPanel({ medicineId, scope }: { medicineId: string; s
             ))}
           </TapList>
         </Section>
-
         <RequestList rows={row.sites.flatMap((s) => s.requests)} asOf={asOf} eyebrow={row.name} label="Unfilled requests" />
       </Stack>
     </>
@@ -809,7 +798,6 @@ export function MedicinePanel({ medicineId, scope }: { medicineId: string; scope
                   sub={`${s.code} · ${s.requests} ${s.requests === 1 ? 'request' : 'requests'} · ${fmt(s.qty)} units requested`}
                   value={fmt(s.units)}
                   unit="issued"
-                  bar={(s.units / Math.max(1, held[0].units || 1)) * 100}
                   onOpen={() =>
                     open({
                       title: s.name,
@@ -861,12 +849,11 @@ export function PendingPanel({ scope }: { scope: Scope }) {
                 sub={`${inr(b.cost)} · ${fmt(b.qty)} units`}
                 value={fmt(b.count)}
                 tone={b.key === '60+' && b.count > 0 ? 'bad' : b.key === '31-60' && b.count > 0 ? 'warn' : undefined}
-                bar={(b.count / Math.max(1, Math.max(...buckets.map((x) => x.count)))) * 100}
                 onOpen={b.count > 0 ? () => open({ title: b.label, eyebrow: 'Pending', body: <AgingPanel bucketKey={b.key} scope={scope} /> }) : undefined}
               />
             ))}
           </TapList>
-          <p className="mt-3 text-[11px]" style={{ color: FAINT }}>
+          <p className="mt-3 text-caption" style={{ color: FAINT }}>
             {fmt(inWindow)} of these were raised in {win.window}.
           </p>
         </Section>
@@ -949,7 +936,6 @@ export function UsagePanel({ scope }: { scope: Scope }) {
                 label={c.category}
                 sub={`${c.medicines} items · ${c.percent.toFixed(1)}%`}
                 value={fmt(c.units)}
-                bar={c.percent}
                 onOpen={c.units > 0 ? () => open({ title: c.category, eyebrow: 'Usage', body: <CategoryPanel category={c.category} scope={scope} /> }) : undefined}
               />
             ))}
@@ -963,7 +949,6 @@ export function UsagePanel({ scope }: { scope: Scope }) {
                 label={m.name}
                 sub={`${m.kind} · ${medCode(m.id)}`}
                 value={fmt(m.units)}
-                bar={(m.units / Math.max(1, use.byMedicine[0]?.units ?? 1)) * 100}
                 onOpen={() => open({ title: m.name, eyebrow: 'Medicine', body: <MedicinePanel medicineId={m.id} scope={scope} /> })}
               />
             ))}

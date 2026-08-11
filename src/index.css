@@ -1,14 +1,118 @@
-@import '@fontsource-variable/dm-sans';
+@import '@fontsource-variable/figtree';
 @import '@fontsource-variable/nunito';
-@import '@fontsource-variable/inter';
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'DM Sans Variable', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  /* Numerals: SF Pro Rounded where the OS has it (Apple license bars shipping
-     it as a webfont), otherwise Nunito — the bundled rounded equivalent that
-     renders identically for every visitor. Matches the Figma spec's intent. */
+  /**
+   * TWO FAMILIES, AND THE SPLIT IS BETWEEN WORDS AND NUMBERS.
+   *
+   * `--font-sans` is Figtree and carries every word in the product: headings,
+   * labels, rows, captions, navigation, buttons, form fields. It replaces the
+   * DM Sans / Inter pair that used to share that job between them.
+   *
+   * `--font-display` is UNCHANGED and deliberately so. Numerals stay on the
+   * rounded face — SF Pro Rounded where the OS has it (Apple's licence bars
+   * shipping it as a webfont), otherwise Nunito, the bundled rounded equivalent
+   * that renders identically for every visitor. It is what the Figma spec calls
+   * for and it is what every figure in the app has always been set in.
+   *
+   * The thirty-one `font-display` call sites and the `Figure` component are the
+   * boundary between the two, and it is a boundary about CONTENT rather than
+   * about styling: if the thing is a quantity, it wears the rounded face; if it
+   * is language, it wears Figtree. Everything else in this file — the sizes, the
+   * line-heights, the weights, the tracking — applies to both.
+   *
+   * `var(--font-sans)` closes the display stack, so a system without either
+   * rounded face lands on Figtree rather than on a browser default.
+   */
+  --font-sans: 'Figtree Variable', Figtree, Arial, sans-serif;
   --font-display: 'SF Pro Rounded', ui-rounded, 'Nunito Variable', var(--font-sans);
+  /* Tailwind's own preflight sets `html { font-family: var(--default-font-family) }`,
+     which without this line is a system stack. The `body` rule below already covers
+     everything rendered, but leaving the root on a different family means any node
+     that escapes it — a native control's shadow tree, a print stylesheet — falls back
+     to something that is not this product's type. */
+  --default-font-family: var(--font-sans);
+
+  /**
+   * THE TYPE SCALE — every size, line-height and letter-spacing in the product.
+   *
+   * Before this there were twenty-four distinct font sizes across the app —
+   * 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15, 16, 17,
+   * 18, 19, 20, 21, 22, 24, 30, 34, 38 — most of them chosen a half-pixel apart
+   * from a neighbour that meant the same thing. Half-pixel steps do not read as
+   * hierarchy; they read as drift. These eleven steps replace all of them.
+   *
+   * EACH STEP CARRIES ITS OWN LINE-HEIGHT. That is the point of declaring them
+   * here rather than as arbitrary values: `text-small` is 14/20 wherever it is
+   * written, and no call site can pair a size with a leading that belongs to a
+   * different one. Weight stays explicit at the call site (`font-medium`,
+   * `font-semibold`) because the same size legitimately carries several weights
+   * — a 14px row label and a 14px row figure are the same step, not the same
+   * emphasis.
+   *
+   * Letter-spacing is 0 through the text steps and turns negative only where
+   * the size is large enough for default tracking to look loose — headings from
+   * 20px, figures from 20px. Nothing here is tracked out except `overline`,
+   * which is uppercase and needs it to stay readable.
+   */
+
+  /* Text */
+  --text-tick: 10px; /* chart axis + in-mark labels ONLY — see note below */
+  --text-tick--line-height: 12px;
+  --text-caption: 12px; /* captions, units, notes, sub-labels */
+  --text-caption--line-height: 16px;
+  --text-overline: 12px; /* uppercase eyebrows, table column headers */
+  --text-overline--line-height: 16px;
+  --text-overline--letter-spacing: 0.04em;
+  --text-small: 14px; /* list rows, table cells, secondary labels */
+  --text-small--line-height: 20px;
+  --text-body: 16px; /* body copy, nav, filters, buttons, inputs */
+  --text-body--line-height: 24px;
+  --text-lead: 18px; /* the step between body and a heading */
+  --text-lead--line-height: 27px;
+
+  /* Headings */
+  --text-h3: 20px;
+  --text-h3--line-height: 28px;
+  --text-h3--letter-spacing: -0.2px;
+  --text-h2: 24px;
+  --text-h2--line-height: 32px;
+  --text-h2--letter-spacing: -0.3px;
+  --text-h1: 28px;
+  --text-h1--line-height: 36px;
+  --text-h1--letter-spacing: -0.4px;
+  --text-display: 32px;
+  --text-display--line-height: 40px;
+  --text-display--letter-spacing: -0.5px;
+  --text-xl: 40px;
+  --text-xl--line-height: 48px;
+  --text-xl--letter-spacing: -0.5px;
+
+  /**
+   * Figures. Their own steps because a number is set tighter than a sentence:
+   * the ladder above pairs 24px with 32px of leading, which is correct for a
+   * wrapping heading and half a line of dead air under a figure that never
+   * wraps. These run at 1.125, the ratio the KPI spec states (64 → 72).
+   */
+  --text-n-sm: 20px;
+  --text-n-sm--line-height: 24px;
+  --text-n-sm--letter-spacing: -0.4px;
+  --text-n: 24px;
+  --text-n--line-height: 28px;
+  --text-n--letter-spacing: -0.5px;
+  --text-n-md: 28px;
+  --text-n-md--line-height: 32px;
+  --text-n-md--letter-spacing: -0.6px;
+  --text-n-lg: 32px;
+  --text-n-lg--line-height: 36px;
+  --text-n-lg--letter-spacing: -0.7px;
+  --text-n-xl: 40px;
+  --text-n-xl--line-height: 45px;
+  --text-n-xl--letter-spacing: -1px;
+  --text-kpi: 64px;
+  --text-kpi--line-height: 72px;
+  --text-kpi--letter-spacing: -1.5px;
 
   /* MD3_Antz palette (Figma variables) */
   --color-antz-primary: #37bd69; /* MD3_Antz/Primary */
@@ -172,6 +276,67 @@
 }
 
 /**
+ * THE TYPOGRAPHIC GROUND — what a piece of text is before anything styles it.
+ *
+ * 16px / 24px / 400 / letter-spacing 0, in Figtree. Almost every element in the
+ * app names its own step, so this is the floor rather than the common case — but
+ * it is the floor that decides what an unstyled `<p>`, an input's placeholder or
+ * a browser-rendered control looks like, and those were the only places the old
+ * system fell back to a system font.
+ *
+ * THE LINE-HEIGHT IS UNITLESS ON PURPOSE. A fixed `24px` here is inherited as
+ * twenty-four literal pixels by every descendant, including the 12px captions —
+ * which would hand a caption two lines of leading and quietly grow every row in
+ * the product. 1.5 inherits as a RATIO, so anything that has not named its own
+ * step still gets a leading proportional to its size.
+ *
+ * `font-synthesis-weight: none` matters with a variable font: without it a
+ * browser that has not finished loading Figtree fakes 600 by smearing 400, and
+ * the section headings visibly re-set when the real weight arrives.
+ */
+/**
+ * IN `@layer base`, AND THAT IS LOAD-BEARING RATHER THAN TIDINESS. Tailwind
+ * declares `theme, base, components, utilities`, and an UNLAYERED rule beats
+ * every layered one regardless of specificity. Written outside a layer, a bare
+ * `body { font-size }` is harmless, but the companion rule that used to sit here
+ * — `input, select, textarea, button { font-size: inherit }` — silently overrode
+ * `.text-caption` on every button and input in the product and rendered them all
+ * at the inherited 16px. That rule is gone: Tailwind's own preflight already
+ * applies `font: inherit` to form controls, from inside `base`, where a utility
+ * can still win.
+ */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    font-weight: 400;
+    letter-spacing: 0;
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/**
+ * THE ONE STEP BELOW 12px, AND WHY IT IS ALLOWED TO EXIST.
+ *
+ * `text-tick` is 10/12 and is for chart furniture only: axis month labels, the
+ * numerals inside a heat cell, the value printed on a 9px-wide mark. Those are
+ * parts of a drawing, not text a reader parses in sequence, and they are laid
+ * out against a mark's own geometry — twelve month labels share the width of one
+ * card, so a step up to 12px is not a legibility gain, it is a collision.
+ *
+ * Everything a reader actually reads — every label, caption, row, cell, chip,
+ * heading and figure — is 12px or larger. If a use of `text-tick` is not inside
+ * a chart, it is wrong.
+ */
+
+/**
  * THE MOTION SCALE — three durations and two curves, for the whole product.
  *
  * Before this there were durations at 250, 300, 320, 360, 380, 460, 500, 620 and
@@ -250,27 +415,49 @@
   --pad-card-sm: 16px;
   --radius-card: 16px;
 
-  /* Type — display */
-  --fs-hero: 58px; /* the population total */
-  --fs-name: 30px; /* greeting */
-  --fs-fig-lg: 38px; /* prominent daily card */
-  --fs-fig: 30px;
-  --fs-fig-md: 28px;
-  --fs-fig-sm: 26px;
-  --fs-fig-xs: 22px;
+  /**
+   * Type — THE THREE SIZES THAT GROW WITH THE COLUMN.
+   *
+   * Everything else in the product now names a fixed step from the scale in
+   * `@theme` above, and that is the whole difference from what this block used
+   * to be. It carried twelve sizes, each with its own value per tier, so a
+   * caption was 11px, then 11.5, then 12 — three sizes to say one thing, and
+   * the half-pixel in the middle existing only because the tiers had to differ
+   * somehow. 14px small text and 12px captions are correct at every width; a
+   * reader at a desk is further from the screen, but not far enough to need a
+   * caption a pixel and a half larger.
+   *
+   * The three below genuinely earn the step, because they are read at a glance
+   * from across a room rather than parsed at reading distance: the hero figure,
+   * the page title, and the card titles that structure the page under it. Each
+   * rung is a step of the same scale — 64/72/80, 28/32/40, 16/18/20 — never a
+   * value invented for the tier.
+   */
+  --fs-hero: 64px; /* the population total       — kpi     → kpi     → 80/88 */
+  --lh-hero: 72px;
+  --fs-name: 28px; /* greeting / page title      — h1      → display → xl    */
+  --lh-name: 36px;
+  --fs-title: 16px; /* card / section title      — body    → lead    → h3    */
+  --lh-title: 24px;
+  --fs-fig-xs: 20px; /* the KPI-tile figure      — n-sm    → n-sm    → n     */
 
-  /* Type — text */
-  --fs-title: 15px;
-  --fs-body: 14px;
-  --fs-label: 13px;
-  --fs-cap: 12px;
-  --fs-micro: 11px;
-
-  /* Multiplier for the module pages' big numbers. Those are passed as a `size`
-     prop in points — `<Figure size={58}>` — chosen per page rather than drawn
-     from the scale above, so they need a factor rather than a replacement. One
-     lever here scales every headline figure across all twenty-two pages. */
+  /**
+   * Multiplier for the module pages' big numbers. Those are passed as a `size`
+   * prop in points — `<Figure size={64}>` — so they need a factor rather than a
+   * replacement. One lever here scales every headline figure across all
+   * twenty-two pages.
+   *
+   * THE BASE TIER IS THE LADDER; THE WIDER TIERS ARE THAT LADDER SCALED. Every
+   * `size` a component passes is one of `FIG_STEPS` in `exec/system.tsx`, chosen
+   * or fitted there and never invented — that is where the consistency lives. At
+   * 1.125 and 1.25 the two anchors land back on named steps (64 → 72 → 80,
+   * 32 → 36 → 40) and the rungs between them scale proportionally to fractional
+   * pixels, which is what fluid type is. It is a uniform ratio applied to a
+   * decided set, not a second set of sizes.
+   */
   --fig-scale: 1;
+  /* One leading for every figure in the product, at the KPI ratio (64 → 72). */
+  --lh-fig: 1.125;
 
   /* Marks */
   --gauge: 84px; /* arc gauge / ring diameter */
@@ -337,20 +524,14 @@
     --radius-card: 18px;
 
     --fs-hero: 72px;
-    --fs-name: 34px;
-    --fs-fig-lg: 42px;
-    --fs-fig: 33px;
-    --fs-fig-md: 31px;
-    --fs-fig-sm: 28px;
-    --fs-fig-xs: 24px;
+    --lh-hero: 80px;
+    --fs-name: 32px;
+    --lh-name: 40px;
+    --fs-title: 18px;
+    --lh-title: 27px;
+    --fs-fig-xs: 20px;
 
-    --fs-title: 16px;
-    --fs-body: 15px;
-    --fs-label: 14px;
-    --fs-cap: 12.5px;
-    --fs-micro: 11.5px;
-
-    --fig-scale: 1.12;
+    --fig-scale: 1.125;
 
     --gauge: 92px;
     --viz-h: 52px;
@@ -370,21 +551,15 @@
     --pad-card-sm: 20px;
     --radius-card: 20px;
 
-    --fs-hero: 84px;
-    --fs-name: 38px;
-    --fs-fig-lg: 46px;
-    --fs-fig: 36px;
-    --fs-fig-md: 34px;
-    --fs-fig-sm: 30px;
-    --fs-fig-xs: 26px;
+    --fs-hero: 80px;
+    --lh-hero: 88px;
+    --fs-name: 40px;
+    --lh-name: 48px;
+    --fs-title: 20px;
+    --lh-title: 28px;
+    --fs-fig-xs: 24px;
 
-    --fs-title: 17px;
-    --fs-body: 16px;
-    --fs-label: 14px;
-    --fs-cap: 13px;
-    --fs-micro: 12px;
-
-    --fig-scale: 1.22;
+    --fig-scale: 1.25;
 
     --gauge: 100px;
     --viz-h: 58px;

@@ -56,7 +56,6 @@ import {
   mix,
   useAccent,
 } from '../exec/system'
-import { Rail } from '../exec/marks'
 import {
   DRILL,
   animalRecord,
@@ -101,7 +100,6 @@ export function TapRow({
   tone,
   onOpen,
   lead,
-  bar,
   active,
 }: {
   label: string
@@ -112,17 +110,6 @@ export function TapRow({
   onOpen?: () => void
   /** A small tinted glyph tile, for lists whose rows are kinds rather than records. */
   lead?: LucideIcon
-  /**
-   * 0–100. The row's share, drawn as the weight of a rail down its left edge.
-   *
-   * IT USED TO BE A FULL-WIDTH PROGRESS BAR, and eighty call sites of it were the single
-   * biggest reason the product read as a dashboard: every list on every page was a stack of
-   * identical bars, each one drawing a ranking the row order already stated. The rail says the
-   * same thing — where this row sits in the spread — in three pixels, and a list of twenty
-   * rails reads as a gradient rather than as twenty charts. See `RankList` in `exec/marks.tsx`,
-   * which is the same decision made for the lists that were built out of bars.
-   */
-  bar?: number
   /** Currently the selected facet — tinted, so the filter's cause stays visible. */
   active?: boolean
 }) {
@@ -141,22 +128,22 @@ export function TapRow({
           </span>
         )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] text-[#1c1a16]">{label}</span>
+          <span className="block truncate text-small text-[#1c1a16]">{label}</span>
           {/* The sub WRAPS where the label truncates, which is the rule `Records`
               already sets in the design system: the label is an identifier and can be
               clipped, but the sub carries the where and the when — "ANM-22140 ·
               Savanna · Zone A ·…" has thrown away the only part that was new. */}
-          {sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{sub}</span>}
+          {sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{sub}</span>}
         </span>
       </span>
       <span className="shrink-0 text-right">
         <span
-          className="text-[14px] font-medium tabular-nums"
+          className="text-small font-medium tabular-nums"
           style={{ color: tone && tone !== 'neutral' ? TONE[tone] : VALUE }}
         >
           {value}
         </span>
-        {unit && <span className="ml-1 text-[11px] text-[#9b958b]">{unit}</span>}
+        {unit && <span className="ml-1 text-caption text-[#9b958b]">{unit}</span>}
       </span>
       <span
         className="w-[10px] shrink-0"
@@ -170,7 +157,6 @@ export function TapRow({
 
   const body = (
     <span className="flex items-stretch gap-3">
-      {bar !== undefined && <Rail share={bar} />}
       <span className="flex min-w-0 flex-1 items-center gap-3">{inner}</span>
     </span>
   )
@@ -313,8 +299,6 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
     if (!same) requestAnimationFrame(() => animalsCard.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
-  const widestSite = Math.max(...level.rows.map((r) => r.percent), 1)
-  const widestSpecies = Math.max(...speciesRows.map((r) => r.percent), 1)
   const classes = new Set(speciesRows.map((r) => r.cls)).size
   const kpi = headlineKpis.find((k) => k.drill === metric)
   /* The twelve-month curve for whichever site the panel is focused on — the panel's own
@@ -335,16 +319,16 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={headline} unit={rate ? '%' : undefined} size={52} color={HERO_INK} />
+          <Figure value={headline} unit={rate ? '%' : undefined} size={48} color={HERO_INK} />
           {/* The UNIT here, not the module name — the sheet header two inches above
               already says "Health & Medical", and repeating it under the figure spends
               the one line that could say what the figure counts and what it is scoped
               to. The affordance line that used to sit below is gone too; the Sites
               card's own aside teaches it, in the place you would use it. */}
-          <p className="mt-1 text-[15px] text-[#3d3a34]">
+          <p className="mt-1 text-body text-[#3d3a34]">
             {def.unit} · {scopeLabel === 'Zoo-wide' ? 'zoo-wide' : scopeLabel}
           </p>
-          <p className="mt-2.5 text-[12px] text-[#9b958b]">{period.window}</p>
+          <p className="mt-2.5 text-caption text-[#9b958b]">{period.window}</p>
         </section>
       </div>
 
@@ -420,14 +404,12 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
                 sub={`${r.site.code} · ${r.site.enclosures} enclosures`}
                 value={rate ? `${Math.round(r.percent)}%` : fmt(r.value)}
                 unit={rate && r.of ? `${fmt(r.value)}/${fmt(r.of)}` : undefined}
-                bar={rate ? r.percent : (r.percent / widestSite) * 100}
                 active={site?.key === r.site.key}
                 onOpen={r.value > 0 ? () => pickSite(r.site.key, r.site.name) : undefined}
               />
             ))}
           </TapList>
         </Section>
-
         <div ref={speciesCard} className="contents">
           <Section
             icon={Dna}
@@ -442,7 +424,6 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
                   sub={s.cls}
                   value={rate ? `${Math.round(s.percent)}%` : fmt(s.value)}
                   unit={rate && s.of ? `${fmt(s.value)}/${fmt(s.of)}` : undefined}
-                  bar={rate ? s.percent : (s.percent / widestSpecies) * 100}
                   active={species === s.name}
                   onOpen={s.value > 0 ? () => pickSpecies(s.name) : undefined}
                 />
@@ -450,7 +431,6 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
             </TapList>
           </Section>
         </div>
-
         <div ref={animalsCard} className="contents">
           <Section
             icon={PawPrint}
@@ -464,7 +444,7 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
             {animals.total > animals.rows.length && (
               /* Never let forty rows imply forty animals. The cap is a reading limit
                  and has to be stated as one. */
-              <p className="mb-3 text-[11.5px] text-[#9b958b]">
+              <p className="mb-3 text-caption text-[#9b958b]">
                 A sample across {site ? 'this site' : 'all sites'}, drawn in proportion to each
                 species' share. Narrow further to see fewer, truer rows.
               </p>
@@ -484,7 +464,7 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
               ))}
             </TapList>
             {animals.rows.length === 0 && (
-              <p className="text-[13px] text-[#6d6860]">Nothing recorded here in {period.window}.</p>
+              <p className="text-small text-[#6d6860]">Nothing recorded here in {period.window}.</p>
             )}
           </Section>
         </div>
@@ -507,7 +487,7 @@ function Chip({
 }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full py-[5px] text-[12px] font-medium whitespace-nowrap transition-colors ${
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full py-[5px] text-caption font-medium whitespace-nowrap transition-colors ${
         on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a]'
       } ${onClear ? 'pr-1.5 pl-3' : 'px-3'}`}
     >
@@ -529,7 +509,7 @@ function Chip({
 }
 
 const Sep = () => (
-  <span className="shrink-0 text-[12px] text-[#b3aea6]" aria-hidden>
+  <span className="shrink-0 text-caption text-[#b3aea6]" aria-hidden>
     ›
   </span>
 )
@@ -548,8 +528,8 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <p className="font-display text-[30px] leading-none font-bold tracking-[-0.02em] text-[#2f2424]">{r.id}</p>
-          <p className="mt-2 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+          <p className="font-display text-n-lg font-bold text-[#2f2424]">{r.id}</p>
+          <p className="mt-2 flex items-center gap-2 text-body text-[#3d3a34]">
             <PawPrint size={15} strokeWidth={1.75} aria-hidden />
             {r.name}
           </p>
@@ -560,7 +540,7 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
               aria-hidden
             />
             <span
-              className="text-[13px] font-medium"
+              className="text-small font-medium"
               style={{ color: TONE[r.tone && r.tone !== 'neutral' ? r.tone : 'neutral'] }}
             >
               {r.status}
@@ -568,16 +548,16 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
           </p>
           <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
             <span className="min-w-0 flex-1 pr-4">
-              <span className="block text-[13px] font-medium text-[#1c1a16]">{SEX_WORD[r.sex]}</span>
-              <span className="mt-0.5 block text-[11px] text-[#9b958b]">Sex</span>
+              <span className="block text-small font-medium text-[#1c1a16]">{SEX_WORD[r.sex]}</span>
+              <span className="mt-0.5 block text-caption text-[#9b958b]">Sex</span>
             </span>
             <span className="min-w-0 flex-1 border-l border-[#f0efec] px-4">
-              <span className="block text-[13px] font-medium text-[#1c1a16]">{r.age}</span>
-              <span className="mt-0.5 block text-[11px] text-[#9b958b]">Age</span>
+              <span className="block text-small font-medium text-[#1c1a16]">{r.age}</span>
+              <span className="mt-0.5 block text-caption text-[#9b958b]">Age</span>
             </span>
             <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
-              <span className="block truncate text-[13px] font-medium text-[#1c1a16]">{r.weight}</span>
-              <span className="mt-0.5 block text-[11px] text-[#9b958b]">Weight</span>
+              <span className="block truncate text-small font-medium text-[#1c1a16]">{r.weight}</span>
+              <span className="mt-0.5 block text-caption text-[#9b958b]">Weight</span>
             </span>
           </div>
         </section>
@@ -610,7 +590,6 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
             ]}
           />
         </Section>
-
         <Section icon={ClipboardList} label="Record" aside="recent">
           <Events items={r.timeline} />
         </Section>
@@ -618,7 +597,7 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
       {/* No level below. The record is the answer to "which animal"; everything
           past it — samples, doses, keeper notes — is the working screen of the
           person who owns the animal, not the executive question that opened this. */}
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
         Animal record · deepest level
       </p>
     </>
@@ -635,8 +614,8 @@ export function AlertPanel({ alert }: { alert: CriticalAlert }) {
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={String(alert.count)} size={52} color={TONE[tone]} />
-          <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+          <Figure value={String(alert.count)} size={48} color={TONE[tone]} />
+          <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
             <alert.icon size={15} strokeWidth={1.75} style={{ color: TONE[tone] }} aria-hidden />
             {alert.label}
           </p>
@@ -645,7 +624,7 @@ export function AlertPanel({ alert }: { alert: CriticalAlert }) {
             {/* `capitalize` on the level word ONLY. Applied to the whole line it
                 title-cased the note too, so "last 24 h · necropsy due" was rendered
                 "Last 24 H · Necropsy Due" — the unit turned into an initial. */}
-            <span className="text-[13px] font-medium" style={{ color: TONE[tone] }}>
+            <span className="text-small font-medium" style={{ color: TONE[tone] }}>
               <span className="capitalize">{alert.level}</span> · {alert.note}
             </span>
           </p>
@@ -703,15 +682,15 @@ export function ApprovalPanel({ group }: { group: ApprovalGroup }) {
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={String(pending.length)} size={52} color={HERO_INK} />
-          <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+          <Figure value={String(pending.length)} size={48} color={HERO_INK} />
+          <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
             <group.icon size={15} strokeWidth={1.75} aria-hidden />
             {group.label} · waiting on you
           </p>
           {overdue > 0 && (
             <p className="mt-3 flex items-center gap-2">
               <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE.warn }} aria-hidden />
-              <span className="text-[13px] font-medium" style={{ color: TONE.warn }}>
+              <span className="text-small font-medium" style={{ color: TONE.warn }}>
                 {overdue} past SLA
               </span>
             </p>
@@ -727,7 +706,7 @@ export function ApprovalPanel({ group }: { group: ApprovalGroup }) {
 
         {pending.length === 0 && (
           <Section icon={Check} label="Queue clear">
-            <p className="text-[13px] text-[#6d6860]">Nothing in {group.label.toLowerCase()} is waiting on you.</p>
+            <p className="text-small text-[#6d6860]">Nothing in {group.label.toLowerCase()} is waiting on you.</p>
           </Section>
         )}
 
@@ -773,7 +752,7 @@ function ApprovalCard({
         <button
           type="button"
           onClick={() => onDecide('approved')}
-          className="card-press flex flex-1 items-center justify-center gap-1.5 rounded-[11px] py-2.5 text-[13px] font-semibold text-white"
+          className="card-press flex flex-1 items-center justify-center gap-1.5 rounded-[11px] py-2.5 text-small font-semibold text-white"
           style={{ backgroundColor: '#1e7a44' }}
         >
           <Check size={15} strokeWidth={2.5} aria-hidden />
@@ -782,7 +761,7 @@ function ApprovalCard({
         <button
           type="button"
           onClick={() => onDecide('rejected')}
-          className="card-press flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border border-[#eceae5] py-2.5 text-[13px] font-semibold"
+          className="card-press flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border border-[#eceae5] py-2.5 text-small font-semibold"
           style={{ color: TONE.bad }}
         >
           <X size={15} strokeWidth={2.5} aria-hidden />
@@ -804,15 +783,15 @@ export function UpcomingPanel({ group, horizon }: { group: UpcomingGroup; horizo
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={fmt(total)} size={52} color={HERO_INK} />
-          <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+          <Figure value={fmt(total)} size={48} color={HERO_INK} />
+          <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
             <group.icon size={15} strokeWidth={1.75} aria-hidden />
             {group.label} · next {horizon} days
           </p>
           {soon.length > 0 && (
             <p className="mt-3 flex items-center gap-2">
               <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE.warn }} aria-hidden />
-              <span className="text-[13px] font-medium" style={{ color: TONE.warn }}>
+              <span className="text-small font-medium" style={{ color: TONE.warn }}>
                 {soon.length} within 48 hours
               </span>
             </p>
@@ -857,14 +836,14 @@ export function RiskPanel({ risk }: { risk: Risk }) {
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={risk.value} size={52} color={TONE[tone]} />
-          <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+          <Figure value={risk.value} size={48} color={TONE[tone]} />
+          <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
             <risk.icon size={15} strokeWidth={1.75} style={{ color: TONE[tone] }} aria-hidden />
             {risk.label}
           </p>
           <p className="mt-3 flex items-center gap-2">
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone] }} aria-hidden />
-            <span className="text-[13px] font-medium" style={{ color: TONE[tone] }}>
+            <span className="text-small font-medium" style={{ color: TONE[tone] }}>
               <span className="capitalize">{risk.level}</span> · {risk.note}
             </span>
           </p>
@@ -899,11 +878,11 @@ export function MeasurePanel({ measure }: { measure: Measure }) {
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={measure.value} unit={measure.unit} size={52} color={TONE[measure.tone]} />
-          <p className="mt-1 text-[15px] text-[#3d3a34]">{measure.label}</p>
+          <Figure value={measure.value} unit={measure.unit} size={48} color={TONE[measure.tone]} />
+          <p className="mt-1 text-body text-[#3d3a34]">{measure.label}</p>
           <p className="mt-3 flex items-center gap-2">
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[measure.tone] }} aria-hidden />
-            <span className="text-[13px] font-medium" style={{ color: TONE[measure.tone] }}>
+            <span className="text-small font-medium" style={{ color: TONE[measure.tone] }}>
               {measure.delta} · {measure.targetLabel}
             </span>
           </p>
@@ -941,8 +920,8 @@ export function TrendPanel({ card }: { card: TrendCard }) {
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-          <Figure value={value} size={52} color={HERO_INK} />
-          <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+          <Figure value={value} size={48} color={HERO_INK} />
+          <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
             <card.icon size={15} strokeWidth={1.75} aria-hidden />
             {card.label}
           </p>
@@ -953,7 +932,7 @@ export function TrendPanel({ card }: { card: TrendCard }) {
               aria-hidden
             />
             <span
-              className="text-[13px] font-medium"
+              className="text-small font-medium"
               style={{ color: TONE[card.tone === 'neutral' ? 'neutral' : card.tone] }}
             >
               {delta} · 12 months{scopedNote ? ` · ${scopedNote}` : ''}
@@ -1002,11 +981,11 @@ export function ZooHealthPanel({
     <>
       <div className="w-full px-[var(--gutter-lg)] pb-3">
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)] text-center">
-          <Figure value={String(score)} unit="/ 100" size={58} color={HERO_INK} />
-          <p className="mt-1 text-[15px] text-[#3d3a34]">Zoo Health</p>
+          <Figure value={String(score)} unit="/ 100" size={64} color={HERO_INK} />
+          <p className="mt-1 text-body text-[#3d3a34]">Zoo Health</p>
           <p className="mt-3 flex items-center justify-center gap-2">
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE.good }} aria-hidden />
-            <span className="text-[13px] font-medium" style={{ color: TONE.good }}>
+            <span className="text-small font-medium" style={{ color: TONE.good }}>
               {delta} on the previous window
             </span>
           </p>
@@ -1018,11 +997,11 @@ export function ZooHealthPanel({
             {parts.map((p) => (
               <li key={p.label}>
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[13.5px] text-[#1c1a16]">{p.label}</span>
-                  <span className="text-[13px] tabular-nums" style={{ color: FAINT }}>
+                  <span className="text-small text-[#1c1a16]">{p.label}</span>
+                  <span className="text-small tabular-nums" style={{ color: FAINT }}>
                     {Math.round(p.weight * 100)}% weight
                   </span>
-                  <Figure value={String(p.score)} size={19} />
+                  <Figure value={String(p.score)} size={20} />
                 </div>
                 <div className="mt-2 h-[8px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
                   <div
@@ -1033,7 +1012,7 @@ export function ZooHealthPanel({
               </li>
             ))}
           </ul>
-          <p className="mt-4 border-t border-[#f0efec] pt-3 text-[11px]" style={{ color: MUTED }}>
+          <p className="mt-4 border-t border-[#f0efec] pt-3 text-caption" style={{ color: MUTED }}>
             Composite is the weighted mean of the four, computed rather than authored.
           </p>
         </Section>

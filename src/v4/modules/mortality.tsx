@@ -74,6 +74,8 @@ import {
   mix,
   useAccent,
 } from '../../exec/system'
+import { strip } from '../../exec/marks'
+import { RangeTabs, useChartRange } from '../../exec/range'
 import { MoreRows, usePaged } from '../perf'
 import { FindField } from '../filters'
 import { useScope } from '../scope'
@@ -187,8 +189,10 @@ export default function Mortality() {
       <Stack>
         <Toolbar all={all} rows={rows} cut={cut} onCut={setCut} />
 
+        {/* The trend takes the contextual filter rather than the filtered rows: it reads its
+            own range, which is usually wider than the page's window. */}
         <Wide>
-          <MortalityTrend rows={rows} prev={prev} />
+          <MortalityTrend cut={cut} />
         </Wide>
         <Wide>
           <SiteWise rows={rows} prev={prev} />
@@ -196,7 +200,6 @@ export default function Mortality() {
         <Wide>
           <SpeciesWise rows={rows} />
         </Wide>
-
         <MajorImpact rows={rows} />
         <CauseOfDeath rows={rows} />
         <RegulatoryMortality rows={rows} />
@@ -255,13 +258,13 @@ function MortalityHero({ rows, prev, cut }: { rows: Death[]; prev: Death[]; cut:
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <div className="flex items-end justify-between gap-4">
           <span className="min-w-0">
-            <Figure value={fmt(rows.length)} size={58} color={HERO_INK} />
-            <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+            <Figure value={fmt(rows.length)} size={64} color={HERO_INK} />
+            <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
               <Activity size={15} strokeWidth={1.75} style={{ color: MORTALITY_ACCENT }} aria-hidden />
               {active ? `Deaths · ${active}` : `Deaths · ${scope.win.label.toLowerCase()}`}
             </p>
           </span>
-          <span className="shrink-0 pb-1 text-right text-[11px] leading-[15px]" style={{ color: FAINT }}>
+          <span className="shrink-0 pb-1 text-right text-caption" style={{ color: FAINT }}>
             {scopeLine(scope)}
             <br />
             {rows.length === 0 ? 'nothing recorded' : `${new Set(rows.map((d) => d.speciesName)).size} species`}
@@ -272,10 +275,10 @@ function MortalityHero({ rows, prev, cut }: { rows: Death[]; prev: Death[]; cut:
         {label && (
           <p className="mt-3 flex items-center gap-2">
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone] }} aria-hidden />
-            <span className="text-[13px] font-medium" style={{ color: TONE[tone] }}>
+            <span className="text-small font-medium" style={{ color: TONE[tone] }}>
               {label}
             </span>
-            <span className="text-[12px]" style={{ color: FAINT }}>
+            <span className="text-caption" style={{ color: FAINT }}>
               {fmt(prev.length)} before
             </span>
           </p>
@@ -304,15 +307,15 @@ function MortalityHero({ rows, prev, cut }: { rows: Death[]; prev: Death[]; cut:
           ].map((f) => (
             <span key={f.label} className="min-w-0">
               <span
-                className="block font-display text-[21px] leading-none font-bold tabular-nums"
+                className="block font-display text-n-sm font-bold tabular-nums"
                 style={{ color: f.tone ?? HERO_INK }}
               >
                 {f.value}
               </span>
-              <span className="mt-1 block truncate text-[11.5px]" style={{ color: FAINT }}>
+              <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                 {f.label}
               </span>
-              <span className="block truncate text-[10.5px]" style={{ color: '#c2bdb4' }}>
+              <span className="block truncate text-caption" style={{ color: '#c2bdb4' }}>
                 {f.note}
               </span>
             </span>
@@ -401,7 +404,7 @@ function Toolbar({
                   onClick={() =>
                     open({ title: `“${query}”`, eyebrow: 'Search', body: <SearchSheet query={query} rows={hits} /> })
                   }
-                  className="card-press mt-2 w-full rounded-full py-2 text-[12px] font-medium"
+                  className="card-press mt-2 w-full rounded-full py-2 text-body font-medium"
                   style={{ backgroundColor: mix(MORTALITY_ACCENT, 0.09), color: ACCENT_INK }}
                 >
                   All {hits.length} matches
@@ -409,7 +412,7 @@ function Toolbar({
               )}
             </>
           ) : (
-            <p className="text-[12.5px]" style={{ color: FAINT }}>
+            <p className="text-caption" style={{ color: FAINT }}>
               Nothing matches “{query}” in this scope.
             </p>
           )}
@@ -422,7 +425,7 @@ function Toolbar({
         <button
           type="button"
           onClick={() => setShown((s) => !s)}
-          className="card-press rounded-full px-3 py-[6px] text-[12px] font-medium"
+          className="card-press rounded-full px-3 py-[6px] text-caption font-medium"
           style={{ backgroundColor: mix(MORTALITY_ACCENT, 0.09), color: ACCENT_INK }}
           aria-expanded={shown}
         >
@@ -432,7 +435,7 @@ function Toolbar({
           <button
             type="button"
             onClick={() => onCut({})}
-            className="text-[12px] font-medium underline decoration-dotted underline-offset-2"
+            className="text-caption font-medium underline decoration-dotted underline-offset-2"
             style={{ color: FAINT }}
           >
             Clear {active}
@@ -496,7 +499,7 @@ function ChipRow({
               type="button"
               aria-pressed={on}
               onClick={() => onPick(on ? undefined : o)}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+              className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
                 on ? 'text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
               }`}
               style={on ? { backgroundColor: MORTALITY_ACCENT } : undefined}
@@ -516,31 +519,47 @@ function ChipRow({
 /**
  * The window's actual shape, at a granularity the window can carry.
  *
- * The grain choice is offered only where it means something — a seven-day window has no months
- * in it, and a twelve-month window drawn daily is 365 columns of texture rather than a trend.
- * `grainsFor` decides which are honest and the coarsest is the default.
+ * TWO CONTROLS, BECAUSE THERE ARE TWO QUESTIONS. The range says how far back to look and is
+ * the card's own — the page can sit on Today while this chart shows the quarter behind it,
+ * which is the pairing an executive actually reads: one day's deaths, against the shape of the
+ * three months that produced it. The grain says how finely to cut whatever range is chosen.
+ * They used to be one control, and the result was that a page filtered to a single day drew a
+ * trend of one column filling the whole card.
+ *
+ * The rows are re-read for the card's range rather than taken from the page, because the page's
+ * rows stop at the page's window — a chart showing the quarter would otherwise draw one day of
+ * data across thirteen empty weeks. The page's contextual filter still applies, so the cause or
+ * schedule the reader narrowed to narrows the trend with it.
  *
  * Every column is countable and tappable, and the previous period is drawn behind it as a
  * ghost rather than a second row of bars: the question is "is this rising", and two series
  * competing for the same axis answers it worse than one with a watermark.
  */
-function MortalityTrend({ rows, prev }: { rows: Death[]; prev: Death[] }) {
+function MortalityTrend({ cut }: { cut: Cut }) {
   const { scope } = useScope()
   const { open } = useSheet()
   const accent = useAccent()
-  const grains = useMemo(() => grainsFor(scope.win), [scope.win])
+  const range = useChartRange()
+
+  const rows = useMemo(() => applyCut(deathsIn({ ...scope, win: range.win }), cut), [scope, range.win, cut])
+  const prev = useMemo(() => applyCut(deathsBefore({ ...scope, win: range.win }), cut), [scope, range.win, cut])
+
+  const grains = useMemo(() => grainsFor(range.win), [range.win])
   const [grain, setGrain] = useState<Grain>(grains[grains.length - 1])
 
-  /* The window can change under a grain that is no longer offered — picking Monthly on a year
-     and then switching to Last 7 days must not leave the chart on a grain with one column. */
+  /* The range can change under a grain that is no longer offered — picking Monthly on a year
+     and then switching to Week must not leave the chart on a grain with one column. */
   const active = grains.includes(grain) ? grain : grains[grains.length - 1]
-  const buckets = useMemo(() => trend(scope.win, rows, prev, active), [scope.win, rows, prev, active])
+  const buckets = useMemo(() => trend(range.win, rows, prev, active), [range.win, rows, prev, active])
 
   const max = Math.max(...buckets.map((b) => Math.max(b.deaths, b.before ?? 0)), 1)
   const total = buckets.reduce((n, b) => n + b.deaths, 0)
+  const bars = strip(buckets.length)
 
   return (
-    <Section icon={TrendingDown} label="Mortality trend" aside={`${fmt(total)} · ${scope.win.window}`}>
+    <Section icon={TrendingDown} label="Mortality trend" aside={`${fmt(total)} · ${range.win.window}`}>
+      <RangeTabs range={range} tone={MORTALITY_ACCENT} />
+
       {grains.length > 1 && (
         <div className="mb-4 flex gap-1.5">
           {grains.map((g) => (
@@ -549,10 +568,14 @@ function MortalityTrend({ rows, prev }: { rows: Death[]; prev: Death[] }) {
               type="button"
               aria-pressed={g === active}
               onClick={() => setGrain(g)}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
-                g === active ? 'text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
+              className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium transition-colors ${
+                g === active
+                  ? 'text-white'
+                  : 'border border-[#e8e6e0] text-[#55524a] active:bg-[#f4f3ef]'
               }`}
-              style={g === active ? { backgroundColor: MORTALITY_ACCENT } : undefined}
+              /* The grain reads as the quieter of the two controls — an outline rather than a
+                 second row of filled pills, which would present it as a peer of the range. */
+              style={g === active ? { backgroundColor: mix(MORTALITY_ACCENT, 0.55) } : undefined}
             >
               {g}
             </button>
@@ -561,10 +584,10 @@ function MortalityTrend({ rows, prev }: { rows: Death[]; prev: Death[] }) {
       )}
 
       {total === 0 && buckets.every((b) => !b.before) ? (
-        <NoDeaths window={scope.win.window} />
+        <NoDeaths window={range.win.window} />
       ) : (
         <>
-          <div className="flex h-[112px] items-end gap-[3px]">
+          <div className="flex h-[112px] items-end gap-[3px]" style={bars}>
             {buckets.map((b) => {
               const h = (b.deaths / max) * 100
               const ghost = b.before === undefined ? 0 : (b.before / max) * 100
@@ -612,11 +635,13 @@ function MortalityTrend({ rows, prev }: { rows: Death[]; prev: Death[] }) {
             })}
           </div>
 
-          <div className="mt-2 flex gap-[3px]">
+          {/* The ticks carry the bars' own width, or the dates stop sitting under their
+              columns the moment the strip is capped. */}
+          <div className="mt-2 flex gap-[3px]" style={bars}>
             {buckets.map((b, i) => (
               <span
                 key={b.from}
-                className="min-w-0 flex-1 truncate text-center text-[9.5px] tabular-nums"
+                className="min-w-0 flex-1 truncate text-center text-tick tabular-nums"
                 style={{ color: FAINT }}
               >
                 {/* Every label at a coarse grain; every third at a fine one, or they collide. */}
@@ -624,8 +649,7 @@ function MortalityTrend({ rows, prev }: { rows: Death[]; prev: Death[] }) {
               </span>
             ))}
           </div>
-
-          <p className="mt-3 text-[11px]" style={{ color: FAINT }}>
+          <p className="mt-3 text-caption" style={{ color: FAINT }}>
             {active} · deaths per {active === 'Daily' ? 'day' : active === 'Weekly' ? 'week' : 'month'}
             {buckets.some((b) => b.before !== undefined) && ' · grey is the previous period'} · tap a column
           </p>
@@ -687,7 +711,6 @@ function SiteWise({ rows, prev }: { rows: Death[]; prev: Death[] }) {
         sub={(r) => `${r.code} · ${r.species} species${r.regulated ? ` · ${r.regulated} regulatory` : ''}`}
         sortKey={sortKey}
         onSort={setSortKey}
-        bar={(r) => r.percent}
         onOpen={(r) =>
           open({
             title: r.name,
@@ -710,7 +733,7 @@ function SiteWise({ rows, prev }: { rows: Death[]; prev: Death[] }) {
             type="button"
             aria-pressed={sortKey === key}
             onClick={() => setSortKey(key)}
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+            className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium transition-colors ${
               sortKey === key ? 'text-white' : 'bg-[#f4f3ef] text-[#55524a]'
             }`}
             style={sortKey === key ? { backgroundColor: MORTALITY_ACCENT } : undefined}
@@ -786,7 +809,6 @@ function SpeciesWise({ rows }: { rows: Death[] }) {
           sub={(r) => `${r.cls} · ${r.standingText}${r.sites > 1 ? ` · ${r.siteNames}` : ''}`}
           sortKey={sortKey}
           onSort={setSortKey}
-          bar={(r) => r.percent}
           onOpen={(r) =>
             open({
               title: r.name,
@@ -841,27 +863,26 @@ function MajorImpact({ rows }: { rows: Death[] }) {
         }
         className="card-press -mx-2 block w-full rounded-[12px] px-2 py-1 text-left"
       >
-        <Figure value={fmt(top.value)} size={38} color={TONE.bad} />
-        <p className="mt-1 text-[15px] font-medium text-[#1c1a16]">{top.label}</p>
-        <p className="mt-1 text-[12px]" style={{ color: FAINT }}>
+        <Figure value={fmt(top.value)} size={40} color={TONE.bad} />
+        <p className="mt-1 text-body font-medium text-[#1c1a16]">{top.label}</p>
+        <p className="mt-1 text-caption" style={{ color: FAINT }}>
           {Math.round(top.percent)}% of total mortality · {sites.length === 1 ? sites[0] : `${sites.length} sites`}
         </p>
         {top.sub && (
-          <p className="mt-0.5 text-[11px]" style={{ color: FAINT }}>
+          <p className="mt-0.5 text-caption" style={{ color: FAINT }}>
             {top.sub}
           </p>
         )}
       </button>
-
       <Rule label="Major cause" />
       <button
         type="button"
         onClick={() => open({ title: cause.label, eyebrow: 'Major cause', body: <CauseSheet cause={cause.label} rows={rows} /> })}
         className="card-press -mx-2 block w-full rounded-[12px] px-2 py-1 text-left"
       >
-        <Figure value={fmt(cause.value)} size={30} color={TONE.warn} />
-        <p className="mt-1 text-[14px] font-medium text-[#1c1a16]">{cause.label}</p>
-        <p className="mt-1 text-[12px]" style={{ color: FAINT }}>
+        <Figure value={fmt(cause.value)} size={32} color={TONE.warn} />
+        <p className="mt-1 text-small font-medium text-[#1c1a16]">{cause.label}</p>
+        <p className="mt-1 text-caption" style={{ color: FAINT }}>
           {Math.round(cause.percent)}% of deaths · {new Set(rows.filter((d) => d.cause === cause.label).map((d) => d.speciesName)).size}{' '}
           species
         </p>
@@ -898,7 +919,6 @@ function CauseOfDeath({ rows }: { rows: Death[] }) {
                 sub={`${new Set(rows.filter((d) => d.cause === c.label).map((d) => d.speciesName)).size} species`}
                 value={fmt(c.value)}
                 unit={`${Math.round(c.percent)}%`}
-                bar={c.percent}
                 tone={c.tone}
                 onOpen={() => open({ title: c.label, eyebrow: 'Cause of death', body: <CauseSheet cause={c.label} rows={rows} /> })}
               />
@@ -963,7 +983,6 @@ function RegulatoryMortality({ rows }: { rows: Death[] }) {
           },
         ]}
       />
-
       <Rule label="CITES" />
       <DrillList>
         {cites.map((b) => (
@@ -973,7 +992,6 @@ function RegulatoryMortality({ rows }: { rows: Death[] }) {
             sub={b.deaths ? `${b.species} species` : 'none in window'}
             value={fmt(b.deaths)}
             unit={b.deaths ? `${Math.round(b.percent)}%` : undefined}
-            bar={b.deaths ? b.percent : undefined}
             tone={b.key === 'I' && b.deaths ? 'bad' : undefined}
             onOpen={
               b.deaths
@@ -983,7 +1001,6 @@ function RegulatoryMortality({ rows }: { rows: Death[] }) {
           />
         ))}
       </DrillList>
-
       <Rule label="Wildlife Protection Act" />
       <DrillList>
         {schedules.map((b) => (
@@ -993,7 +1010,6 @@ function RegulatoryMortality({ rows }: { rows: Death[] }) {
             sub={b.deaths ? `${b.species} species` : 'none in window'}
             value={fmt(b.deaths)}
             unit={b.deaths ? `${Math.round(b.percent)}%` : undefined}
-            bar={b.deaths ? b.percent : undefined}
             tone={b.key === 'I' && b.deaths ? 'bad' : undefined}
             onOpen={
               b.deaths
@@ -1003,8 +1019,7 @@ function RegulatoryMortality({ rows }: { rows: Death[] }) {
           />
         ))}
       </DrillList>
-
-      <p className="mt-3 text-[11px]" style={{ color: FAINT }}>
+      <p className="mt-3 text-caption" style={{ color: FAINT }}>
         CITES and the Schedules overlap — an animal can carry both, so these two lists do not sum.
       </p>
     </Section>
@@ -1077,7 +1092,7 @@ function NecropsyOverview({ rows }: { rows: Death[] }) {
                 value={fmt(list.length)}
                 /* No bar at all for an empty status — `DrillRow` floors a bar at 3%, so a zero
                    would still draw a sliver and read as "a few". */
-                bar={list.length ? (list.length / rows.length) * 100 : undefined}
+
                 tone={list.length && tone ? tone : undefined}
                 onOpen={
                   list.length
@@ -1155,7 +1170,6 @@ function CentreWise({ rows }: { rows: Death[] }) {
         sub={(r) => `${r.centre.code} · ${r.centre.kind} · ${r.centre.turnaround} d turnaround`}
         sortKey={sortKey}
         onSort={setSortKey}
-        bar={(r) => r.percent}
         onOpen={(r) =>
           open({
             title: r.centre.name,
@@ -1165,7 +1179,7 @@ function CentreWise({ rows }: { rows: Death[] }) {
         }
         empty={<NoDeaths window={scope.win.window} />}
       />
-      <p className="mt-3 text-[11px]" style={{ color: FAINT }}>
+      <p className="mt-3 text-caption" style={{ color: FAINT }}>
         A laboratory signs off histopathology and toxicology; a field bench records gross findings the next day. A
         centre receives from every site, so scoping to one site changes the cases counted, not the list.
       </p>
@@ -1219,7 +1233,6 @@ function NecropsySpeciesWise({ rows }: { rows: Death[] }) {
         sub={(r) => `${r.cls} · ${r.standingText}`}
         sortKey={sortKey}
         onSort={setSortKey}
-        bar={(r) => r.rate ?? 0}
         onOpen={(r) =>
           open({
             title: r.name,
@@ -1228,7 +1241,7 @@ function NecropsySpeciesWise({ rows }: { rows: Death[] }) {
           })
         }
         empty={
-          <p className="text-[12.5px]" style={{ color: FAINT }}>
+          <p className="text-caption" style={{ color: FAINT }}>
             No deaths in {scope.win.window} were referred for necropsy in this scope.
           </p>
         }
@@ -1271,7 +1284,7 @@ function RecordsSection({ rows }: { rows: Death[] }) {
             type="button"
             aria-pressed={tab === key}
             onClick={() => setTab(key)}
-            className={`shrink-0 rounded-full px-3 py-1 text-[11.5px] font-medium transition-colors ${
+            className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium transition-colors ${
               tab === key ? 'text-white' : 'bg-[#f4f3ef] text-[#55524a]'
             }`}
             style={tab === key ? { backgroundColor: MORTALITY_ACCENT } : undefined}
@@ -1305,7 +1318,7 @@ function RecordsSection({ rows }: { rows: Death[] }) {
               ),
             })
           }
-          className="card-press mt-3 w-full rounded-full py-2 text-[12px] font-medium"
+          className="card-press mt-3 w-full rounded-full py-2 text-body font-medium"
           style={{ backgroundColor: mix(MORTALITY_ACCENT, 0.09), color: ACCENT_INK }}
         >
           Open all records
@@ -1326,7 +1339,7 @@ function RecordsSection({ rows }: { rows: Death[] }) {
  */
 function NoDeaths({ window }: { window: string }) {
   return (
-    <p className="py-2 text-[12.5px]" style={{ color: FAINT }}>
+    <p className="py-2 text-caption" style={{ color: FAINT }}>
       No deaths recorded in {window} for this scope.
     </p>
   )

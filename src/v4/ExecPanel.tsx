@@ -55,15 +55,15 @@ function Weather() {
     <section className={`${CARD} p-5`} aria-label="Weather">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium text-[#1c1a16]">{site.zooName}</p>
-          <p className="mt-0.5 text-[11.5px] text-[#9b958b]">{site.weather.summary}</p>
+          <p className="truncate text-small font-medium text-[#1c1a16]">{site.zooName}</p>
+          <p className="mt-0.5 text-caption text-[#9b958b]">{site.weather.summary}</p>
         </div>
         <CloudSun size={26} strokeWidth={1.5} className="shrink-0 text-[#0284c7]" aria-hidden />
       </div>
-      <p className="mt-3 font-display text-[38px] leading-none font-bold tabular-nums text-[#1c1a16]">
+      <p className="mt-3 font-display text-n-xl font-bold tabular-nums text-[#1c1a16]">
         {site.weather.tempC}°
       </p>
-      <p className="mt-2.5 flex items-center gap-1.5 text-[11.5px] tabular-nums text-[#6d6860]">
+      <p className="mt-2.5 flex items-center gap-1.5 text-caption tabular-nums text-[#6d6860]">
         <Thermometer size={12} strokeWidth={1.75} aria-hidden />
         Feels {site.weather.feelsLike}° · H {site.weather.high}° · L {site.weather.low}°
       </p>
@@ -92,7 +92,7 @@ function Queues() {
 
   return (
     <section className={`${CARD} px-5 py-4`} aria-label="Queues">
-      <h2 className="pb-1 text-[10.5px] font-semibold tracking-[0.09em] text-[#9b958b] uppercase">Needs attention</h2>
+      <h2 className="pb-1 text-overline font-semibold text-[#9b958b] uppercase">Needs attention</h2>
       <ul className="divide-y divide-[#f0efec]">
         {railQueues.map((q) => (
           <QueueRow key={q.slug} queue={q} onOpen={openFor(q.slug)} />
@@ -131,11 +131,11 @@ function QueueRow({
   const inner = (
     <>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium text-[#1c1a16]">{queue.label}</span>
-        <span className="mt-0.5 block truncate text-[11.5px] text-[#9b958b]">{note}</span>
+        <span className="block truncate text-small font-medium text-[#1c1a16]">{queue.label}</span>
+        <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{note}</span>
       </span>
       <span
-        className="shrink-0 font-display text-[19px] leading-none font-bold tabular-nums"
+        className="shrink-0 font-display text-n-sm font-bold tabular-nums"
         style={{ color: TONE[queue.tone] }}
       >
         {value}
@@ -173,7 +173,7 @@ function TopRisks() {
 
   return (
     <section className={`${CARD} px-5 py-4`} aria-label="Risks">
-      <h2 className="pb-1 text-[10.5px] font-semibold tracking-[0.09em] text-[#9b958b] uppercase">Top risks</h2>
+      <h2 className="pb-1 text-overline font-semibold text-[#9b958b] uppercase">Top risks</h2>
       <ul className="divide-y divide-[#f0efec]">
         {top.map((r) => (
           <li key={r.key}>
@@ -184,10 +184,10 @@ function TopRisks() {
             >
               <r.icon size={15} strokeWidth={1.75} className="shrink-0" style={{ color: TONE.bad }} aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium text-[#1c1a16]">{r.label}</span>
-                <span className="mt-0.5 block truncate text-[11.5px] text-[#9b958b]">{r.note}</span>
+                <span className="block truncate text-small font-medium text-[#1c1a16]">{r.label}</span>
+                <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{r.note}</span>
               </span>
-              <span className="shrink-0 font-display text-[17px] leading-none font-bold tabular-nums" style={{ color: TONE.bad }}>
+              <span className="shrink-0 font-display text-n-sm font-bold tabular-nums" style={{ color: TONE.bad }}>
                 {r.value}
               </span>
             </button>
@@ -201,7 +201,7 @@ function TopRisks() {
 function Recent() {
   return (
     <section className={`${CARD} px-5 py-4`} aria-label="Recent activity">
-      <h2 className="pb-2 text-[10.5px] font-semibold tracking-[0.09em] text-[#9b958b] uppercase">Recent activity</h2>
+      <h2 className="pb-2 text-overline font-semibold text-[#9b958b] uppercase">Recent activity</h2>
       <ul className="flex flex-col">
         {activity.map((a, i) => (
           <li key={`${a.at}-${i}`}>
@@ -216,8 +216,8 @@ function Recent() {
                 {i < activity.length - 1 && <span className="absolute top-[15px] bottom-[-8px] w-px bg-[#f0efec]" />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[12.5px] leading-[17px] text-[#3d3a34]">{a.text}</span>
-                <span className="mt-0.5 block text-[11px] tabular-nums text-[#9b958b]">{a.at}</span>
+                <span className="block text-small text-[#3d3a34]">{a.text}</span>
+                <span className="mt-0.5 block text-caption tabular-nums text-[#9b958b]">{a.at}</span>
               </span>
             </a>
           </li>

@@ -87,7 +87,7 @@ import {
   fmt,
   mix,
 } from '../exec/system'
-import { Rail, RankList, SplitRing } from '../exec/marks'
+import { RankList, SplitRing } from '../exec/marks'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
 
@@ -129,12 +129,12 @@ function Hero({
   return (
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-        <Figure value={value} unit={unit} size={52} color={tone ? TONE[tone] : HERO_INK} />
-        <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+        <Figure value={value} unit={unit} size={48} color={tone ? TONE[tone] : HERO_INK} />
+        <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
           {Glyph && <Glyph size={15} strokeWidth={1.75} style={{ color: ACCENT }} aria-hidden />}
           {label}
         </p>
-        {sub && <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>{sub}</p>}
+        {sub && <p className="mt-2.5 text-caption" style={{ color: FAINT }}>{sub}</p>}
       </section>
     </div>
   )
@@ -145,12 +145,10 @@ function EntityRow({
   entity,
   value,
   unit,
-  bar,
 }: {
   entity: Entity
   value?: string
   unit?: string
-  bar?: number
 }) {
   const { href } = useScope()
   const Glyph = KIND_ICON[entity.kind]
@@ -159,7 +157,6 @@ function EntityRow({
       <a href={href(entityHref(entity).slice(2))} className="card-press -mx-2 flex items-stretch gap-3 rounded-[10px] px-2 py-2.5">
         {/* The row's share as the weight of a rail rather than a bar under it — see the note on
             `TapRow`'s `bar` in `v4/panels.tsx`. */}
-        {bar !== undefined && <Rail share={bar} color={ACCENT} />}
         <span className="flex min-w-0 flex-1 items-center gap-3">
           <span
             className="grid size-7 shrink-0 place-items-center rounded-[9px]"
@@ -169,17 +166,17 @@ function EntityRow({
             <Glyph size={14} strokeWidth={1.75} style={{ color: ACCENT }} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13.5px] text-[#1c1a16]">{entity.name}</span>
+            <span className="block truncate text-small text-[#1c1a16]">{entity.name}</span>
             {entity.sub && (
-              <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+              <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                 {entity.sub}
               </span>
             )}
           </span>
           {value && (
             <span className="shrink-0 text-right">
-              <span className="text-[14px] font-medium tabular-nums text-[#2f2424]">{value}</span>
-              {unit && <span className="ml-1 text-[11px]" style={{ color: FAINT }}>{unit}</span>}
+              <span className="text-small font-medium tabular-nums text-[#2f2424]">{value}</span>
+              {unit && <span className="ml-1 text-caption" style={{ color: FAINT }}>{unit}</span>}
             </span>
           )}
           <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
@@ -221,7 +218,7 @@ function MetricStrip({ slugs, siteKey }: { slugs: string[]; siteKey: string | nu
 
   if (rows.length === 0) {
     return (
-      <p className="py-3 text-[12.5px]" style={{ color: FAINT }}>
+      <p className="py-3 text-caption" style={{ color: FAINT }}>
         Nothing reported in {scope.win.window}.
       </p>
     )
@@ -231,20 +228,20 @@ function MetricStrip({ slugs, siteKey }: { slugs: string[]; siteKey: string | nu
     <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 @[560px]:grid-cols-3">
       {rows.map((r) => (
         <a key={r.slug} href={href(r.slug)} className="card-press min-w-0 rounded-[10px]">
-          <span className="block truncate text-[10.5px] font-medium tracking-[0.04em] uppercase" style={{ color: FAINT }}>
+          <span className="block truncate text-overline font-medium uppercase" style={{ color: FAINT }}>
             {r.label}
           </span>
           <span className="mt-1 flex items-baseline gap-1.5">
-            <span className="font-display text-[22px] leading-none font-bold tabular-nums text-[#2f2424]">
+            <span className="font-display text-n font-bold tabular-nums text-[#2f2424]">
               {r.value}
             </span>
             {r.delta && (
-              <span className="text-[10.5px] font-semibold tabular-nums" style={{ color: FAINT }}>
+              <span className="text-caption font-semibold tabular-nums" style={{ color: FAINT }}>
                 {r.delta}
               </span>
             )}
           </span>
-          <span className="mt-0.5 block truncate text-[10.5px]" style={{ color: FAINT }}>
+          <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
             {r.unit}
           </span>
         </a>
@@ -312,7 +309,7 @@ function RecordList({
 
   if (paged.total === 0) {
     return (
-      <p className="py-2 text-[12.5px]" style={{ color: FAINT }}>
+      <p className="py-2 text-caption" style={{ color: FAINT }}>
         No {noun} in {scope.win.window}.
       </p>
     )
@@ -328,13 +325,13 @@ function RecordList({
               className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2.5"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] text-[#1c1a16]">{ev.speciesName}</span>
-                <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                <span className="block truncate text-small text-[#1c1a16]">{ev.speciesName}</span>
+                <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                   {ev.detail} · {ev.animalId}
                 </span>
               </span>
               <span
-                className="shrink-0 text-[11.5px] font-medium tabular-nums"
+                className="shrink-0 text-caption font-medium tabular-nums"
                 style={{ color: ev.tone && ev.tone !== 'neutral' ? TONE[ev.tone] : MUTED }}
               >
                 {shortDate(ev.day)}
@@ -557,11 +554,11 @@ function NotFound({ refText }: { refText: string }) {
   return (
     <Stack>
       <Section icon={MapPin} label="Not found">
-        <p className="py-2 text-[13px]" style={{ color: MUTED }}>
+        <p className="py-2 text-small" style={{ color: MUTED }}>
           Nothing in the collection matches <span className="tabular-nums">{refText}</span>. The link may be
           from an older version of the data.
         </p>
-        <a href="#/" className="mt-3 inline-block text-[13px] font-semibold" style={{ color: ACCENT_INK }}>
+        <a href="#/" className="mt-3 inline-block text-small font-semibold" style={{ color: ACCENT_INK }}>
           Back to the command centre
         </a>
       </Section>
@@ -587,14 +584,14 @@ function ScopeConflict({ entity }: { entity: Entity }) {
     <div className="px-[var(--gutter-lg)] pb-3">
       <div className="flex items-center gap-2 rounded-[12px] px-3 py-2.5" style={{ backgroundColor: mix(TONE.warn, 0.1) }}>
         <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: TONE.warn }} aria-hidden />
-        <span className="min-w-0 flex-1 text-[12px] font-medium" style={{ color: TONE.warn }}>
+        <span className="min-w-0 flex-1 text-caption font-medium" style={{ color: TONE.warn }}>
           {entity.name} is in {home.name}, but the filter is set to {scope.site.name}. Figures below are
           this entity's own.
         </span>
         <button
           type="button"
           onClick={() => setSite(home)}
-          className="shrink-0 rounded-full px-2 py-[3px] text-[11px] font-semibold"
+          className="shrink-0 rounded-full px-2 py-[3px] text-caption font-semibold"
           style={{ backgroundColor: mix(TONE.warn, 0.18), color: TONE.warn }}
         >
           Follow
@@ -627,10 +624,10 @@ function FollowScope({ entity }: { entity: Entity }) {
         className="card-press flex w-full items-center gap-2 rounded-[12px] bg-white px-3 py-2.5 text-left"
       >
         <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: ACCENT }} aria-hidden />
-        <span className="min-w-0 flex-1 text-[12px]" style={{ color: MUTED }}>
+        <span className="min-w-0 flex-1 text-caption" style={{ color: MUTED }}>
           Figures below are {site.name}'s. Narrow every other page to it as well?
         </span>
-        <span className="shrink-0 rounded-full px-2.5 py-[3px] text-[11px] font-semibold text-white" style={{ backgroundColor: '#123a2c' }}>
+        <span className="shrink-0 rounded-full px-2.5 py-[3px] text-caption font-semibold text-white" style={{ backgroundColor: '#123a2c' }}>
           Scope to site
         </span>
       </button>
@@ -853,20 +850,19 @@ function SpeciesPage({ entity }: { entity: Entity }) {
             <ul className="flex flex-col">
               {events.rows.map((ev) => (
                 <li key={ev.id} className="flex items-center gap-3 border-b border-[#f0efec] py-2.5 last:border-0">
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-[#1c1a16]">{ev.detail}</span>
-                  <span className="shrink-0 text-[11.5px] tabular-nums" style={{ color: FAINT }}>
+                  <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{ev.detail}</span>
+                  <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
                     {shortDate(ev.day)}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="py-2 text-[12.5px]" style={{ color: FAINT }}>
+            <p className="py-2 text-caption" style={{ color: FAINT }}>
               No deaths recorded in {scope.win.window}.
             </p>
           )}
         </Section>
-
         <Section icon={Heart} label="Animals" aside={fmt(paged.total)}>
           <ul className="flex flex-col">
             {paged.rows.map((a) => (
@@ -891,14 +887,14 @@ function AnimalRow({ animal }: { animal: Animal }) {
         className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2.5"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] text-[#1c1a16]">
+          <span className="block truncate text-small text-[#1c1a16]">
             {animal.callName ?? animal.id}
           </span>
-          <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+          <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
             {animal.sex} · {animal.age} · {animal.enclosureId}
           </span>
         </span>
-        <span className="shrink-0 text-[11.5px] font-medium" style={{ color: TONE[tone] }}>
+        <span className="shrink-0 text-caption font-medium" style={{ color: TONE[tone] }}>
           {animal.status}
         </span>
         <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
@@ -976,7 +972,7 @@ function AnimalPage({ id }: { id: string }) {
                 role="tab"
                 aria-selected={on}
                 onClick={() => setTab(t.key)}
-                className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-[12.5px] font-medium whitespace-nowrap transition-colors ${
+                className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-caption font-medium whitespace-nowrap transition-colors ${
                   on ? 'bg-[#123a2c] text-white' : 'bg-white text-[#3d3a34]'
                 }`}
               >
@@ -1031,7 +1027,7 @@ function AnimalPage({ id }: { id: string }) {
             {/* Stated, not faked. There is no document store behind this prototype, and
                 inventing six PDF rows would be the one kind of content this data model has
                 been built specifically to avoid. */}
-            <p className="py-2 text-[12.5px]" style={{ color: FAINT }}>
+            <p className="py-2 text-caption" style={{ color: FAINT }}>
               No document store is connected. Accession paperwork, necropsy reports and transfer
               permits would appear here.
             </p>
@@ -1040,8 +1036,7 @@ function AnimalPage({ id }: { id: string }) {
 
         {active.metrics.length > 0 && <AnimalTab animal={animal} tab={active} />}
       </Stack>
-
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px]" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         <a href={href(`e/species/${animal.speciesId}`)} className="font-medium underline">
           All {animal.speciesName}
         </a>
@@ -1068,7 +1063,7 @@ function AnimalTab({ animal, tab }: { animal: Animal; tab: (typeof TABS)[number]
   return (
     <Section icon={tab.icon} label={tab.label} aside={events.length ? `${events.length}` : undefined}>
       {events.length === 0 ? (
-        <p className="py-2 text-[12.5px]" style={{ color: FAINT }}>
+        <p className="py-2 text-caption" style={{ color: FAINT }}>
           Nothing recorded for {animal.callName ?? animal.id} in {scope.win.window}. Widen the date
           range to look further back.
         </p>
@@ -1077,13 +1072,13 @@ function AnimalTab({ animal, tab }: { animal: Animal; tab: (typeof TABS)[number]
           {events.map((ev) => (
             <li key={ev.id} className="flex items-start gap-3 border-b border-[#f0efec] py-2.5 last:border-0">
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] text-[#1c1a16]">{ev.detail}</span>
-                <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>
+                <span className="block text-small text-[#1c1a16]">{ev.detail}</span>
+                <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                   {LABELS[ev.kind] ?? ev.kind} · {longDate(ev.day)}
                 </span>
               </span>
               <span
-                className="shrink-0 text-[11px] font-medium tabular-nums"
+                className="shrink-0 text-caption font-medium tabular-nums"
                 style={{ color: ev.tone && ev.tone !== 'neutral' ? TONE[ev.tone] : MUTED }}
               >
                 {ago(ev.day)}
@@ -1242,10 +1237,10 @@ export function EntityIndex() {
                     >
                       <Glyph size={14} strokeWidth={1.75} style={{ color: ACCENT }} />
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#1c1a16]">
+                    <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">
                       {KIND_LABEL_PLURAL[r.kind]}
                     </span>
-                    <span className="shrink-0 text-[13px] font-medium tabular-nums" style={{ color: MUTED }}>
+                    <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: MUTED }}>
                       {fmt(r.count)}
                     </span>
                     <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
@@ -1339,7 +1334,7 @@ export function EntityBrowser({ kind }: { kind: EntityKind }) {
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Find a ${KIND_ONE[kind].toLowerCase()}`}
               aria-label={`Find a ${KIND_ONE[kind]}`}
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+              className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
             />
           </label>
         )}
@@ -1354,7 +1349,7 @@ export function EntityBrowser({ kind }: { kind: EntityKind }) {
             <MoreRows page={animals} noun="animals" />
           </>
         ) : paged.total === 0 ? (
-          <p className="py-2 text-[12.5px]" style={{ color: FAINT }}>
+          <p className="py-2 text-caption" style={{ color: FAINT }}>
             Nothing matches{query ? ` “${query.trim()}”` : ''} in {scope.site?.name ?? 'the collection'}.
           </p>
         ) : (

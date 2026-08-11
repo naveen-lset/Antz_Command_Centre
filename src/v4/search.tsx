@@ -97,8 +97,8 @@ function Row({ hit, onGo, meta = false }: { hit: Hit; onGo: (slug: string) => vo
       <Glyph size={17} strokeWidth={1.75} style={{ color: ACCENT }}
         className="shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14.5px] font-medium text-[#1c1a16]">{hit.page.title}</span>
-        {meta && <span className="mt-0.5 block truncate text-[11.5px] text-[#9b958b]">{sub}</span>}
+        <span className="block truncate text-small font-medium text-[#1c1a16]">{hit.page.title}</span>
+        {meta && <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{sub}</span>}
       </span>
       <ChevronRight size={16} strokeWidth={2} className="shrink-0 text-[#c8c3ba]" aria-hidden />
     </button>
@@ -117,8 +117,8 @@ function EntityResult({ entity, sub, onGo }: { entity: Entity; sub?: string; onG
       <Glyph size={17} strokeWidth={1.75} style={{ color: ACCENT }}
         className="shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14.5px] font-medium text-[#1c1a16]">{entity.name}</span>
-        <span className="mt-0.5 block truncate text-[11.5px]" style={{ color: FAINT }}>
+        <span className="block truncate text-small font-medium text-[#1c1a16]">{entity.name}</span>
+        <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
           {sub ?? `${KIND_ONE[entity.kind]}${entity.sub ? ` · ${entity.sub}` : ''}`}
         </span>
       </span>
@@ -252,7 +252,7 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
               placeholder="Search modules, sites, species, animals"
               aria-label="Search modules, sites, species and animals"
               autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent text-[15px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+              className="min-w-0 flex-1 bg-transparent text-body text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
             />
             <button
               type="button"
@@ -320,7 +320,7 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
                 )}
               </>
             ) : (
-              <p className="px-1 pt-6 text-[13.5px] text-[#6d6860]">
+              <p className="px-1 pt-6 text-small text-[#6d6860]">
                 Nothing matches “{q.trim()}”
                 {scope.site ? ` in ${scope.site.name}` : ''}. Try a word from the figure you're after
                 — “death”, “vaccine”, “intake” — or a site, a species, or an animal's id.
@@ -344,9 +344,9 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
 function ResultHead({ label, count }: { label: string; count: number }) {
   return (
     <div className="flex items-center gap-2 px-1 pt-2 pb-2">
-      <h2 className="text-[11px] font-semibold tracking-[0.09em] text-[#6d6860] uppercase">{label}</h2>
+      <h2 className="text-overline font-semibold text-[#6d6860] uppercase">{label}</h2>
       <span className="h-px flex-1 bg-[#1c1a16]/8" aria-hidden />
-      <span className="text-[11px] tabular-nums" style={{ color: FAINT }}>
+      <span className="text-caption tabular-nums" style={{ color: FAINT }}>
         {count}
       </span>
     </div>
@@ -364,7 +364,7 @@ function Group({
 }) {
   return (
     <>
-      <h2 className="px-1 pt-2 pb-2 text-[11px] font-semibold tracking-[0.09em] text-[#6d6860] uppercase">
+      <h2 className="px-1 pt-2 pb-2 text-overline font-semibold text-[#6d6860] uppercase">
         {label}
       </h2>
       <ul className="mb-2 flex flex-col gap-2">

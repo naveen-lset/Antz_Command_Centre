@@ -36,9 +36,8 @@ export function Sidebar({ route }: { route: string }) {
       className="sticky top-[var(--shell-pad)] flex max-h-[calc(100dvh-var(--shell-pad)*2)] w-[var(--rail)] shrink-0 flex-col overflow-hidden rounded-[20px] bg-white"
     >
       <div className="shrink-0 px-4 pt-5 pb-3">
-        <p className="px-1 text-[15px] font-semibold tracking-[-0.01em] text-[#1c1a16]">{site.org}</p>
-        <p className="mt-0.5 px-1 text-[12px] text-[#9b958b]">{site.zooName}</p>
-
+        <p className="px-1 text-body font-semibold text-[#1c1a16]">{site.org}</p>
+        <p className="mt-0.5 px-1 text-caption text-[#9b958b]">{site.zooName}</p>
         <label className="mt-4 flex items-center gap-2 rounded-[11px] bg-[#f4f6f4] px-3 py-2.5 focus-within:ring-2 focus-within:ring-[#37bd69]/35">
           <Search size={15} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
           <input
@@ -47,7 +46,7 @@ export function Sidebar({ route }: { route: string }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search modules"
             aria-label="Search modules"
-            className="min-w-0 flex-1 bg-transparent text-[13.5px] text-[#1c1a16] outline-none placeholder:text-[#9b958b] [&::-webkit-search-cancel-button]:appearance-none"
+            className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b] [&::-webkit-search-cancel-button]:appearance-none"
           />
           {query && (
             <button
@@ -61,7 +60,6 @@ export function Sidebar({ route }: { route: string }) {
           )}
         </label>
       </div>
-
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden px-3 pb-2">
         <SidebarLink href="#/" icon={LayoutGrid} label="Home" active={onHome} />
         {/* The entity index. Beside Home rather than in a module group, because browsing things is
@@ -78,7 +76,7 @@ export function Sidebar({ route }: { route: string }) {
              instead of two cost about a row and a half of height, and the rail is worth
              keeping inside a 13-inch laptop — this is where that comes back from. */
           <div key={group.name} className="mt-3.5 first:mt-3">
-            <h2 className="px-3 pb-1 text-[10.5px] font-semibold tracking-[0.09em] text-[#9b958b] uppercase">
+            <h2 className="px-3 pb-1 text-overline font-semibold text-[#9b958b] uppercase">
               {group.name}
             </h2>
             {group.items.map((item) => {
@@ -95,7 +93,6 @@ export function Sidebar({ route }: { route: string }) {
                     icon={item.icon}
                     label={item.label}
                     active={active === item.slug}
-                    count={!inside && !query ? (item.children?.length ?? 0) : 0}
                   />
                   {kids.length > 0 && (
                     /* Indented against a hairline rather than merely padded, so two levels
@@ -121,7 +118,7 @@ export function Sidebar({ route }: { route: string }) {
         ))}
 
         {groups.length === 0 && (
-          <p className="px-3 pt-6 text-[13px] text-[#9b958b]">No module matches “{query}”.</p>
+          <p className="px-3 pt-6 text-small text-[#9b958b]">No module matches “{query}”.</p>
         )}
       </div>
 
@@ -133,7 +130,7 @@ export function Sidebar({ route }: { route: string }) {
         <button
           type="button"
           onClick={() => open({ title: 'Settings', eyebrow: site.zooName, body: <SettingsPanel /> })}
-          className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-[9px] text-left text-[13.5px] font-medium text-[#3d3a34] transition-colors hover:bg-[#f6f7f6]"
+          className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-[9px] text-left text-small font-medium text-[#3d3a34] transition-colors hover:bg-[#f6f7f6]"
         >
           <SETTINGS.icon size={16} strokeWidth={1.75} className="text-[#9b958b]" aria-hidden />
           <span className="min-w-0 flex-1 truncate">{SETTINGS.label}</span>
@@ -152,15 +149,12 @@ function SidebarLink({
   icon: Glyph,
   label,
   active,
-  count = 0,
   small,
 }: {
   href: string
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
   label: string
   active: boolean
-  /** How many chapters are folded under this row while it is closed. 0 prints nothing. */
-  count?: number
   /** A child row — quieter, and no glyph tile competing with its parent's. */
   small?: boolean
 }) {
@@ -169,7 +163,7 @@ function SidebarLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={`flex items-center gap-2.5 rounded-[10px] px-3 transition-colors duration-200 ${
-        small ? 'py-[6px] text-[12.5px]' : 'py-2 text-[13.5px]'
+        small ? 'py-[6px] text-small' : 'py-2 text-body'
       } ${active ? 'bg-[#e7f0ea] font-semibold text-[#0a4d3c]' : 'font-medium text-[#3d3a34] hover:bg-[#f6f7f6]'}`}
     >
       <Glyph
@@ -177,12 +171,12 @@ function SidebarLink({
         strokeWidth={1.75}
         className={active ? 'text-[#0a4d3c]' : 'text-[#9b958b]'}
       />
+      {/* NO COUNT BADGE. A folded row used to print how many chapters were under it, on the
+          reasoning that the fold should announce itself. Read in place it does not announce a
+          fold — it reads as a figure, and a rail of names with a scattering of small numbers
+          against them invites the reader to compare numbers that mean nothing to each other.
+          The chapters still appear the moment the module is open, which is when they matter. */}
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {/* The count is what makes folding honest: a row that hides two pages says so, so the
-          reader knows there is something under it rather than discovering it by accident. */}
-      {count > 0 && (
-        <span className="shrink-0 text-[10.5px] font-semibold tabular-nums text-[#b3aea6]">{count}</span>
-      )}
     </a>
   )
 }

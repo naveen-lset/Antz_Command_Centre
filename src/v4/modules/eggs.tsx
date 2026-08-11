@@ -62,7 +62,8 @@ import {
   mix,
   useAccent,
 } from '../../exec/system'
-import { Lifecycle, RankList } from '../../exec/marks'
+import { Lifecycle, RankList, strip } from '../../exec/marks'
+import { RangeTabs, useChartRange } from '../../exec/range'
 import { DrillList, DrillRow, useSheet, useSite } from './kit'
 import {
   FIRST_HATCHES,
@@ -127,21 +128,6 @@ export default function Eggs() {
   const nurseryName = nurseryId ? (NURSERIES.find((n) => n.id === nurseryId)?.name ?? null) : null
   const scope = [site?.name ?? 'Overall', nurseryName, speciesName].filter(Boolean).join(' · ')
 
-  /* Paired series per period: what was set, and what hatched. Never stacked — see the
-     header. `buckets` is the shared splitter, so the grain matches every other trend. */
-  const trend = useMemo(() => {
-    const bs = buckets(cut, cut.days <= 31 ? cut.days : 24)
-    return bs.map((b) => {
-      const inBucket = (r: EggRecord) => r.day >= b.from && r.day <= b.to
-      return {
-        ...b,
-        laid: laid.filter(inBucket),
-        hatched: hatched.filter(inBucket),
-        discarded: discarded.filter(inBucket),
-      }
-    })
-  }, [cut, laid, hatched, discarded])
-
   const stage = (rows: EggRecord[], title: string, note: string) => () =>
     open({ title, eyebrow: scope, body: <StageBody rows={rows} note={note} /> })
 
@@ -173,42 +159,23 @@ export default function Eggs() {
           }
         />
       </div>
-
       <EggHero totals={t} window={period.window} onStage={stage} rows={{ laid, hatched, discarded, survived, lost }} />
 
       <Stack>
         {/* The lifecycle, as one shape. Discard hangs off the eggs set, never off the
-            hatchlings — that is the whole reason this card exists. */}
-        <Section icon={Activity} label="Egg outcome" aside={period.window}>
-          {t.laid === 0 && t.hatched === 0 ? (
-            <Nil>No egg activity in this window</Nil>
-          ) : (
-            <EggLifecycle totals={t} onStage={stage} rows={{ laid, hatched, discarded, survived, lost }} />
-          )}
-        </Section>
+            hatchlings — that is the whole reason this card exists. Both this and the paired
+            trend below read their own range: a hatch is weeks downstream of the set that
+            produced it, so a day-wide window shows a conversion between two unrelated
+            cohorts. Widening the range is what makes the funnel mean anything. */}
+        <OutcomeCard siteKey={site?.key ?? null} nurseryId={nurseryId} speciesName={speciesName} scope={scope} />
 
         {/* Set against hatched, period by period. Two bars, not one inside the other. */}
-        <Section icon={EggIcon} label="Set and hatched" aside={period.window}>
-          {t.laid === 0 ? (
-            <Nil>Nothing set in this window</Nil>
-          ) : (
-            <PairedTrend
-              trend={trend}
-              onOpen={(b) =>
-                open({
-                  title: `${shortDate(b.from)} – ${shortDate(b.to)}`,
-                  eyebrow: 'Egg activity',
-                  body: (
-                    <StageBody
-                      rows={[...b.laid, ...b.hatched, ...b.discarded]}
-                      note={`Everything recorded between ${shortDate(b.from)} and ${shortDate(b.to)}.`}
-                    />
-                  ),
-                })
-              }
-            />
-          )}
-        </Section>
+        <PairedCard
+          siteKey={site?.key ?? null}
+          nurseryId={nurseryId}
+          speciesName={speciesName}
+          onOpen={open}
+        />
 
         {/* One rate, one axis, a toggle for the dimension. */}
         <Section
@@ -232,19 +199,17 @@ export default function Eggs() {
             rows={nurseries}
             onOpen={(g) => open({ title: g.label, eyebrow: 'Nursery', body: <NurseryBody rows={g.rows} name={g.label} /> })}
           />
-          <p className="mt-3.5 border-t pt-3 text-[11px] leading-[16px]" style={{ borderColor: HAIR, color: FAINT }}>
+          <p className="mt-3.5 border-t pt-3 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
             Each site runs one nursery, so this is also the site split. The unit below it — the
             incubator — is where the collection's thirteen trays actually differ.
           </p>
         </Section>
-
         <Section icon={Thermometer} label="Incubator-wise eggs" aside={`${incubators.length}`}>
           <NurseryTable
             rows={incubators}
             onOpen={(g) => open({ title: g.label, eyebrow: 'Incubator', body: <IncubatorBody rows={g.rows} /> })}
           />
         </Section>
-
         <Section icon={Layers} label="Species-wise eggs" aside={`${species.length}`}>
           <SpeciesList
             groups={species}
@@ -260,7 +225,6 @@ export default function Eggs() {
             <SurvivalSplit totals={t} onStage={stage} rows={{ survived, lost }} />
           )}
         </Section>
-
         <Section icon={EggOff} label="Egg discard" aside={`${t.discarded} of ${t.laid} set`}>
           {t.discarded === 0 ? (
             <Nil>Nothing discarded in this window</Nil>
@@ -273,7 +237,6 @@ export default function Eggs() {
                     label={r.label}
                     sub={`${Math.round(pct(r.value, t.discarded))}% of discards`}
                     value={String(r.value)}
-                    bar={(r.value / Math.max(...reasons.map((x) => x.value), 1)) * 100}
                     onOpen={stage(
                       discarded.filter((d) => d.detail === r.label),
                       r.label,
@@ -292,14 +255,13 @@ export default function Eggs() {
                       label={n.label}
                       sub={`${n.laid} set · ${Math.round(pct(n.discarded, n.laid))}% discarded`}
                       value={String(n.discarded)}
-                      bar={(n.discarded / Math.max(...nurseries.map((x) => x.discarded), 1)) * 100}
                       onOpen={() =>
                         open({ title: n.label, eyebrow: 'Nursery', body: <NurseryBody rows={n.rows} name={n.label} /> })
                       }
                     />
                   ))}
               </DrillList>
-              <p className="mt-3.5 border-t pt-3 text-[11px] leading-[16px]" style={{ borderColor: HAIR, color: FAINT }}>
+              <p className="mt-3.5 border-t pt-3 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
                 Eggs removed before hatching. Never counted as mortality — mortality is a hatchling
                 that hatched alive and died, and it is in the card above.
               </p>
@@ -319,7 +281,6 @@ export default function Eggs() {
             open({ title: name, eyebrow: 'First hatch on record', body: <FirstHatchBody rows={forSpecies} speciesName={name} /> })
           }} />
         </Section>
-
         <Records rows={rows} />
       </Stack>
     </>
@@ -330,7 +291,7 @@ export default function Eggs() {
 
 function Nil({ children }: { children: ReactNode }) {
   return (
-    <p className="py-5 text-center text-[12.5px]" style={{ color: FAINT }}>
+    <p className="py-5 text-center text-caption" style={{ color: FAINT }}>
       {children}
     </p>
   )
@@ -371,7 +332,7 @@ function Controls({
         onClick={() => setOpenMenu((v) => !v)}
         aria-expanded={openMenu}
         aria-label="Nursery filter"
-        className="card-press flex min-w-0 items-center gap-1.5 rounded-full px-3 py-[6px] text-[12px] font-medium"
+        className="card-press flex min-w-0 items-center gap-1.5 rounded-full px-3 py-[6px] text-caption font-medium"
         style={{ backgroundColor: nurseryId ? mix(accent, 0.13) : TRACK, color: nurseryId ? ACCENT_INK : MUTED }}
       >
         <span className="truncate">{name}</span>
@@ -381,7 +342,7 @@ function Controls({
           The nursery has its own chip; the species needs one too, and a way off. */}
       {speciesName && (
         <span
-          className="flex shrink-0 items-center gap-1 rounded-full py-[6px] pr-1.5 pl-3 text-[12px] font-medium whitespace-nowrap"
+          className="flex shrink-0 items-center gap-1 rounded-full py-[6px] pr-1.5 pl-3 text-caption font-medium whitespace-nowrap"
           style={{ backgroundColor: mix(accent, 0.13), color: ACCENT_INK }}
         >
           <span className="max-w-[120px] truncate">{speciesName}</span>
@@ -444,10 +405,10 @@ function MenuRow({ label, sub, on, onClick }: { label: string; sub?: string; on:
       className="flex w-full items-baseline gap-2 rounded-[9px] px-2.5 py-2 text-left"
       style={{ backgroundColor: on ? mix(accent, 0.12) : 'transparent' }}
     >
-      <span className="min-w-0 flex-1 truncate text-[13px]" style={{ color: on ? ACCENT_INK : INK, fontWeight: on ? 600 : 400 }}>
+      <span className="min-w-0 flex-1 truncate text-small" style={{ color: on ? ACCENT_INK : INK, fontWeight: on ? 600 : 400 }}>
         {label}
       </span>
-      {sub && <span className="shrink-0 text-[11px] tabular-nums" style={{ color: FAINT }}>{sub}</span>}
+      {sub && <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>{sub}</span>}
     </button>
   )
 }
@@ -484,22 +445,22 @@ function EggHero({
       onClick={onClick}
       className="card-press min-w-0 flex-1 text-left disabled:cursor-default"
     >
-      <Figure value={value} size={22} color={tone ?? VALUE} />
-      <span className="mt-0.5 block truncate text-[11.5px]" style={{ color: MUTED }}>{label}</span>
+      <Figure value={value} size={24} color={tone ?? VALUE} />
+      <span className="mt-0.5 block truncate text-caption" style={{ color: MUTED }}>{label}</span>
     </button>
   )
 
   return (
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-        <Figure value={fmt(t.laid)} size={58} color={HERO_INK} />
-        <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+        <Figure value={fmt(t.laid)} size={64} color={HERO_INK} />
+        <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
           <EggIcon size={15} strokeWidth={1.75} style={{ color: '#2f9e5b' }} aria-hidden />
           Eggs set
         </p>
         <p className="mt-3 flex items-center gap-2">
           <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE.good }} aria-hidden />
-          <span className="text-[13px] font-medium" style={{ color: TONE.good }}>
+          <span className="text-small font-medium" style={{ color: TONE.good }}>
             {t.hatched} hatched · {win}
           </span>
         </p>
@@ -519,6 +480,116 @@ function EggHero({
 }
 
 /* ── the lifecycle ───────────────────────────────────────────────────────── */
+
+/**
+ * One read of the egg ledger for a card's own range, under the page's nursery and species.
+ *
+ * The two cards below each hold a range, and each needs the same four narrowings applied to
+ * whatever span it is showing. Doing it here keeps the two cards honest with each other and
+ * with the page: change the nursery in the toolbar and both recut, change a card's range and
+ * only that card moves.
+ */
+function useEggRange(siteKey: string | null, nurseryId: string | null, speciesName: string | null) {
+  const range = useChartRange()
+  const rows = useMemo(() => {
+    return eggCut(siteKey, range.win)
+      .rows.filter((r) => !nurseryId || r.nursery.id === nurseryId)
+      .filter((r) => !speciesName || r.speciesName === speciesName)
+  }, [siteKey, range.win, nurseryId, speciesName])
+
+  const laid = useMemo(() => rows.filter((r) => r.slug === 'eggs'), [rows])
+  const hatched = useMemo(() => rows.filter((r) => r.slug === 'hatched'), [rows])
+  const discarded = useMemo(() => rows.filter((r) => r.slug === 'discarded'), [rows])
+  const survived = useMemo(() => hatched.filter((r) => r.survived), [hatched])
+  const lost = useMemo(() => hatched.filter((r) => !r.survived), [hatched])
+
+  return { range, rows, totals: totalsOf(rows), sets: { laid, hatched, discarded, survived, lost } }
+}
+
+/** §2 — the funnel, over its own span. */
+function OutcomeCard({
+  siteKey,
+  nurseryId,
+  speciesName,
+  scope,
+}: {
+  siteKey: string | null
+  nurseryId: string | null
+  speciesName: string | null
+  scope: string
+}) {
+  const { open } = useSheet()
+  const { range, totals: t, sets } = useEggRange(siteKey, nurseryId, speciesName)
+
+  const stage = (rows: EggRecord[], title: string, note: string) => () =>
+    open({ title, eyebrow: scope, body: <StageBody rows={rows} note={note} /> })
+
+  return (
+    <Section icon={Activity} label="Egg outcome" aside={range.win.window}>
+      <RangeTabs range={range} />
+      {t.laid === 0 && t.hatched === 0 ? (
+        <Nil>No egg activity in {range.win.window}</Nil>
+      ) : (
+        <EggLifecycle totals={t} onStage={stage} rows={sets} />
+      )}
+    </Section>
+  )
+}
+
+/** §3 — set against hatched, bucketed over its own span. */
+function PairedCard({
+  siteKey,
+  nurseryId,
+  speciesName,
+  onOpen,
+}: {
+  siteKey: string | null
+  nurseryId: string | null
+  speciesName: string | null
+  onOpen: (s: { title: string; eyebrow: string; body: ReactNode }) => void
+}) {
+  const { range, totals: t, sets } = useEggRange(siteKey, nurseryId, speciesName)
+
+  /* Paired series per period: what was set, and what hatched. Never stacked — see the
+     header. `buckets` is the shared splitter, so the grain matches every other trend. */
+  const trend = useMemo(() => {
+    const win = range.win
+    return buckets(win, win.days <= 31 ? win.days : 24).map((b) => {
+      const inBucket = (r: EggRecord) => r.day >= b.from && r.day <= b.to
+      return {
+        ...b,
+        laid: sets.laid.filter(inBucket),
+        hatched: sets.hatched.filter(inBucket),
+        discarded: sets.discarded.filter(inBucket),
+      }
+    })
+  }, [range.win, sets])
+
+  return (
+    <Section icon={EggIcon} label="Set and hatched" aside={range.win.window}>
+      <RangeTabs range={range} />
+      {t.laid === 0 ? (
+        <Nil>Nothing set in {range.win.window}</Nil>
+      ) : (
+        <PairedTrend
+          trend={trend}
+          onOpen={(b) =>
+            onOpen({
+              title: `${shortDate(b.from)} – ${shortDate(b.to)}`,
+              eyebrow: 'Egg activity',
+              body: (
+                <StageBody
+                  rows={[...b.laid, ...b.hatched, ...b.discarded]}
+                  note={`Everything recorded between ${shortDate(b.from)} and ${shortDate(b.to)}.`}
+                />
+              ),
+            })
+          }
+        />
+      )}
+    </Section>
+  )
+}
 
 /**
  * THE LIFECYCLE, AS A FUNNEL — and the two losses that hang off it, as rows.
@@ -565,7 +636,6 @@ function EggLifecycle({ totals: t, rows, onStage }: { totals: Totals; rows: Sets
           },
         ]}
       />
-
       <Rule label="Losses, and what each is a share of" />
       <RankList
         rank={false}
@@ -589,7 +659,7 @@ function EggLifecycle({ totals: t, rows, onStage }: { totals: Totals; rows: Sets
           },
         ]}
       />
-      <p className="mt-4 border-t pt-3 text-[11px] leading-[16px]" style={{ borderColor: HAIR, color: FAINT }}>
+      <p className="mt-4 border-t pt-3 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
         Discard hangs off the eggs set, not off the hatchlings: an egg that was thrown away never
         hatched, so it is never mortality. Set and hatched are counted on their own dates — a clutch
         set in one month may hatch in the next — so hatch percentage is a rate between two flows.
@@ -619,10 +689,13 @@ function PairedTrend({ trend, onOpen }: { trend: Bucket[]; onOpen: (b: Bucket) =
   const accent = useAccent()
   const max = Math.max(...trend.flatMap((b) => [b.laid.length, b.hatched.length]), 1)
   const stride = Math.max(1, Math.ceil(trend.length / 5))
+  /* Capped and centred by the shared strip, in place of a local `maxWidth: 72` that held the
+     columns to a sane size but left them stranded against the left edge of the card. */
+  const bars = strip(trend.length)
 
   return (
     <div>
-      <div className="flex h-[112px] items-end gap-[3px]">
+      <div className="flex h-[112px] items-end gap-[3px]" style={bars}>
         {trend.map((b, i) => (
           <button
             key={i}
@@ -630,21 +703,20 @@ function PairedTrend({ trend, onOpen }: { trend: Bucket[]; onOpen: (b: Bucket) =
             onClick={() => onOpen(b)}
             title={`${shortDate(b.from)} – ${shortDate(b.to)} · ${b.laid.length} set · ${b.hatched.length} hatched · ${b.discarded.length} discarded`}
             className="flex min-w-[8px] flex-1 items-end justify-center gap-[2px] transition-transform active:scale-95"
-            style={{ maxWidth: trend.length < 5 ? 72 : undefined }}
           >
             <span className="w-1/2 rounded-t-[2px]" style={{ height: `${Math.max(2, (b.laid.length / max) * 96)}px`, backgroundColor: mix(accent, 0.32) }} />
             <span className="w-1/2 rounded-t-[2px]" style={{ height: `${Math.max(2, (b.hatched.length / max) * 96)}px`, backgroundColor: accent }} />
           </button>
         ))}
       </div>
-      <div className="mt-2 flex gap-[3px]">
+      <div className="mt-2 flex gap-[3px]" style={bars}>
         {trend.map((b, i) => (
-          <span key={i} className="min-w-[8px] flex-1 text-center text-[9.5px] whitespace-nowrap tabular-nums" style={{ color: FAINT }}>
+          <span key={i} className="min-w-[8px] flex-1 text-center text-tick whitespace-nowrap tabular-nums" style={{ color: FAINT }}>
             {i % stride === 0 ? shortDate(b.to) : ''}
           </span>
         ))}
       </div>
-      <ul className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]" style={{ color: MUTED }}>
+      <ul className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption" style={{ color: MUTED }}>
         <li className="flex items-center gap-1.5"><span className="size-[8px] rounded-[2px]" style={{ backgroundColor: mix(accent, 0.32) }} aria-hidden />Eggs set</li>
         <li className="flex items-center gap-1.5"><span className="size-[8px] rounded-[2px]" style={{ backgroundColor: accent }} aria-hidden />Hatched</li>
         <li style={{ color: FAINT }}>Two clocks — a clutch set here may hatch in a later column</li>
@@ -687,7 +759,7 @@ function RateCompare({
               type="button"
               onClick={() => setDim(d)}
               aria-pressed={on}
-              className="rounded-full px-3 py-[5px] text-[12px] capitalize transition-colors active:scale-95"
+              className="rounded-full px-3 py-[5px] text-caption capitalize transition-colors active:scale-95"
               style={{ backgroundColor: on ? mix(accent, 0.13) : TRACK, color: on ? ACCENT_INK : MUTED, fontWeight: on ? 600 : 400 }}
             >
               {d === 'nursery' ? 'Nurseries' : 'Species'}
@@ -707,8 +779,8 @@ function RateCompare({
                 className="card-press flex w-full items-center gap-3 py-2 text-left"
               >
                 <span className="w-[38%] min-w-0 shrink-0">
-                  <span className="block truncate text-[13px]" style={{ color: INK }}>{g.label}</span>
-                  <span className="mt-0.5 block truncate text-[10.5px] tabular-nums" style={{ color: FAINT }}>
+                  <span className="block truncate text-small" style={{ color: INK }}>{g.label}</span>
+                  <span className="mt-0.5 block truncate text-caption tabular-nums" style={{ color: FAINT }}>
                     {g.hatched} of {g.laid} set
                   </span>
                 </span>
@@ -720,7 +792,7 @@ function RateCompare({
                   <span className="absolute top-1/2 left-0 h-[3px] -translate-y-1/2 rounded-full" style={{ width: `${Math.min(100, g.hatchPct ?? 0)}%`, backgroundColor: mix(accent, 0.32) }} aria-hidden />
                   <span className="absolute top-1/2 size-[11px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, g.hatchPct ?? 0)}%`, backgroundColor: accent }} aria-hidden />
                 </span>
-                <span className="w-[42px] shrink-0 text-right text-[13px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <span className="w-[42px] shrink-0 text-right text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {Math.round(g.hatchPct ?? 0)}%
                 </span>
               </button>
@@ -728,7 +800,7 @@ function RateCompare({
           ))}
         </ul>
       )}
-      <p className="mt-2.5 border-t pt-2.5 text-[10.5px] leading-[15px]" style={{ borderColor: HAIR, color: FAINT }}>
+      <p className="mt-2.5 border-t pt-2.5 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
         Hatchings ÷ eggs set × 100, both over this window.
         {overall !== null && ` The line marks the overall ${Math.round(overall)}%.`} Rows under eight
         eggs set show no rate — a rate off three eggs is a sample, not a rate.
@@ -774,12 +846,11 @@ function NurseryTable({ rows, onOpen }: { rows: Group[]; onOpen: (g: Group) => v
   }
 
   if (rows.length === 0) return <Nil>Nothing in scope</Nil>
-  const widest = Math.max(...rows.map((r) => r.laid), 1)
 
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-1.5 @[620px]:hidden">
-        <span className="mr-1 text-[10px] font-medium tracking-[0.09em] uppercase" style={{ color: FAINT }}>Sort</span>
+        <span className="mr-1 text-overline font-medium uppercase" style={{ color: FAINT }}>Sort</span>
         {COLUMNS.map((c) => {
           const on = c.key === sort
           return (
@@ -788,7 +859,7 @@ function NurseryTable({ rows, onOpen }: { rows: Group[]; onOpen: (g: Group) => v
               type="button"
               onClick={() => flip(c.key)}
               aria-pressed={on}
-              className="flex items-center gap-1 rounded-full px-3 py-[5px] text-[12px] transition-colors active:scale-95"
+              className="flex items-center gap-1 rounded-full px-3 py-[5px] text-caption transition-colors active:scale-95"
               style={{ backgroundColor: on ? mix(accent, 0.13) : TRACK, color: on ? ACCENT_INK : MUTED, fontWeight: on ? 600 : 400 }}
             >
               {c.head}
@@ -797,7 +868,6 @@ function NurseryTable({ rows, onOpen }: { rows: Group[]; onOpen: (g: Group) => v
           )
         })}
       </div>
-
       <div className="@[620px]:hidden">
         <DrillList>
           {sorted.map((g) => (
@@ -806,26 +876,24 @@ function NurseryTable({ rows, onOpen }: { rows: Group[]; onOpen: (g: Group) => v
               label={g.label}
               sub={`${g.hatched} hatched · ${g.survived} survived · ${g.mortality} mortality · ${g.discarded} discarded`}
               value={String(g.laid)}
-              bar={(g.laid / widest) * 100}
               onOpen={() => onOpen(g)}
             />
           ))}
         </DrillList>
       </div>
-
       <div className="-mx-1 hidden overflow-x-auto px-1 @[620px]:block">
         <table className="w-full min-w-[560px]">
           <thead>
             <tr>
               <th className="w-[26%] pb-2 text-left">
-                <span className="text-[9.5px] font-medium tracking-[0.08em] uppercase" style={{ color: FAINT }}>Name</span>
+                <span className="text-overline font-medium uppercase" style={{ color: FAINT }}>Name</span>
               </th>
               {COLUMNS.map((c) => (
                 <th key={c.key} className="pb-2 pl-3 text-right">
                   <button
                     type="button"
                     onClick={() => flip(c.key)}
-                    className="inline-flex flex-row-reverse items-center gap-1 text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap uppercase"
+                    className="inline-flex flex-row-reverse items-center gap-1 text-overline font-medium whitespace-nowrap uppercase"
                     style={{ color: c.key === sort ? ACCENT_INK : FAINT }}
                   >
                     {c.head}
@@ -839,8 +907,8 @@ function NurseryTable({ rows, onOpen }: { rows: Group[]; onOpen: (g: Group) => v
             {sorted.map((g) => (
               <tr key={g.key} onClick={() => onOpen(g)} className="cursor-pointer border-t border-[#f0efec] transition-colors hover:bg-[#f7f9f7]">
                 <td className="py-2.5 pr-2">
-                  <span className="block text-[13.5px] leading-[17px]" style={{ color: INK }}>{g.label}</span>
-                  <span className="mt-0.5 block text-[11px] leading-[14px]" style={{ color: FAINT }}>{g.sub}</span>
+                  <span className="block text-small" style={{ color: INK }}>{g.label}</span>
+                  <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>{g.sub}</span>
                 </td>
                 {COLUMNS.map((c) => {
                   const raw = c.key === 'hatchPct' ? g.hatchPct : g[c.key]
@@ -851,7 +919,7 @@ function NurseryTable({ rows, onOpen }: { rows: Group[]; onOpen: (g: Group) => v
                     : raw === 0 || raw === null ? '#c2beb6'
                     : VALUE
                   return (
-                    <td key={c.key} className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums whitespace-nowrap" style={{ color: colour }}>
+                    <td key={c.key} className="py-2.5 pl-3 text-right text-small font-medium tabular-nums whitespace-nowrap" style={{ color: colour }}>
                       {text}
                     </td>
                   )
@@ -878,7 +946,6 @@ function SpeciesList({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
     return needle ? groups.filter((g) => g.label.toLowerCase().includes(needle)) : groups
   }, [groups, q])
 
-  const widest = Math.max(...groups.map((g) => g.laid), 1)
   const page = matched.slice(0, shown)
   if (groups.length === 0) return <Nil>No species in this window</Nil>
 
@@ -892,11 +959,11 @@ function SpeciesList({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
           onChange={(e) => { setQ(e.target.value); setShown(SPECIES_PAGE) }}
           placeholder="Search species"
           aria-label="Search species"
-          className="w-full rounded-[10px] py-2 pr-3 pl-8 text-[13px] outline-none focus:ring-2 focus:ring-[#37bd69]/35 [&::-webkit-search-cancel-button]:hidden"
+          className="w-full rounded-[10px] py-2 pr-3 pl-8 text-small outline-none focus:ring-2 focus:ring-[#37bd69]/35 [&::-webkit-search-cancel-button]:hidden"
           style={{ backgroundColor: TRACK, color: INK }}
         />
       </div>
-      <p className="mt-2.5 text-[10.5px] tabular-nums" style={{ color: FAINT }}>
+      <p className="mt-2.5 text-caption tabular-nums" style={{ color: FAINT }}>
         {q.trim() ? `${matched.length} of ${groups.length} matching` : `${groups.length} species with egg records`}
       </p>
       {page.length === 0 ? (
@@ -909,7 +976,6 @@ function SpeciesList({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
               label={g.label}
               sub={`${g.hatched} hatched${g.hatchPct === null ? '' : ` · ${Math.round(g.hatchPct)}%`} · ${g.mortality} mortality · ${g.discarded} discarded`}
               value={String(g.laid)}
-              bar={(g.laid / widest) * 100}
               onOpen={() => onOpen(g)}
             />
           ))}
@@ -919,7 +985,7 @@ function SpeciesList({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
         <button
           type="button"
           onClick={() => setShown((n) => n + SPECIES_PAGE)}
-          className="mt-3 w-full rounded-full py-2 text-[12.5px] font-medium"
+          className="mt-3 w-full rounded-full py-2 text-body font-medium"
           style={{ backgroundColor: TRACK, color: ACCENT_INK }}
         >
           Show {Math.min(SPECIES_PAGE, matched.length - shown)} more · {matched.length - shown} remaining
@@ -945,22 +1011,22 @@ function SurvivalSplit({
     <>
       <div className="flex items-stretch">
         <button type="button" onClick={onStage(rows.survived, 'Survived', `${t.survived} of ${t.hatched} hatchlings alive as of today.`)} className="card-press min-w-0 flex-1 pr-4 text-left">
-          <Figure value={fmt(t.survived)} size={34} color={TONE.good} />
-          <span className="mt-1 block text-[12.5px]" style={{ color: MUTED }}>Survived</span>
-          <span className="mt-0.5 block text-[11px] tabular-nums" style={{ color: FAINT }}>{surv === null ? '—' : `${Math.round(surv)}% of hatched`}</span>
+          <Figure value={fmt(t.survived)} size={32} color={TONE.good} />
+          <span className="mt-1 block text-small" style={{ color: MUTED }}>Survived</span>
+          <span className="mt-0.5 block text-caption tabular-nums" style={{ color: FAINT }}>{surv === null ? '—' : `${Math.round(surv)}% of hatched`}</span>
         </button>
         <span className="w-px shrink-0" style={{ backgroundColor: HAIR }} aria-hidden />
         <button type="button" onClick={onStage(rows.lost, 'Mortality', `${t.mortality} hatchlings hatched alive and died.`)} className="card-press min-w-0 flex-1 pl-4 text-right">
-          <Figure value={fmt(t.mortality)} size={34} color={TONE.bad} />
-          <span className="mt-1 block text-[12.5px]" style={{ color: MUTED }}>Mortality</span>
-          <span className="mt-0.5 block text-[11px] tabular-nums" style={{ color: FAINT }}>{surv === null ? '—' : `${100 - Math.round(surv)}% of hatched`}</span>
+          <Figure value={fmt(t.mortality)} size={32} color={TONE.bad} />
+          <span className="mt-1 block text-small" style={{ color: MUTED }}>Mortality</span>
+          <span className="mt-0.5 block text-caption tabular-nums" style={{ color: FAINT }}>{surv === null ? '—' : `${100 - Math.round(surv)}% of hatched`}</span>
         </button>
       </div>
       <div className="mt-4 flex h-[11px] w-full gap-[2px]">
         <span className="h-full rounded-l-full" style={{ width: `${Math.max(2, pct(t.survived, t.hatched))}%`, backgroundColor: TONE.good }} />
         <span className="h-full rounded-r-full" style={{ width: `${Math.max(2, pct(t.mortality, t.hatched))}%`, backgroundColor: TONE.bad }} />
       </div>
-      <p className="mt-3.5 border-t pt-3 text-[11px] leading-[16px]" style={{ borderColor: HAIR, color: FAINT }}>
+      <p className="mt-3.5 border-t pt-3 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
         Read as of today over the hatchlings of this window. Neonatal loss falls inside the first
         three weeks, so a window of recent hatches will show a survival rate that has not finished
         settling. Discarded eggs never appear here.
@@ -986,7 +1052,7 @@ function Debuts({
   return (
     <>
       {inWindow.length === 0 && (
-        <p className="mb-3 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+        <p className="mb-3 text-caption" style={{ color: FAINT }}>
           No species hatched here for the first time in this window. The most recent on record:
         </p>
       )}
@@ -1000,24 +1066,24 @@ function Debuts({
               style={{ backgroundColor: mix(accent, 0.07), borderColor: accent }}
             >
               <span className="min-w-0 flex-1">
-                <span className="block text-[9px] font-bold tracking-[0.11em] uppercase" style={{ color: ACCENT_INK }}>
+                <span className="block text-overline font-bold uppercase" style={{ color: ACCENT_INK }}>
                   First hatch on record
                 </span>
-                <span className="mt-1 block truncate text-[14px] font-medium" style={{ color: INK }}>{f.speciesName}</span>
-                <span className="mt-1 block truncate text-[11px] tabular-nums" style={{ color: MUTED }}>
+                <span className="mt-1 block truncate text-small font-medium" style={{ color: INK }}>{f.speciesName}</span>
+                <span className="mt-1 block truncate text-caption tabular-nums" style={{ color: MUTED }}>
                   {shortDate(f.day)} · {f.nursery.name}
                   {f.incubator ? ` · ${f.incubator.name}` : ''}
                 </span>
               </span>
               <span className="shrink-0 text-right">
-                <span className="font-display block text-[24px] leading-none font-bold tabular-nums" style={{ color: VALUE }}>{f.clutch}</span>
-                <span className="mt-1 block text-[10.5px] whitespace-nowrap" style={{ color: MUTED }}>hatched</span>
+                <span className="font-display block text-n font-bold tabular-nums" style={{ color: VALUE }}>{f.clutch}</span>
+                <span className="mt-1 block text-caption whitespace-nowrap" style={{ color: MUTED }}>hatched</span>
               </span>
             </button>
           </li>
         ))}
       </ul>
-      <p className="mt-3.5 border-t pt-3 text-[11px] leading-[16px]" style={{ borderColor: HAIR, color: FAINT }}>
+      <p className="mt-3.5 border-t pt-3 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
         The earliest hatching for each species anywhere in the ledger — computed over the whole
         record, never over the window. Species already hatching when the record opens are excluded,
         because the ledger cannot tell a genuine first from its own starting edge.
@@ -1064,7 +1130,7 @@ function Records({ rows }: { rows: EggRecord[] }) {
               type="button"
               onClick={() => setFilter(f.id)}
               aria-pressed={on}
-              className="rounded-full px-3 py-[5px] text-[12px] transition-colors active:scale-95"
+              className="rounded-full px-3 py-[5px] text-caption transition-colors active:scale-95"
               style={{ backgroundColor: on ? mix(accent, 0.13) : TRACK, color: on ? ACCENT_INK : MUTED, fontWeight: on ? 600 : 400 }}
             >
               {f.label}
@@ -1100,10 +1166,10 @@ function SearchBody({ rows }: { rows: EggRecord[] }) {
           autoFocus
           placeholder="Record ID, species, nursery, incubator or hatchling"
           aria-label="Search egg records"
-          className="w-full rounded-[10px] px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-[#37bd69]/35"
+          className="w-full rounded-[10px] px-3 py-2.5 text-small outline-none focus:ring-2 focus:ring-[#37bd69]/35"
           style={{ backgroundColor: TRACK, color: INK }}
         />
-        <p className="mt-2.5 text-[11px]" style={{ color: FAINT }}>
+        <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
           {q.trim().length < 2
             ? 'Type two characters or more. Search covers the current window and site scope.'
             : `${hits.length} shown${hits.length === 60 ? ' · narrow the query for the rest' : ''}`}
@@ -1161,7 +1227,6 @@ function FilterBody({
           <MenuRow key={n.key} label={n.label} sub={String(n.laid)} on={nurseryId === n.key} onClick={() => onNursery(n.key)} />
         ))}
       </Section>
-
       <Section icon={Layers} label="Species" aside={`${species.length} with records`}>
         <div className="max-h-[320px] overflow-y-auto overscroll-contain scrollbar-hidden">
           <MenuRow label="All species" on={!speciesName} onClick={() => onSpecies(null)} />
@@ -1170,9 +1235,8 @@ function FilterBody({
           ))}
         </div>
       </Section>
-
       <Section icon={PawPrint} label="Date range and site">
-        <p className="text-[12px] leading-[18px]" style={{ color: MUTED }}>
+        <p className="text-caption" style={{ color: MUTED }}>
           The window and the site are global — set from the pills in the page header, and applied
           to every module rather than to this page alone.
         </p>

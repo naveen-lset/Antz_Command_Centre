@@ -67,6 +67,8 @@ import {
   mix,
   useAccent,
 } from '../../exec/system'
+import { strip } from '../../exec/marks'
+import { RangeTabs, useChartRange } from '../../exec/range'
 import { DrillList, DrillRow, useSheet, useSite } from './kit'
 import {
   labCut,
@@ -131,16 +133,6 @@ export default function Lab() {
   const deptName = deptId ? (LAB_DEPARTMENTS.find((d) => d.id === deptId)?.name ?? null) : null
   const scopeText = [site?.name ?? 'Overall', deptName].filter(Boolean).join(' · ')
 
-  /* Trend buckets over the window, each carrying its own records. `buckets` is the shared
-     splitter every other trend on the product uses, so the grain matches. */
-  const trend = useMemo(() => {
-    const bs = buckets(cut, cut.days <= 31 ? cut.days : 24)
-    return bs.map((b) => {
-      const list = rows.filter((r) => r.received >= b.from && r.received <= b.to)
-      return { ...b, list, ...totalsOf(list) }
-    })
-  }, [cut, rows])
-
   return (
     <>
       {/* §1 — the page's own controls. Back, title, date and site belong to the shared
@@ -162,28 +154,14 @@ export default function Lab() {
           }
         />
       </div>
-
       <LabHero totals={t} scope={scopeText} window={period.window} onOpen={open} rows={rows} />
 
       <Stack>
         {/* §3 — request activity. Height is what was received; the fill is what became of
-            it. A line chart of one series would answer none of the three questions. */}
-        <Section icon={ClipboardList} label="Lab requests" aside={period.window}>
-          {t.requests === 0 ? (
-            <Nil>No lab requests in this window</Nil>
-          ) : (
-            <RequestTrend
-              trend={trend}
-              onOpen={(b) =>
-                open({
-                  title: `${shortDate(b.from)} – ${shortDate(b.to)}`,
-                  eyebrow: 'Requests received',
-                  body: <PeriodBody rows={b.list} label={`${shortDate(b.from)} – ${shortDate(b.to)}`} />,
-                })
-              }
-            />
-          )}
-        </Section>
+            it. A line chart of one series would answer none of the three questions.
+            The card reads its OWN range, so the shape of the bench's workload survives the
+            page being cut to a single day. */}
+        <RequestActivity siteKey={site?.key ?? null} deptId={deptId} onOpen={open} />
 
         {/* §4 — the pending workload, by bench. The one question a director asks first. */}
         <Section icon={Hourglass} label="Pending requests" aside={`${t.pending} open`}>
@@ -255,7 +233,7 @@ export default function Lab() {
                   open({ title: label, eyebrow: 'Turnaround', body: <TatBody rows={list} name={label} /> })
                 }
               />
-              <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+              <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
                 Sample received → result reported, over the {t.reported} requests reported in this window.
                 {' '}
                 {t.withinSla} of them met their own bench's turnaround standard ·{' '}
@@ -332,7 +310,7 @@ export default function Lab() {
                   style={{ width: `${Math.max(2, pct(t.negative, t.reported))}%`, backgroundColor: TONE.good }}
                 />
               </div>
-              <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+              <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
                 Reported results only. The {t.pending} pending and {t.rejected} rejected requests carry no
                 result and are counted in neither.
               </p>
@@ -376,7 +354,7 @@ export default function Lab() {
                 onClick={() =>
                   open({ title: 'Flagged results', eyebrow: scopeText, body: <FlaggedBody rows={flagged} /> })
                 }
-                className="mt-3 w-full rounded-full py-2 text-[12.5px] font-medium"
+                className="mt-3 w-full rounded-full py-2 text-body font-medium"
                 style={{ backgroundColor: TRACK, color: ACCENT_INK }}
               >
                 All {flagged.length} flagged results →
@@ -420,7 +398,6 @@ export default function Lab() {
                 label={g.label}
                 sub={`${g.sub} · ${g.positive} positive · ${tatLabel(g.tat)}`}
                 value={String(g.requests)}
-                bar={(g.requests / Math.max(...tests.map((x) => x.requests), 1)) * 100}
                 onOpen={() => open({ title: g.label, eyebrow: 'Test', body: <TestBody rows={g.rows} /> })}
               />
             ))}
@@ -438,7 +415,7 @@ export default function Lab() {
 
 function Nil({ children }: { children: ReactNode }) {
   return (
-    <p className="py-5 text-center text-[12.5px]" style={{ color: FAINT }}>
+    <p className="py-5 text-center text-caption" style={{ color: FAINT }}>
       {children}
     </p>
   )
@@ -480,7 +457,7 @@ function Controls({
         onClick={() => setOpenMenu((v) => !v)}
         aria-expanded={openMenu}
         aria-label="Department filter"
-        className="card-press flex min-w-0 items-center gap-1.5 rounded-full px-3 py-[6px] text-[12px] font-medium"
+        className="card-press flex min-w-0 items-center gap-1.5 rounded-full px-3 py-[6px] text-caption font-medium"
         style={{
           backgroundColor: deptId ? mix(accent, 0.13) : TRACK,
           color: deptId ? ACCENT_INK : MUTED,
@@ -489,7 +466,6 @@ function Controls({
         <span className="truncate">{name}</span>
         <span aria-hidden>▾</span>
       </button>
-
       <span className="min-w-0 flex-1" />
 
       <button
@@ -555,13 +531,13 @@ function MenuRow({ label, sub, on, onClick }: { label: string; sub?: string; on:
       style={{ backgroundColor: on ? mix(accent, 0.12) : 'transparent' }}
     >
       <span
-        className="min-w-0 flex-1 truncate text-[13px]"
+        className="min-w-0 flex-1 truncate text-small"
         style={{ color: on ? ACCENT_INK : INK, fontWeight: on ? 600 : 400 }}
       >
         {label}
       </span>
       {sub && (
-        <span className="shrink-0 text-[11px] tabular-nums" style={{ color: FAINT }}>
+        <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
           {sub}
         </span>
       )}
@@ -600,8 +576,8 @@ function LabHero({
       onClick={body ? () => onOpen({ title: title ?? label, eyebrow: scope, body: body() }) : undefined}
       className="card-press min-w-0 flex-1 text-left disabled:cursor-default"
     >
-      <Figure value={value} size={22} color={tone ?? VALUE} />
-      <span className="mt-0.5 block truncate text-[11.5px]" style={{ color: MUTED }}>
+      <Figure value={value} size={24} color={tone ?? VALUE} />
+      <span className="mt-0.5 block truncate text-caption" style={{ color: MUTED }}>
         {label}
       </span>
     </button>
@@ -610,18 +586,17 @@ function LabHero({
   return (
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-        <Figure value={fmt(t.requests)} size={58} color={HERO_INK} />
-        <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+        <Figure value={fmt(t.requests)} size={64} color={HERO_INK} />
+        <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
           <FlaskConical size={15} strokeWidth={1.75} style={{ color: ACCENT }} aria-hidden />
           Lab requests
         </p>
         <p className="mt-3 flex items-center gap-2">
           <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE.warn }} aria-hidden />
-          <span className="text-[13px] font-medium" style={{ color: TONE.warn }}>
+          <span className="text-small font-medium" style={{ color: TONE.warn }}>
             {t.pending} pending · {win}
           </span>
         </p>
-
         <div className="mt-5 flex items-stretch gap-3 border-t pt-4" style={{ borderColor: HAIR }}>
           {cell('Pending', String(t.pending), TONE.warn, () => (
             <StatusBody
@@ -675,14 +650,72 @@ interface Bucket {
  * tail — recent days, mostly still pending — read as work in progress rather than as a
  * collapse in reporting, which a completed-only chart would imply.
  */
+/**
+ * The card, with its own range over the bench's workload.
+ *
+ * Re-reads the records for the range it is showing rather than taking the page's rows: a chart
+ * asked for the quarter cannot draw it out of a day's worth of records. The bench filter still
+ * applies, because "Lab requests, Haematology" must mean the same thing in the chart as in the
+ * table under it.
+ */
+function RequestActivity({
+  siteKey,
+  deptId,
+  onOpen,
+}: {
+  siteKey: string | null
+  deptId: string | null
+  onOpen: (s: { title: string; eyebrow: string; body: ReactNode }) => void
+}) {
+  const range = useChartRange()
+
+  const trend = useMemo(() => {
+    const all = labCut(siteKey, range.win).rows
+    const rows = deptId ? all.filter((r) => r.dept.id === deptId) : all
+    /* `buckets` is the shared splitter every other trend uses, so the grain matches. Capped at
+       24 columns; a day resolves to one, which the strip below draws as a bar rather than a
+       slab. */
+    return buckets(range.win, range.win.days <= 31 ? range.win.days : 24).map((b) => {
+      const list = rows.filter((r) => r.received >= b.from && r.received <= b.to)
+      return { ...b, list, ...totalsOf(list) }
+    })
+  }, [siteKey, deptId, range.win])
+
+  const received = trend.reduce((n, b) => n + b.requests, 0)
+
+  return (
+    <Section icon={ClipboardList} label="Lab requests" aside={range.win.window}>
+      <RangeTabs range={range} />
+      {received === 0 ? (
+        <Nil>No lab requests in {range.win.window}</Nil>
+      ) : (
+        <RequestTrend
+          trend={trend}
+          onOpen={(b) =>
+            onOpen({
+              title: `${shortDate(b.from)} – ${shortDate(b.to)}`,
+              eyebrow: 'Requests received',
+              body: <PeriodBody rows={b.list} label={`${shortDate(b.from)} – ${shortDate(b.to)}`} />,
+            })
+          }
+        />
+      )}
+    </Section>
+  )
+}
+
 function RequestTrend({ trend, onOpen }: { trend: Bucket[]; onOpen: (b: Bucket) => void }) {
   const accent = useAccent()
   const max = Math.max(...trend.map((b) => b.requests), 1)
   const stride = Math.max(1, Math.ceil(trend.length / 5))
+  /* The strip caps and centres the columns, replacing a local `maxWidth: 72` that stopped a
+     short window slabbing out but left the columns hard against the left edge of the card —
+     which read as a chart that had failed to draw the rest of the range. */
+  const bars = strip(trend.length)
 
   return (
     <div>
-      <div className="flex h-[112px] items-end gap-[3px]">
+      <div className="flex h-[112px] items-end gap-[3px]" style={bars}>
         {trend.map((b, i) => (
           <button
             key={i}
@@ -691,7 +724,6 @@ function RequestTrend({ trend, onOpen }: { trend: Bucket[]; onOpen: (b: Bucket) 
             title={`${shortDate(b.from)} – ${shortDate(b.to)} · ${b.requests} received · ${b.reported} reported · ${b.pending} pending`}
             aria-label={`${shortDate(b.from)} to ${shortDate(b.to)}, ${b.requests} requests`}
             className="group flex min-w-[8px] flex-1 flex-col justify-end gap-1 transition-transform active:scale-95"
-            style={{ maxWidth: trend.length < 5 ? 72 : undefined }}
           >
             <span
               className="flex w-full flex-col justify-end overflow-hidden rounded-[3px]"
@@ -708,18 +740,18 @@ function RequestTrend({ trend, onOpen }: { trend: Bucket[]; onOpen: (b: Bucket) 
           </button>
         ))}
       </div>
-      <div className="mt-2 flex gap-[3px]">
+      <div className="mt-2 flex gap-[3px]" style={bars}>
         {trend.map((b, i) => (
           <span
             key={i}
-            className="min-w-[8px] flex-1 text-center text-[9.5px] whitespace-nowrap tabular-nums"
+            className="min-w-[8px] flex-1 text-center text-tick whitespace-nowrap tabular-nums"
             style={{ color: FAINT }}
           >
             {i % stride === 0 ? shortDate(b.to) : ''}
           </span>
         ))}
       </div>
-      <ul className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]" style={{ color: MUTED }}>
+      <ul className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption" style={{ color: MUTED }}>
         {[
           ['Reported', accent],
           ['Pending', mix(accent, 0.4)],
@@ -740,7 +772,6 @@ function RequestTrend({ trend, onOpen }: { trend: Bucket[]; onOpen: (b: Bucket) 
 
 function PendingBars({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) => void }) {
   const live = groups.filter((g) => g.pending > 0).sort((a, b) => b.pending - a.pending)
-  const max = Math.max(...live.map((g) => g.pending), 1)
   if (live.length === 0) return <Nil>Nothing pending</Nil>
   return (
     <DrillList>
@@ -754,7 +785,6 @@ function PendingBars({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
             value={String(g.pending)}
             unit="open"
             tone={g.overdue ? 'bad' : 'warn'}
-            bar={(g.pending / max) * 100}
             onOpen={() => onOpen(g)}
           />
         )
@@ -834,14 +864,13 @@ function MetricTable({
   }
 
   if (rows.length === 0) return <Nil>No {unit} in scope</Nil>
-  const widest = Math.max(...rows.map((r) => r.requests), 1)
 
   return (
     <div>
       {/* Sort pills are the stacked rendering's control. Past the table breakpoint the
           column heads do the same job and a second control would be a second state. */}
       <div className="mb-3 flex flex-wrap items-center gap-1.5 @[620px]:hidden">
-        <span className="mr-1 text-[10px] font-medium tracking-[0.09em] uppercase" style={{ color: FAINT }}>
+        <span className="mr-1 text-overline font-medium uppercase" style={{ color: FAINT }}>
           Sort
         </span>
         {columns.map((c) => {
@@ -852,7 +881,7 @@ function MetricTable({
               type="button"
               onClick={() => flip(c.key)}
               aria-pressed={on}
-              className="flex items-center gap-1 rounded-full px-3 py-[5px] text-[12px] transition-colors active:scale-95"
+              className="flex items-center gap-1 rounded-full px-3 py-[5px] text-caption transition-colors active:scale-95"
               style={{
                 backgroundColor: on ? mix(accent, 0.13) : TRACK,
                 color: on ? ACCENT_INK : MUTED,
@@ -865,7 +894,6 @@ function MetricTable({
           )
         })}
       </div>
-
       <div className="@[620px]:hidden">
         <DrillList>
           {sorted.map((g) => (
@@ -877,13 +905,11 @@ function MetricTable({
                 .map((c) => `${c.cell(g)} ${c.head.toLowerCase()}`)
                 .join(' · ')}
               value={String(g.requests)}
-              bar={(g.requests / widest) * 100}
               onOpen={() => onOpen(g)}
             />
           ))}
         </DrillList>
       </div>
-
       <div className="-mx-1 hidden overflow-x-auto px-1 @[620px]:block">
         <table className="w-full min-w-[520px]">
           <thead>
@@ -906,17 +932,17 @@ function MetricTable({
                 className="cursor-pointer border-t border-[#f0efec] transition-colors hover:bg-[#f7f9f7]"
               >
                 <td className="py-2.5 pr-2">
-                  <span className="block text-[13.5px] leading-[17px]" style={{ color: INK }}>
+                  <span className="block text-small" style={{ color: INK }}>
                     {g.label}
                   </span>
-                  <span className="mt-0.5 block text-[11px] leading-[14px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                     {g.sub}
                   </span>
                 </td>
                 {columns.map((c) => (
                   <td
                     key={c.key}
-                    className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums whitespace-nowrap"
+                    className="py-2.5 pl-3 text-right text-small font-medium tabular-nums whitespace-nowrap"
                     style={{ color: c.tone?.(g) ?? (c.cell(g) === '0' ? '#c2beb6' : VALUE) }}
                   >
                     {c.cell(g)}
@@ -948,7 +974,7 @@ function SortHead({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1 text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap uppercase ${
+      className={`inline-flex items-center gap-1 text-overline font-medium whitespace-nowrap uppercase ${
         align === 'right' ? 'flex-row-reverse' : ''
       }`}
       style={{ color: on ? ACCENT_INK : FAINT }}
@@ -1004,7 +1030,7 @@ function TatHistogram({
           onClick={() => onOpen(b.label, b.rows)}
           className="flex min-w-0 flex-1 flex-col items-center gap-1.5 transition-transform active:scale-95 disabled:cursor-default"
         >
-          <span className="text-[11px] font-semibold tabular-nums" style={{ color: b.rows.length ? INK : '#c2beb6' }}>
+          <span className="text-caption font-semibold tabular-nums" style={{ color: b.rows.length ? INK : '#c2beb6' }}>
             {b.rows.length}
           </span>
           <span
@@ -1014,7 +1040,7 @@ function TatHistogram({
               backgroundColor: b.rows.length ? mix(accent, 0.35 + (b.rows.length / max) * 0.6) : TRACK,
             }}
           />
-          <span className="truncate text-[9.5px] whitespace-nowrap" style={{ color: FAINT }}>
+          <span className="truncate text-tick whitespace-nowrap" style={{ color: FAINT }}>
             {b.label}
           </span>
         </button>
@@ -1048,14 +1074,14 @@ function TatBars({
             <li key={g.key}>
               <button type="button" onClick={() => onOpen(g)} className="card-press w-full text-left">
                 <span className="flex items-baseline gap-3">
-                  <span className="min-w-0 flex-1 truncate text-[13.5px]" style={{ color: INK }}>
+                  <span className="min-w-0 flex-1 truncate text-small" style={{ color: INK }}>
                     {g.label}
                   </span>
-                  <span className="shrink-0 text-[11px] tabular-nums" style={{ color: FAINT }}>
+                  <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
                     {g.reported} reported
                   </span>
                   <span
-                    className="shrink-0 text-[14px] font-medium tabular-nums"
+                    className="shrink-0 text-small font-medium tabular-nums"
                     style={{ color: over ? TONE.warn : VALUE }}
                   >
                     {tatLabel(g.tat)}
@@ -1075,7 +1101,7 @@ function TatBars({
           )
         })}
       </ul>
-      <p className="mt-3.5 border-t pt-3 text-[11px] leading-[16px]" style={{ borderColor: HAIR, color: FAINT }}>
+      <p className="mt-3.5 border-t pt-3 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
         Received → reported, averaged per bench. Overall {tatLabel(overall)}. A bar is amber where the
         bench is running past its own turnaround standard.
       </p>
@@ -1106,11 +1132,11 @@ function ResultPole({
       onClick={onOpen}
       className={`card-press min-w-0 flex-1 ${align === 'right' ? 'pl-4 text-right' : 'pr-4 text-left'}`}
     >
-      <Figure value={fmt(value)} size={34} color={tone} />
-      <span className="mt-1 block text-[12.5px]" style={{ color: MUTED }}>
+      <Figure value={fmt(value)} size={32} color={tone} />
+      <span className="mt-1 block text-small" style={{ color: MUTED }}>
         {label}
       </span>
-      <span className="mt-0.5 block text-[11px] tabular-nums" style={{ color: FAINT }}>
+      <span className="mt-0.5 block text-caption tabular-nums" style={{ color: FAINT }}>
         {Math.round(share)}% of reported
       </span>
     </button>
@@ -1131,7 +1157,6 @@ function SpeciesList({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
     return needle ? groups.filter((g) => g.label.toLowerCase().includes(needle)) : groups
   }, [groups, q])
 
-  const widest = Math.max(...groups.map((g) => g.requests), 1)
   const page = matched.slice(0, shown)
 
   if (groups.length === 0) return <Nil>No animal specimens in this window</Nil>
@@ -1155,11 +1180,11 @@ function SpeciesList({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
           }}
           placeholder="Search species"
           aria-label="Search species"
-          className="w-full rounded-[10px] py-2 pr-3 pl-8 text-[13px] outline-none focus:ring-2 focus:ring-[#37bd69]/35 [&::-webkit-search-cancel-button]:hidden"
+          className="w-full rounded-[10px] py-2 pr-3 pl-8 text-small outline-none focus:ring-2 focus:ring-[#37bd69]/35 [&::-webkit-search-cancel-button]:hidden"
           style={{ backgroundColor: TRACK, color: INK }}
         />
       </div>
-      <p className="mt-2.5 text-[10.5px] tabular-nums" style={{ color: FAINT }}>
+      <p className="mt-2.5 text-caption tabular-nums" style={{ color: FAINT }}>
         {q.trim() ? `${matched.length} of ${groups.length} matching` : `${groups.length} species with lab results`}
       </p>
 
@@ -1175,7 +1200,6 @@ function SpeciesList({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
                 g.reported ? Math.round(pct(g.positive, g.reported)) : 0
               }% positive`}
               value={String(g.requests)}
-              bar={(g.requests / widest) * 100}
               tone={g.flagged ? 'bad' : undefined}
               onOpen={() => onOpen(g)}
             />
@@ -1187,13 +1211,13 @@ function SpeciesList({ groups, onOpen }: { groups: Group[]; onOpen: (g: Group) =
         <button
           type="button"
           onClick={() => setShown((n) => n + SPECIES_PAGE)}
-          className="mt-3 w-full rounded-full py-2 text-[12.5px] font-medium"
+          className="mt-3 w-full rounded-full py-2 text-body font-medium"
           style={{ backgroundColor: TRACK, color: ACCENT_INK }}
         >
           Show {Math.min(SPECIES_PAGE, matched.length - shown)} more · {matched.length - shown} remaining
         </button>
       )}
-      <p className="mt-3 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+      <p className="mt-3 text-caption" style={{ color: FAINT }}>
         Animal specimens only. Toxicology and water quality samples are feed batches and water bodies,
         so they carry no species — they are in Food toxicology below.
       </p>
@@ -1246,7 +1270,7 @@ function FoodTox({
       <button
         type="button"
         onClick={onOpen}
-        className="mt-3 w-full rounded-full py-2 text-[12.5px] font-medium"
+        className="mt-3 w-full rounded-full py-2 text-body font-medium"
         style={{ backgroundColor: TRACK, color: ACCENT_INK }}
       >
         All {t.requests} toxicology tests →
@@ -1304,7 +1328,7 @@ function LabRecords({ rows }: { rows: LabRecord[] }) {
               type="button"
               onClick={() => setFilter(f.id)}
               aria-pressed={on}
-              className="rounded-full px-3 py-[5px] text-[12px] transition-colors active:scale-95"
+              className="rounded-full px-3 py-[5px] text-caption transition-colors active:scale-95"
               style={{
                 backgroundColor: on ? mix(accent, 0.13) : TRACK,
                 color: on ? ACCENT_INK : MUTED,
@@ -1347,10 +1371,10 @@ function SearchBody({ rows }: { rows: LabRecord[] }) {
           autoFocus
           placeholder="Request ID, animal, species, test, department or site"
           aria-label="Search lab records"
-          className="w-full rounded-[10px] px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-[#37bd69]/35"
+          className="w-full rounded-[10px] px-3 py-2.5 text-small outline-none focus:ring-2 focus:ring-[#37bd69]/35"
           style={{ backgroundColor: TRACK, color: INK }}
         />
-        <p className="mt-2.5 text-[11px]" style={{ color: FAINT }}>
+        <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
           {q.trim().length < 2
             ? 'Type two characters or more. Search covers the current window and site scope.'
             : `${hits.length} shown${hits.length === 60 ? ' · narrow the query for the rest' : ''}`}
@@ -1408,7 +1432,7 @@ function FilterBody({
         ))}
       </Section>
       <Section icon={PawPrint} label="Date range and site">
-        <p className="text-[12px] leading-[18px]" style={{ color: MUTED }}>
+        <p className="text-caption" style={{ color: MUTED }}>
           The window and the site are global — they are set from the pills in the page header and apply
           to every module, not just this one.
         </p>

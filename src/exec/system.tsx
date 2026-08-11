@@ -280,31 +280,6 @@ export const mix = (hex: string, a: number) => {
   return `rgb(${m((n >> 16) & 255)} ${m((n >> 8) & 255)} ${m(n & 255)})`
 }
 
-/**
- * THE SHARE RAIL — three pixels down the left edge of a row, weighted by its share.
- *
- * Lives here rather than in `exec/marks.tsx` for one reason: `Bars` below needs it, and
- * `marks` already imports this file. `marks` re-exports it, so every call site outside this
- * file can go on importing it from there with the rest of the visualisation language.
- *
- * The mark it replaced was the full-width progress bar that used to sit under every row of
- * every list in the product. That bar drew a ranking the row order already stated, and it made
- * twenty different questions look like one chart. The rail says where a row sits in the spread
- * — dark at the top, nearly invisible at the tail — small enough that a list of twenty reads as
- * a gradient rather than as twenty bars.
- */
-export function Rail({ share, top = 100, color }: { share: number; top?: number; color?: string }) {
-  const accent = useAccent()
-  const weight = 0.16 + Math.min(1, Math.max(0, share) / Math.max(1, top)) * 0.62
-  return (
-    <span
-      className="w-[3px] shrink-0 self-stretch rounded-full"
-      style={{ backgroundColor: mix(color ?? accent, weight) }}
-      aria-hidden
-    />
-  )
-}
-
 export const fmt = (n: number) => n.toLocaleString('en-US')
 export const compact = (n: number) => {
   const a = Math.abs(n)
@@ -367,16 +342,23 @@ export function Section({
           <header className={`flex items-center justify-between gap-3 ${tight ? 'mb-3' : 'mb-4'}`}>
             <span className="flex min-w-0 items-center gap-2">
               {Glyph && <Glyph size={16} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
-              {/* Wraps rather than truncates — a clipped section title loses meaning. */}
+              {/* Wraps rather than truncates — a clipped section title loses meaning.
+                  This is the product's SECTION HEADING and now says so: semibold, on
+                  `--fs-title`, which is the one text size that steps with the column
+                  (16 → 18 → 20). It was 15px medium, half a step above the 14px rows
+                  underneath it and reading as a slightly bolder row rather than as the
+                  thing that names the card. */}
               <h2
-                className={`font-medium text-balance text-[#1c1a16] ${
-                  tight ? 'text-[13px] leading-[17px]' : 'text-[15px] leading-[20px]'
+                className={`font-semibold text-balance text-[#1c1a16] ${
+                  tight
+                    ? 'text-body'
+                    : 'text-[length:var(--fs-title)] leading-[var(--lh-title)] tracking-[-0.2px]'
                 }`}
               >
                 {label}
               </h2>
             </span>
-            {aside && <span className="shrink-0 text-[12px] whitespace-nowrap text-[#9b958b]">{aside}</span>}
+            {aside && <span className="shrink-0 text-caption whitespace-nowrap text-[#9b958b]">{aside}</span>}
           </header>
         )}
         {children}
@@ -422,7 +404,7 @@ export function Duo({ children }: { children: ReactNode }) {
 export function Rule({ label }: { label: string }) {
   return (
     <div className="mt-5 mb-3 flex items-center gap-3">
-      <span className="text-[10px] font-medium tracking-[0.09em] text-[#9b958b] uppercase">{label}</span>
+      <span className="text-overline font-medium text-[#9b958b] uppercase">{label}</span>
       <span className="h-px flex-1" style={{ backgroundColor: HAIR }} />
     </div>
   )
@@ -445,9 +427,19 @@ export function Figure({
       <AnimatedValue
         value={value}
         className="font-display font-bold tabular-nums"
-        style={{ fontSize: `calc(${size}px * var(--fig-scale))`, lineHeight: 1.05, letterSpacing: '-0.025em', color }}
+        /* `--lh-fig` (1.125) is the KPI ratio the type scale states — 64 → 72 — and it
+           is one variable rather than a literal because every figure in the product
+           passes through here. Tracking is em-based for the same reason: one value has
+           to serve a 20px tile figure and an 80px hero, and -0.02em resolves to -0.4px
+           and -1.6px respectively, which is each end of the scale's own range. */
+        style={{
+          fontSize: `calc(${size}px * var(--fig-scale))`,
+          lineHeight: 'var(--lh-fig)',
+          letterSpacing: '-0.02em',
+          color,
+        }}
       />
-      {unit && <span className="text-[13px] text-[#9b958b]">{unit}</span>}
+      {unit && <span className="text-small text-[#9b958b]">{unit}</span>}
     </span>
   )
 }
@@ -493,9 +485,9 @@ export function Hero({
         className={`animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)] ${centred ? 'text-center' : ''}`}
         aria-label={label}
       >
-        <Figure value={value} unit={unit} size={58} color={HERO_INK} />
+        <Figure value={value} unit={unit} size={64} color={HERO_INK} />
         <p
-          className={`mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34] ${centred ? 'justify-center' : ''}`}
+          className={`mt-1 flex items-center gap-2 text-body text-[#3d3a34] ${centred ? 'justify-center' : ''}`}
         >
           {Glyph && <Glyph size={15} strokeWidth={1.75} style={{ color: accent }} aria-hidden />}
           {label}
@@ -503,7 +495,7 @@ export function Hero({
         {status && (
           <p className={`mt-3 flex items-center gap-2 ${centred ? 'justify-center' : ''}`}>
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone] }} aria-hidden />
-            <span className="text-[13px] font-medium" style={{ color: TONE[tone] }}>
+            <span className="text-small font-medium" style={{ color: TONE[tone] }}>
               {status}
             </span>
           </p>
@@ -518,7 +510,7 @@ export function Hero({
                 } ${centred ? 'text-center' : ''}`}
               >
                 <Figure value={s.value} unit={s.unit} size={24} />
-                <span className="mt-0.5 block truncate text-[12px] text-[#6d6860]">{s.label}</span>
+                <span className="mt-0.5 block truncate text-caption text-[#6d6860]">{s.label}</span>
               </span>
             ))}
           </div>
@@ -541,9 +533,9 @@ export function StatusList({ items }: { items: { label: string; value: string; t
             style={{ backgroundColor: TONE[it.tone ?? 'neutral'] }}
             aria-hidden
           />
-          <span className="min-w-0 flex-1 truncate text-[14px] text-[#1c1a16]">{it.label}</span>
+          <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{it.label}</span>
           <span
-            className="shrink-0 text-[14px] font-medium tabular-nums"
+            className="shrink-0 text-small font-medium tabular-nums"
             style={{ color: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : INK2 }}
           >
             {it.value}
@@ -572,8 +564,8 @@ export function MetricGrid({
           } ${i < cols ? 'pt-0' : ''}`}
         >
           <Figure value={m.value} unit={m.unit} size={cols === 3 ? 24 : 28} />
-          <p className="mt-1 text-[13px] text-[#3d3a34]">{m.label}</p>
-          {m.note && <p className="mt-0.5 text-[11px] text-[#9b958b]">{m.note}</p>}
+          <p className="mt-1 text-small text-[#3d3a34]">{m.label}</p>
+          {m.note && <p className="mt-0.5 text-caption text-[#9b958b]">{m.note}</p>}
         </div>
       ))}
     </div>
@@ -631,12 +623,12 @@ export function Bars({
       {items.map((it, i) => {
         const figure = (
           <span className="shrink-0 text-right">
-            <span className="block text-[14px] font-medium tabular-nums text-[#1c1a16]">
+            <span className="block text-small font-medium tabular-nums text-[#1c1a16]">
               {compact(it.value)}
-              {unit && <span className="ml-0.5 text-[11px] font-normal text-[#9b958b]">{unit}</span>}
+              {unit && <span className="ml-0.5 text-caption font-normal text-[#9b958b]">{unit}</span>}
             </span>
             {showShare && (
-              <span className="mt-0.5 block text-[11px] tabular-nums text-[#9b958b]">{shareText(it.value)}</span>
+              <span className="mt-0.5 block text-caption tabular-nums text-[#9b958b]">{shareText(it.value)}</span>
             )}
           </span>
         )
@@ -645,8 +637,8 @@ export function Bars({
           return (
             <li key={it.label}>
               <div className="flex items-baseline gap-3">
-                <span className="min-w-0 flex-1 truncate text-[14px] text-[#1c1a16]">{it.label}</span>
-                {it.sub && <span className="shrink-0 text-[11px] text-[#9b958b]">{it.sub}</span>}
+                <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{it.label}</span>
+                {it.sub && <span className="shrink-0 text-caption text-[#9b958b]">{it.sub}</span>}
                 {figure}
               </div>
               <div className="mt-1.5 h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
@@ -669,11 +661,10 @@ export function Bars({
         return (
           <li key={it.label} className="border-b border-[#f0efec] last:border-0">
             <div className="flex items-stretch gap-2.5 py-2.5 first:pt-0">
-              <Rail share={(it.value / max) * 100} color={it.color} />
               <span className="min-w-0 flex-1 self-center">
-                <span className="block truncate text-[13.5px] leading-[18px] text-[#1c1a16]">{it.label}</span>
+                <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
                 {it.sub && (
-                  <span className="mt-0.5 block truncate text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>
+                  <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{it.sub}</span>
                 )}
               </span>
               <span className="self-center">{figure}</span>
@@ -713,14 +704,14 @@ export function Composition({ items, unit }: { items: { label: string; value: nu
               style={{ backgroundColor: mix(accent, step(i)) }}
               aria-hidden
             />
-            <span className="min-w-0 flex-1 truncate text-[13px] text-[#3d3a34]">{it.label}</span>
-            <span className="shrink-0 text-[13px] font-medium tabular-nums text-[#1c1a16]">
+            <span className="min-w-0 flex-1 truncate text-small text-[#3d3a34]">{it.label}</span>
+            <span className="shrink-0 text-small font-medium tabular-nums text-[#1c1a16]">
               {((it.value / total) * 100).toFixed(0)}%
             </span>
           </li>
         ))}
       </ul>
-      {unit && <p className="mt-3 text-[11px] text-[#9b958b]">{fmt(total)} {unit} total</p>}
+      {unit && <p className="mt-3 text-caption text-[#9b958b]">{fmt(total)} {unit} total</p>}
     </div>
   )
 }
@@ -1027,7 +1018,7 @@ export function Matrix({
             <tr>
               <th />
               {cols.map((c) => (
-                <th key={c} className="pb-1 text-[10px] font-normal text-[#9b958b]">
+                <th key={c} className="pb-1 text-tick font-normal text-[#9b958b]">
                   {c}
                 </th>
               ))}
@@ -1036,7 +1027,7 @@ export function Matrix({
           <tbody>
             {rows.map((r, ri) => (
               <tr key={r}>
-                <th className="pr-2 text-right text-[12px] font-normal whitespace-nowrap text-[#3d3a34]">{r}</th>
+                <th className="pr-2 text-right text-caption font-normal whitespace-nowrap text-[#3d3a34]">{r}</th>
                 {cols.map((c, ci) => {
                   const v = values[ri]?.[ci] ?? 0
                   return (
@@ -1077,10 +1068,10 @@ export function Tray({
      own rounded edge, crowding the label under it at the same time. `Snapshot` and
      `Scoreboard` already fit their figures; this one was the outlier. */
   const chip = (310 - (cols - 1) * 8) / cols - 20
-  const size = Math.min(
-    18,
-    Math.max(13, Math.floor(chip / Math.max(...cells.map((c) => figureEm(c.value)), 0.6))),
-  )
+  /* Snapped to the ladder like every other fitted figure, and floored at its bottom
+     rung rather than at an arbitrary 13 — a four-up chip is the tightest box a number
+     is asked to sit in, and 14 is the size the scale already has for exactly that. */
+  const size = Math.min(20, Math.max(14, snapFig(chip / Math.max(...cells.map((c) => figureEm(c.value)), 0.6))))
   return (
     <div ref={ref}>
       <div className={`grid ${cols === 3 ? 'grid-cols-3' : 'grid-cols-4'} gap-2`}>
@@ -1099,8 +1090,17 @@ export function Tray({
               <Figure value={c.value} size={size} />
             </div>
             {/* Wraps to a second line rather than clipping — "Savanna 1" and
-                "Savanna 3" both truncate to "Savanna…" at four columns. */}
-            <p className="mt-1 text-[10.5px] leading-[14px] text-[#6d6860]">{c.label}</p>
+                "Savanna 3" both truncate to "Savanna…" at four columns.
+                `hyphens` earns its place on the one-word labels: a four-up chip is
+                ~52px and "Herpetarium" is a single word wider than that, so normal
+                wrapping has nowhere to break and the word runs out past the chip's
+                own rounded edge. Hyphenating breaks it inside the chip instead.
+                `break-words` is the belt to that braces: hyphenation needs a
+                dictionary the engine may not ship, and a chip that keeps its text
+                inside itself matters more than where the break lands. */}
+            <p className="mt-1 text-caption hyphens-auto break-words text-[#6d6860]" lang="en">
+              {c.label}
+            </p>
           </div>
         ))}
       </div>
@@ -1118,11 +1118,11 @@ export function Funnel({ stages, unit }: { stages: { label: string; value: numbe
       {stages.map((s, i) => (
         <li key={s.label}>
           <div className="flex items-baseline gap-3">
-            <span className="min-w-0 flex-1 text-[14px] text-[#1c1a16]">{s.label}</span>
-            {s.sub && <span className="shrink-0 text-[11px] text-[#9b958b]">{s.sub}</span>}
-            <span className="shrink-0 text-[14px] font-medium tabular-nums text-[#1c1a16]">
+            <span className="min-w-0 flex-1 text-small text-[#1c1a16]">{s.label}</span>
+            {s.sub && <span className="shrink-0 text-caption text-[#9b958b]">{s.sub}</span>}
+            <span className="shrink-0 text-small font-medium tabular-nums text-[#1c1a16]">
               {s.value}
-              {unit && <span className="ml-0.5 text-[11px] font-normal text-[#9b958b]">{unit}</span>}
+              {unit && <span className="ml-0.5 text-caption font-normal text-[#9b958b]">{unit}</span>}
             </span>
           </div>
           <div className="mt-1.5 h-[8px] w-full overflow-hidden rounded-[4px]" style={{ backgroundColor: TRACK }}>
@@ -1156,13 +1156,13 @@ export function Lanes({
     <ul ref={ref} className="flex flex-col gap-3.5">
       {routes.map((r, i) => (
         <li key={`${r.from}-${r.to}`}>
-          <div className="flex items-baseline gap-2 text-[14px]">
+          <div className="flex items-baseline gap-2 text-small">
             <span className="min-w-0 truncate text-[#1c1a16]">{r.from}</span>
             <span className="shrink-0 text-[#9b958b]" aria-hidden>→</span>
             <span className="min-w-0 flex-1 truncate text-[#1c1a16]">{r.to}</span>
             <span className="shrink-0 font-medium tabular-nums text-[#1c1a16]">
               {r.value}
-              {unit && <span className="ml-0.5 text-[11px] font-normal text-[#9b958b]">{unit}</span>}
+              {unit && <span className="ml-0.5 text-caption font-normal text-[#9b958b]">{unit}</span>}
             </span>
           </div>
           <div className="mt-1.5 flex items-center gap-2">
@@ -1176,7 +1176,7 @@ export function Lanes({
                 }}
               />
             </span>
-            {r.sub && <span className="shrink-0 text-[11px] text-[#9b958b]">{r.sub}</span>}
+            {r.sub && <span className="shrink-0 text-caption text-[#9b958b]">{r.sub}</span>}
           </div>
         </li>
       ))}
@@ -1198,11 +1198,11 @@ export function Ledger({
       {items.map((it, i) => (
         <li key={it.label} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
           {rank && (
-            <span className="w-[14px] shrink-0 text-[12px] tabular-nums text-[#9b958b]">{String(i + 1)}</span>
+            <span className="w-[14px] shrink-0 text-caption tabular-nums text-[#9b958b]">{String(i + 1)}</span>
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[14px] text-[#1c1a16]">{it.label}</span>
-            {it.sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>}
+            <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
+            {it.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{it.sub}</span>}
           </span>
           {it.share !== undefined && (
             <span className="h-[5px] w-[44px] shrink-0 overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
@@ -1212,7 +1212,7 @@ export function Ledger({
               />
             </span>
           )}
-          <span className="shrink-0 text-[14px] font-medium tabular-nums text-[#1c1a16]">{it.value}</span>
+          <span className="shrink-0 text-small font-medium tabular-nums text-[#1c1a16]">{it.value}</span>
         </li>
       ))}
     </ol>
@@ -1240,7 +1240,7 @@ export function Columns({
       <div className="flex h-[92px] items-end gap-1.5">
         {values.map((v, i) => (
           <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1.5">
-            {i === hi && <span className="text-[11px] font-semibold tabular-nums text-[#1c1a16]">{compact(v)}</span>}
+            {i === hi && <span className="text-caption font-semibold tabular-nums text-[#1c1a16]">{compact(v)}</span>}
             <span
               className={`w-full origin-bottom rounded-[4px] ${animate ? 'animate-grow-y' : ''}`}
               style={{
@@ -1256,13 +1256,13 @@ export function Columns({
         {labels.map((l, i) => (
           <span
             key={`${l}-${i}`}
-            className={`flex-1 text-center text-[10px] ${i === hi ? 'font-semibold text-[#1c1a16]' : 'text-[#9b958b]'}`}
+            className={`flex-1 text-center text-tick ${i === hi ? 'font-semibold text-[#1c1a16]' : 'text-[#9b958b]'}`}
           >
             {l}
           </span>
         ))}
       </div>
-      {unit && <p className="mt-2.5 text-[11px] text-[#9b958b]">{unit}</p>}
+      {unit && <p className="mt-2.5 text-caption text-[#9b958b]">{unit}</p>}
     </div>
   )
 }
@@ -1327,9 +1327,9 @@ export function Pareto({ items }: { items: { label: string; value: number }[] })
               style={{ backgroundColor: mix(accent, step(i)) }}
               aria-hidden
             />
-            <span className="min-w-0 flex-1 truncate text-[14px] text-[#1c1a16]">{it.label}</span>
-            <span className="shrink-0 text-[12px] tabular-nums text-[#9b958b]">{cum[i].toFixed(0)}%</span>
-            <span className="w-[30px] shrink-0 text-right text-[14px] font-medium tabular-nums text-[#1c1a16]">
+            <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{it.label}</span>
+            <span className="shrink-0 text-caption tabular-nums text-[#9b958b]">{cum[i].toFixed(0)}%</span>
+            <span className="w-[30px] shrink-0 text-right text-small font-medium tabular-nums text-[#1c1a16]">
               {it.value}
             </span>
           </li>
@@ -1388,8 +1388,8 @@ export function Radar({ axes, max = 100 }: { axes: { label: string; score: numbe
       <ul className="grid w-full grid-cols-2 gap-x-4 gap-y-2">
         {axes.map((ax) => (
           <li key={ax.label} className="flex items-baseline justify-between gap-2 border-b border-[#f0efec] pb-1.5">
-            <span className="truncate text-[13px] text-[#3d3a34]">{ax.label}</span>
-            <span className="shrink-0 text-[13px] font-medium tabular-nums text-[#1c1a16]">{ax.score}</span>
+            <span className="truncate text-small text-[#3d3a34]">{ax.label}</span>
+            <span className="shrink-0 text-small font-medium tabular-nums text-[#1c1a16]">{ax.score}</span>
           </li>
         ))}
       </ul>
@@ -1404,8 +1404,8 @@ export function Meter({ percent, label, value }: { percent: number; label: strin
   return (
     <div ref={ref}>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[14px] text-[#1c1a16]">{label}</span>
-        <span className="text-[14px] font-medium tabular-nums text-[#1c1a16]">{value}</span>
+        <span className="text-small text-[#1c1a16]">{label}</span>
+        <span className="text-small font-medium tabular-nums text-[#1c1a16]">{value}</span>
       </div>
       <div className="mt-2 h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
         <div
@@ -1439,12 +1439,12 @@ export function Records({ items }: { items: { label: string; sub: string; value:
             aria-hidden
           />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[14px] text-[#1c1a16]">{it.label}</span>
+            <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
             {/* Wraps: the label is an identifier and can be clipped, but the sub
                 carries the reason and a clipped reason is worth nothing. */}
-            <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>
+            <span className="mt-0.5 block text-caption text-[#9b958b]">{it.sub}</span>
           </span>
-          <span className="shrink-0 pt-[1px] text-[11px] tabular-nums whitespace-nowrap text-[#9b958b]">{it.value}</span>
+          <span className="shrink-0 pt-[1px] text-caption tabular-nums whitespace-nowrap text-[#9b958b]">{it.value}</span>
         </li>
       ))}
     </ul>
@@ -1481,26 +1481,26 @@ export function Facts({
         const row = (
           <>
             <span className="min-w-0 flex-1">
-              <span className={`block ${lg ? 'text-[14px]' : 'text-[13.5px]'} text-[#1c1a16]`}>{it.label}</span>
-              {it.sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>}
+              <span className={`block ${lg ? 'text-small' : 'text-small'} text-[#1c1a16]`}>{it.label}</span>
+              {it.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{it.sub}</span>}
             </span>
             {it.delta && (
               <span
-                className="shrink-0 text-[11px] font-medium tabular-nums"
+                className="shrink-0 text-caption font-medium tabular-nums"
                 style={{ color: signTone(it.delta) ?? FAINT }}
               >
                 {it.delta}
               </span>
             )}
             <span
-              className={`shrink-0 font-medium tabular-nums ${lg ? 'text-[18px]' : 'text-[14px]'}`}
+              className={`shrink-0 font-medium tabular-nums ${lg ? 'text-lead' : 'text-small'}`}
               style={{ color: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : VALUE }}
             >
               {it.value}
             </span>
             {/* Reserved on every row of a card that has any link, so the figures stay
                 in one column instead of stepping in and out by 14px. */}
-            <span className="w-[9px] shrink-0 text-[12px] leading-none" style={{ color: it.href ? accent : 'transparent' }} aria-hidden>
+            <span className="w-[9px] shrink-0 text-caption" style={{ color: it.href ? accent : 'transparent' }} aria-hidden>
               ›
             </span>
           </>
@@ -1589,19 +1589,19 @@ export function Bridge({
       style={{ backgroundColor: lead ? mix(accent, 0.1) : '#f7f6f3' }}
     >
       <span className="min-w-0">
-        <span className="block text-[10px] font-medium tracking-[0.09em] uppercase" style={{ color: MUTED }}>
+        <span className="block text-overline font-medium uppercase" style={{ color: MUTED }}>
           {label}
         </span>
-        {sub && <span className="mt-0.5 block text-[11px]" style={{ color: FAINT }}>{sub}</span>}
+        {sub && <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>{sub}</span>}
       </span>
       <span className="flex shrink-0 items-baseline gap-2">
         {delta && (
-          <span className="text-[11px] font-medium tabular-nums" style={{ color: signTone(delta) ?? FAINT }}>
+          <span className="text-caption font-medium tabular-nums" style={{ color: signTone(delta) ?? FAINT }}>
             {delta}
           </span>
         )}
         <span
-          className="font-display text-[19px] leading-none font-bold tabular-nums"
+          className="font-display text-n-sm font-bold tabular-nums"
           style={{ color: lead ? ACCENT_INK : VALUE }}
         >
           {fmt(value)}
@@ -1613,16 +1613,15 @@ export function Bridge({
   return (
     <div>
       <Bookend label={opening.label} sub={opening.sub} value={opening.value} />
-
       <ul className="my-1.5">
         {rows.map((r) => {
           const up = r.value >= 0
           const row = (
             <>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13.5px] text-[#1c1a16]">{r.label}</span>
+                <span className="block text-small text-[#1c1a16]">{r.label}</span>
                 {r.sub && (
-                  <span className="mt-0.5 block text-[11px] leading-[15px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                     {r.sub}
                   </span>
                 )}
@@ -1630,7 +1629,7 @@ export function Bridge({
               {/* Signed figure, then the bar it describes, then where the collection
                   stood after it — cause, shape, consequence, left to right. */}
               <span
-                className="w-[42px] shrink-0 text-right text-[15px] font-medium tabular-nums"
+                className="w-[42px] shrink-0 text-right text-body font-medium tabular-nums"
                 style={{ color: up ? TONE.good : TONE.bad }}
               >
                 {up ? '+' : '−'}
@@ -1649,11 +1648,11 @@ export function Bridge({
                   }}
                 />
               </span>
-              <span className="w-[58px] shrink-0 text-right text-[11px] tabular-nums" style={{ color: FAINT }}>
+              <span className="w-[58px] shrink-0 text-right text-caption tabular-nums" style={{ color: FAINT }}>
                 {fmt(r.running)}
               </span>
               <span
-                className="w-[8px] shrink-0 text-[12px] leading-none"
+                className="w-[8px] shrink-0 text-caption"
                 style={{ color: r.href ? ACCENT_INK : 'transparent' }}
                 aria-hidden
               >
@@ -1674,11 +1673,10 @@ export function Bridge({
           )
         })}
       </ul>
-
       <Bookend label={closing.label} sub={closing.sub} value={closing.value} delta={closing.delta} lead />
 
       {!closes && (
-        <p className="mt-2.5 text-[11px]" style={{ color: TONE.bad }}>
+        <p className="mt-2.5 text-caption" style={{ color: TONE.bad }}>
           Flows sum to {fmt(running)}, not {fmt(closing.value)} — this bridge does not close.
         </p>
       )}
@@ -1739,8 +1737,8 @@ export function Snapshot({
           {/* Wraps rather than truncates: at four columns a cell is ~78px, and
               "Sample quality" clipped to "Sample qua…" states nothing. Grid rows
               size to the tallest cell, so a second line stays aligned. */}
-          <p className="mt-0.5 text-[12px] leading-[15px] text-[#3d3a34]">{m.label}</p>
-          {m.note && <p className="mt-0.5 text-[11px] leading-[14px] text-[#9b958b]">{m.note}</p>}
+          <p className="mt-0.5 text-small text-[#3d3a34]">{m.label}</p>
+          {m.note && <p className="mt-0.5 text-caption text-[#9b958b]">{m.note}</p>}
         </div>
       ))}
     </div>
@@ -1759,7 +1757,24 @@ const figureEm = (s: string) =>
   [...s].reduce((n, c) => n + (/[.,]/.test(c) ? 0.3 : /[+\-−]/.test(c) ? 0.36 : 0.58), 0)
 
 /**
- * Largest size at which the widest value still fits its column.
+ * THE FIGURE LADDER — the only sizes a number is ever set at.
+ *
+ * The fitting below used to return any integer that fitted, which is how the product
+ * ended up rendering figures at 17, 19, 22 and 25px: sizes nobody chose, arrived at by
+ * dividing a column width by a digit count. Two cards side by side could differ by a
+ * pixel for no reason a reader could perceive as meaning. Fitting still decides HOW BIG
+ * a number may be; this decides which sizes exist for it to choose from.
+ *
+ * The bottom two rungs are the text scale's own 14 and 16. A figure in a four-up chip
+ * genuinely is small text — pretending otherwise would only mean it overflowed its chip.
+ */
+export const FIG_STEPS = [14, 16, 20, 24, 28, 32, 40, 48, 64] as const
+
+/** Largest ladder step not above `px`. */
+const snapFig = (px: number) => FIG_STEPS.filter((s) => s <= px).pop() ?? FIG_STEPS[0]
+
+/**
+ * Largest LADDER STEP at which the widest value still fits its column.
  *
  * `content` is the card's inner width at the 390px reference viewport: 390 − 40 for
  * the stack gutter − 40 for the card's own padding.
@@ -1767,7 +1782,7 @@ const figureEm = (s: string) =>
 function fitSize(values: string[], columns: number, max: number, content = 310) {
   const column = content / columns - 12
   const widest = Math.max(...values.map(figureEm), 0.6)
-  return Math.min(max, Math.max(17, Math.floor(column / widest)))
+  return Math.min(snapFig(max), Math.max(16, snapFig(column / widest)))
 }
 
 /** One line of headline numbers, hairline-ruled. The 3-second scan. */
@@ -1799,7 +1814,7 @@ export function Scoreboard({
             size={size}
             color={it.tone && it.tone !== 'neutral' ? TONE[it.tone] : VALUE}
           />
-          <p className="mt-1 text-[11px] leading-[14px] text-[#6d6860]">{it.label}</p>
+          <p className="mt-1 text-caption text-[#6d6860]">{it.label}</p>
         </div>
       ))}
     </div>
@@ -1827,19 +1842,19 @@ export function Poles({
   return (
     <div className="flex gap-4">
       <div className="min-w-0 flex-1">
-        <p className="text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: accent }}>
+        <p className="text-overline font-medium uppercase" style={{ color: accent }}>
           {caption[0]}
         </p>
         <div className="mt-1.5">
           <Figure value={high.value} size={24} />
         </div>
-        <p className="mt-1.5 truncate text-[13px] text-[#1c1a16]">{high.label}</p>
-        {high.sub && <p className="mt-0.5 text-[11px] leading-[15px] text-[#9b958b]">{high.sub}</p>}
+        <p className="mt-1.5 truncate text-small text-[#1c1a16]">{high.label}</p>
+        {high.sub && <p className="mt-0.5 text-caption text-[#9b958b]">{high.sub}</p>}
       </div>
       <span className="w-px shrink-0" style={{ backgroundColor: HAIR }} aria-hidden />
       <div className="min-w-0 flex-1">
         <p
-          className="text-[9.5px] font-medium tracking-[0.09em] uppercase"
+          className="text-overline font-medium uppercase"
           style={{ color: lowTone && lowTone !== 'neutral' ? TONE[lowTone] : FAINT }}
         >
           {caption[1]}
@@ -1847,8 +1862,8 @@ export function Poles({
         <div className="mt-1.5">
           <Figure value={low.value} size={24} color={lowTone && lowTone !== 'neutral' ? TONE[lowTone] : INK2} />
         </div>
-        <p className="mt-1.5 truncate text-[13px] text-[#1c1a16]">{low.label}</p>
-        {low.sub && <p className="mt-0.5 text-[11px] leading-[15px] text-[#9b958b]">{low.sub}</p>}
+        <p className="mt-1.5 truncate text-small text-[#1c1a16]">{low.label}</p>
+        {low.sub && <p className="mt-0.5 text-caption text-[#9b958b]">{low.sub}</p>}
       </div>
     </div>
   )
@@ -1866,8 +1881,8 @@ export function Movers({ items, unit }: { items: { label: string; sub?: string; 
         return (
           <li key={it.label} className="flex items-center gap-3">
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13.5px] text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-0.5 block truncate text-[11px] text-[#9b958b]">{it.sub}</span>}
+              <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
+              {it.sub && <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{it.sub}</span>}
             </span>
             <span className="relative h-[8px] w-[76px] shrink-0" aria-hidden>
               <span className="absolute inset-y-0 left-1/2 w-px" style={{ backgroundColor: '#e3e1dc' }} />
@@ -1883,7 +1898,7 @@ export function Movers({ items, unit }: { items: { label: string; sub?: string; 
               />
             </span>
             <span
-              className="w-[46px] shrink-0 text-right text-[13px] font-medium tabular-nums"
+              className="w-[46px] shrink-0 text-right text-small font-medium tabular-nums"
               style={{ color: up ? TONE.good : TONE.bad }}
             >
               {up ? '+' : '−'}
@@ -1919,8 +1934,8 @@ export function Bullet({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[13.5px] text-[#1c1a16]">{label}</span>
-        <Figure value={value} size={19} color={fill} />
+        <span className="text-small text-[#1c1a16]">{label}</span>
+        <Figure value={value} size={20} color={fill} />
       </div>
       <div className="relative mt-2.5 h-[10px] w-full rounded-full" style={{ backgroundColor: TRACK }}>
         <div
@@ -1935,7 +1950,7 @@ export function Bullet({
           />
         )}
       </div>
-      {note && <p className="mt-1.5 text-[11px] text-[#9b958b]">{note}</p>}
+      {note && <p className="mt-1.5 text-caption text-[#9b958b]">{note}</p>}
     </div>
   )
 }
@@ -1971,7 +1986,7 @@ export function Table({
             {head.map((h, i) => (
               <th
                 key={h}
-                className={`pb-2 text-[9.5px] font-medium tracking-[0.08em] whitespace-nowrap text-[#9b958b] uppercase ${
+                className={`pb-2 text-overline font-medium whitespace-nowrap text-[#9b958b] uppercase ${
                   i === 0 ? 'text-left' : 'pl-3 text-right'
                 }`}
               >
@@ -1984,13 +1999,13 @@ export function Table({
           {rows.map((r) => (
             <tr key={r.label} className="border-t border-[#f0efec]">
               <td className="py-2.5 pr-2">
-                <span className="block text-[13.5px] leading-[17px] text-[#1c1a16]">{r.label}</span>
-                {r.sub && <span className="mt-0.5 block text-[11px] leading-[14px] text-[#9b958b]">{r.sub}</span>}
+                <span className="block text-small text-[#1c1a16]">{r.label}</span>
+                {r.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{r.sub}</span>}
               </td>
               {r.cells.map((c, ci) => (
                 <td
                   key={ci}
-                  className="py-2.5 pl-3 text-right text-[13px] font-medium tabular-nums whitespace-nowrap"
+                  className="py-2.5 pl-3 text-right text-small font-medium tabular-nums whitespace-nowrap"
                   style={{
                     color:
                       ci === r.cells.length - 1 && r.tone && r.tone !== 'neutral'
@@ -2021,24 +2036,24 @@ export function Ladder({
   return (
     <div>
       <div className="flex items-center gap-3 rounded-[12px] px-3.5 py-3" style={{ backgroundColor: mix(accent, 0.08) }}>
-        <span className="font-display text-[13px] font-bold tabular-nums" style={{ color: accent }}>
+        <span className="font-display text-small font-bold tabular-nums" style={{ color: accent }}>
           1
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-medium text-[#1c1a16]">{leader.label}</span>
-          {leader.sub && <span className="mt-0.5 block truncate text-[11px] text-[#6d6860]">{leader.sub}</span>}
+          <span className="block truncate text-small font-medium text-[#1c1a16]">{leader.label}</span>
+          {leader.sub && <span className="mt-0.5 block truncate text-caption text-[#6d6860]">{leader.sub}</span>}
         </span>
-        <Figure value={leader.value} size={22} />
+        <Figure value={leader.value} size={24} />
       </div>
       <ol className="mt-1 divide-y divide-[#f0efec]">
         {rest.map((it, i) => (
           <li key={it.label} className="flex items-center gap-3 px-3.5 py-2.5">
-            <span className="text-[12px] tabular-nums text-[#9b958b]">{i + 2}</span>
+            <span className="text-caption tabular-nums text-[#9b958b]">{i + 2}</span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13.5px] text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-0.5 block truncate text-[11px] text-[#9b958b]">{it.sub}</span>}
+              <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
+              {it.sub && <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{it.sub}</span>}
             </span>
-            <span className="shrink-0 text-[14px] font-medium tabular-nums text-[#3d3a34]">{it.value}</span>
+            <span className="shrink-0 text-small font-medium tabular-nums text-[#3d3a34]">{it.value}</span>
           </li>
         ))}
       </ol>
@@ -2067,13 +2082,13 @@ export function Band({
     <div className="flex items-center gap-4 rounded-[12px] px-4 py-3.5" style={{ backgroundColor: mix(accent, 0.07) }}>
       <span className="min-w-0 flex-1">
         <span
-          className="block text-[9.5px] font-medium tracking-[0.09em] uppercase"
+          className="block text-overline font-medium uppercase"
           style={{ color: tone && tone !== 'neutral' ? TONE[tone] : accent }}
         >
           {label}
         </span>
-        <span className="mt-1 block text-[14px] leading-[19px] text-[#1c1a16]">{title}</span>
-        {sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#6d6860]">{sub}</span>}
+        <span className="mt-1 block text-small text-[#1c1a16]">{title}</span>
+        {sub && <span className="mt-0.5 block text-caption text-[#6d6860]">{sub}</span>}
       </span>
       <span className="shrink-0 whitespace-nowrap">
         <Figure value={value} unit={unit} size={24} color={tone && tone !== 'neutral' ? TONE[tone] : VALUE} />
@@ -2083,38 +2098,58 @@ export function Band({
 }
 
 /** Two quantities and the relation between them. */
+/**
+ * A BALANCE, A CHANGE, AND A BALANCE — read as a statement, top to bottom.
+ *
+ * This was two figures side by side with the change wedged between them, and the
+ * arrangement fought what the card exists to say. Opening and closing are almost always
+ * within a fraction of a per cent of each other — 215,723 against 214,554 — so the two
+ * largest, most similar numbers on the card took both ends of the row, and the ONE
+ * figure a reader came for, the change, was the smallest thing in it and sat in the
+ * middle where nothing else is read. Two near-identical big numbers also invite the
+ * worst possible misreading: that they are two different measures rather than the same
+ * measure at two moments.
+ *
+ * Stacked, each line is labelled and the reader never has to infer which end is which.
+ * The change is a row of its own, in its own tone, between the two balances it explains
+ * — which is the order the arithmetic actually happens in. It is slower to scan than a
+ * side-by-side pair, and that is the correct trade for a figure that is currently
+ * misread: three labelled rows cannot be read as anything but what they are.
+ */
 export function Pair({
   a,
   b,
   relation,
+  relationLabel = 'Change',
   tone,
 }: {
   a: { value: string; label: string }
   b: { value: string; label: string }
   /** A delta token — "net −3" — not a phrase. */
   relation?: string
+  /** What the middle row is called. "Change" unless the card means something narrower. */
+  relationLabel?: string
   tone?: Tone
 }) {
+  const ink = tone && tone !== 'neutral' ? TONE[tone] : VALUE
+  /* One row, so the three cannot drift apart in padding, alignment or type. The label
+     wraps and the figure never does — a date qualifier is allowed two lines in a narrow
+     card, a six-digit balance broken across two is unreadable. */
+  const row = (label: string, value: string, color: string, emphasis = false) => (
+    <div className="flex items-baseline justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+      <span className={`min-w-0 text-small ${emphasis ? 'font-medium text-[#1c1a16]' : 'text-[#3d3a34]'}`}>
+        {label}
+      </span>
+      <span className="shrink-0">
+        <Figure value={value} size={24} color={color} />
+      </span>
+    </div>
+  )
   return (
-    <div>
-      <div className="flex items-end gap-3">
-        <span className="min-w-0 flex-1">
-          <Figure value={a.value} size={34} />
-          <span className="mt-1 block truncate text-[12px] text-[#6d6860]">{a.label}</span>
-        </span>
-        {relation && (
-          <span
-            className="mb-2 shrink-0 text-[12px] font-medium"
-            style={{ color: tone && tone !== 'neutral' ? TONE[tone] : FAINT }}
-          >
-            {relation}
-          </span>
-        )}
-        <span className="min-w-0 flex-1 text-right">
-          <Figure value={b.value} size={34} />
-          <span className="mt-1 block truncate text-[12px] text-[#6d6860]">{b.label}</span>
-        </span>
-      </div>
+    <div className="divide-y divide-[#f0efec]">
+      {row(a.label, a.value, VALUE)}
+      {relation && row(relationLabel, relation, ink, true)}
+      {row(b.label, b.value, VALUE)}
     </div>
   )
 }
@@ -2165,11 +2200,11 @@ export function Dial({
           {t && <line x1={t[0]} y1={t[1]} x2={t[2]} y2={t[3]} stroke={INK} strokeWidth={1.5} opacity={0.45} />}
         </svg>
         <div className="absolute inset-x-0 bottom-[6px] text-center">
-          <Figure value={value} unit={unit} size={38} />
+          <Figure value={value} unit={unit} size={40} />
         </div>
       </div>
-      <p className="mt-1 text-center text-[13px] text-[#3d3a34]">{label}</p>
-      {benchmarkLabel && <p className="mt-1 text-center text-[11px] text-[#9b958b]">{benchmarkLabel}</p>}
+      <p className="mt-1 text-center text-small text-[#3d3a34]">{label}</p>
+      {benchmarkLabel && <p className="mt-1 text-center text-caption text-[#9b958b]">{benchmarkLabel}</p>}
     </div>
   )
 }
@@ -2194,7 +2229,7 @@ export function Calendar({
     <div>
       <div className="grid grid-cols-7 gap-[3px]">
         {weekLabels.map((w, i) => (
-          <span key={i} className="pb-1 text-center text-[9.5px] text-[#9b958b]">
+          <span key={i} className="pb-1 text-center text-tick text-[#9b958b]">
             {w}
           </span>
         ))}
@@ -2212,14 +2247,14 @@ export function Calendar({
               title={m?.note}
             >
               <span
-                className="text-[10px] tabular-nums"
+                className="text-tick tabular-nums"
                 style={{ color: m ? (m.count / max > 0.55 ? '#ffffff' : INK) : FAINT }}
               >
                 {d}
               </span>
               {m && (
                 <span
-                  className="font-display text-[11px] font-bold tabular-nums"
+                  className="font-display text-caption font-bold tabular-nums"
                   style={{ color: m.count / max > 0.55 ? '#ffffff' : INK }}
                 >
                   {m.count}
@@ -2234,10 +2269,10 @@ export function Calendar({
           .filter((m) => m.note)
           .map((m) => (
             <li key={m.day} className="flex items-baseline gap-3 py-2 first:pt-0 last:pb-0">
-              <span className="w-[22px] shrink-0 text-[12px] font-medium tabular-nums text-[#1c1a16]">{m.day}</span>
-              <span className="min-w-0 flex-1 truncate text-[13px] text-[#3d3a34]">{m.note}</span>
+              <span className="w-[22px] shrink-0 text-caption font-medium tabular-nums text-[#1c1a16]">{m.day}</span>
+              <span className="min-w-0 flex-1 truncate text-small text-[#3d3a34]">{m.note}</span>
               <span
-                className="shrink-0 text-[13px] font-medium tabular-nums"
+                className="shrink-0 text-small font-medium tabular-nums"
                 style={{ color: m.tone && m.tone !== 'neutral' ? TONE[m.tone] : VALUE }}
               >
                 {m.count}
@@ -2266,13 +2301,13 @@ export function Highlights({
         const c = it.tone && it.tone !== 'neutral' ? TONE[it.tone] : accent
         return (
           <li key={`${it.tag}-${i}`} className="border-l-2 pl-3" style={{ borderColor: mix(c, 0.55) }}>
-            <p className="truncate text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: c }}>
+            <p className="truncate text-overline font-medium uppercase" style={{ color: c }}>
               {it.tag}
             </p>
             <div className="mt-1">
               <Figure value={it.value} unit={it.unit} size={24} color={it.tone && it.tone !== 'neutral' ? c : VALUE} />
             </div>
-            <p className="mt-0.5 text-[12px] leading-[16px] text-[#6d6860]">{it.label}</p>
+            <p className="mt-0.5 text-caption text-[#6d6860]">{it.label}</p>
           </li>
         )
       })}
@@ -2294,7 +2329,7 @@ export function Events({
     <ul className="flex flex-col">
       {items.map((it, i) => (
         <li key={`${it.when}-${i}`} className="flex gap-3">
-          <span className="w-[44px] shrink-0 pt-[1px] text-right text-[11px] tabular-nums text-[#9b958b]">
+          <span className="w-[44px] shrink-0 pt-[1px] text-right text-caption tabular-nums text-[#9b958b]">
             {it.when}
           </span>
           <span className="relative flex w-[9px] shrink-0 justify-center" aria-hidden>
@@ -2306,12 +2341,12 @@ export function Events({
           </span>
           <span className={`flex min-w-0 flex-1 items-baseline gap-3 ${i < items.length - 1 ? 'pb-4' : ''}`}>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13.5px] leading-[18px] text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{it.sub}</span>}
+              <span className="block text-small text-[#1c1a16]">{it.label}</span>
+              {it.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{it.sub}</span>}
             </span>
             {it.value && (
               <span
-                className="shrink-0 text-[14px] font-medium tabular-nums"
+                className="shrink-0 text-small font-medium tabular-nums"
                 style={{ color: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : INK2 }}
               >
                 {it.value}
@@ -2345,7 +2380,7 @@ export function More({ href, label = 'View details' }: { href: string; label?: s
   return (
     <a
       href={href}
-      className="card-press inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-[5px] text-[11.5px] font-medium whitespace-nowrap"
+      className="card-press inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-[5px] text-caption font-medium whitespace-nowrap"
       style={{ backgroundColor: mix(accent, 0.11), color: ACCENT_INK }}
     >
       {label}
@@ -2393,9 +2428,9 @@ export function Ring({
   return (
     <div ref={ref} className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
-        <Figure value={`${Math.round(p)}`} unit="%" size={34} color={c} />
-        <p className="mt-1 text-[13.5px] text-[#1c1a16]">{label}</p>
-        {note && <p className="mt-0.5 text-[11px] leading-[15px] text-[#9b958b]">{note}</p>}
+        <Figure value={`${Math.round(p)}`} unit="%" size={32} color={c} />
+        <p className="mt-1 text-small text-[#1c1a16]">{label}</p>
+        {note && <p className="mt-0.5 text-caption text-[#9b958b]">{note}</p>}
         {href && (
           <div className="mt-2.5">
             <More href={href} />
@@ -2419,9 +2454,9 @@ export function Ring({
         {/* Numerator over denominator, hairline between — the fraction the
             percentage came from, at the centre of the ring that shows it. */}
         <div className="absolute inset-x-0 top-[38px] text-center">
-          <Figure value={value} size={21} />
+          <Figure value={value} size={20} />
           <span className="mx-auto mt-1 block h-px w-[42px]" style={{ backgroundColor: HAIR }} aria-hidden />
-          <span className="mt-1 block text-[12px] tabular-nums text-[#6d6860]">{of}</span>
+          <span className="mt-1 block text-caption tabular-nums text-[#6d6860]">{of}</span>
         </div>
       </div>
     </div>
@@ -2486,8 +2521,8 @@ export function Donut({
             </g>
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[11px] text-[#9b958b]">{label}</span>
-            <Figure value={compact(total)} size={26} />
+            <span className="text-caption text-[#9b958b]">{label}</span>
+            <Figure value={compact(total)} size={28} />
           </div>
         </div>
         {/* Legend rides beside the ring, not under it — a 132px ring leaves a
@@ -2502,8 +2537,8 @@ export function Donut({
                 }}
                 aria-hidden
               />
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-[#3d3a34]">{it.label}</span>
-              <span className="shrink-0 text-[12.5px] font-medium tabular-nums text-[#1c1a16]">
+              <span className="min-w-0 flex-1 truncate text-caption text-[#3d3a34]">{it.label}</span>
+              <span className="shrink-0 text-caption font-medium tabular-nums text-[#1c1a16]">
                 {compact(it.value)}
               </span>
             </li>
@@ -2511,7 +2546,7 @@ export function Donut({
         </ul>
       </div>
       {unit && (
-        <p className="mt-3.5 text-[11px] text-[#9b958b]">
+        <p className="mt-3.5 text-caption text-[#9b958b]">
           {fmt(total)} {unit}
         </p>
       )}
@@ -2609,7 +2644,7 @@ export function Trend({
           {gridlines.map((g) => (
             <span
               key={g}
-              className="absolute right-0 -translate-y-1/2 text-[9.5px] tabular-nums text-[#9b958b]"
+              className="absolute right-0 -translate-y-1/2 text-tick tabular-nums text-[#9b958b]"
               style={{ top: `${(1 - g / top) * 100}%` }}
             >
               {compact(g)}
@@ -2670,7 +2705,7 @@ export function Trend({
             {labels.map((l, i) => (
               <span
                 key={`${l}-${i}`}
-                className={`flex-1 text-[10px] text-[#9b958b] ${
+                className={`flex-1 text-tick text-[#9b958b] ${
                   i === 0 ? 'text-left' : i === labels.length - 1 ? 'text-right' : 'text-center'
                 }`}
               >
@@ -2680,7 +2715,7 @@ export function Trend({
           </div>
         </div>
       </div>
-      {unit && <p className="mt-2.5 text-[11px] text-[#9b958b]">{unit}</p>}
+      {unit && <p className="mt-2.5 text-caption text-[#9b958b]">{unit}</p>}
     </div>
   )
 }
@@ -2712,7 +2747,7 @@ function SexChip({ sex }: { sex: 'M' | 'F' | 'U' }) {
   const accent = useAccent()
   return (
     <span
-      className="inline-grid size-[19px] place-items-center rounded-[5px] text-[10px] font-medium"
+      className="inline-grid size-[19px] place-items-center rounded-[5px] text-tick font-medium"
       style={{ backgroundColor: mix(accent, 0.13), color: ACCENT_INK }}
       title={SEX_LABEL[sex]}
     >
@@ -2773,8 +2808,8 @@ export function Roster({
             >
               <span className="size-[7px] rounded-full" style={{ backgroundColor: accent }} />
             </span>
-            <span className="min-w-0 truncate text-[13.5px] font-medium text-[#1c1a16]">{g.group}</span>
-            <span className="shrink-0 text-[12px] text-[#9b958b]">· {g.count}</span>
+            <span className="min-w-0 truncate text-small font-medium text-[#1c1a16]">{g.group}</span>
+            <span className="shrink-0 text-caption text-[#9b958b]">· {g.count}</span>
           </div>
           <div className="overflow-hidden rounded-[10px]">
             <table className="w-full table-fixed">
@@ -2789,7 +2824,7 @@ export function Roster({
                     <th
                       key={h}
                       style={widths?.[i] ? { width: widths[i] } : undefined}
-                      className={`px-2.5 py-2 text-[10px] font-medium tracking-[0.05em] text-white/85 uppercase ${
+                      className={`px-2.5 py-2 text-overline font-medium text-white/85 uppercase ${
                         align?.[i] === 'right' ? 'text-right' : 'text-left'
                       } ${!widths && i === 0 ? 'w-[34%]' : ''} ${h === '' ? 'w-[34px] px-0' : ''}`}
                     >
@@ -2803,10 +2838,10 @@ export function Roster({
                   <tr key={`${r.id ?? r.name}-${ri}`} style={{ backgroundColor: ri % 2 ? '#ffffff' : '#f4f7f4' }}>
                     <td className="px-2.5 py-2.5 align-top">
                       {r.id && (
-                        <span className="block text-[12px] leading-[15px] font-semibold text-[#1c1a16]">{r.id}</span>
+                        <span className="block text-caption font-semibold text-[#1c1a16]">{r.id}</span>
                       )}
                       <span
-                        className={`block text-[12px] leading-[15px] text-[#3d3a34] ${r.id ? 'mt-0.5' : ''}`}
+                        className={`block text-caption text-[#3d3a34] ${r.id ? 'mt-0.5' : ''}`}
                       >
                         {r.name}
                       </span>
@@ -2823,7 +2858,7 @@ export function Roster({
                          but printing over the next column is wrong. */
                       <td
                         key={ci}
-                        className={`px-2.5 py-2.5 align-top text-[12px] leading-[16px] break-words whitespace-pre-line text-[#6d6860] ${
+                        className={`px-2.5 py-2.5 align-top text-caption break-words whitespace-pre-line text-[#6d6860] ${
                           alignOf(ci) === 'right' ? 'text-right tabular-nums' : ''
                         }`}
                       >
@@ -2913,14 +2948,13 @@ export function Sites({
     <div>
       <div className="flex items-end justify-between gap-3">
         <span>
-          <Figure value={overall} unit={rate ? '%' : cut.unit} size={34} />
-          <p className="mt-0.5 text-[12px] text-[#3d3a34]">
+          <Figure value={overall} unit={rate ? '%' : cut.unit} size={32} />
+          <p className="mt-0.5 text-small text-[#3d3a34]">
             Overall · {period.label.toLowerCase()}
           </p>
         </span>
-        <span className="shrink-0 pb-1 text-[11px] whitespace-nowrap text-[#9b958b]">{note}</span>
+        <span className="shrink-0 pb-1 text-caption whitespace-nowrap text-[#9b958b]">{note}</span>
       </div>
-
       <label className="mt-3.5 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
         <Search size={14} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
         <input
@@ -2929,7 +2963,7 @@ export function Sites({
           placeholder="Find a site"
           aria-label="Find a site"
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+          className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
         />
         {query && (
           <button
@@ -2944,7 +2978,7 @@ export function Sites({
       </label>
 
       {rows.length === 0 && (
-        <p className="mt-4 border-t border-[#f0efec] pt-4 text-[12.5px] text-[#9b958b]">
+        <p className="mt-4 border-t border-[#f0efec] pt-4 text-caption text-[#9b958b]">
           No site matches “{query.trim()}”.
         </p>
       )}
@@ -2956,31 +2990,31 @@ export function Sites({
           /* Spans, not divs — the row is wrapped in a button when it drills, and a button may
              only carry phrasing content. The marks and the measurements are unchanged. */
           const row = (
-            /* A RATE KEEPS ITS BAR, A COUNT GETS THE RAIL. Coverage is measured against 100%
-               and a track that fills is the fact — how far along, at a glance. A count has no
-               ceiling, so the bar could only be scaled to the widest row, which draws the
-               ranking the rows are already in. See `Rail` above. */
+            /* A RATE KEEPS ITS BAR; A COUNT NOW CARRIES NO MARK AT ALL. Coverage is measured
+               against 100% and a track that fills is the fact — how far along, at a glance. A
+               count has no ceiling, so a bar could only be scaled to the widest row, which draws
+               the ranking the rows are already in; the three-pixel rail that used to say it
+               instead is gone from the whole product, so the row order says it alone. */
             <span className={rate ? 'block' : 'flex items-stretch gap-2.5'}>
-              {!rate && <Rail share={r.percent} top={Math.max(...cut.rows.map((x) => x.percent), 1)} />}
               <span className="min-w-0 flex-1">
               <span className="flex items-baseline justify-between gap-3">
                 <span className="flex min-w-0 items-baseline gap-2">
-                  <span className="truncate text-[13.5px] text-[#1c1a16]">{r.site.name}</span>
+                  <span className="truncate text-small text-[#1c1a16]">{r.site.name}</span>
                   {!dense && (
-                    <span className="shrink-0 text-[10.5px] tabular-nums text-[#9b958b]">
+                    <span className="shrink-0 text-caption tabular-nums text-[#9b958b]">
                       {r.site.code} · {r.site.enclosures}
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 text-[13.5px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {rate ? `${Math.round(r.percent)}%` : fmt(r.value)}
                   {rate && r.of && (
-                    <span className="ml-1 text-[10.5px] font-normal text-[#9b958b]">
+                    <span className="ml-1 text-caption font-normal text-[#9b958b]">
                       {fmt(r.value)}/{fmt(r.of)}
                     </span>
                   )}
                   {!rate && r.value > 0 && (
-                    <span className="ml-1 text-[10.5px] font-normal text-[#9b958b]">
+                    <span className="ml-1 text-caption font-normal text-[#9b958b]">
                       {Math.round(r.percent)}%
                     </span>
                   )}
@@ -3073,12 +3107,12 @@ export function RedList({
             {/* Tier header carries its own subtotal. This is where the hierarchy comes
                 from: three figures at a glance, before any individual row is read. */}
             <div className="mb-2.5 flex items-baseline gap-3">
-              <span className="text-[10px] font-medium tracking-[0.09em] whitespace-nowrap text-[#9b958b] uppercase">
+              <span className="text-overline font-medium whitespace-nowrap text-[#9b958b] uppercase">
                 {tier.label}
               </span>
               <span className="h-px flex-1" style={{ backgroundColor: HAIR }} />
               <span
-                className={`shrink-0 font-display tabular-nums ${lead ? 'text-[15px] font-bold' : 'text-[13px] font-medium'}`}
+                className={`shrink-0 font-display tabular-nums ${lead ? 'text-body font-bold' : 'text-small font-medium'}`}
                 style={{ color: lead ? VALUE : MUTED }}
               >
                 {fmt(subtotal)}
@@ -3108,7 +3142,7 @@ export function RedList({
                         Checked's grey, and for that one category the colour IS the
                         meaning. An empty row says so through its figure instead. */}
                     <span
-                      className="grid size-[22px] shrink-0 place-items-center rounded-full rounded-tr-[3px] font-display text-[9.5px] font-bold"
+                      className="grid size-[22px] shrink-0 place-items-center rounded-full rounded-tr-[3px] font-display text-tick font-bold"
                       style={{
                         backgroundColor: c.fill,
                         color: c.ink,
@@ -3121,12 +3155,12 @@ export function RedList({
                     {/* One line, never wrapping. The 5-across grid this replaced gave
                         "Critically Endangered" a 55px column and three stacked lines. */}
                     <span
-                      className={`min-w-0 flex-1 truncate ${lead ? 'text-[13.5px] text-[#1c1a16]' : 'text-[13px] text-[#3d3a34]'}`}
+                      className={`min-w-0 flex-1 truncate ${lead ? 'text-small text-[#1c1a16]' : 'text-small text-[#3d3a34]'}`}
                     >
                       {c.name}
                     </span>
                     <span
-                      className={`shrink-0 font-display tabular-nums ${lead ? 'text-[17px] font-bold' : 'text-[14px] font-medium'}`}
+                      className={`shrink-0 font-display tabular-nums ${lead ? 'text-body font-bold' : 'text-small font-medium'}`}
                       style={{ color: n === 0 ? FAINT : VALUE }}
                     >
                       {fmt(n)}
@@ -3134,7 +3168,7 @@ export function RedList({
                     {/* Reserved on every row, linked or not, so ten figures stay in one
                         column rather than stepping in and out by 9px down the card. */}
                     <span
-                      className="w-[9px] shrink-0 text-[12px] leading-none"
+                      className="w-[9px] shrink-0 text-caption"
                       style={{ color: live ? ACCENT_INK : 'transparent' }}
                       aria-hidden
                     >
@@ -3199,7 +3233,7 @@ export function Filter<T>({
               type="button"
               aria-pressed={on}
               onClick={() => setActive(o)}
-              className={`card-press shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+              className={`card-press shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
                 on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
               }`}
             >
@@ -3220,7 +3254,7 @@ export function Filter<T>({
         {visible.length > 0 ? (
           children(visible, active)
         ) : (
-          <p className="py-3 text-[12.5px] text-[#9b958b]">Nothing under {active} in this window.</p>
+          <p className="py-3 text-caption text-[#9b958b]">Nothing under {active} in this window.</p>
         )}
       </div>
     </div>
@@ -3285,7 +3319,7 @@ export function PeriodHero({
 export function Stamp({ asOf, source }: { asOf: string; source?: string }) {
   const { period } = usePeriod()
   return (
-    <p className="px-1 pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
+    <p className="px-1 pt-1 pb-2 text-center text-caption text-[#9b958b]">
       {period.key === 'month' ? `As of ${asOf}` : period.window}
       {source && ` · ${source}`}
     </p>

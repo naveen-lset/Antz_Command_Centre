@@ -24,7 +24,6 @@
 import type { ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { FAINT, TONE, VALUE, useAccent, type Tone } from '../../exec/system'
-import { Rail } from '../../exec/marks'
 
 export interface Col<T> {
   key: string
@@ -47,8 +46,6 @@ export function RankTable<T>({
   sortKey,
   onSort,
   onOpen,
-  /** Drawn under the stacked phone row — the row's share of the total. */
-  bar,
   empty,
 }: {
   rows: T[]
@@ -71,7 +68,7 @@ export function RankTable<T>({
     return (
       <>
         {empty ?? (
-          <p className="text-[12.5px]" style={{ color: FAINT }}>
+          <p className="text-caption" style={{ color: FAINT }}>
             Nothing to show.
           </p>
         )}
@@ -90,7 +87,7 @@ export function RankTable<T>({
               type="button"
               aria-pressed={sortKey === c.key}
               onClick={() => onSort(c.key)}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+              className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
                 sortKey === c.key ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
               }`}
             >
@@ -106,7 +103,7 @@ export function RankTable<T>({
           <thead>
             <tr className="border-b border-[#f0efec]">
               <th
-                className="pb-2 text-left text-[10.5px] font-semibold tracking-[0.07em] uppercase"
+                className="pb-2 text-left text-overline font-semibold uppercase"
                 style={{ color: FAINT }}
               >
                 {head}
@@ -117,7 +114,7 @@ export function RankTable<T>({
                     <button
                       type="button"
                       onClick={() => onSort(c.key)}
-                      className="text-[10.5px] font-semibold tracking-[0.07em] uppercase transition-colors"
+                      className="text-overline font-semibold uppercase transition-colors"
                       style={{ color: sortKey === c.key ? accent : FAINT }}
                     >
                       {c.head}
@@ -125,7 +122,7 @@ export function RankTable<T>({
                     </button>
                   ) : (
                     <span
-                      className="text-[10.5px] font-semibold tracking-[0.07em] uppercase"
+                      className="text-overline font-semibold uppercase"
                       style={{ color: FAINT }}
                     >
                       {c.head}
@@ -144,9 +141,9 @@ export function RankTable<T>({
                 onClick={onOpen ? () => onOpen(r) : undefined}
               >
                 <td className="py-2.5 pr-3">
-                  <span className="block truncate text-[13px] text-[#1c1a16]">{name(r)}</span>
+                  <span className="block truncate text-small text-[#1c1a16]">{name(r)}</span>
                   {sub?.(r) && (
-                    <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                       {sub(r)}
                     </span>
                   )}
@@ -156,7 +153,7 @@ export function RankTable<T>({
                   return (
                     <td
                       key={c.key}
-                      className="py-2.5 text-right text-[13px] font-medium tabular-nums whitespace-nowrap"
+                      className="py-2.5 text-right text-small font-medium tabular-nums whitespace-nowrap"
                       style={{ color: t && t !== 'neutral' ? TONE[t] : VALUE }}
                     >
                       {c.cell(r)}
@@ -185,13 +182,12 @@ export function RankTable<T>({
                progress bars were four charts of an ordering the rows already state — see the
                note on `TapRow`'s `bar` in `v4/panels.tsx`. */
             <span className="flex items-stretch gap-3">
-              {bar && <Rail share={bar(r)} />}
               <span className="min-w-0 flex-1">
               <span className="flex items-baseline gap-3">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-[#1c1a16]">{name(r)}</span>
+                  <span className="block truncate text-small text-[#1c1a16]">{name(r)}</span>
                   {sub?.(r) && (
-                    <span className="mt-0.5 block truncate text-[11px] leading-[15px]" style={{ color: FAINT }}>
+                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                       {sub(r)}
                     </span>
                   )}
@@ -199,12 +195,12 @@ export function RankTable<T>({
                 {lead && (
                   <span className="shrink-0 text-right">
                     <span
-                      className="text-[14px] font-medium tabular-nums"
+                      className="text-small font-medium tabular-nums"
                       style={{ color: leadTone && leadTone !== 'neutral' ? TONE[leadTone] : VALUE }}
                     >
                       {lead.cell(r)}
                     </span>
-                    <span className="ml-1 text-[11px]" style={{ color: FAINT }}>
+                    <span className="ml-1 text-caption" style={{ color: FAINT }}>
                       {lead.head.toLowerCase()}
                     </span>
                   </span>
@@ -221,7 +217,7 @@ export function RankTable<T>({
                   {chips.map((c) => {
                     const t = c.tone?.(r)
                     return (
-                      <span key={c.key} className="text-[11px] whitespace-nowrap" style={{ color: FAINT }}>
+                      <span key={c.key} className="text-caption whitespace-nowrap" style={{ color: FAINT }}>
                         {c.head}{' '}
                         <span
                           className="font-medium tabular-nums"

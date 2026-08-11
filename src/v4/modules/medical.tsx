@@ -59,6 +59,7 @@ import {
   mix,
 } from '../../exec/system'
 import { RankList } from '../../exec/marks'
+import { RangeTabs, useChartRange } from '../../exec/range'
 import { MoreRows, usePaged } from '../perf'
 import { FindField } from '../filters'
 import { useScope } from '../scope'
@@ -161,40 +162,38 @@ function MedicalHero({ hospitalId }: { hospitalId?: string }) {
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <div className="flex items-end justify-between gap-4">
           <span>
-            <Figure value={fmt(s.cases)} size={52} color={HERO_INK} />
-            <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+            <Figure value={fmt(s.cases)} size={48} color={HERO_INK} />
+            <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
               <Stethoscope size={15} strokeWidth={1.75} style={{ color: MEDICAL_ACCENT }} aria-hidden />
               Medical cases · {scope.win.label.toLowerCase()}
             </p>
           </span>
-          <span className="shrink-0 pb-1 text-right text-[11px] leading-[15px]" style={{ color: FAINT }}>
+          <span className="shrink-0 pb-1 text-right text-caption" style={{ color: FAINT }}>
             {scopeLine(scope, hospitalId)}
             <br />
             {hospitalId ? '1 hospital' : `${HOSPITALS.length} hospitals`} · {s.discharges} discharged
           </span>
         </div>
-
         <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
           <span className="min-w-0 flex-1 pr-4">
-            <Figure value={hospitalId ? '—' : fmt(underCare)} size={26} />
+            <Figure value={hospitalId ? '—' : fmt(underCare)} size={28} />
             {/* Wraps rather than truncates. The caption is the clock the figure is read on —
                 "Animals sick · no…" has thrown away the only word that was doing work. */}
-            <span className="mt-0.5 block text-[12px] leading-[15px] text-[#6d6860]">
+            <span className="mt-0.5 block text-caption text-[#6d6860]">
               {hospitalId ? 'Sick · site level' : 'Animals sick · now'}
             </span>
           </span>
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
-            <Figure value={fmt(s.inHospital)} size={26} color={TONE.warn} />
-            <span className="mt-0.5 block text-[12px] leading-[15px]" style={{ color: TONE.warn }}>
+            <Figure value={fmt(s.inHospital)} size={28} color={TONE.warn} />
+            <span className="mt-0.5 block text-caption" style={{ color: TONE.warn }}>
               In hospital · now
             </span>
           </span>
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
-            <Figure value={fmt(s.medications)} size={26} />
-            <span className="mt-0.5 block text-[12px] leading-[15px] text-[#6d6860]">Medications · now</span>
+            <Figure value={fmt(s.medications)} size={28} />
+            <span className="mt-0.5 block text-caption text-[#6d6860]">Medications · now</span>
           </span>
         </div>
-
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[#f0efec] pt-4 @[520px]:grid-cols-4">
           {[
             { label: 'Surgeries', value: fmt(s.surgeries) },
@@ -208,12 +207,12 @@ function MedicalHero({ hospitalId }: { hospitalId?: string }) {
           ].map((f) => (
             <span key={f.label} className="min-w-0">
               <span
-                className="block font-display text-[19px] leading-none font-bold tabular-nums"
+                className="block font-display text-n-sm font-bold tabular-nums"
                 style={{ color: f.tone ?? HERO_INK }}
               >
                 {f.value}
               </span>
-              <span className="mt-1 block truncate text-[11.5px]" style={{ color: FAINT }}>
+              <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                 {f.label}
               </span>
             </span>
@@ -246,7 +245,7 @@ function Toolbar({ hospitalId, onHospital }: { hospitalId?: string; onHospital: 
               type="button"
               aria-pressed={on}
               onClick={() => onHospital(id)}
-              className="card-press shrink-0 rounded-full px-3 py-[6px] text-[12px] font-medium whitespace-nowrap transition-colors"
+              className="card-press shrink-0 rounded-full px-3 py-[6px] text-caption font-medium whitespace-nowrap transition-colors"
               style={
                 on
                   ? { backgroundColor: MEDICAL_ACCENT, color: '#ffffff' }
@@ -260,7 +259,6 @@ function Toolbar({ hospitalId, onHospital }: { hospitalId?: string; onHospital: 
           )
         })}
       </div>
-
       <Rule label="Find" />
       <FindField value={query} onChange={setQuery} placeholder="Animal ID, species, case ID, hospital, medicine" />
       <SearchResults query={query} hospitalId={hospitalId} onHospital={onHospital} />
@@ -375,7 +373,7 @@ function SearchResults({
   if (q.length < 2) return null
   if (hits.length === 0) {
     return (
-      <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+      <p className="mt-3 text-caption" style={{ color: FAINT }}>
         Nothing matches “{query.trim()}”.
       </p>
     )
@@ -406,24 +404,28 @@ function CaseTrend({ hospitalId }: { hospitalId?: string }) {
   const { scope } = useScope()
   const { open } = useSheet()
   const site = siteKeyOf(scope)
+  /* Its own range, for the same reason the vaccination calendar has one: a grid of one square
+     answers nothing, and the page is often cut to a day on purpose. */
+  const range = useChartRange()
 
   const cells = useMemo(() => {
-    const rows = casesBetween(site, scope.win.from, scope.win.to).filter(
+    const rows = casesBetween(site, range.win.from, range.win.to).filter(
       (c) => !hospitalId || c.hospitalId === hospitalId,
     )
     const byDay = new Map<number, number>()
     for (const c of rows) byDay.set(c.day, (byDay.get(c.day) ?? 0) + 1)
-    return gridCells(scope.win, (from, to) => {
+    return gridCells(range.win, (from, to) => {
       let n = 0
       for (let d = from; d <= to; d++) n += byDay.get(d) ?? 0
       return n
     })
-  }, [scope.win, site, hospitalId])
+  }, [range.win, site, hospitalId])
 
   const total = cells.cells.reduce((n, c) => n + c.value, 0)
 
   return (
-    <Section icon={ClipboardList} label="Medical case trend" aside={`${fmt(total)} · ${scope.win.window}`}>
+    <Section icon={ClipboardList} label="Medical case trend" aside={`${fmt(total)} · ${range.win.window}`}>
+      <RangeTabs range={range} />
       <ScheduleGrid
         cells={cells.cells}
         grain={cells.grain}
@@ -484,7 +486,6 @@ function ActiveCases({ hospitalId }: { hospitalId?: string }) {
             label={r.label}
             value={fmt(r.value)}
             unit={`${Math.round(r.percent)}%`}
-            bar={r.percent}
             tone={SEVERITY_TONE[r.label as keyof typeof SEVERITY_TONE]}
             onOpen={() =>
               open({
@@ -600,18 +601,17 @@ function Hospitalisation({ hospitalId }: { hospitalId?: string }) {
     <Section icon={BedDouble} label="Hospitalisation" aside="in hospital · now">
       <div className="flex items-end gap-4">
         <span>
-          <Figure value={fmt(inHospital.length)} size={44} color={TONE.warn} />
-          <p className="mt-1 text-[13px]" style={{ color: TONE.warn }}>
+          <Figure value={fmt(inHospital.length)} size={40} color={TONE.warn} />
+          <p className="mt-1 text-small" style={{ color: TONE.warn }}>
             currently hospitalised
           </p>
         </span>
-        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+        <span className="flex-1 pb-1 text-right text-caption" style={{ color: FAINT }}>
           {admitted.length} admitted · {discharged.length} discharged
           <br />
           {scope.win.window}
         </span>
       </div>
-
       <Rule label="By hospital" />
       <DrillList>
         {rows.map((r) => (
@@ -620,7 +620,6 @@ function Hospitalisation({ hospitalId }: { hospitalId?: string }) {
             label={r.hospital.name}
             sub={`${r.hospital.code} · ${r.hospital.beds} beds · ${Math.round((r.n / r.hospital.beds) * 100)}% occupied`}
             value={fmt(r.n)}
-            bar={(r.n / r.hospital.beds) * 100}
             tone={r.n / r.hospital.beds > 0.85 ? 'bad' : undefined}
             onOpen={() =>
               open({
@@ -666,7 +665,6 @@ function StayComparison({ hospitalId }: { hospitalId?: string }) {
         .sort((a, b) => (b.averageStay ?? 0) - (a.averageStay ?? 0)),
     [scope],
   )
-  const longest = Math.max(...rows.map((r) => r.averageStay ?? 0), 1)
 
   return (
     <Section icon={Hourglass} label="Average days in hospital" aside={scope.win.window}>
@@ -675,20 +673,20 @@ function StayComparison({ hospitalId }: { hospitalId?: string }) {
           <Figure
             value={overall.averageStay === undefined ? '—' : overall.averageStay.toFixed(1)}
             unit={overall.averageStay === undefined ? undefined : 'd'}
-            size={44}
+            size={40}
             color={HERO_INK}
           />
-          <p className="mt-1 text-[13px] text-[#3d3a34]">
+          <p className="mt-1 text-small text-[#3d3a34]">
             {hospitalId ? (hospitalOf(hospitalId)?.name ?? '') : 'across all hospitals'}
           </p>
         </span>
-        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+        <span className="flex-1 pb-1 text-right text-caption" style={{ color: FAINT }}>
           over {overall.discharges} discharged
         </span>
       </div>
 
       {rows.length === 0 ? (
-        <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+        <p className="mt-3 text-caption" style={{ color: FAINT }}>
           Nothing discharged in {scope.win.window}.
         </p>
       ) : (
@@ -702,7 +700,6 @@ function StayComparison({ hospitalId }: { hospitalId?: string }) {
                 sub={`${r.discharges} discharged`}
                 value={(r.averageStay ?? 0).toFixed(1)}
                 unit="d"
-                bar={((r.averageStay ?? 0) / longest) * 100}
                 onOpen={() =>
                   open({
                     title: r.hospital.name,
@@ -760,12 +757,12 @@ function Recovery({ hospitalId }: { hospitalId?: string }) {
           <Figure
             value={overall === undefined ? '—' : String(Math.round(overall))}
             unit={overall === undefined ? undefined : '%'}
-            size={44}
+            size={40}
             color={overall === undefined ? HERO_INK : '#1e7a44'}
           />
-          <p className="mt-1 text-[13px] text-[#3d3a34]">discharged recovered</p>
+          <p className="mt-1 text-small text-[#3d3a34]">discharged recovered</p>
         </span>
-        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+        <span className="flex-1 pb-1 text-right text-caption" style={{ color: FAINT }}>
           {closed.filter((c) => c.outcome === 'Recovered').length} of {closed.length}
         </span>
       </div>
@@ -818,16 +815,16 @@ function Surgeries({ hospitalId }: { hospitalId?: string }) {
       <div className="flex items-end gap-4">
         <span>
           <Figure value={fmt(rows.length)} size={40} color={HERO_INK} />
-          <p className="mt-1 text-[13px] text-[#3d3a34]">procedures performed</p>
+          <p className="mt-1 text-small text-[#3d3a34]">procedures performed</p>
         </span>
-        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+        <span className="flex-1 pb-1 text-right text-caption" style={{ color: FAINT }}>
           {new Set(rows.map((c) => c.hospitalName)).size} hospitals · {new Set(rows.map((c) => c.speciesName)).size}{' '}
           species
         </span>
       </div>
 
       {rows.length === 0 ? (
-        <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+        <p className="mt-3 text-caption" style={{ color: FAINT }}>
           No procedures in {scope.win.window}.
         </p>
       ) : (
@@ -839,7 +836,6 @@ function Surgeries({ hospitalId }: { hospitalId?: string }) {
                 key={name}
                 label={name}
                 value={fmt(n)}
-                bar={(n / procedures[0][1]) * 100}
                 onOpen={() =>
                   open({
                     title: name,
@@ -905,7 +901,6 @@ function HospitalMortality({ hospitalId }: { hospitalId?: string }) {
                 label={name}
                 value={fmt(n)}
                 tone="bad"
-                bar={(n / byHospital[0][1]) * 100}
                 onOpen={() =>
                   open({
                     title: name,
@@ -947,9 +942,9 @@ function ActiveMedications({ hospitalId }: { hospitalId?: string }) {
       <div className="flex items-end gap-4">
         <span>
           <Figure value={fmt(total)} size={40} color={HERO_INK} />
-          <p className="mt-1 text-[13px] text-[#3d3a34]">courses running</p>
+          <p className="mt-1 text-small text-[#3d3a34]">courses running</p>
         </span>
-        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+        <span className="flex-1 pb-1 text-right text-caption" style={{ color: FAINT }}>
           {inHospital.filter((c) => c.medications.length > 0).length} animals · {slices.length} medicines
         </span>
       </div>
@@ -961,7 +956,6 @@ function ActiveMedications({ hospitalId }: { hospitalId?: string }) {
             label={m.label}
             sub={m.sub}
             value={fmt(m.value)}
-            bar={m.percent}
             onOpen={() =>
               open({
                 title: m.label,
@@ -1047,7 +1041,7 @@ function SpeciesWorkload({ hospitalId }: { hospitalId?: string }) {
               })
             }
             empty={
-              <p className="text-[12.5px]" style={{ color: FAINT }}>
+              <p className="text-caption" style={{ color: FAINT }}>
                 No species matches “{query.trim()}”.
               </p>
             }
@@ -1105,7 +1099,7 @@ function CaseRecords({ hospitalId }: { hospitalId?: string }) {
           ))}
         </DrillList>
         <MoreRows page={page} noun="cases" />
-        <p className="pt-3 text-[11px]" style={{ color: ACCENT_INK }}>
+        <p className="pt-3 text-caption" style={{ color: ACCENT_INK }}>
           Cases opened in {scope.win.window} · an open case keeps its bed whatever the window says
         </p>
       </Section>

@@ -81,12 +81,12 @@ export function Breadcrumbs({
           {c.href ? (
             <a
               href={c.href}
-              className="text-[11px] font-medium text-[#6d6860] transition-colors hover:text-[#1c1a16] hover:underline"
+              className="text-caption font-medium text-[#6d6860] transition-colors hover:text-[#1c1a16] hover:underline"
             >
               {c.label}
             </a>
           ) : (
-            <span className="text-[11px] font-medium" style={{ color: FAINT }}>
+            <span className="text-caption font-medium" style={{ color: FAINT }}>
               {c.label}
             </span>
           )}
@@ -132,8 +132,7 @@ export function ScopeStrip({ scope }: { scope: Scope }) {
         on={narrowed}
         onClick={() => open({ title: 'Site', eyebrow: scope.site ? scope.site.name : 'All sites', body: <SiteSheet /> })}
       />
-
-      <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] tabular-nums" style={{ color: MUTED }}>
+      <span className="flex min-w-0 items-center gap-1.5 text-caption tabular-nums" style={{ color: MUTED }}>
         <span className="truncate">{scope.win.window}</span>
         <span aria-hidden>·</span>
         <span className="truncate">{scope.win.days === 1 ? '1 day' : `${scope.win.days} days`}</span>
@@ -143,7 +142,7 @@ export function ScopeStrip({ scope }: { scope: Scope }) {
         <button
           type="button"
           onClick={() => setSite(null)}
-          className="card-press flex shrink-0 items-center gap-1 rounded-full px-2.5 py-[4px] text-[11px] font-semibold"
+          className="card-press flex shrink-0 items-center gap-1 rounded-full px-2.5 py-[4px] text-caption font-semibold"
           style={{ backgroundColor: mix(TONE.warn, 0.14), color: TONE.warn }}
         >
           <RotateCcw size={10} strokeWidth={2.5} aria-hidden />
@@ -169,13 +168,13 @@ function ScopePill({
     <button
       type="button"
       onClick={onClick}
-      className={`card-press flex min-w-0 shrink-0 items-center gap-1.5 rounded-full px-3 py-[6px] text-[12px] font-medium whitespace-nowrap transition-colors ${
+      className={`card-press flex min-w-0 shrink-0 items-center gap-1.5 rounded-full px-3 py-[6px] text-body font-medium whitespace-nowrap transition-colors ${
         on ? 'bg-[#123a2c] text-white' : 'bg-white text-[#3d3a34]'
       }`}
     >
       <Glyph size={12} strokeWidth={2} className="shrink-0" style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
       <span className="max-w-[140px] truncate">{label}</span>
-      <span className="shrink-0 text-[9px] opacity-60" aria-hidden>
+      <span className="shrink-0 text-caption opacity-60" aria-hidden>
         ▾
       </span>
     </button>
@@ -199,7 +198,7 @@ export function LastUpdated({ compactForm = false }: { compactForm?: boolean }) 
 
   return (
     <span
-      className="flex shrink-0 items-center gap-1.5 text-[10.5px] tabular-nums"
+      className="flex shrink-0 items-center gap-1.5 text-caption tabular-nums"
       style={{ color: FAINT }}
       title={`Data complete to ${longDate(TODAY)} · read at ${at}`}
     >
@@ -255,12 +254,12 @@ export function ScopeHeader({
 
   return (
     <header className="px-[var(--gutter-lg)] pt-6 pb-3">
-      {shell && (
-        <div className="flex items-center gap-3">
-          <Breadcrumbs scope={scope} moduleTitle={moduleTitle} entity={entity} />
-          <LastUpdated />
-        </div>
-      )}
+      {/* THE READ TIME IS GONE FROM THE HEADER. It stated two true things — when this render
+          happened, and the last day the ledger holds — and neither was a thing a reader came to
+          this page for. The second is still stated, better, by the scope strip two rows down,
+          which names the actual dates the figures were cut against. A clock that ticks in the
+          corner of a report is furniture. */}
+      {shell && <Breadcrumbs scope={scope} moduleTitle={moduleTitle} entity={entity} />}
 
       <div className={`flex items-start gap-3 ${shell ? 'mt-2' : ''}`}>
         {onBack && (
@@ -287,17 +286,16 @@ export function ScopeHeader({
               page, not information about it — the shell keeps it beside the crumbs it belongs
               with, the phone opens on the title. */}
           {eyebrow && shell && (
-            <p className="truncate text-[11px] font-medium tracking-[0.06em] uppercase" style={{ color: FAINT }}>
+            <p className="truncate text-overline font-medium uppercase" style={{ color: FAINT }}>
               {eyebrow}
             </p>
           )}
-          <h1 className="mt-[3px] truncate text-[length:var(--fs-name)] leading-[1.2] font-semibold tracking-[-0.02em] text-[#16150f]">
+          <h1 className="mt-[3px] truncate text-[length:var(--fs-name)] leading-[var(--lh-name)] font-semibold tracking-[-0.4px] text-[#16150f]">
             {title}
           </h1>
         </div>
         {actions}
       </div>
-
       <ScopeStrip scope={scope} />
     </header>
   )

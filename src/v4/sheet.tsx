@@ -554,10 +554,10 @@ function SheetHost({
           <span className="min-w-0 flex-1">
             {/* The eyebrow is the trail. Four levels deep it is the only thing that
                 says which species of which site this is, and it costs one line. */}
-            <span className="block truncate text-[11px] font-medium tracking-[0.06em] text-[#b3aea6] uppercase">
+            <span className="block truncate text-overline font-medium text-[#b3aea6] uppercase">
               {top.eyebrow ?? 'Command Centre'}
             </span>
-            <h1 className="mt-[3px] truncate text-[21px] leading-7 font-semibold tracking-[-0.02em] text-[#16150f]">
+            <h1 className="mt-[3px] truncate text-h2 font-semibold text-[#16150f]">
               {top.title}
             </h1>
           </span>

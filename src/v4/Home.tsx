@@ -134,11 +134,11 @@ function GreetingHeader({ onSearch }: { onSearch: () => void }) {
       <MistBackdrop />
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[18px] text-[#6d6860] @[460px]:text-[19px] @[900px]:text-[21px]">{greetingFor(now)},</p>
-          <h1 className="mt-0.5 text-[length:var(--fs-name)] leading-[1.2] font-bold tracking-[-0.02em] text-[#1c1a16]">
+          <p className="text-lead text-[#6d6860] @[900px]:text-h3">{greetingFor(now)},</p>
+          <h1 className="mt-0.5 text-[length:var(--fs-name)] leading-[var(--lh-name)] font-bold tracking-[-0.4px] text-[#1c1a16]">
             {site.userName} <span aria-hidden>👋</span>
           </h1>
-          <p className="mt-1.5 flex items-center gap-1.5 text-[length:var(--fs-body)] text-[#3d3a34]">
+          <p className="mt-1.5 flex items-center gap-1.5 text-body text-[#3d3a34]">
             <MapPin size={14} strokeWidth={1.75} aria-hidden />
             {site.org} · {site.role}
           </p>
@@ -274,12 +274,12 @@ function ScoreStrip() {
             i < zooHealth.parts.length - 1 ? 'pr-3' : ''
           }`}
         >
-          <span className="block font-display text-[20px] leading-none font-bold tabular-nums" style={{ color: HERO_INK }}>
+          <span className="block font-display text-n-sm font-bold tabular-nums" style={{ color: HERO_INK }}>
             {p.score}
           </span>
           {/* One word each. Four cells share ~350px at 390px wide, which leaves ~78px a cell —
               "Animal health" truncated to "Animal heal…" there. The sheet spells them out. */}
-          <span className="mt-1 block truncate text-[11.5px] text-[#6d6860]">{p.label}</span>
+          <span className="mt-1 block truncate text-caption text-[#6d6860]">{p.label}</span>
         </span>
       ))}
     </button>
@@ -321,12 +321,12 @@ function HeroBlock() {
           now the page's own site split, and each site row there opens the drill sheet. */}
       <a href={animals.href} className="card-press block w-full">
         <p
-          className="text-center font-display text-[length:var(--fs-hero)] leading-none font-bold tracking-[-0.02em]"
+          className="text-center font-display text-[length:var(--fs-hero)] leading-[var(--lh-hero)] font-bold tracking-[-1.5px]"
           style={{ color: HERO_INK }}
         >
           {total}
         </p>
-        <p className="mt-2 text-center text-[16px] text-[#1c1a16] @[900px]:text-[18px]">
+        <p className="mt-2 text-center text-body text-[#1c1a16] @[900px]:text-lead">
           {scope.site ? `Animals · ${scope.site.name}` : 'Total Animals'}
         </p>
         {/* The total above is a standing figure; the gain is the same population read on the
@@ -347,7 +347,7 @@ function HeroBlock() {
             {gain !== undefined && gain !== 0 && (
               <>
                 <span
-                  className="text-[length:var(--fs-cap)] font-semibold tabular-nums"
+                  className="text-caption font-semibold tabular-nums"
                   style={{ color: gain > 0 ? '#1e7a44' : TONE.bad }}
                 >
                   {gain > 0 ? '▲' : '▼'} {Math.abs(gain).toLocaleString('en-US')} {period.noun}
@@ -355,7 +355,7 @@ function HeroBlock() {
                 <span className="h-[11px] w-px bg-[#16150f]/15" aria-hidden />
               </>
             )}
-            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: ACCENT_INK }}>
+            <span className="inline-flex items-center gap-1.5 text-caption font-semibold" style={{ color: ACCENT_INK }}>
               <Eye size={12} strokeWidth={2.25} aria-hidden />
               View breakdown
             </span>
@@ -424,13 +424,13 @@ function SectionHead({
   return (
     <div className="mt-5 flex items-center gap-2.5 px-1 first:mt-0">
       <Glyph size={14} strokeWidth={2} style={{ color: MUTED }} aria-hidden />
-      <h2 className="text-[length:var(--fs-micro)] font-semibold tracking-[0.09em] text-[#3d3a34] uppercase">
+      <h2 className="text-overline font-semibold text-[#3d3a34] uppercase">
         {title}
       </h2>
       <span className="h-px flex-1 bg-[#1c1a16]/8" aria-hidden />
       {aside && (
         <span
-          className="shrink-0 text-[11.5px] font-medium tabular-nums"
+          className="shrink-0 text-caption font-medium tabular-nums"
           style={{ color: tone ? TONE[tone] : FAINT }}
         >
           {aside}
@@ -445,7 +445,7 @@ function LevelChip({ level }: { level: keyof typeof LEVEL_TONE }) {
   const tone = LEVEL_TONE[level]
   return (
     <span
-      className="shrink-0 rounded-full px-2 py-[2px] text-[10px] font-semibold tracking-[0.04em] uppercase"
+      className="shrink-0 rounded-full px-2 py-[2px] text-overline font-semibold uppercase"
       style={{ backgroundColor: mix(TONE[tone], 0.12), color: TONE[tone] }}
     >
       {level}
@@ -501,7 +501,7 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
           <span className="grid size-6 shrink-0 place-items-center" aria-hidden>
             <kpi.icon size={18} strokeWidth={1.75} style={{ color: colour }} />
           </span>
-          <span className="min-w-0 text-[length:var(--fs-label)] leading-[17px] font-medium text-balance text-[#1c1a16]">
+          <span className="min-w-0 text-small font-medium text-balance text-[#1c1a16]">
             {kpi.label}
           </span>
         </span>
@@ -518,15 +518,22 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
             truncating "Animals" to "Ani…". The pair is nested so they wrap as one unit; two
             bare items would leave the note stranded beside the figure with the delta below. */}
         <span className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <Figure value={value} size={34} color={HERO_INK} />
-          <span className="flex min-w-0 items-baseline gap-2">
-            <span className="min-w-0 truncate text-[12px] text-[#9b958b]">{note}</span>
-            {hasMovement(delta) && (
-              <span className="shrink-0 text-[11.5px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
-                {delta}
-              </span>
-            )}
-          </span>
+          <Figure value={value} size={32} color={HERO_INK} />
+          {/* THE NOUN IS RENDERED ONLY IF THERE IS ONE. Three of the four headline KPIs
+              now carry no note, because their label already names what they count — see
+              the block above `headlineKpis` in `data.ts`. An always-rendered span would
+              leave its `gap-2` behind as 8px of nothing between the figure and its delta,
+              which reads as a missing word rather than as a word deliberately not there. */}
+          {(note || hasMovement(delta)) && (
+            <span className="flex min-w-0 items-baseline gap-2">
+              {note && <span className="min-w-0 truncate text-caption text-[#9b958b]">{note}</span>}
+              {hasMovement(delta) && (
+                <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+                  {delta}
+                </span>
+              )}
+            </span>
+          )}
         </span>
       </span>
 
@@ -561,14 +568,14 @@ function EmptyCard({ label, icon: Glyph }: { label: string; icon: HeadlineKpi['i
     <div className={`${CARD} flex min-w-0 flex-col p-[var(--pad-card)]`}>
       <span className="flex items-start gap-1.5">
         <Glyph size={15} strokeWidth={1.75} className="mt-[2px] shrink-0" style={{ color: FAINT }} aria-hidden />
-        <span className="min-w-0 text-[length:var(--fs-label)] leading-[17px] font-medium text-balance text-[#6d6860]">
+        <span className="min-w-0 text-small font-medium text-balance text-[#6d6860]">
           {label}
         </span>
       </span>
-      <span className="mt-2.5 block font-display text-[34px] leading-none font-bold" style={{ color: '#c9c4bb' }}>
+      <span className="mt-2.5 block font-display text-n-lg font-bold" style={{ color: '#c9c4bb' }}>
         —
       </span>
-      <span className="mt-1 block text-[11px] text-[#9b958b]">Not reported for this scope</span>
+      <span className="mt-1 block text-caption text-[#9b958b]">Not reported for this scope</span>
     </div>
   )
 }
@@ -611,7 +618,7 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
         <span className="grid size-6 shrink-0 place-items-center" aria-hidden>
           <kpi.icon size={18} strokeWidth={1.75} style={{ color: accent }} />
         </span>
-        <span className="min-w-0 truncate text-[length:var(--fs-label)] font-medium text-[#3d3a34]">{kpi.label}</span>
+        <span className="min-w-0 truncate text-small font-medium text-[#3d3a34]">{kpi.label}</span>
       </span>
       {/* 26, not 30. At six columns a KPI cell is ~125px of inner width and
           "215,432" is about 3.8em wide — at 30pt with the tier multiplier on top it
@@ -628,14 +635,14 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
           did not, and a row of bars at two heights reads as a bug. The nbsp keeps a tile with
           no note wrapping like its neighbours. */}
       <span className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1.5">
-        <Figure value={value} unit={unit} size={26} color={HERO_INK} />
+        <Figure value={value} unit={unit} size={28} color={HERO_INK} />
         <span className="flex min-w-0 items-baseline gap-2">
-          <span className="min-w-0 truncate text-[12px] text-[#9b958b]">{note || ' '}</span>
+          <span className="min-w-0 truncate text-caption text-[#9b958b]">{note || ' '}</span>
           {/* Shown under a site scope now, because it IS that site's movement — the delta
               is read from the same scoped series as the figure beside it. It had to be
               hidden before, when it was the collection's change beside a site's figure. */}
           {hasMovement(delta) && (
-            <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+            <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
               {delta}
             </span>
           )}
@@ -723,19 +730,19 @@ function AlertTile({ alert }: { alert: (typeof criticalAlerts)[number] }) {
           fixed-width token and the note beside it is already short, so the two share
           the lower line comfortably and the title gets the whole upper one. */}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[length:var(--fs-label)] font-medium text-[#1c1a16]">
+        <span className="block truncate text-small font-medium text-[#1c1a16]">
           {alert.label}
         </span>
         <span className="mt-1 flex items-center gap-1.5">
           <LevelChip level={alert.level} />
-          <span className="min-w-0 truncate text-[11px] text-[#9b958b]">{alert.note}</span>
+          <span className="min-w-0 truncate text-caption text-[#9b958b]">{alert.note}</span>
         </span>
       </span>
       {/* The count is INK, not the severity colour. The severity is already said twice on this
           row — by the chip under the title and by the glyph beside it — and a third statement of
           it in the largest mark on the card left ten alert tiles reading as a wall of red and
           amber numbers. The number is a quantity; the chip is the judgement. */}
-      <span className="shrink-0 font-display text-[24px] leading-none font-bold tabular-nums" style={{ color: HERO_INK }}>
+      <span className="shrink-0 font-display text-n font-bold tabular-nums" style={{ color: HERO_INK }}>
         {alert.count}
       </span>
       <ChevronRight size={14} strokeWidth={2} className="shrink-0" style={{ color: '#c9c4bb' }} aria-hidden />
@@ -768,12 +775,12 @@ function ApprovalTile({ group }: { group: (typeof approvals)[number] }) {
         >
           <group.icon size={15} strokeWidth={1.75} style={{ color: ACCENT }} />
         </span>
-        <span className="min-w-0 truncate text-[length:var(--fs-label)] font-medium text-[#1c1a16]">{group.label}</span>
+        <span className="min-w-0 truncate text-small font-medium text-[#1c1a16]">{group.label}</span>
       </span>
       <span className="mt-2.5 flex items-baseline justify-between gap-2">
-        <Figure value={String(group.requests.length)} size={26} color={HERO_INK} />
+        <Figure value={String(group.requests.length)} size={28} color={HERO_INK} />
         {overdue > 0 && (
-          <span className="shrink-0 text-[11px] font-semibold" style={{ color: TONE.warn }}>
+          <span className="shrink-0 text-caption font-semibold" style={{ color: TONE.warn }}>
             {overdue} late
           </span>
         )}
@@ -797,7 +804,7 @@ function Upcoming() {
         {/* "21 due" was ambiguous beside a column of 6, 29, 300 — the reader has to
             work out whether 21 is a third figure or a count of the rows. It is the
             rows, so it says so. */}
-        <span className="text-[length:var(--fs-title)] font-medium text-[#1c1a16]">
+        <span className="text-[length:var(--fs-title)] leading-[var(--lh-title)] font-medium text-[#1c1a16]">
           {dueWithin(horizon)} scheduled
         </span>
         {/* Two windows, not a date picker. The question is "what is due soon", and
@@ -811,7 +818,7 @@ function Upcoming() {
               role="tab"
               aria-selected={horizon === d}
               onClick={() => setHorizon(d)}
-              className={`rounded-full px-3 py-[5px] text-[12px] font-medium transition-colors ${
+              className={`rounded-full px-3 py-[5px] text-caption font-medium transition-colors ${
                 horizon === d ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a]'
               }`}
             >
@@ -820,7 +827,6 @@ function Upcoming() {
           ))}
         </div>
       </div>
-
       <ul className="mt-4 flex flex-col">
         {groups.map(({ group, rows }) => {
           const count = rows.reduce((n, r) => n + r.count, 0)
@@ -847,14 +853,14 @@ function Upcoming() {
                   <group.icon size={15} strokeWidth={1.75} style={{ color: ACCENT }} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-[#1c1a16]">{group.label}</span>
+                  <span className="block truncate text-small text-[#1c1a16]">{group.label}</span>
                   {/* A dot for the ones inside 24 hours, not an amber line.
                       Six of the nine groups have something due tomorrow, and setting
                       six of nine sub-lines in warn amber turned the urgency colour
                       into the list's body colour — at which point it has stopped
                       marking anything. The dot marks the same rows and leaves the
                       text readable. */}
-                  <span className="mt-0.5 flex items-center gap-1.5 truncate text-[11px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 flex items-center gap-1.5 truncate text-caption" style={{ color: FAINT }}>
                     {soon && (
                       <span
                         className="size-[5px] shrink-0 rounded-full"
@@ -867,7 +873,7 @@ function Upcoming() {
                     </span>
                   </span>
                 </span>
-                <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: HERO_INK }}>
+                <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: HERO_INK }}>
                   {compact(count)}
                 </span>
                 <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
@@ -877,7 +883,7 @@ function Upcoming() {
         })}
       </ul>
       {groups.length === 0 && (
-        <p className="mt-4 text-[13px] text-[#6d6860]">Nothing scheduled in the next {horizon} days.</p>
+        <p className="mt-4 text-small text-[#6d6860]">Nothing scheduled in the next {horizon} days.</p>
       )}
     </div>
   )
@@ -894,13 +900,13 @@ function MeasureTile({ measure }: { measure: (typeof executiveHealth)[number] })
       className={`${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card)]`}
     >
       <span className="flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate text-[length:var(--fs-label)] text-[#3d3a34]">{measure.label}</span>
-        <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: signTone(measure.delta) ?? FAINT }}>
+        <span className="min-w-0 truncate text-small text-[#3d3a34]">{measure.label}</span>
+        <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: signTone(measure.delta) ?? FAINT }}>
           {measure.delta}
         </span>
       </span>
       <span className="mt-2 block">
-        <Figure value={measure.value} unit={measure.unit} size={34} color={HERO_INK} />
+        <Figure value={measure.value} unit={measure.unit} size={32} color={HERO_INK} />
       </span>
       {/* Bar, target tick, sparkline — the same three facts `Bullet` carries, laid
           out for a tile rather than a card row. A full bar always means good: the
@@ -924,10 +930,10 @@ function MeasureTile({ measure }: { measure: (typeof executiveHealth)[number] })
           it. The movement over the window is the answer to "are we improving", and it
           is a number — the shape is in the sheet, on a real axis. */}
       <span className="mt-2 flex items-baseline justify-between gap-3">
-        <span className="text-[11px]" style={{ color: FAINT }}>
+        <span className="text-caption" style={{ color: FAINT }}>
           {measure.targetLabel}
         </span>
-        <span className="shrink-0 text-[11px] tabular-nums" style={{ color: FAINT }}>
+        <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
           6 mo {moved(measure.history)}
         </span>
       </span>
@@ -958,14 +964,14 @@ function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
         <risk.icon size={16} strokeWidth={1.75} className="shrink-0" style={{ color: TONE[tone] }} aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <span className="min-w-0 truncate text-[13.5px] text-[#1c1a16]">{risk.label}</span>
+            <span className="min-w-0 truncate text-small text-[#1c1a16]">{risk.label}</span>
             <LevelChip level={risk.level} />
           </span>
-          <span className="mt-0.5 block truncate text-[11px] text-[#9b958b]">{risk.note}</span>
+          <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{risk.note}</span>
         </span>
         {/* Ink, for the same reason as the alert count above — the icon and the chip carry the
             level, so the figure carries only the figure. */}
-        <span className="shrink-0 text-[16px] font-semibold tabular-nums" style={{ color: HERO_INK }}>
+        <span className="shrink-0 text-body font-semibold tabular-nums" style={{ color: HERO_INK }}>
           {risk.value}
         </span>
         <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
@@ -1016,20 +1022,19 @@ function TrendTile({ card }: { card: (typeof trends)[number] }) {
         >
           <card.icon size={13} strokeWidth={2} style={{ color: accent }} />
         </span>
-        <span className="min-w-0 truncate text-[length:var(--fs-label)] font-medium text-[#3d3a34]">
+        <span className="min-w-0 truncate text-small font-medium text-[#3d3a34]">
           {card.label}
         </span>
       </span>
-
       <span className="mt-2 flex items-baseline justify-between gap-2">
         <span
-          className="min-w-0 truncate font-display text-[length:var(--fs-fig-xs)] leading-none font-bold tabular-nums"
+          className="min-w-0 truncate font-display text-[length:var(--fs-fig-xs)] leading-[var(--lh-fig)] font-bold tracking-[-0.4px] tabular-nums"
           style={{ color: HERO_INK }}
         >
           {value}
         </span>
         {hasMovement(delta) && (
-          <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+          <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
             {delta}
           </span>
         )}
@@ -1195,7 +1200,6 @@ export function HomeSections() {
           ))}
         </div>
       </Reveal>
-
       <SectionHead icon={SECTION_ICONS.upcoming} title="Upcoming" aside="7 / 30 days" />
       <Reveal>
         <Upcoming />
@@ -1208,7 +1212,6 @@ export function HomeSections() {
       <Reveal>
         <ScoreStrip />
       </Reveal>
-
       <SectionHead icon={SECTION_ICONS.health} title="Executive Health" aside="against target" />
       <Reveal>
         <div className="grid gap-[var(--gap)] @[460px]:grid-cols-2 @[820px]:grid-cols-3">
@@ -1217,7 +1220,6 @@ export function HomeSections() {
           ))}
         </div>
       </Reveal>
-
       <SectionHead icon={SECTION_ICONS.risks} title="Risk Indicators" aside={`${risks.length} tracked`} />
       <Reveal>
         <div className={`${CARD} p-[var(--pad-card)]`}>

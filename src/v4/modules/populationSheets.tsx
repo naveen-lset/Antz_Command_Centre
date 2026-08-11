@@ -117,7 +117,7 @@ function SheetHero({
         <div className="flex items-center gap-3">
           {badge && (
             <span
-              className="grid size-10 shrink-0 place-items-center rounded-full rounded-tr-[6px] font-display text-[14px] font-bold"
+              className="grid size-10 shrink-0 place-items-center rounded-full rounded-tr-[6px] font-display text-small font-bold"
               style={{
                 backgroundColor: badge.fill,
                 color: badge.ink,
@@ -128,19 +128,19 @@ function SheetHero({
               {badge.code}
             </span>
           )}
-          <Figure value={value} unit={unit} size={badge ? 44 : 50} color={HERO_INK} />
+          <Figure value={value} unit={unit} size={badge ? 40 : 48} color={HERO_INK} />
         </div>
-        <p className="mt-1 text-[15px] text-[#3d3a34]">{label}</p>
+        <p className="mt-1 text-body text-[#3d3a34]">{label}</p>
         {status && (
           <p className="mt-3 flex items-center gap-2">
             <span className="size-[7px] rounded-full" style={{ backgroundColor: TONE[tone ?? 'neutral'] }} aria-hidden />
-            <span className="text-[13px] font-medium" style={{ color: TONE[tone ?? 'neutral'] }}>
+            <span className="text-small font-medium" style={{ color: TONE[tone ?? 'neutral'] }}>
               {status}
             </span>
           </p>
         )}
         {note && (
-          <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>
+          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
             {note}
           </p>
         )}
@@ -186,7 +186,7 @@ function Animals({
           />
         ))}
       </TapList>
-      {paged.total === 0 && <p className="text-[13px] text-[#6d6860]">No animals in this scope.</p>}
+      {paged.total === 0 && <p className="text-small text-[#6d6860]">No animals in this scope.</p>}
       <MoreRows page={paged} noun="animals" />
     </Section>
   )
@@ -239,7 +239,6 @@ export function SitePanel({ siteKey, win }: { siteKey: string; win: Win }) {
             unit="animals"
           />
         </Section>
-
         <Section icon={Sparkles} label="Recent population change" aside={win.window}>
           <Facts
             items={[
@@ -252,7 +251,6 @@ export function SitePanel({ siteKey, win }: { siteKey: string; win: Win }) {
             ]}
           />
         </Section>
-
         <Section icon={Layers} label="Class composition" aside={plural(classBands(rows).length, 'class')}>
           <Bars
             items={classBands(rows).map((c) => ({ label: c.cls, value: c.animals, sub: `${c.species} sp` }))}
@@ -260,7 +258,6 @@ export function SitePanel({ siteKey, win }: { siteKey: string; win: Win }) {
             showShare
           />
         </Section>
-
         <Section icon={Dna} label="Species distribution" aside={`${species.length}`}>
           <TapList>
             {species.map((s) => (
@@ -269,7 +266,6 @@ export function SitePanel({ siteKey, win }: { siteKey: string; win: Win }) {
                 label={s.name}
                 sub={`${s.cls} · ${standingLabel(s.standing)}`}
                 value={fmt(s.animals)}
-                bar={(s.animals / Math.max(1, species[0]?.animals ?? 1)) * 100}
                 onOpen={() => open({ title: s.name, eyebrow: site.name, body: <SpeciesPanel row={s} win={win} /> })}
               />
             ))}
@@ -325,7 +321,6 @@ export function SpeciesPanel({ row, win }: { row: SpeciesRow; win: Win }) {
             </>
           )}
         </Section>
-
         <Section icon={ScrollText} label="Regulatory status" aside={standingLabel(row.standing)}>
           <Facts
             items={[
@@ -339,7 +334,7 @@ export function SpeciesPanel({ row, win }: { row: SpeciesRow; win: Win }) {
               <Rule label="IUCN Red List" />
               <div className="flex items-center gap-3">
                 <span
-                  className="grid size-9 shrink-0 place-items-center rounded-full rounded-tr-[6px] font-display text-[13px] font-bold"
+                  className="grid size-9 shrink-0 place-items-center rounded-full rounded-tr-[6px] font-display text-small font-bold"
                   style={{
                     backgroundColor: badge.fill,
                     color: badge.ink,
@@ -349,12 +344,11 @@ export function SpeciesPanel({ row, win }: { row: SpeciesRow; win: Win }) {
                 >
                   {badge.code}
                 </span>
-                <span className="text-[14px] text-[#1c1a16]">{badge.name}</span>
+                <span className="text-small text-[#1c1a16]">{badge.name}</span>
               </div>
             </>
           )}
         </Section>
-
         <Section icon={MapPin} label="Site distribution" aside={`${populations.length} holding`}>
           <Facts
             items={populations.map((p) => ({
@@ -436,7 +430,7 @@ export function GroupPanel({
       <Stack>
         {total === 0 ? (
           <Section icon={ShieldAlert} label={title}>
-            <p className="text-[13px] text-[#6d6860]">The collection holds no animals in this category.</p>
+            <p className="text-small text-[#6d6860]">The collection holds no animals in this category.</p>
           </Section>
         ) : (
           <>
@@ -448,14 +442,12 @@ export function GroupPanel({
                     label={b.site.name}
                     sub={`${b.site.code} · ${((b.value / total) * 100).toFixed(1)}% of this group`}
                     value={fmt(b.value)}
-                    bar={(b.value / Math.max(1, bySite[0].value)) * 100}
                     active={siteKey === b.site.key}
                     onOpen={reopen ? () => reopen(b.site.key) : undefined}
                   />
                 ))}
               </TapList>
             </Section>
-
             <Section icon={Layers} label="By class" aside={`${classes.length}`}>
               <Bars
                 items={classes.map((c) => ({ label: c.cls, value: c.animals, sub: `${c.species} sp` }))}
@@ -463,7 +455,6 @@ export function GroupPanel({
                 showShare
               />
             </Section>
-
             <Section icon={Dna} label="Species" aside={`${detailed.length}`}>
               <TapList>
                 {detailed.map((s) => (
@@ -472,7 +463,6 @@ export function GroupPanel({
                     label={s.name}
                     sub={`${s.cls} · ${s.siteName}`}
                     value={fmt(s.animals)}
-                    bar={(s.animals / Math.max(1, detailed[0]?.animals ?? 1)) * 100}
                     onOpen={() => open({ title: s.name, eyebrow: title, body: <SpeciesPanel row={s} win={win} /> })}
                   />
                 ))}
@@ -481,7 +471,7 @@ export function GroupPanel({
           </>
         )}
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px] text-[#9b958b]">{eyebrow}</p>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">{eyebrow}</p>
     </>
   )
 }
@@ -740,7 +730,6 @@ export function FlowPanel({ spec, siteKey, win }: { spec: FlowSpec; siteKey: str
                   label={s.label}
                   sub={siteOf(s.key)?.code}
                   value={fmt(s.value)}
-                  bar={(s.value / Math.max(1, sites[0].value)) * 100}
                   onOpen={() =>
                     open({ title: s.label, eyebrow: spec.title, body: <FlowPanel spec={spec} siteKey={s.key} win={win} /> })
                   }
@@ -780,7 +769,7 @@ export function FlowPanel({ spec, siteKey, win }: { spec: FlowSpec; siteKey: str
             ))}
           </TapList>
           {paged.total === 0 && (
-            <p className="text-[13px] text-[#6d6860]">Nothing recorded in {win.window}.</p>
+            <p className="text-small text-[#6d6860]">Nothing recorded in {win.window}.</p>
           )}
           <MoreRows page={paged} noun={spec.unit} />
         </Section>

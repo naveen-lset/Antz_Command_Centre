@@ -99,9 +99,9 @@ function SheetHero({
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={value} unit={unit} size={48} color={tone ? TONE[tone] : HERO_INK} />
-        <p className="mt-1 text-[15px] text-[#3d3a34]">{label}</p>
+        <p className="mt-1 text-body text-[#3d3a34]">{label}</p>
         {note && (
-          <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>
+          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
             {note}
           </p>
         )}
@@ -111,7 +111,7 @@ function SheetHero({
 }
 
 const Empty = ({ what }: { what: string }) => (
-  <p className="text-[12.5px]" style={{ color: FAINT }}>
+  <p className="text-caption" style={{ color: FAINT }}>
     No {what} in this scope.
   </p>
 )
@@ -243,7 +243,6 @@ function Splits({
                 label={s.label}
                 value={fmt(s.value)}
                 unit={`${Math.round(s.percent)}%`}
-                bar={s.percent}
                 onOpen={onSite ? () => onSite(s.id) : undefined}
               />
             ))}
@@ -261,7 +260,6 @@ function Splits({
                 sub={s.sub}
                 value={fmt(s.value)}
                 unit={`${Math.round(s.percent)}%`}
-                bar={s.percent}
                 onOpen={onSpecies ? () => onSpecies(s.label) : undefined}
               />
             ))}
@@ -278,7 +276,6 @@ function Splits({
                 label={c.label}
                 value={fmt(c.value)}
                 unit={`${Math.round(c.percent)}%`}
-                bar={c.percent}
                 tone={c.tone}
                 onOpen={onCause ? () => onCause(c.label) : undefined}
               />
@@ -298,7 +295,7 @@ function Splits({
           <>
             <DrillList>
               {statuses.map((s) => (
-                <DrillRow key={s.id} label={s.label} value={fmt(s.value)} bar={s.percent} tone={s.tone} />
+                <DrillRow key={s.id} label={s.label} value={fmt(s.value)} tone={s.tone} />
               ))}
             </DrillList>
             {!skip.includes('centre') && centres.length > 0 && (
@@ -311,7 +308,6 @@ function Splits({
                       label={c.label}
                       sub={c.sub}
                       value={fmt(c.value)}
-                      bar={c.percent}
                       onOpen={onCentre ? () => onCentre(c.id) : undefined}
                     />
                   ))}
@@ -322,12 +318,11 @@ function Splits({
         ) : (
           /* Not a zero. None of these deaths went to a bench, and saying so is different from
              saying nothing is pending. */
-          <p className="text-[12.5px]" style={{ color: FAINT }}>
+          <p className="text-caption" style={{ color: FAINT }}>
             None of these deaths were referred for necropsy.
           </p>
         )}
       </Section>
-
       <Section icon={ClipboardList} label="Death records" aside={`${fmt(rows.length)}`}>
         <DeathRows rows={rows} eyebrow={eyebrow} />
       </Section>
@@ -474,7 +469,6 @@ export function SiteMortalitySheet({ siteKey, rows }: { siteKey: string; rows: D
             ]}
           />
         </Section>
-
         <SiteSplits rows={mine} title={name} />
       </Stack>
     </>
@@ -602,7 +596,6 @@ export function SpeciesMortalitySheet({
             ]}
           />
         </Section>
-
         <Splits rows={mine} eyebrow={speciesName} skip={['species']} />
       </Stack>
     </>
@@ -761,7 +754,6 @@ export function RegulatorySheet({
                   label={text}
                   sub={`${new Set(list.map((d) => d.speciesName)).size} species`}
                   value={fmt(list.length)}
-                  bar={(list.length / rows.length) * 100}
                   onOpen={() =>
                     open({
                       title: text,
@@ -901,7 +893,6 @@ export function CentreSheet({ centreId, rows }: { centreId: string; rows: Death[
                     label={s.label}
                     sub={s.sub}
                     value={fmt(s.value)}
-                    bar={s.percent}
                     onOpen={() =>
                       open({
                         title: s.label,
@@ -913,11 +904,10 @@ export function CentreSheet({ centreId, rows }: { centreId: string; rows: Death[
                 ))}
               </DrillList>
             </Section>
-
             <Section icon={Skull} label="Major causes" aside={`${byCause(mine).length}`}>
               <DrillList>
                 {byCause(mine).map((c) => (
-                  <DrillRow key={c.id} label={c.label} value={fmt(c.value)} bar={c.percent} tone={c.tone} />
+                  <DrillRow key={c.id} label={c.label} value={fmt(c.value)} tone={c.tone} />
                 ))}
               </DrillList>
             </Section>
@@ -984,7 +974,7 @@ export function SpeciesNecropsySheet({
             <Section icon={Building2} label="Centres" aside={`${byCentre(referred).length}`}>
               <DrillList>
                 {byCentre(referred).map((c) => (
-                  <DrillRow key={c.id} label={c.label} sub={c.sub} value={fmt(c.value)} bar={c.percent} />
+                  <DrillRow key={c.id} label={c.label} sub={c.sub} value={fmt(c.value)} />
                 ))}
               </DrillList>
             </Section>
@@ -993,7 +983,7 @@ export function SpeciesNecropsySheet({
               <Section icon={Skull} label="Findings" aside={`${completed.length} completed`}>
                 <DrillList>
                   {byCause(completed).map((c) => (
-                    <DrillRow key={c.id} label={c.label} value={fmt(c.value)} bar={c.percent} tone={c.tone} />
+                    <DrillRow key={c.id} label={c.label} value={fmt(c.value)} tone={c.tone} />
                   ))}
                 </DrillList>
               </Section>
@@ -1004,15 +994,13 @@ export function SpeciesNecropsySheet({
         <Section icon={MapPin} label="Sites" aside={`${bySiteSlice(mine).length}`}>
           <DrillList>
             {bySiteSlice(mine).map((s) => (
-              <DrillRow key={s.id} label={s.label} value={fmt(s.value)} bar={s.percent} />
+              <DrillRow key={s.id} label={s.label} value={fmt(s.value)} />
             ))}
           </DrillList>
         </Section>
-
         <Section icon={FileSearch} label="Necropsy records" aside={`${referred.length}`}>
           <NecropsyRows rows={mine} eyebrow={speciesName} />
         </Section>
-
         <Section icon={ClipboardList} label="Death records" aside={`${mine.length}`}>
           <DeathRows rows={mine} eyebrow={speciesName} />
         </Section>
@@ -1069,7 +1057,6 @@ export function NecropsyRecordSheet({ death: d }: { death: Death }) {
             ]}
           />
         </Section>
-
         <Section icon={PawPrint} label="Animal" aside={d.animalId}>
           <DrillList>
             <DrillRow
@@ -1132,7 +1119,6 @@ export function AnimalMortalitySheet({ death: d }: { death: Death }) {
             ]}
           />
         </Section>
-
         <Section icon={Skull} label="Death" aside={shortDate(d.day)}>
           <Facts
             items={[
@@ -1142,7 +1128,6 @@ export function AnimalMortalitySheet({ death: d }: { death: Death }) {
             ]}
           />
         </Section>
-
         <Section icon={ScrollText} label="Regulatory standing">
           <Facts
             items={[
@@ -1169,7 +1154,6 @@ export function AnimalMortalitySheet({ death: d }: { death: Death }) {
             ]}
           />
         </Section>
-
         <Section icon={FileSearch} label="Necropsy" aside={n ? n.id : 'not referred'}>
           {n ? (
             <>
@@ -1207,13 +1191,13 @@ export function AnimalMortalitySheet({ death: d }: { death: Death }) {
           ) : (
             /* Not "pending". This death was never referred, and the two are different answers
                — one is a backlog and the other is a decision. */
-            <p className="text-[12.5px]" style={{ color: FAINT }}>
+            <p className="text-caption" style={{ color: FAINT }}>
               Not referred for necropsy. Recorded as a husbandry death at {d.siteName}.
             </p>
           )}
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px]" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         Deepest level
       </p>
     </>
@@ -1285,7 +1269,7 @@ export function SearchSheet({ query, rows }: { query: string; rows: Death[] }) {
           <Splits rows={rows} eyebrow={`“${query}”`} />
         ) : (
           <Section icon={Stethoscope} label="No match">
-            <p className="text-[12.5px]" style={{ color: FAINT }}>
+            <p className="text-caption" style={{ color: FAINT }}>
               Nothing in {scope.win.window} matches “{query}”. Search covers animal ID, species, site, cause,
               necropsy ID, centre and finding.
             </p>

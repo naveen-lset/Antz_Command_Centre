@@ -57,7 +57,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
                 chosen for legibility, because the official artwork sets white on
                 yellow at about 1.9:1. */}
             <span
-              className="grid size-10 shrink-0 place-items-center rounded-full rounded-tr-[6px] font-display text-[14px] font-bold"
+              className="grid size-10 shrink-0 place-items-center rounded-full rounded-tr-[6px] font-display text-small font-bold"
               style={{
                 backgroundColor: cat.fill,
                 color: cat.ink,
@@ -68,12 +68,12 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
               {cat.code}
             </span>
             <div className="min-w-0">
-              <Figure value={fmt(stated)} size={44} color={HERO_INK} />
-              <p className="mt-0.5 text-[13px] text-[#3d3a34]">animals</p>
+              <Figure value={fmt(stated)} size={40} color={HERO_INK} />
+              <p className="mt-0.5 text-small text-[#3d3a34]">animals</p>
             </div>
           </div>
-          <p className="mt-3 text-[15px] text-[#1c1a16]">{cat.name}</p>
-          <p className="mt-1 text-[12px]" style={{ color: FAINT }}>
+          <p className="mt-3 text-body text-[#1c1a16]">{cat.name}</p>
+          <p className="mt-1 text-caption" style={{ color: FAINT }}>
             {species} species · {((stated / 215432) * 100).toFixed(stated / 215432 >= 0.01 ? 1 : 2)}% of the collection
           </p>
         </section>
@@ -84,7 +84,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
           <Section icon={ShieldAlert} label={cat.name}>
             {/* An empty category is a statement about the collection, not a dead end —
                 that the zoo holds no Extinct animals is worth being able to read. */}
-            <p className="text-[13px] text-[#6d6860]">
+            <p className="text-small text-[#6d6860]">
               The collection holds no animals in this category.
             </p>
           </Section>
@@ -103,17 +103,16 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
                   summing to the figure the Conservation card showed, the sheet says so
                   instead of presenting a quieter second total. */}
               {listed !== stated ? (
-                <p className="mt-3 text-[11px]" style={{ color: TONE.bad }}>
+                <p className="mt-3 text-caption" style={{ color: TONE.bad }}>
                   Listed species sum to {fmt(listed)}, not {fmt(stated)} — this breakdown does not
                   reconcile.
                 </p>
               ) : (
-                <p className="mt-3 text-[11px]" style={{ color: FAINT }}>
+                <p className="mt-3 text-caption" style={{ color: FAINT }}>
                   Sums to {fmt(stated)} — the figure on the Conservation card.
                 </p>
               )}
             </Section>
-
             <Section icon={Layers} label="By class" aside={`${byClass.size}`}>
               <Bars
                 items={[...byClass.entries()]
@@ -123,7 +122,6 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
                 showShare
               />
             </Section>
-
             <Section icon={MapPin} label="Where they are" aside={`${bySite.size} locations`}>
               <Bars
                 items={[...bySite.entries()]
@@ -133,7 +131,6 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
                 showShare
               />
             </Section>
-
             <Section icon={ShieldAlert} label="At a glance">
               <Snapshot
                 cols={3}
@@ -147,7 +144,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
           </>
         )}
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
         IUCN Red List · {cat.name}
       </p>
     </>

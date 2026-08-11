@@ -90,9 +90,9 @@ function SheetHero({
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={value} unit={unit} size={48} color={tone ? TONE[tone] : HERO_INK} />
-        <p className="mt-1 text-[15px] text-[#3d3a34]">{label}</p>
+        <p className="mt-1 text-body text-[#3d3a34]">{label}</p>
         {note && (
-          <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>
+          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
             {note}
           </p>
         )}
@@ -128,7 +128,7 @@ function RecordRows({
 
   if (page.total === 0) {
     return (
-      <p className="text-[12.5px]" style={{ color: FAINT }}>
+      <p className="text-caption" style={{ color: FAINT }}>
         No {noun} recorded in {scope.win.window}.
       </p>
     )
@@ -162,7 +162,7 @@ function OverdueRows({ rows, onOpen }: { rows: OverdueRow[]; onOpen: (row: Overd
 
   if (rows.length === 0) {
     return (
-      <p className="text-[12.5px]" style={{ color: FAINT }}>
+      <p className="text-caption" style={{ color: FAINT }}>
         Nothing outstanding.
       </p>
     )
@@ -336,10 +336,9 @@ export function AnimalPreventiveSheet({
             }))}
           />
         </Section>
-
         <Section icon={ClipboardList} label="Preventive history" aside={scope.win.window}>
           {history.length === 0 ? (
-            <p className="text-[12.5px]" style={{ color: FAINT }}>
+            <p className="text-caption" style={{ color: FAINT }}>
               No preventive record for this animal in {scope.win.window}.
             </p>
           ) : (
@@ -353,7 +352,7 @@ export function AnimalPreventiveSheet({
           )}
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px]" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         Deepest level
       </p>
     </>
@@ -461,7 +460,7 @@ export function SpeciesSheet({
         </Section>
       </Stack>
       {speciesId && (
-        <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px]" style={{ color: FAINT }}>
+        <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
           {speciesId}
         </p>
       )}
@@ -522,7 +521,6 @@ export function StreamSiteSheet({ stream, siteKey }: { stream: Stream; siteKey: 
                 label={s.label}
                 sub={s.sub}
                 value={fmt(s.value)}
-                bar={s.percent}
                 onOpen={() =>
                   open({
                     title: s.label,
@@ -685,7 +683,6 @@ export function AgentSheet({ stream, agent }: { stream: Stream; agent: string })
     }
   }, [stream.activity, site, scope.win, agent])
 
-  const widest = Math.max(...sites.map(([, n]) => n), 1)
 
   return (
     <>
@@ -698,7 +695,6 @@ export function AgentSheet({ stream, agent }: { stream: Stream; agent: string })
                 key={key}
                 label={siteOf(key)?.name ?? key}
                 value={fmt(n)}
-                bar={(n / widest) * 100}
                 onOpen={() =>
                   open({
                     title: siteOf(key)?.name ?? key,
@@ -710,7 +706,6 @@ export function AgentSheet({ stream, agent }: { stream: Stream; agent: string })
             ))}
           </DrillList>
         </Section>
-
         <Section icon={Dna} label="Species" aside={`${species.length}`}>
           <DrillList>
             {species.map(([name, n]) => (
@@ -729,7 +724,6 @@ export function AgentSheet({ stream, agent }: { stream: Stream; agent: string })
             ))}
           </DrillList>
         </Section>
-
         <Section icon={ClipboardList} label="Records" aside={scope.win.window}>
           <RecordRows
             stream={stream}
@@ -793,7 +787,6 @@ export function PeriodSheet({
                 key={r.id}
                 label={r.label}
                 value={fmt(r.value)}
-                bar={r.percent}
                 onOpen={() =>
                   open({
                     title: r.label,
@@ -805,7 +798,6 @@ export function PeriodSheet({
             ))}
           </DrillList>
         </Section>
-
         <Section icon={Syringe} label={stream.agent} aside={`${agents.length}`}>
           <DrillList>
             {agents.map((r) => (
@@ -813,7 +805,6 @@ export function PeriodSheet({
                 key={r.id}
                 label={r.label}
                 value={fmt(r.value)}
-                bar={r.percent}
                 onOpen={() =>
                   open({ title: r.label, eyebrow: `${label} › ${stream.agent}`, body: <AgentSheet stream={stream} agent={r.label} /> })
                 }
@@ -821,7 +812,6 @@ export function PeriodSheet({
             ))}
           </DrillList>
         </Section>
-
         <Section icon={Dna} label="Species" aside={`${species.length}`}>
           <DrillList>
             {species.map((r) => (
@@ -841,7 +831,6 @@ export function PeriodSheet({
             ))}
           </DrillList>
         </Section>
-
         <Section icon={ClipboardList} label="Records" aside={label}>
           <PeriodRecords stream={stream} site={site} from={from} to={to} label={label} />
         </Section>
@@ -877,7 +866,7 @@ function PeriodRecords({
 
   if (page.total === 0) {
     return (
-      <p className="text-[12.5px]" style={{ color: FAINT }}>
+      <p className="text-caption" style={{ color: FAINT }}>
         Nothing recorded in {label}.
       </p>
     )
@@ -949,7 +938,6 @@ export function OverdueSheet({
     return [...m.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 12)
   }, [rows])
 
-  const widest = Math.max(...sites.map(([, n]) => n), 1)
 
   return (
     <>
@@ -967,7 +955,6 @@ export function OverdueSheet({
                 key={key}
                 label={siteOf(key)?.name ?? key}
                 value={fmt(n)}
-                bar={(n / widest) * 100}
                 tone="warn"
                 onOpen={() =>
                   open({
@@ -980,7 +967,6 @@ export function OverdueSheet({
             ))}
           </DrillList>
         </Section>
-
         <Section icon={Dna} label="Species" aside={`${species.length}`}>
           <DrillList>
             {species.map(([name, v]) => (
@@ -1000,7 +986,6 @@ export function OverdueSheet({
             ))}
           </DrillList>
         </Section>
-
         <Section icon={PawPrint} label="Animals" aside={`${rows.length}`}>
           <OverdueRows
             rows={rows}
@@ -1091,7 +1076,6 @@ export function StreamSheet({ stream }: { stream: Stream }) {
                 key={r.id}
                 label={r.label}
                 value={fmt(r.value)}
-                bar={r.percent}
                 onOpen={() =>
                   open({
                     title: r.label,
@@ -1103,7 +1087,6 @@ export function StreamSheet({ stream }: { stream: Stream }) {
             ))}
           </DrillList>
         </Section>
-
         <Section icon={Syringe} label={stream.agent} aside={`${agents.length}`}>
           <DrillList>
             {agents.map((r) => (
@@ -1111,7 +1094,6 @@ export function StreamSheet({ stream }: { stream: Stream }) {
                 key={r.id}
                 label={r.label}
                 value={fmt(r.value)}
-                bar={r.percent}
                 onOpen={() =>
                   open({
                     title: r.label,
@@ -1123,7 +1105,6 @@ export function StreamSheet({ stream }: { stream: Stream }) {
             ))}
           </DrillList>
         </Section>
-
         <Section icon={ClipboardList} label="Records" aside={scope.win.window}>
           <RecordRows
             stream={stream}
@@ -1138,7 +1119,7 @@ export function StreamSheet({ stream }: { stream: Stream }) {
           />
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-3 text-center text-[11px]" style={{ color: ACCENT_INK }}>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-3 text-center text-caption" style={{ color: ACCENT_INK }}>
         {dueLabelHint(stream)}
       </p>
     </AccentProvider>

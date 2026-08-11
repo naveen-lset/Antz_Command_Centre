@@ -60,6 +60,7 @@ import {
   mix,
 } from '../../exec/system'
 import { EventTrend } from '../../exec/marks'
+import { RangeTabs, useChartRange } from '../../exec/range'
 import { MoreRows, usePaged } from '../perf'
 import { FindField } from '../filters'
 import { useScope } from '../scope'
@@ -202,21 +203,20 @@ function PreventiveHero() {
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <div className="flex items-end justify-between gap-4">
           <span>
-            <Figure value={fmt(vaccinations)} size={52} color={HERO_INK} />
-            <p className="mt-1 flex items-center gap-2 text-[15px] text-[#3d3a34]">
+            <Figure value={fmt(vaccinations)} size={48} color={HERO_INK} />
+            <p className="mt-1 flex items-center gap-2 text-body text-[#3d3a34]">
               <Syringe size={15} strokeWidth={1.75} style={{ color: STREAMS.vaccination.accent }} aria-hidden />
               Vaccinations · {scope.win.label.toLowerCase()}
             </p>
           </span>
           {/* The scope, stated on the largest card rather than only in the header — this is
               the figure a reader screenshots, and it must carry its own caption. */}
-          <span className="shrink-0 pb-1 text-right text-[11px] leading-[15px]" style={{ color: FAINT }}>
+          <span className="shrink-0 pb-1 text-right text-caption" style={{ color: FAINT }}>
             {scopeLine(scope)}
             <br />
             {siteCount} {siteCount === 1 ? 'site' : 'sites'} · {speciesCount} species
           </span>
         </div>
-
         <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
           {[
             { value: fmt(treatments), label: 'Deworming', accent: STREAMS.deworming.accent },
@@ -224,14 +224,14 @@ function PreventiveHero() {
           ].map((s, i) => (
             <span key={s.label} className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-4' : 'pr-4'}`}>
               <Figure value={s.value} size={24} />
-              <span className="mt-0.5 block truncate text-[12px] text-[#6d6860]">{s.label}</span>
+              <span className="mt-0.5 block truncate text-caption text-[#6d6860]">{s.label}</span>
             </span>
           ))}
           {/* The one due-status figure on the card, separated and captioned as one — the
               other three move with the date filter and this one does not. */}
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
             <Figure value={fmt(overdue)} size={24} color={TONE.bad} />
-            <span className="mt-0.5 block truncate text-[12px]" style={{ color: TONE.bad }}>
+            <span className="mt-0.5 block truncate text-caption" style={{ color: TONE.bad }}>
               Overdue · today
             </span>
           </span>
@@ -269,7 +269,7 @@ function Toolbar({ only, onOnly }: { only: StreamKey | 'all'; onOnly: (k: Stream
               type="button"
               aria-pressed={on}
               onClick={() => onOnly(k)}
-              className="card-press shrink-0 rounded-full px-3 py-[6px] text-[12px] font-medium whitespace-nowrap transition-colors"
+              className="card-press shrink-0 rounded-full px-3 py-[6px] text-caption font-medium whitespace-nowrap transition-colors"
               style={
                 on
                   ? { backgroundColor: accent, color: '#ffffff' }
@@ -281,7 +281,6 @@ function Toolbar({ only, onOnly }: { only: StreamKey | 'all'; onOnly: (k: Stream
           )
         })}
       </div>
-
       <Rule label="Find" />
       <FindField value={query} onChange={setQuery} placeholder="Animal ID, species, vaccine, treatment" />
       <SearchResults query={query} />
@@ -356,7 +355,7 @@ function SearchResults({ query }: { query: string }) {
 
   if (hits.length === 0) {
     return (
-      <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+      <p className="mt-3 text-caption" style={{ color: FAINT }}>
         Nothing matches “{query.trim()}”.
       </p>
     )
@@ -435,17 +434,16 @@ function OverviewCard({ stream, site, onOpen }: { stream: Stream; site: string |
         >
           <Glyph size={15} strokeWidth={1.9} style={{ color: stream.accent }} />
         </span>
-        <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-[#1c1a16]">{stream.label}</span>
-        <span className="shrink-0 text-[11px] font-semibold" style={{ color: ACCENT_INK }}>
+        <span className="min-w-0 flex-1 truncate text-small font-medium text-[#1c1a16]">{stream.label}</span>
+        <span className="shrink-0 text-caption font-semibold" style={{ color: ACCENT_INK }}>
           ›
         </span>
       </span>
-
       <span className="mt-2.5 flex items-baseline gap-2">
-        <Figure value={fmt(given)} size={30} color={HERO_INK} />
+        <Figure value={fmt(given)} size={32} color={HERO_INK} />
         {move !== undefined && (
           <span
-            className="shrink-0 text-[11.5px] font-semibold tabular-nums"
+            className="shrink-0 text-caption font-semibold tabular-nums"
             style={{ color: move > 0 ? '#1e7a44' : move < 0 ? TONE.warn : FAINT }}
           >
             {move > 0 ? '+' : ''}
@@ -453,22 +451,21 @@ function OverviewCard({ stream, site, onOpen }: { stream: Stream; site: string |
           </span>
         )}
       </span>
-      <span className="mt-0.5 block text-[11.5px]" style={{ color: FAINT }}>
+      <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
         {stream.noun} · {scope.win.label.toLowerCase()}
       </span>
-
       <span className="mt-2.5 flex items-center gap-2 border-t border-[#f0efec] pt-2.5">
         {cover ? (
           <>
-            <span className="min-w-0 flex-1 truncate text-[11.5px]" style={{ color: FAINT }}>
+            <span className="min-w-0 flex-1 truncate text-caption" style={{ color: FAINT }}>
               {Math.round(cover.percent)}% covered · {fmt(cover.covered)}/{fmt(cover.herd)}
             </span>
-            <span className="shrink-0 text-[12px] font-semibold tabular-nums" style={{ color: TONE.bad }}>
+            <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: TONE.bad }}>
               {overdue} overdue
             </span>
           </>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-[11.5px]" style={{ color: FAINT }}>
+          <span className="min-w-0 flex-1 truncate text-caption" style={{ color: FAINT }}>
             Activity only · no due schedule
           </span>
         )}
@@ -488,20 +485,24 @@ function VaccinationTrend() {
   const { open } = useSheet()
   const stream = STREAMS.vaccination
   const site = siteKeyOf(scope)
+  /* A calendar with one square on it is not a calendar. The card carries its own range so the
+     schedule stays a schedule while the page is cut to a day. */
+  const range = useChartRange()
 
   const { cells, grain } = useMemo(
     () =>
-      gridCells(scope.win, (from, to) =>
+      gridCells(range.win, (from, to) =>
         SITES.filter((s) => !site || s.key === site).reduce((n, s) => n + sumIn(stream.activity, s.key, from, to), 0),
       ),
-    [scope.win, site, stream.activity],
+    [range.win, site, stream.activity],
   )
 
   const total = cells.reduce((n, c) => n + c.value, 0)
   const busiest = cells.reduce((a, b) => (b.value > a.value ? b : a), cells[0])
 
   return (
-    <Section icon={CalendarClock} label="Vaccination trend" aside={`${fmt(total)} · ${scope.win.window}`}>
+    <Section icon={CalendarClock} label="Vaccination trend" aside={`${fmt(total)} · ${range.win.window}`}>
+      <RangeTabs range={range} />
       <ScheduleGrid
         cells={cells}
         grain={grain}
@@ -601,25 +602,23 @@ function BadlyOverdue() {
   const sites = useMemo(() => overdueBySite(site, stream, 16), [site, stream])
   const species = useMemo(() => overdueBySpecies(site, stream, 16).slice(0, 8), [site, stream])
   const total = sites.reduce((n, s) => n + s.value, 0)
-  const widestSite = Math.max(...sites.map((s) => s.value), 1)
-  const widestSpecies = Math.max(...species.map((s) => s.value), 1)
 
   return (
     <Section icon={TriangleAlert} label="Over 15 days overdue" aside="vaccination · today">
       <div className="flex items-end gap-4">
         <span>
-          <Figure value={fmt(total)} size={44} color={TONE.bad} />
-          <p className="mt-1 text-[13px]" style={{ color: TONE.bad }}>
+          <Figure value={fmt(total)} size={40} color={TONE.bad} />
+          <p className="mt-1 text-small" style={{ color: TONE.bad }}>
             animals past 15 days
           </p>
         </span>
-        <span className="flex-1 pb-1 text-right text-[11px]" style={{ color: FAINT }}>
+        <span className="flex-1 pb-1 text-right text-caption" style={{ color: FAINT }}>
           {sites.length} {sites.length === 1 ? 'site' : 'sites'} · {species.length} species
         </span>
       </div>
 
       {total === 0 ? (
-        <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+        <p className="mt-3 text-caption" style={{ color: FAINT }}>
           Nothing more than fifteen days overdue{scope.site ? ` at ${scope.site.name}` : ''}.
         </p>
       ) : (
@@ -632,7 +631,6 @@ function BadlyOverdue() {
                 label={s.label}
                 value={fmt(s.value)}
                 tone="bad"
-                bar={(s.value / widestSite) * 100}
                 onOpen={() =>
                   open({
                     title: s.label,
@@ -643,7 +641,6 @@ function BadlyOverdue() {
               />
             ))}
           </DrillList>
-
           <Rule label="By species" />
           <DrillList>
             {species.map((s) => (
@@ -653,7 +650,6 @@ function BadlyOverdue() {
                 sub={s.sub}
                 value={fmt(s.value)}
                 tone="bad"
-                bar={(s.value / widestSpecies) * 100}
                 onOpen={() =>
                   open({
                     title: s.label,
@@ -772,7 +768,6 @@ function StreamSpecies({ stream }: { stream: Stream }) {
               sub={`${r.sub ?? ''}${r.overdue ? ` · ${r.overdue} overdue${r.over15 ? `, ${r.over15} over 15 d` : ''}` : ''}`}
               value={fmt(r.value)}
               tone={r.over15 ? 'bad' : r.overdue ? 'warn' : undefined}
-              bar={r.percent}
               onOpen={() =>
                 open({
                   title: r.label,
@@ -843,35 +838,40 @@ function DewormingTrend() {
   const { open } = useSheet()
   const stream = STREAMS.deworming
   const site = siteKeyOf(scope)
+  /* Its own range, like every other trend on the page — a worming programme is judged over
+     cycles, and the page's window is frequently a day. */
+  const range = useChartRange()
+  const win = range.win
 
-  const n = scope.win.days <= 14 ? Math.max(1, scope.win.days) : 12
+  const n = win.days <= 14 ? Math.max(1, win.days) : 12
   const buckets = useMemo(
     () =>
       Array.from({ length: n }, (_, i) => {
-        const from = scope.win.from + Math.floor((i * scope.win.days) / n)
-        const to = scope.win.from + Math.floor(((i + 1) * scope.win.days) / n) - 1
+        const from = win.from + Math.floor((i * win.days) / n)
+        const to = win.from + Math.floor(((i + 1) * win.days) / n) - 1
         const value = SITES.filter((s) => !site || s.key === site).reduce(
           (sum, s) => sum + sumIn(stream.activity, s.key, from, Math.max(from, to)),
           0,
         )
         return { from, to: Math.max(from, to), value }
       }),
-    [scope.win, site, stream.activity, n],
+    [win, site, stream.activity, n],
   )
 
   const peak = buckets.reduce((a, b) => (b.value > a.value ? b : a), buckets[0])
 
   return (
-    <Section icon={Activity} label="Deworming trend" aside={`${scope.win.label.toLowerCase()} · ${n} periods`}>
+    <Section icon={Activity} label="Deworming trend" aside={`${win.label.toLowerCase()} · ${n} period${n === 1 ? '' : 's'}`}>
+      <RangeTabs range={range} />
       {/* An event flow, so columns — and the axis now names the periods it was summed over
           rather than repeating the window once under twelve of them. Scrub it and each period
           states its own count. */}
       <EventTrend
         points={buckets.map((b) => ({ label: spanOf(b.from, b.to), value: b.value }))}
-        span={scope.win.window}
+        span={win.window}
         unit={stream.noun}
         marks={peak && peak.value > 0 ? [{ index: buckets.indexOf(peak), note: `Peak · ${peak.value}` }] : undefined}
-        empty={`No ${stream.noun} recorded in ${scope.win.window}.`}
+        empty={`No ${stream.noun} recorded in ${win.window}.`}
       />
       <Rule label="Periods" />
       <DrillList>
@@ -941,13 +941,15 @@ function SupplementTrend() {
   const { open } = useSheet()
   const stream = STREAMS.supplement
   const site = siteKeyOf(scope)
+  const range = useChartRange()
+  const win = range.win
 
-  const n = Math.min(24, Math.max(2, scope.win.days))
+  const n = Math.min(24, Math.max(2, win.days))
   const buckets = useMemo(
     () =>
       Array.from({ length: n }, (_, i) => {
-        const from = scope.win.from + Math.floor((i * scope.win.days) / n)
-        const to = Math.max(from, scope.win.from + Math.floor(((i + 1) * scope.win.days) / n) - 1)
+        const from = win.from + Math.floor((i * win.days) / n)
+        const to = Math.max(from, win.from + Math.floor(((i + 1) * win.days) / n) - 1)
         return {
           from,
           to,
@@ -957,24 +959,27 @@ function SupplementTrend() {
           ),
         }
       }),
-    [scope.win, site, stream.activity, n],
+    [win, site, stream.activity, n],
   )
 
+  /* The site split below stays on the PAGE's window, not the chart's. It is a comparison
+     between sites for the period being reported on, and moving it with the chart's range
+     would put two different spans in one card without saying so. */
   const sites = useMemo(
     () => siteLines(scope, stream).sort((a, b) => b.given - a.given),
     [scope, stream],
   )
-  const widest = Math.max(...sites.map((s) => s.given), 1)
 
   return (
-    <Section icon={ClipboardList} label="Supplement trend" aside={scope.win.window}>
+    <Section icon={ClipboardList} label="Supplement trend" aside={win.window}>
+      <RangeTabs range={range} />
       {/* Doses given per period are a count, not a level, so they are columns like every other
           flow in the product — a line between two periods would claim a value between them. */}
       <EventTrend
         points={buckets.map((b) => ({ label: spanOf(b.from, b.to), value: b.value }))}
-        span={scope.win.window}
+        span={win.window}
         unit={stream.noun}
-        empty={`No ${stream.noun} recorded in ${scope.win.window}.`}
+        empty={`No ${stream.noun} recorded in ${win.window}.`}
       />
       <Rule label="By site" />
       <DrillList>
@@ -984,7 +989,6 @@ function SupplementTrend() {
             label={s.site.name}
             sub={`${s.species} species`}
             value={fmt(s.given)}
-            bar={(s.given / widest) * 100}
             onOpen={() =>
               open({
                 title: s.site.name,
@@ -1105,7 +1109,7 @@ function SpeciesComparison() {
       {/* The three programmes for one species live in the sheet's own tabs of sections; this
           list leads with the total so a reader can sort by "most preventive activity" and
           then read the split inside. */}
-        <p className="pt-3 text-[11px]" style={{ color: FAINT }}>
+        <p className="pt-3 text-caption" style={{ color: FAINT }}>
           Figure is all three programmes combined · {scope.win.window}
         </p>
       </Section>

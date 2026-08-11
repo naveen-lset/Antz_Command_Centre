@@ -52,7 +52,7 @@ export function Summary({ rows, note }: { rows: EggRecord[]; note?: string }) {
           { label: 'Discarded', value: String(t.discarded), tone: t.discarded ? 'warn' : undefined },
         ]}
       />
-      <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+      <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
         {note ??
           'Eggs set and hatchings are counted on their own dates — a clutch set in one month may hatch in the next — so the hatch percentage is a rate between two window flows, not the fate of one clutch. Survival is read as of today.'}
       </p>
@@ -78,7 +78,7 @@ export function RecordList({
   return (
     <Section icon={Egg} label={label} aside={`${rows.length}`}>
       {rows.length === 0 ? (
-        <p className="py-5 text-center text-[12.5px]" style={{ color: FAINT }}>
+        <p className="py-5 text-center text-caption" style={{ color: FAINT }}>
           {empty}
         </p>
       ) : (
@@ -99,7 +99,7 @@ export function RecordList({
             <button
               type="button"
               onClick={() => setShown((n) => n + PAGE)}
-              className="mt-3 w-full rounded-full py-2 text-[12.5px] font-medium"
+              className="mt-3 w-full rounded-full py-2 text-body font-medium"
               style={{ backgroundColor: '#f2f1ed', color: ACCENT_INK }}
             >
               Show {Math.min(PAGE, rows.length - shown)} more · {rows.length - shown} remaining
@@ -127,11 +127,10 @@ function Breakdown({
   empty: string
 }) {
   const live = groups.filter((g) => g[metric] > 0).sort((a, b) => b[metric] - a[metric])
-  const widest = Math.max(...live.map((g) => g[metric]), 1)
   if (live.length === 0)
     return (
       <Section icon={icon} label={label}>
-        <p className="py-5 text-center text-[12.5px]" style={{ color: FAINT }}>
+        <p className="py-5 text-center text-caption" style={{ color: FAINT }}>
           {empty}
         </p>
       </Section>
@@ -149,7 +148,6 @@ function Breakdown({
                 : g.sub
             }
             value={String(g[metric])}
-            bar={(g[metric] / widest) * 100}
             onOpen={() => onOpen(g)}
           />
         ))}
@@ -191,7 +189,7 @@ export function RecordBody({ record: r }: { record: EggRecord }) {
           ]}
         />
       </Section>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px]" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         Deepest level
       </p>
     </Stack>
@@ -286,7 +284,7 @@ export function SpeciesBody({ rows }: { rows: EggRecord[] }) {
             ]}
             unit="hatchlings"
           />
-          <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+          <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
             {Math.round(pct(t.survived, t.hatched))}% survival, read as of today.
           </p>
         </Section>
@@ -361,7 +359,7 @@ export function FirstHatchBody({ rows, speciesName }: { rows: EggRecord[]; speci
             { label: 'How it hatched', value: first?.detail ?? '—' },
           ]}
         />
-        <p className="mt-3.5 text-[11px] leading-[16px]" style={{ color: FAINT }}>
+        <p className="mt-3.5 text-caption" style={{ color: FAINT }}>
           Earliest hatching for this species anywhere in the ledger, not the earliest inside the
           reporting window.
         </p>

@@ -91,9 +91,9 @@ function SheetHero({
     <div className="w-full px-[var(--gutter-lg)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
         <Figure value={value} unit={unit} size={48} color={tone ? TONE[tone] : HERO_INK} />
-        <p className="mt-1 text-[15px] text-[#3d3a34]">{label}</p>
+        <p className="mt-1 text-body text-[#3d3a34]">{label}</p>
         {note && (
-          <p className="mt-2.5 text-[12px]" style={{ color: FAINT }}>
+          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
             {note}
           </p>
         )}
@@ -113,7 +113,7 @@ function CaseRows({ rows, eyebrow }: { rows: MedCase[]; eyebrow: string }) {
 
   if (rows.length === 0) {
     return (
-      <p className="text-[12.5px]" style={{ color: FAINT }}>
+      <p className="text-caption" style={{ color: FAINT }}>
         No cases.
       </p>
     )
@@ -163,7 +163,6 @@ function Splits({
                 key={h.id}
                 label={h.label}
                 value={fmt(h.value)}
-                bar={h.percent}
                 onOpen={onHospital ? () => onHospital(h.id) : undefined}
               />
             ))}
@@ -179,7 +178,6 @@ function Splits({
                 label={s.label}
                 sub={s.sub}
                 value={fmt(s.value)}
-                bar={s.percent}
                 onOpen={onSpecies ? () => onSpecies(s.label, s.id) : undefined}
               />
             ))}
@@ -279,7 +277,7 @@ export function AnimalMedicalSheet({ animalId, cases }: { animalId: string; case
           <CaseRows rows={mine} eyebrow={animalId} />
         </Section>
       </Stack>
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px]" style={{ color: FAINT }}>
+      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-caption" style={{ color: FAINT }}>
         Deepest level
       </p>
     </>
@@ -506,7 +504,6 @@ export function HospitalSheet({ hospitalId }: { hospitalId: string }) {
                   key={r.id}
                   label={r.label}
                   value={fmt(r.value)}
-                  bar={r.percent}
                   tone={SEVERITY_TONE[r.label as keyof typeof SEVERITY_TONE]}
                   onOpen={() =>
                     open({
@@ -537,7 +534,6 @@ export function HospitalSheet({ hospitalId }: { hospitalId: string }) {
                   label={m.label}
                   sub={m.sub}
                   value={fmt(m.value)}
-                  bar={m.percent}
                   onOpen={() =>
                     open({
                       title: m.label,
@@ -614,7 +610,6 @@ export function RecoverySheet({ cases, title }: { cases: MedCase[]; title: strin
                 label={o.label}
                 value={fmt(o.value)}
                 unit={`${Math.round(o.percent)}%`}
-                bar={o.percent}
                 tone={OUTCOME_TONE[o.label as keyof typeof OUTCOME_TONE]}
                 onOpen={() =>
                   open({
@@ -656,7 +651,7 @@ export function PeriodSheet({ cases, label, from, to }: { cases: MedCase[]; labe
           <Section icon={ClipboardList} label="Presenting complaint" aside={`${complaints.length}`}>
             <DrillList>
               {complaints.map((r) => (
-                <DrillRow key={r.id} label={r.label} value={fmt(r.value)} bar={r.percent} />
+                <DrillRow key={r.id} label={r.label} value={fmt(r.value)} />
               ))}
             </DrillList>
           </Section>

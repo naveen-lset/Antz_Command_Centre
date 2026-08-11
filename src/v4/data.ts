@@ -247,10 +247,24 @@ export interface HeadlineKpi extends Kpi {
  * trusting that two screens are showing the same thing.
  */
 export const headlineKpis: HeadlineKpi[] = [
+  /**
+   * NO NOUN ON THREE OF THE FOUR, and the empty string is the instruction rather than an
+   * oversight — `kpi.note ?? metric.unit` would otherwise fall straight through to the
+   * metric's own unit, which is the identical word.
+   *
+   * The noun exists to say what a figure counts. Under a card already headed "Animal
+   * Population", "215K Animals" spends the line restating the label an inch above it;
+   * same for "Births" under Natality and "Deaths" under Mortality. Health & Medical keeps
+   * its note — "124 Under care" is not what "Health & Medical" says, and without it the
+   * figure could as easily be cases opened, animals treated or medicines given.
+   *
+   * The site qualifier still appears here when one is picked: with Aquatic Halls in scope
+   * these read "Aquatic Halls", which is information the label does NOT carry.
+   */
   {
     key: 'animals',
     label: 'Animal Population',
-    note: 'animals',
+    note: '',
     icon: PawPrint,
     accent: '#006d35',
     metric: 'animals',
@@ -273,7 +287,7 @@ export const headlineKpis: HeadlineKpi[] = [
   {
     key: 'births',
     label: 'Natality',
-    note: 'births',
+    note: '',
     icon: Sparkles,
     accent: '#00abab',
     tone: 'good',
@@ -285,7 +299,7 @@ export const headlineKpis: HeadlineKpi[] = [
   {
     key: 'deaths',
     label: 'Mortality',
-    note: 'deaths',
+    note: '',
     icon: Activity,
     accent: '#e93353',
     metric: 'mortality',

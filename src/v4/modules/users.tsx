@@ -153,7 +153,6 @@ export default function Users() {
             height={140}
           />
         </Section>
-
         <Section icon={UserCheck} label="Onboarding" aside="this month">
           <Snapshot
             cols={2}
@@ -180,7 +179,6 @@ export default function Users() {
                 value={String(s.value)}
                 unit="active"
                 tone={s.tone}
-                bar={(s.value / 54) * 100}
                 onOpen={() =>
                   open({
                     title: s.label,
@@ -208,7 +206,6 @@ export default function Users() {
             ]}
           />
         </Section>
-
         <Section icon={KeyRound} label="Access" aside="this month">
           <StatusList
             items={[
@@ -226,7 +223,6 @@ export default function Users() {
             ]}
           />
         </Section>
-
         <Section icon={Monitor} label="Engagement" aside="30 days">
           <Table
             head={['Role', 'Accounts', 'Active', 'Sessions']}
@@ -253,7 +249,6 @@ export default function Users() {
             ]}
           />
         </Section>
-
         <Section icon={ShieldCheck} label="Today">
           <Events
             items={[
@@ -264,7 +259,6 @@ export default function Users() {
             ]}
           />
         </Section>
-
         <Section icon={UsersIcon} label="Highlights">
           <Highlights
             items={[
@@ -277,7 +271,6 @@ export default function Users() {
             ]}
           />
         </Section>
-
         <Section icon={UserCog} label="Estate">
           <Facts
             items={[

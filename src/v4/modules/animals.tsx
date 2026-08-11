@@ -102,6 +102,7 @@ import {
 import { compareOf, dayCells, peakOf, pointsOf } from '../plot'
 import { AnimalPanel, TapList, TapRow } from '../panels'
 import { useSheet } from '../sheet'
+import { CardWindowNote, useCardWindow } from '../cardWindow'
 import { useScope } from '../scope'
 import { DateSheet } from '../filters'
 import { MoreRows, usePaged } from '../perf'
@@ -190,6 +191,70 @@ function keepsStanding(h: Holding, f: Facets): boolean {
   return true
 }
 
+/**
+ * THE POPULATION UNDER ONE WINDOW, WITH THE LENS APPLIED.
+ *
+ * Lifted out of the page body because it is no longer the page body's alone: the cards that
+ * carry their own date range have to run the identical pipeline over a different window, and
+ * two copies of "filter the holdings, then keep the species those holdings name" would be two
+ * copies free to disagree about what the lens means. `win` is a parameter rather than a read of
+ * the scope for the same reason.
+ */
+function useLens(siteKey: string | null, win: Win, facets: Facets) {
+  /* ONE READ, EVERY SECTION — within a single window. `holdings` is the population with each
+     species' standing attached; everything from the composition down to the leaders is an
+     aggregation of this array or of the species rows beside it, which is what makes the parts
+     sum to the hero for any card reading the SAME window as the hero. */
+  const allHoldings = useMemo(() => holdings(siteKey, win), [siteKey, win])
+  const rows = useMemo(
+    () =>
+      allHoldings
+        .filter((h) => keepsStanding(h, facets))
+        .map((h) => (facets.sex === 'all' ? h : { ...h, count: sexOfHolding(h, facets.sex) }))
+        .filter((h) => h.count > 0),
+    [allHoldings, facets],
+  )
+  const allSpecies = useMemo(() => speciesRows(siteKey, win), [siteKey, win])
+  const species = useMemo(() => {
+    const keep = new Set(rows.map((r) => r.species.id))
+    return allSpecies
+      .filter((s) => keep.has(s.id))
+      .map((s) =>
+        facets.sex === 'all'
+          ? s
+          : { ...s, animals: facets.sex === 'M' ? s.male : facets.sex === 'F' ? s.female : s.unknown },
+      )
+      .filter((s) => s.animals > 0)
+      .sort((a, b) => b.animals - a.animals)
+  }, [allSpecies, rows, facets.sex])
+  return { allHoldings, rows, allSpecies, species }
+}
+
+/**
+ * The flow sheets a card opens, bound to THAT CARD'S window rather than the page's.
+ *
+ * This is the part of per-card ranges that is a correctness requirement rather than a
+ * convenience. A Births card set to six months whose "Birth records" sheet opened on the page's
+ * window would list a different set of records from the figure the reader tapped to get there —
+ * the single most damaging thing a drill-down can do, because the reader has no way to tell.
+ */
+function useFlowSheets(siteKey: string | null, win: Win) {
+  const { open } = useSheet()
+  const move = useMemo(() => movement(siteKey, win), [siteKey, win])
+  const specs = useMemo(() => flowSpecs(move), [move])
+  const openFlow = (key: keyof typeof specs) => {
+    const spec = specs[key]
+    open({ title: spec.title, eyebrow: 'Animal Population', body: <FlowPanel spec={spec} siteKey={siteKey} win={win} /> })
+  }
+  const openFlowSite = (key: keyof typeof specs, row: string) =>
+    open({
+      title: siteOf(row)?.name ?? row,
+      eyebrow: specs[key].title,
+      body: <FlowPanel spec={specs[key]} siteKey={row} win={win} />,
+    })
+  return { move, openFlow, openFlowSite }
+}
+
 /* ── the page ────────────────────────────────────────────────────────────── */
 
 export default function Animals() {
@@ -208,47 +273,16 @@ export default function Animals() {
   applyRef.current = setFacets
   const applyFacets = useCallback((next: Facets) => applyRef.current(next), [])
 
-  /* ONE READ, EVERY SECTION. `holdings` is the population with each species' standing attached;
-     everything from the composition down to the leaders is an aggregation of this array or of
-     the species rows beside it, which is what makes the parts sum to the hero. */
-  const allHoldings = useMemo(() => holdings(siteKey, win), [siteKey, win])
-  const rows = useMemo(
-    () =>
-      allHoldings
-        .filter((h) => keepsStanding(h, facets))
-        .map((h) => (facets.sex === 'all' ? h : { ...h, count: sexOfHolding(h, facets.sex) }))
-        .filter((h) => h.count > 0),
-    [allHoldings, facets],
-  )
-
-  const allSpecies = useMemo(() => speciesRows(siteKey, win), [siteKey, win])
-  const species = useMemo(() => {
-    const keep = new Set(rows.map((r) => r.species.id))
-    return allSpecies
-      .filter((s) => keep.has(s.id))
-      .map((s) =>
-        facets.sex === 'all'
-          ? s
-          : { ...s, animals: facets.sex === 'M' ? s.male : facets.sex === 'F' ? s.female : s.unknown },
-      )
-      .filter((s) => s.animals > 0)
-      .sort((a, b) => b.animals - a.animals)
-  }, [allSpecies, rows, facets.sex])
+  const { allHoldings, rows, allSpecies, species } = useLens(siteKey, win, facets)
 
   const total = totalOf(rows)
   const collection = totalOf(allHoldings)
   const lensed = facetsOn(facets) > 0
   const delta = useMemo(() => change(siteKey, win), [siteKey, win])
-  const move = useMemo(() => movement(siteKey, win), [siteKey, win])
-  const specs = useMemo(() => flowSpecs(move), [move])
   const sites = useMemo(() => siteRows(win), [win])
   const enclosures = siteKey ? (siteOf(siteKey)?.enclosures ?? 0) : SITES.reduce((n, s) => n + s.enclosures, 0)
   const scopeName = scope.site ? scope.site.name : 'Overall'
 
-  const openFlow = (key: keyof typeof specs) => {
-    const spec = specs[key]
-    open({ title: spec.title, eyebrow: 'Animal Population', body: <FlowPanel spec={spec} siteKey={siteKey} win={win} /> })
-  }
   const openSite = (key: string) =>
     open({ title: siteOf(key)?.name ?? key, eyebrow: 'Animal Population', body: <SitePanel siteKey={key} win={win} /> })
   const openSpecies = (row: SpeciesRow) =>
@@ -280,14 +314,6 @@ export default function Animals() {
       eyebrow: 'Regulatory',
       body: <ScheduleGroup schedule={schedule} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
     })
-  /** A flow, scoped to one site — the second level of the Births → Site → Species → Animal drill. */
-  const openFlowSite = (key: keyof typeof specs, siteOfRow: string) =>
-    open({
-      title: siteOf(siteOfRow)?.name ?? siteOfRow,
-      eyebrow: specs[key].title,
-      body: <FlowPanel spec={specs[key]} siteKey={siteOfRow} win={win} />,
-    })
-
   /* ── what the marks are fed ────────────────────────────────────────────────
      Every one of these is an aggregation of `rows`, `species` or the event stream under the
      scope in force — the same reads the page always made, grouped once here instead of being
@@ -296,71 +322,13 @@ export default function Animals() {
   const reg = useMemo(() => regulatorySplit(rows), [rows])
   const cites = useMemo(() => citesBands(rows), [rows])
   const schedules = useMemo(() => scheduleBands(rows), [rows])
-  const sexes = useMemo(() => sexTotals(species), [species])
   const citesTotal = cites.reduce((n, b) => n + b.animals, 0)
   const scheduleTotal = schedules.reduce((n, b) => n + b.animals, 0)
   const citesShare = total ? (citesTotal / total) * 100 : 0
 
-  const prevMove = useMemo(() => movement(siteKey, previous(win)), [siteKey, win])
-  const births = useFlowCard('births', siteKey, win)
-  const deaths = useFlowCard('mortality', siteKey, win)
-  const fetal = useFlowCard('fetal', siteKey, win)
 
-  /* The calendar is drawn only where it can say something a total cannot: a window of under a
-     week is a handful of cells, and an empty window is an empty grid. */
-  const birthDays = useMemo(
-    () => (win.days >= 7 && move.births.total > 0 ? dayCells('births', siteKey, win).cells : undefined),
-    [siteKey, win, move.births.total],
-  )
 
-  /* Escapes are read as RECORDS, not as a count: the six most recent, each with the outcome its
-     own event carries — "Not recovered" is an open incident, every other outcome is a closed one. */
-  const escapes = useMemo(
-    () =>
-      eventPage('escaped', siteKey, win, 0, 6).rows.map((ev) => ({
-        key: ev.id,
-        when: shortDate(ev.day),
-        title: ev.speciesName,
-        meta: `${siteOf(ev.siteKey)?.name ?? ev.siteKey} · ${ev.animalId} · ${ev.detail.toLowerCase()}`,
-        /* TWO STATES, NOT FOUR. The record's own outcome — same day, within seven days, off site
-           — belongs in the meta line; the chip answers the only question asked of an escape,
-           which is whether the animal is back. */
-        status:
-          ev.detail === 'Not recovered'
-            ? { label: 'Open', tone: 'bad' as const }
-            : { label: 'Recovered', tone: 'good' as const },
-        onPick: () =>
-          open({
-            title: ev.animalId,
-            eyebrow: `Escape · ${shortDate(ev.day)}`,
-            body: <AnimalPanel record={animalFromId(ev.animalId, ev.speciesName)} />,
-          }),
-      })),
-    [siteKey, win, open],
-  )
 
-  /* Transfer routes name the counterparty the RECORD names — "other zoo", "the wild" — and
-     nothing more. The data has a kind of counterparty, not an institution, so neither does this. */
-  const transferRoutes = useMemo(
-    () =>
-      flowByCause('transfers', siteKey, win).map((c) => {
-        const direction = TRANSFER_DIRECTION[c.label] ?? 'internal'
-        return {
-          key: c.key,
-          label: c.label,
-          meta: TRANSFER_META[c.label],
-          value: c.value,
-          direction,
-          onPick:
-            direction === 'in'
-              ? () => openFlow('transferIn')
-              : direction === 'out'
-                ? () => openFlow('transferOut')
-                : undefined,
-        }
-      }),
-    [siteKey, win],
-  )
 
   return (
     <>
@@ -409,59 +377,7 @@ export default function Animals() {
             that moved between them as a signed ledger, and the part the records do not explain
             named rather than hidden inside the total. Every flow row opens its own sheet. */}
         <Wide>
-          <Section icon={Sparkles} label="Population change" aside={win.window}>
-            <Pair
-              a={{ value: fmt(delta.opening), label: `Opening · ${shortDate(Math.max(0, win.from - 1))}` }}
-              b={{ value: fmt(delta.closing), label: `Current · ${shortDate(win.to)}` }}
-              relation={signed(delta.net)}
-              tone={netTone(delta.net)}
-            />
-            <Rule label="Recorded movement" />
-            <ul className="flex flex-col">
-              {[
-                { key: 'births' as const, label: 'Births', sub: `${move.births.natural} natural · ${move.births.assisted} assisted`, value: move.births.total },
-                { key: 'transferIn' as const, label: 'Transfer in', sub: 'External · other collections', value: move.transfers.in },
-                { key: null, label: 'Accessions', sub: 'Rescue, confiscation, intake', value: move.accessions },
-                { key: 'mortality' as const, label: 'Deaths', sub: `${((move.deaths / Math.max(1, delta.closing)) * 100).toFixed(3)}% of collection`, value: -move.deaths },
-                { key: 'transferOut' as const, label: 'Transfer out', sub: 'External · releases and loans', value: -move.transfers.out },
-                { key: 'escaped' as const, label: 'Escaped', sub: `${move.escapes.unrecovered} not recovered of ${move.escapes.total}`, value: -move.escapes.unrecovered },
-              ].map((f) => (
-                <MoveRow
-                  key={f.label}
-                  label={f.label}
-                  sub={f.sub}
-                  value={f.value}
-                  peak={Math.max(move.births.total, move.deaths, move.accessions, move.transfers.out, 1)}
-                  onOpen={f.key ? () => openFlow(f.key) : undefined}
-                />
-              ))}
-            </ul>
-            <div className="mt-3 border-t border-[#f0efec] pt-3">
-              <Facts
-                items={[
-                  { label: 'Net recorded movement', value: signed(move.recorded), tone: netTone(move.recorded) },
-                  {
-                    label: 'Census revision',
-                    sub: 'Change not attributed to records',
-                    value: signed(delta.net - move.recorded),
-                  },
-                ]}
-              />
-            </div>
-            {/* Fetal loss is a breeding figure, not a headcount movement — a fetus was never in
-                the collection. It sits under its own rule so it cannot be added into the column
-                above, and it opens the same sheet the Fetal Death section does. */}
-            <Rule label="Not a headcount change" />
-            <TapList>
-              <TapRow
-                lead={Baby}
-                label="Fetal death"
-                sub={`${move.fetal.stillbirth} stillbirth · ${move.fetal.abortion} abortion`}
-                value={fmt(move.fetal.total)}
-                onOpen={() => openFlow('fetal')}
-              />
-            </TapList>
-          </Section>
+          <PopulationChangeCard siteKey={siteKey} />
         </Wide>
 
         {/* 4 · TREND. Real readings on a zero-based axis, drawn for whichever range the reader
@@ -593,59 +509,13 @@ export default function Animals() {
         {/* 12 · SEX — a ring, which is the mark for three parts of one whole. Compact by design:
             undetermined is the majority ANSWER in a collection four fifths made of fish and
             invertebrates, not a gap in the record. */}
-        <Section icon={Venus} label="Sex distribution" aside={`${fmt(sexes.total)} animals`}>
-          <SplitRing
-            label="Animals"
-            unit="animals"
-            items={[
-              { key: 'u', label: 'Undetermined', value: sexes.unknown, meta: 'Shoals, colonies, unsexed' },
-              { key: 'm', label: 'Male', value: sexes.male },
-              { key: 'f', label: 'Female', value: sexes.female },
-            ]}
-          />
-        </Section>
+        <SexCard siteKey={siteKey} facets={facets} />
 
         {/* 13 · BIRTHS — an event flow, so columns and a real calendar rather than a bar chart.
             A line through births per day would claim a value between the days and there isn't
             one. The card answers how many, against when, where and which species. */}
         <Wide>
-          <Section icon={Sparkles} label="Births" aside={win.window}>
-            <EventTrend
-              points={births.points}
-              compare={births.compare}
-              span={win.window}
-              unit="births"
-              marks={births.peak ? [births.peak] : undefined}
-              empty={`No births recorded in ${win.window}.`}
-            />
-            {birthDays && (
-              <>
-                <Rule label="Date distribution" />
-                <DayHeat days={birthDays} />
-              </>
-            )}
-            <div className="mt-4 border-t border-[#f0efec] pt-3">
-              <Facts
-                items={[
-                  { label: 'Natural', value: fmt(move.births.natural) },
-                  { label: 'Assisted', value: fmt(move.births.assisted), sub: 'Hand-reared or assisted delivery' },
-                ]}
-              />
-            </div>
-            {births.sites.length > 0 && (
-              <>
-                <Rule label="By site" />
-                <RankList items={siteRank(births.sites, births.total, (key) => openFlowSite('births', key))} />
-              </>
-            )}
-            {births.species.length > 0 && (
-              <>
-                <Rule label="By species" />
-                <RankList items={nameRank(births.species, births.total)} />
-              </>
-            )}
-            <OpenPill label="Birth records" onOpen={() => openFlow('births')} />
-          </Section>
+          <BirthsCard siteKey={siteKey} />
         </Wide>
 
         {/* 14 · MORTALITY. Population context, and the one thing a total cannot say: WHERE the
@@ -653,212 +523,469 @@ export default function Animals() {
             the ranked lists below are the site and species tails. Cause analysis stays on the
             Mortality module; nothing medical is mixed in here. */}
         <Wide>
-          <Section icon={Activity} label="Mortality" aside={win.window}>
-            <EventTrend
-              points={deaths.points}
-              compare={deaths.compare}
-              span={win.window}
-              unit="deaths"
-              marks={deaths.peak ? [{ ...deaths.peak, tone: 'bad' as const }] : undefined}
-              empty={`No deaths recorded in ${win.window}.`}
-            />
-
-            {deaths.species[0] && (
-              <>
-                <Rule label="Highest mortality impact" />
-                <Band
-                  label="Species"
-                  title={deaths.species[0].label}
-                  sub={`${pct((deaths.species[0].value / Math.max(1, deaths.total)) * 100)} of deaths${
-                    deaths.causes[0] ? ` · leading cause ${deaths.causes[0].label.toLowerCase()}` : ''
-                  }`}
-                  value={fmt(deaths.species[0].value)}
-                  unit="deaths"
-                  tone="bad"
-                />
-              </>
-            )}
-
-            <div className="mt-4 border-t border-[#f0efec] pt-3">
-              <Facts
-                items={[
-                  {
-                    label: 'Mortality rate',
-                    sub: 'Of the closing headcount',
-                    value: `${((move.deaths / Math.max(1, delta.closing)) * 100).toFixed(3)}%`,
-                  },
-                  {
-                    label: 'Regulatory species',
-                    sub: 'CITES-listed or scheduled',
-                    value: `${fmt(deaths.regulated)} of ${fmt(deaths.total)}`,
-                  },
-                  { label: 'Net of births', value: signed(move.births.total - move.deaths), tone: netTone(move.births.total - move.deaths) },
-                ]}
-              />
-            </div>
-
-            {deaths.sites.length > 0 && (
-              <>
-                <Rule label="By site" />
-                <RankList items={siteRank(deaths.sites, deaths.total, (key) => openFlowSite('mortality', key))} />
-              </>
-            )}
-            {deaths.species.length > 0 && (
-              <>
-                <Rule label="By species" />
-                <RankList items={nameRank(deaths.species, deaths.total)} />
-              </>
-            )}
-            {deaths.causes.length > 0 && (
-              <>
-                <Rule label="Recorded cause" />
-                <RankList rank={false} items={nameRank(deaths.causes, deaths.total)} />
-              </>
-            )}
-            <OpenPill label="Mortality records" onOpen={() => openFlow('mortality')} />
-          </Section>
+          <MortalityCard siteKey={siteKey} />
         </Wide>
 
         {/* 15 · EXTERNAL TRANSFERS — direction first. Two counts in a column say nothing about
             which way the animals went; the glyph, the side and the net do it before a number is
             read. The routes below name what the record names — a counterparty kind, not an
             invented collection — and internal moves are stated so nobody reads them as change. */}
-        <Section icon={ArrowLeftRight} label="External transfers" aside={win.noun}>
-          <FlowSplit
-            unit="animals"
-            net={move.transfers.net}
-            inward={{
-              label: 'External in',
-              value: move.transfers.in,
-              meta: 'From other collections',
-              change: move.transfers.in - prevMove.transfers.in,
-              icon: ArrowDownLeft,
-              onPick: () => openFlow('transferIn'),
-            }}
-            outward={{
-              label: 'External out',
-              value: move.transfers.out,
-              meta: 'Releases, loans, transfers',
-              change: move.transfers.out - prevMove.transfers.out,
-              icon: ArrowUpRight,
-              onPick: () => openFlow('transferOut'),
-            }}
-            routes={transferRoutes}
-          />
-        </Section>
+        <TransfersCard siteKey={siteKey} />
 
         {/* 16 · ESCAPES — an incident rail, because what is asked about an escape is when it
             happened, what got out and whether it is back. The critical band appears only while
             something is still out; an amber board over a clear one is how a reader learns to
             stop looking. */}
-        <Section icon={Footprints} label="Escaped animals" aside={win.noun}>
-          {move.escapes.atLarge > 0 ? (
-            <Band
-              label="Critical"
-              title="Currently escaped"
-              sub={`Not recovered as of ${longDate(win.to)}`}
-              value={fmt(move.escapes.atLarge)}
-              tone="bad"
-            />
-          ) : (
-            <Band label="Clear" title="Currently escaped" sub={`None at large as of ${longDate(win.to)}`} value="0" tone="good" />
-          )}
-          <Rule label={win.window} />
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Escaped in window', value: fmt(move.escapes.total) },
-              { label: 'Resolved', value: fmt(move.escapes.recovered), tone: 'good' },
-              { label: 'Open', value: fmt(move.escapes.unrecovered), tone: move.escapes.unrecovered > 0 ? 'bad' : undefined },
-            ]}
-          />
-          <Rule label="Recent incidents" />
-          <IncidentRail items={escapes} empty={`No escapes recorded in ${win.window}.`} />
-          {move.escapes.total > escapes.length && (
-            <OpenPill label="All escape records" onOpen={() => openFlow('escaped')} />
-          )}
-        </Section>
+        <EscapesCard siteKey={siteKey} />
 
         {/* 17 · FETAL DEATH, kept apart from mortality. A stillbirth is not a death in the
             collection register, and merging the two would overstate mortality and understate the
             breeding programme's own loss rate. An outcome split, because these are terminal
             states of one population rather than a ranking of two things. */}
-        <Section icon={Baby} label="Fetal death" aside="not animal mortality">
-          <EventTrend
-            points={fetal.points}
-            compare={fetal.compare}
-            span={win.window}
-            unit="fetal losses"
-            height={96}
-            empty={`No fetal loss recorded in ${win.window}.`}
-          />
-          {move.fetal.total > 0 && (
-            <>
-              <Rule label="Outcome" />
-              <OutcomeSplit
-                lead={false}
-                total={move.fetal.total}
-                label="fetal losses"
-                outcomes={[
-                  {
-                    key: 'stillbirth',
-                    label: 'Stillbirth',
-                    value: move.fetal.stillbirth,
-                    meta: 'Late-term loss · dystocia',
-                    onPick: () => openFlow('fetal'),
-                  },
-                  {
-                    key: 'abortion',
-                    label: 'Abortion',
-                    value: move.fetal.abortion,
-                    meta: 'Mid-term loss · early resorption',
-                    onPick: () => openFlow('fetal'),
-                  },
-                ]}
-              />
-            </>
-          )}
-          {fetal.sites.length > 0 && (
-            <>
-              <Rule label="By site" />
-              <RankList items={siteRank(fetal.sites, fetal.total, (key) => openFlowSite('fetal', key))} />
-            </>
-          )}
-          {fetal.species.length > 0 && (
-            <>
-              <Rule label="By species" />
-              <RankList items={nameRank(fetal.species, fetal.total)} />
-            </>
-          )}
-        </Section>
+        <FetalCard siteKey={siteKey} />
 
         {/* 18 · LEADERS. Five extremes, computed rather than chosen, each opening the thing it
             names. Numbers and labels only. */}
         <Wide>
-          <Section icon={Trophy} label="Population leaders" aside={win.window}>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-5 @[560px]:grid-cols-3">
-              {leaders(species, sites).map((l) => (
-                <LeaderTile
-                  key={l.key}
-                  leader={l}
-                  onOpen={
-                    l.species
-                      ? () => openSpecies(l.species!)
-                      : l.siteKey
-                        ? () => openSite(l.siteKey!)
-                        : undefined
-                  }
-                />
-              ))}
-            </div>
-          </Section>
+          <LeadersCard siteKey={siteKey} facets={facets} />
         </Wide>
       </Stack>
-
-      <p className="px-[var(--gutter-lg)] pt-1 pb-2 text-center text-[11px] text-[#9b958b]">
-        {scopeName} · population as of {longDate(win.to)}
-      </p>
     </>
+  )
+}
+
+/* ── the eight cards that carry their own date range ─────────────────────── */
+
+/**
+ * Each of these was a `<Section>` inline in the page body, reading the page's window and
+ * printing it back out as static text in its header. They are components now for one reason:
+ * a card that can be set to its own range has to DERIVE its own figures, and the derivation
+ * needs hooks, so it needs a component. The bodies are otherwise the markup they always were.
+ *
+ * Every one of them takes `siteKey` and the lens rather than the resolved data, because the data
+ * is a function of the window and the window is theirs.
+ */
+
+function PopulationChangeCard({ siteKey }: { siteKey: string | null }) {
+  const { win, pill, overridden } = useCardWindow()
+  const { move, openFlow } = useFlowSheets(siteKey, win)
+  const delta = useMemo(() => change(siteKey, win), [siteKey, win])
+
+  return (
+    <Section icon={Sparkles} label="Population change" aside={pill}>
+      <Pair
+        a={{ value: fmt(delta.opening), label: `Opening · ${shortDate(Math.max(0, win.from - 1))}` }}
+        b={{ value: fmt(delta.closing), label: `Current · ${shortDate(win.to)}` }}
+        relation={signed(delta.net)}
+        tone={netTone(delta.net)}
+      />
+      <Rule label="Recorded movement" />
+      <ul className="flex flex-col">
+        {[
+          { key: 'births' as const, label: 'Births', sub: `${move.births.natural} natural · ${move.births.assisted} assisted`, value: move.births.total },
+          { key: 'transferIn' as const, label: 'Transfer in', sub: 'External · other collections', value: move.transfers.in },
+          { key: null, label: 'Accessions', sub: 'Rescue, confiscation, intake', value: move.accessions },
+          { key: 'mortality' as const, label: 'Deaths', sub: `${((move.deaths / Math.max(1, delta.closing)) * 100).toFixed(3)}% of collection`, value: -move.deaths },
+          { key: 'transferOut' as const, label: 'Transfer out', sub: 'External · releases and loans', value: -move.transfers.out },
+          { key: 'escaped' as const, label: 'Escaped', sub: `${move.escapes.unrecovered} not recovered of ${move.escapes.total}`, value: -move.escapes.unrecovered },
+        ].map((f) => (
+          <MoveRow
+            key={f.label}
+            label={f.label}
+            sub={f.sub}
+            value={f.value}
+            peak={Math.max(move.births.total, move.deaths, move.accessions, move.transfers.out, 1)}
+            onOpen={f.key ? () => openFlow(f.key) : undefined}
+          />
+        ))}
+      </ul>
+      <div className="mt-3 border-t border-[#f0efec] pt-3">
+        <Facts
+          items={[
+            { label: 'Net recorded movement', value: signed(move.recorded), tone: netTone(move.recorded) },
+            {
+              label: 'Census revision',
+              sub: 'Change not attributed to records',
+              value: signed(delta.net - move.recorded),
+            },
+          ]}
+        />
+      </div>
+      {/* Fetal loss is a breeding figure, not a headcount movement — a fetus was never in
+          the collection. It sits under its own rule so it cannot be added into the column
+          above, and it opens the same sheet the Fetal Death section does. */}
+      <Rule label="Not a headcount change" />
+      <TapList>
+        <TapRow
+          lead={Baby}
+          label="Fetal death"
+          sub={`${move.fetal.stillbirth} stillbirth · ${move.fetal.abortion} abortion`}
+          value={fmt(move.fetal.total)}
+          onOpen={() => openFlow('fetal')}
+        />
+      </TapList>
+      <CardWindowNote win={win} overridden={overridden} />
+    </Section>
+  )
+}
+
+function SexCard({ siteKey, facets }: { siteKey: string | null; facets: Facets }) {
+  const { win, pill, overridden } = useCardWindow()
+  const { species } = useLens(siteKey, win, facets)
+  const sexes = useMemo(() => sexTotals(species), [species])
+
+  return (
+    <Section icon={Venus} label="Sex distribution" aside={pill}>
+      <SplitRing
+        label="Animals"
+        unit="animals"
+        items={[
+          { key: 'u', label: 'Undetermined', value: sexes.unknown, meta: 'Shoals, colonies, unsexed' },
+          { key: 'm', label: 'Male', value: sexes.male },
+          { key: 'f', label: 'Female', value: sexes.female },
+        ]}
+      />
+      <CardWindowNote win={win} overridden={overridden} />
+    </Section>
+  )
+}
+
+function BirthsCard({ siteKey }: { siteKey: string | null }) {
+  const { win, pill, overridden } = useCardWindow()
+  const { move, openFlow, openFlowSite } = useFlowSheets(siteKey, win)
+  const births = useFlowCard('births', siteKey, win)
+  /* The calendar is drawn only where it can say something a total cannot: a window of under a
+     week is a handful of cells, and an empty window is an empty grid. */
+  const birthDays = useMemo(
+    () => (win.days >= 7 && move.births.total > 0 ? dayCells('births', siteKey, win).cells : undefined),
+    [siteKey, win, move.births.total],
+  )
+
+  return (
+    <Section icon={Sparkles} label="Births" aside={pill}>
+      <EventTrend
+        points={births.points}
+        compare={births.compare}
+        span={win.window}
+        unit="births"
+        marks={births.peak ? [births.peak] : undefined}
+        empty={`No births recorded in ${win.window}.`}
+      />
+      {birthDays && (
+        <>
+          <Rule label="Date distribution" />
+          <DayHeat days={birthDays} />
+        </>
+      )}
+      <div className="mt-4 border-t border-[#f0efec] pt-3">
+        <Facts
+          items={[
+            { label: 'Natural', value: fmt(move.births.natural) },
+            { label: 'Assisted', value: fmt(move.births.assisted), sub: 'Hand-reared or assisted delivery' },
+          ]}
+        />
+      </div>
+      {births.sites.length > 0 && (
+        <>
+          <Rule label="By site" />
+          <RankList items={siteRank(births.sites, births.total, (key) => openFlowSite('births', key))} />
+        </>
+      )}
+      {births.species.length > 0 && (
+        <>
+          <Rule label="By species" />
+          <RankList items={nameRank(births.species, births.total)} />
+        </>
+      )}
+      <OpenPill label="Birth records" onOpen={() => openFlow('births')} />
+      <CardWindowNote win={win} overridden={overridden} />
+    </Section>
+  )
+}
+
+function MortalityCard({ siteKey }: { siteKey: string | null }) {
+  const { win, pill, overridden } = useCardWindow()
+  const { move, openFlow, openFlowSite } = useFlowSheets(siteKey, win)
+  const deaths = useFlowCard('mortality', siteKey, win)
+  const delta = useMemo(() => change(siteKey, win), [siteKey, win])
+
+  return (
+    <Section icon={Activity} label="Mortality" aside={pill}>
+      <EventTrend
+        points={deaths.points}
+        compare={deaths.compare}
+        span={win.window}
+        unit="deaths"
+        marks={deaths.peak ? [{ ...deaths.peak, tone: 'bad' as const }] : undefined}
+        empty={`No deaths recorded in ${win.window}.`}
+      />
+
+      {deaths.species[0] && (
+        <>
+          <Rule label="Highest mortality impact" />
+          <Band
+            label="Species"
+            title={deaths.species[0].label}
+            sub={`${pct((deaths.species[0].value / Math.max(1, deaths.total)) * 100)} of deaths${
+              deaths.causes[0] ? ` · leading cause ${deaths.causes[0].label.toLowerCase()}` : ''
+            }`}
+            value={fmt(deaths.species[0].value)}
+            unit="deaths"
+            tone="bad"
+          />
+        </>
+      )}
+
+      <div className="mt-4 border-t border-[#f0efec] pt-3">
+        <Facts
+          items={[
+            {
+              label: 'Mortality rate',
+              sub: 'Of the closing headcount',
+              value: `${((move.deaths / Math.max(1, delta.closing)) * 100).toFixed(3)}%`,
+            },
+            {
+              label: 'Regulatory species',
+              sub: 'CITES-listed or scheduled',
+              value: `${fmt(deaths.regulated)} of ${fmt(deaths.total)}`,
+            },
+            { label: 'Net of births', value: signed(move.births.total - move.deaths), tone: netTone(move.births.total - move.deaths) },
+          ]}
+        />
+      </div>
+
+      {deaths.sites.length > 0 && (
+        <>
+          <Rule label="By site" />
+          <RankList items={siteRank(deaths.sites, deaths.total, (key) => openFlowSite('mortality', key))} />
+        </>
+      )}
+      {deaths.species.length > 0 && (
+        <>
+          <Rule label="By species" />
+          <RankList items={nameRank(deaths.species, deaths.total)} />
+        </>
+      )}
+      {deaths.causes.length > 0 && (
+        <>
+          <Rule label="Recorded cause" />
+          <RankList rank={false} items={nameRank(deaths.causes, deaths.total)} />
+        </>
+      )}
+      <OpenPill label="Mortality records" onOpen={() => openFlow('mortality')} />
+      <CardWindowNote win={win} overridden={overridden} />
+    </Section>
+  )
+}
+
+function TransfersCard({ siteKey }: { siteKey: string | null }) {
+  const { win, pill, overridden } = useCardWindow()
+  const { move, openFlow } = useFlowSheets(siteKey, win)
+  const prevMove = useMemo(() => movement(siteKey, previous(win)), [siteKey, win])
+
+  /* Transfer routes name the counterparty the RECORD names — "other zoo", "the wild" — and
+     nothing more. The data has a kind of counterparty, not an institution, so neither does this. */
+  const routes = useMemo(
+    () =>
+      flowByCause('transfers', siteKey, win).map((c) => {
+        const direction = TRANSFER_DIRECTION[c.label] ?? 'internal'
+        return {
+          key: c.key,
+          label: c.label,
+          meta: TRANSFER_META[c.label],
+          value: c.value,
+          direction,
+          onPick:
+            direction === 'in'
+              ? () => openFlow('transferIn')
+              : direction === 'out'
+                ? () => openFlow('transferOut')
+                : undefined,
+        }
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [siteKey, win],
+  )
+
+  return (
+    <Section icon={ArrowLeftRight} label="External transfers" aside={pill}>
+      <FlowSplit
+        unit="animals"
+        net={move.transfers.net}
+        inward={{
+          label: 'External in',
+          value: move.transfers.in,
+          meta: 'From other collections',
+          change: move.transfers.in - prevMove.transfers.in,
+          icon: ArrowDownLeft,
+          onPick: () => openFlow('transferIn'),
+        }}
+        outward={{
+          label: 'External out',
+          value: move.transfers.out,
+          meta: 'Releases, loans, transfers',
+          change: move.transfers.out - prevMove.transfers.out,
+          icon: ArrowUpRight,
+          onPick: () => openFlow('transferOut'),
+        }}
+        routes={routes}
+      />
+      <CardWindowNote win={win} overridden={overridden} />
+    </Section>
+  )
+}
+
+function EscapesCard({ siteKey }: { siteKey: string | null }) {
+  const { win, pill, overridden } = useCardWindow()
+  const { open } = useSheet()
+  const { move, openFlow } = useFlowSheets(siteKey, win)
+
+  /* Escapes are read as RECORDS, not as a count: the six most recent, each with the outcome its
+     own event carries — "Not recovered" is an open incident, every other outcome is a closed one. */
+  const escapes = useMemo(
+    () =>
+      eventPage('escaped', siteKey, win, 0, 6).rows.map((ev) => ({
+        key: ev.id,
+        when: shortDate(ev.day),
+        title: ev.speciesName,
+        meta: `${siteOf(ev.siteKey)?.name ?? ev.siteKey} · ${ev.animalId} · ${ev.detail.toLowerCase()}`,
+        /* TWO STATES, NOT FOUR. The record's own outcome — same day, within seven days, off site
+           — belongs in the meta line; the chip answers the only question asked of an escape,
+           which is whether the animal is back. */
+        status:
+          ev.detail === 'Not recovered'
+            ? { label: 'Open', tone: 'bad' as const }
+            : { label: 'Recovered', tone: 'good' as const },
+        onPick: () =>
+          open({
+            title: ev.animalId,
+            eyebrow: `Escape · ${shortDate(ev.day)}`,
+            body: <AnimalPanel record={animalFromId(ev.animalId, ev.speciesName)} />,
+          }),
+      })),
+    [siteKey, win, open],
+  )
+
+  return (
+    <Section icon={Footprints} label="Escaped animals" aside={pill}>
+      {move.escapes.atLarge > 0 ? (
+        <Band
+          label="Critical"
+          title="Currently escaped"
+          sub={`Not recovered as of ${longDate(win.to)}`}
+          value={fmt(move.escapes.atLarge)}
+          tone="bad"
+        />
+      ) : (
+        <Band label="Clear" title="Currently escaped" sub={`None at large as of ${longDate(win.to)}`} value="0" tone="good" />
+      )}
+      <Rule label={win.window} />
+      <Snapshot
+        cols={3}
+        items={[
+          { label: 'Escaped in window', value: fmt(move.escapes.total) },
+          { label: 'Resolved', value: fmt(move.escapes.recovered), tone: 'good' },
+          { label: 'Open', value: fmt(move.escapes.unrecovered), tone: move.escapes.unrecovered > 0 ? 'bad' : undefined },
+        ]}
+      />
+      <Rule label="Recent incidents" />
+      <IncidentRail items={escapes} empty={`No escapes recorded in ${win.window}.`} />
+      {move.escapes.total > escapes.length && (
+        <OpenPill label="All escape records" onOpen={() => openFlow('escaped')} />
+      )}
+      <CardWindowNote win={win} overridden={overridden} />
+    </Section>
+  )
+}
+
+function FetalCard({ siteKey }: { siteKey: string | null }) {
+  const { win, pill, overridden } = useCardWindow()
+  const { move, openFlow, openFlowSite } = useFlowSheets(siteKey, win)
+  const fetal = useFlowCard('fetal', siteKey, win)
+
+  return (
+    <Section icon={Baby} label="Fetal death" aside={pill}>
+      <EventTrend
+        points={fetal.points}
+        compare={fetal.compare}
+        span={win.window}
+        unit="fetal losses"
+        height={96}
+        empty={`No fetal loss recorded in ${win.window}.`}
+      />
+      {move.fetal.total > 0 && (
+        <>
+          <Rule label="Outcome" />
+          <OutcomeSplit
+            lead={false}
+            total={move.fetal.total}
+            label="fetal losses"
+            outcomes={[
+              {
+                key: 'stillbirth',
+                label: 'Stillbirth',
+                value: move.fetal.stillbirth,
+                meta: 'Late-term loss · dystocia',
+                onPick: () => openFlow('fetal'),
+              },
+              {
+                key: 'abortion',
+                label: 'Abortion',
+                value: move.fetal.abortion,
+                meta: 'Mid-term loss · early resorption',
+                onPick: () => openFlow('fetal'),
+              },
+            ]}
+          />
+        </>
+      )}
+      {fetal.sites.length > 0 && (
+        <>
+          <Rule label="By site" />
+          <RankList items={siteRank(fetal.sites, fetal.total, (key) => openFlowSite('fetal', key))} />
+        </>
+      )}
+      {fetal.species.length > 0 && (
+        <>
+          <Rule label="By species" />
+          <RankList items={nameRank(fetal.species, fetal.total)} />
+        </>
+      )}
+      <CardWindowNote win={win} overridden={overridden} />
+    </Section>
+  )
+}
+
+function LeadersCard({ siteKey, facets }: { siteKey: string | null; facets: Facets }) {
+  const { win, pill, overridden } = useCardWindow()
+  const { open } = useSheet()
+  const { species } = useLens(siteKey, win, facets)
+  const sites = useMemo(() => siteRows(win), [win])
+
+  const openSite = (key: string) =>
+    open({ title: siteOf(key)?.name ?? key, eyebrow: 'Animal Population', body: <SitePanel siteKey={key} win={win} /> })
+  const openSpecies = (row: SpeciesRow) =>
+    open({ title: row.name, eyebrow: row.siteName, body: <SpeciesPanel row={row} win={win} /> })
+
+  return (
+    <Section icon={Trophy} label="Population leaders" aside={pill}>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-5 @[560px]:grid-cols-3">
+        {leaders(species, sites).map((l) => (
+          <LeaderTile
+            key={l.key}
+            leader={l}
+            onOpen={
+              l.species
+                ? () => openSpecies(l.species!)
+                : l.siteKey
+                  ? () => openSite(l.siteKey!)
+                  : undefined
+            }
+          />
+        ))}
+      </div>
+      <CardWindowNote win={win} overridden={overridden} />
+    </Section>
   )
 }
 
@@ -1000,11 +1127,11 @@ function MoveRow({
   const body = (
     <span className="flex items-center gap-3">
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] text-[#1c1a16]">{label}</span>
-        {sub && <span className="mt-0.5 block text-[11px] leading-[15px] text-[#9b958b]">{sub}</span>}
+        <span className="block truncate text-small text-[#1c1a16]">{label}</span>
+        {sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{sub}</span>}
       </span>
       <span
-        className="w-[46px] shrink-0 text-right text-[14px] font-medium tabular-nums"
+        className="w-[46px] shrink-0 text-right text-small font-medium tabular-nums"
         style={{ color: value === 0 ? FAINT : up ? TONE.good : TONE.bad }}
       >
         {up ? '+' : '−'}
@@ -1054,7 +1181,7 @@ function OpenPill({ label, onOpen }: { label: string; onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="card-press mt-3.5 inline-flex items-center gap-1.5 rounded-full px-3 py-[5px] text-[11.5px] font-medium whitespace-nowrap"
+      className="card-press mt-3.5 inline-flex items-center gap-1.5 rounded-full px-3 py-[5px] text-caption font-medium whitespace-nowrap"
       style={{ backgroundColor: mix(accent, 0.11), color: ACCENT_INK }}
     >
       {label}
@@ -1067,14 +1194,14 @@ function LeaderTile({ leader, onOpen }: { leader: Leader; onOpen?: () => void })
   const accent = useAccent()
   const body = (
     <>
-      <p className="truncate text-[9.5px] font-medium tracking-[0.09em] uppercase" style={{ color: accent }}>
+      <p className="truncate text-overline font-medium uppercase" style={{ color: accent }}>
         {leader.tag}
       </p>
       <div className="mt-1">
-        <Figure value={leader.value} size={22} />
+        <Figure value={leader.value} size={24} />
       </div>
-      <p className="mt-0.5 text-[12px] leading-[16px] text-[#1c1a16]">{leader.label}</p>
-      {leader.sub && <p className="mt-0.5 text-[11px] leading-[15px] text-[#9b958b]">{leader.sub}</p>}
+      <p className="mt-0.5 text-small text-[#1c1a16]">{leader.label}</p>
+      {leader.sub && <p className="mt-0.5 text-caption text-[#9b958b]">{leader.sub}</p>}
     </>
   )
   return (
@@ -1129,14 +1256,13 @@ function Toolbar({
     <div className="px-[var(--gutter-lg)] pb-3">
       <div className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card-sm)]">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="min-w-0 truncate text-[13px] font-medium text-[#1c1a16]">
+          <p className="min-w-0 truncate text-small font-medium text-[#1c1a16]">
             {scopeName} · as of {asOf}
           </p>
-          <p className="shrink-0 text-[11px] whitespace-nowrap" style={{ color: FAINT }}>
+          <p className="shrink-0 text-caption whitespace-nowrap" style={{ color: FAINT }}>
             {sites} {sites === 1 ? 'site' : 'sites'} · {species} species
           </p>
         </div>
-
         <div className="mt-3 flex items-center gap-2">
           <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
             <Search size={14} strokeWidth={2} className="shrink-0" style={{ color: FAINT }} aria-hidden />
@@ -1146,7 +1272,7 @@ function Toolbar({
               placeholder="Species, class, site or animal ID"
               aria-label="Search the collection"
               autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+              className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
             />
             {query && (
               <button
@@ -1169,7 +1295,7 @@ function Toolbar({
               })
             }
             aria-label="Filters"
-            className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium ${
+            className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-caption font-medium ${
               on ? 'bg-[#123a2c] text-white' : 'bg-[#f7f6f3] text-[#3d3a34]'
             }`}
           >
@@ -1190,12 +1316,12 @@ function Toolbar({
                 >
                   <PawPrint size={14} strokeWidth={1.75} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] text-[#1c1a16]">{a.callName ?? a.id}</span>
-                    <span className="block truncate text-[11px]" style={{ color: FAINT }}>
+                    <span className="block truncate text-small text-[#1c1a16]">{a.callName ?? a.id}</span>
+                    <span className="block truncate text-caption" style={{ color: FAINT }}>
                       {a.id} · {a.speciesName} · {a.siteName}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[11px]" style={{ color: ACCENT_INK }}>
+                  <span className="shrink-0 text-caption" style={{ color: ACCENT_INK }}>
                     Record ›
                   </span>
                 </button>
@@ -1209,7 +1335,7 @@ function Toolbar({
             {activeChips(facets).map((c) => (
               <span
                 key={c.key}
-                className="inline-flex items-center gap-1 rounded-full bg-[#f4f3ef] py-[4px] pr-1.5 pl-2.5 text-[11.5px] font-medium text-[#55524a]"
+                className="inline-flex items-center gap-1 rounded-full bg-[#f4f3ef] py-[4px] pr-1.5 pl-2.5 text-caption font-medium text-[#55524a]"
               >
                 {c.label}
                 <button
@@ -1225,7 +1351,7 @@ function Toolbar({
             <button
               type="button"
               onClick={() => onApply(NO_FACETS)}
-              className="rounded-full px-2 py-[4px] text-[11.5px] font-semibold"
+              className="rounded-full px-2 py-[4px] text-caption font-semibold"
               style={{ color: ACCENT_INK }}
             >
               Clear all
@@ -1313,7 +1439,6 @@ function FacetSheet({
             onPick={(v) => set('schedule', v as Facets['schedule'])}
           />
         </Section>
-
         <Section icon={ShieldAlert} label="IUCN status">
           <Chips
             options={[['all', 'All'], ...codes.map((c) => [c, RED_LIST.find((x) => x.code === c)!.name] as [string, string])]}
@@ -1321,7 +1446,6 @@ function FacetSheet({
             onPick={(v) => set('iucn', v as Facets['iucn'])}
           />
         </Section>
-
         <Section icon={Layers} label="Taxonomic class">
           <Chips
             options={[['all', 'All'], ...classes.map((c) => [c, c] as [string, string])]}
@@ -1329,7 +1453,6 @@ function FacetSheet({
             onPick={(v) => set('cls', v)}
           />
         </Section>
-
         <Section icon={Venus} label="Sex">
           <Chips
             options={[
@@ -1343,7 +1466,6 @@ function FacetSheet({
           />
         </Section>
       </Stack>
-
       <div className="flex gap-2 px-[var(--gutter-lg)] pt-1 pb-3">
         <button
           type="button"
@@ -1351,7 +1473,7 @@ function FacetSheet({
             onApply(NO_FACETS)
             back()
           }}
-          className="card-press flex-1 rounded-[11px] border border-[#eceae5] bg-white py-2.5 text-[13px] font-semibold text-[#3d3a34]"
+          className="card-press flex-1 rounded-[11px] border border-[#eceae5] bg-white py-2.5 text-small font-semibold text-[#3d3a34]"
         >
           Reset
         </button>
@@ -1361,7 +1483,7 @@ function FacetSheet({
             onApply(draft)
             back()
           }}
-          className="card-press flex-[2] rounded-[11px] py-2.5 text-[13px] font-semibold text-white"
+          className="card-press flex-[2] rounded-[11px] py-2.5 text-small font-semibold text-white"
           style={{ backgroundColor: '#123a2c' }}
         >
           Apply
@@ -1391,7 +1513,7 @@ function Chips({
             type="button"
             aria-pressed={on}
             onClick={() => onPick(key)}
-            className={`shrink-0 rounded-full px-2.5 py-[5px] text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+            className={`shrink-0 rounded-full px-2.5 py-[5px] text-caption font-medium whitespace-nowrap transition-colors ${
               on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
             }`}
           >
@@ -1438,7 +1560,7 @@ function TrendCard({
   const low = values.length ? Math.min(...values) : 0
 
   return (
-    <Section icon={TrendingUp} label="Population trend" aside={`${scopeName} · ${win.window}`}>
+    <Section icon={TrendingUp} label="Population trend">
       <div className="-mx-1 mb-3.5 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
         {[...TREND_RANGES.map((r) => [r.key, r.label] as [string, string]), ['custom', 'Custom'] as [string, string]].map(
           ([key, label]) => {
@@ -1454,7 +1576,7 @@ function TrendCard({
                     open({ title: 'Date range', eyebrow: globalWin.window, body: <DateSheet /> })
                   }
                 }}
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap transition-colors ${
+                className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
                   on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
                 }`}
               >
@@ -1630,7 +1752,7 @@ function SpeciesCard({
       />
 
       {matched.length === 0 && (
-        <p className="mt-4 text-[12.5px]" style={{ color: FAINT }}>
+        <p className="mt-4 text-caption" style={{ color: FAINT }}>
           No species matches “{query.trim()}”.{' '}
           <button type="button" onClick={() => onQuery('')} className="font-semibold" style={{ color: ACCENT_INK }}>
             Clear
@@ -1653,7 +1775,6 @@ function SpeciesCard({
           }))}
         />
       </div>
-
       <MoreRows page={paged} noun="species" />
     </Section>
   )

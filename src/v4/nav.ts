@@ -83,7 +83,15 @@ const TREE: { name: string; items: { slug: string; children?: string[] }[] }[] =
   {
     name: 'Collection',
     items: [
-      { slug: 'animals', children: ['accession'] },
+      { slug: 'animals' },
+      /* ACCESSION IS ITS OWN ROW, not a chapter of Animal Population.
+         It was folded under it on the reasoning that an accession is a headcount movement and
+         the movements belong with the count. In use it reads differently: registering an
+         arrival is a job somebody goes and does, and a job you go and do should be a
+         destination in the rail rather than something you find by first opening a report and
+         scrolling to the bottom of it. Fetal death and Discarded eggs stay folded — those are
+         readings ABOUT the page above them, not tasks of their own. */
+      { slug: 'accession' },
       { slug: 'births', children: ['fetal'] },
       { slug: 'eggs', children: ['discarded'] },
       { slug: 'mortality' },

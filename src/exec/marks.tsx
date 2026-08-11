@@ -27,9 +27,6 @@
  *   events               `IncidentRail`   dated records, with status
  *   hierarchy            `Treemap`        one level of a hierarchy, sized by weight
  *
- * And one atom under all of them: `Rail`, the three-pixel share mark that replaced the
- * full-width progress bar every list in the product used to carry.
- *
  * FIVE HOUSE RULES, which is what keeps these marks reading as one system.
  *
  * ONE SERIES COLOUR. Every mark here fills with the accent in scope and strokes with its
@@ -56,7 +53,15 @@
  */
 
 import type React from 'react'
-import { useMemo, useState, type PointerEvent as ReactPointerEvent, type KeyboardEvent, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { usePlay } from '../motion'
@@ -74,7 +79,6 @@ import {
   compact,
   fmt,
   mix,
-  Rail,
   step,
   strokeOf,
   useAccent,
@@ -83,7 +87,6 @@ import {
 
 /* The rail lives in `system.tsx` because `Bars` needs it there; it belongs to this language,
    so this is where the rest of the product imports it from. */
-export { Rail }
 
 /* ── shared pieces ───────────────────────────────────────────────────────── */
 
@@ -98,7 +101,7 @@ export function Kicker({ children, color }: { children: ReactNode; color?: strin
     <span
       /* WRAPS, NEVER TRUNCATES. "Schedule III" in a third of a phone card came out as
          "SCHEDULE …", which names nothing — the kicker IS the identity of the tile. */
-      className="block text-[9.5px] leading-[12px] font-medium tracking-[0.09em] uppercase"
+      className="block text-overline font-medium uppercase"
       style={{ color: color ?? MUTED }}
     >
       {children}
@@ -253,12 +256,12 @@ function PlotHead({
             >
               {format(value)}
             </span>
-            {unit && <span className="text-[13px]" style={{ color: FAINT }}>{unit}</span>}
+            {unit && <span className="text-small" style={{ color: FAINT }}>{unit}</span>}
           </span>
         ) : (
-          <Figure value={format(value)} size={34} color={HERO_INK} unit={unit} />
+          <Figure value={format(value)} size={32} color={HERO_INK} unit={unit} />
         )}
-        <p className="mt-1 truncate text-[12px]" style={{ color: MUTED }}>
+        <p className="mt-1 truncate text-caption" style={{ color: MUTED }}>
           {caption}
         </p>
       </div>
@@ -271,7 +274,7 @@ function PlotHead({
 function PlotAxis({ points }: { points: Pt[] }) {
   const mid = points[Math.floor((points.length - 1) / 2)]
   return (
-    <div className="mt-2 flex items-baseline justify-between gap-2 text-[10px]" style={{ color: FAINT }}>
+    <div className="mt-2 flex items-baseline justify-between gap-2 text-tick" style={{ color: FAINT }}>
       <span className="truncate">{points[0]?.label}</span>
       {points.length > 4 && <span className="hidden truncate @[440px]:block">{mid?.label}</span>}
       <span className="truncate">{points[points.length - 1]?.label}</span>
@@ -356,7 +359,7 @@ export function AreaTrend({
 
   if (points.length < 2) {
     return (
-      <p className="py-3 text-[13px]" style={{ color: MUTED }}>
+      <p className="py-3 text-small" style={{ color: MUTED }}>
         {empty}
       </p>
     )
@@ -383,10 +386,10 @@ export function AreaTrend({
         aside={
           move !== undefined ? (
             <>
-              <span className="text-[14px] font-medium tabular-nums" style={{ color: deltaInk(move) }}>
+              <span className="text-small font-medium tabular-nums" style={{ color: deltaInk(move) }}>
                 {delta(move)}
               </span>
-              <span className="mt-0.5 block text-[10.5px]" style={{ color: FAINT }}>
+              <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                 {at === null ? compare?.label : 'vs previous'}
               </span>
             </>
@@ -462,10 +465,10 @@ export function AreaTrend({
         </svg>
 
         {/* The scale, as two figures inside the plot rather than an axis beside it. */}
-        <span className="absolute top-0 right-0 text-[9.5px] tabular-nums" style={{ color: FAINT }}>
+        <span className="absolute top-0 right-0 text-tick tabular-nums" style={{ color: FAINT }}>
           {compact(geom.hi)}
         </span>
-        <span className="absolute right-0 bottom-0 text-[9.5px] tabular-nums" style={{ color: FAINT }}>
+        <span className="absolute right-0 bottom-0 text-tick tabular-nums" style={{ color: FAINT }}>
           {compact(geom.lo)}
         </span>
 
@@ -487,11 +490,10 @@ export function AreaTrend({
           aria-hidden
         />
       </div>
-
       <PlotAxis points={points} />
 
       {ghost && (
-        <p className="mt-2 flex items-center gap-1.5 text-[10.5px]" style={{ color: FAINT }}>
+        <p className="mt-2 flex items-center gap-1.5 text-caption" style={{ color: FAINT }}>
           <span className="inline-block h-px w-[14px]" style={{ backgroundColor: MD3.outline }} aria-hidden />
           {compare?.label}
         </p>
@@ -539,7 +541,7 @@ export function EventTrend({
 
   if (points.length === 0 || points.every((p) => p.value === 0)) {
     return (
-      <p className="py-3 text-[13px]" style={{ color: MUTED }}>
+      <p className="py-3 text-small" style={{ color: MUTED }}>
         {empty}
       </p>
     )
@@ -559,10 +561,10 @@ export function EventTrend({
         aside={
           compare ? (
             <>
-              <span className="text-[14px] font-medium tabular-nums" style={{ color: deltaInk(total - compare.value) }}>
+              <span className="text-small font-medium tabular-nums" style={{ color: deltaInk(total - compare.value) }}>
                 {delta(total - compare.value)}
               </span>
-              <span className="mt-0.5 block text-[10.5px]" style={{ color: FAINT }}>
+              <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                 {compare.label}
               </span>
             </>
@@ -589,10 +591,10 @@ export function EventTrend({
         aside={
           move !== undefined ? (
             <>
-              <span className="text-[14px] font-medium tabular-nums" style={{ color: deltaInk(move) }}>
+              <span className="text-small font-medium tabular-nums" style={{ color: deltaInk(move) }}>
                 {delta(move)}
               </span>
-              <span className="mt-0.5 block text-[10.5px]" style={{ color: FAINT }}>
+              <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                 {at === null ? compare?.label : 'vs previous'}
               </span>
             </>
@@ -600,9 +602,12 @@ export function EventTrend({
         }
       />
 
+      {/* The strip caps and centres the columns so a one- or two-period range is a bar rather
+          than a slab the width of the card. The scrub reads this element's own rect, so a
+          capped width narrows the target without shifting which column it picks. */}
       <div
         className="relative mt-3.5 flex items-end gap-[3px] rounded-[8px] outline-none select-none focus-visible:ring-2"
-        style={{ height, touchAction: 'pan-y', ...FOCUS_RING }}
+        style={{ height, touchAction: 'pan-y', ...FOCUS_RING, ...strip(points.length) }}
         role="img"
         tabIndex={0}
         aria-label={`${unit ?? 'Events'}: ${format(total)} across ${points.length} periods to ${points[points.length - 1].label}.`}
@@ -639,8 +644,9 @@ export function EventTrend({
           )
         })}
       </div>
-
-      <PlotAxis points={points} />
+      <div style={strip(points.length)}>
+        <PlotAxis points={points} />
+      </div>
     </div>
   )
 }
@@ -751,7 +757,7 @@ export function DayHeat({
       <div ref={ref}>
         <div className="grid grid-cols-7 gap-[3px]">
           {weekLabels.map((w, i) => (
-            <span key={i} className="pb-1 text-center text-[9.5px]" style={{ color: FAINT }}>
+            <span key={i} className="pb-1 text-center text-tick" style={{ color: FAINT }}>
               {w}
             </span>
           ))}
@@ -773,14 +779,14 @@ export function DayHeat({
                 title={`${d.label} · ${d.count}`}
               >
                 <span
-                  className="text-[10px] tabular-nums"
+                  className="text-tick tabular-nums"
                   style={{ color: d.count === 0 ? FAINT : strong ? '#ffffff' : '#1c1a16' }}
                 >
                   {d.dom}
                 </span>
                 {d.count > 0 && (
                   <span
-                    className="font-display text-[11px] font-bold tabular-nums"
+                    className="font-display text-caption font-bold tabular-nums"
                     style={{ color: strong ? '#ffffff' : '#1c1a16' }}
                   >
                     {d.count}
@@ -810,7 +816,7 @@ export function DayHeat({
         {['M', '', 'W', '', 'F', '', 'S'].map((w, i) => (
           <span
             key={i}
-            className="w-[9px] text-[8.5px]"
+            className="w-[9px] text-tick"
             style={{ color: FAINT, height: size, lineHeight: `${size}px` }}
           >
             {w}
@@ -934,12 +940,11 @@ export function SplitRing({
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <Figure value={compact(total)} size={24} color={HERO_INK} />
-          <span className="mt-0.5 text-[10.5px]" style={{ color: FAINT }}>
+          <span className="mt-0.5 text-caption" style={{ color: FAINT }}>
             {label}
           </span>
         </div>
       </div>
-
       <ul className="min-w-0 flex-1">
         {items.map((it, i) => {
           const share = total ? (it.value / total) * 100 : 0
@@ -947,18 +952,18 @@ export function SplitRing({
             <>
               <span className="mt-[6px] size-[8px] shrink-0 rounded-full" style={{ backgroundColor: fillOf(it, i) }} aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] text-[#1c1a16]">{it.label}</span>
+                <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
                 {it.meta && (
-                  <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                     {it.meta}
                   </span>
                 )}
               </span>
               <span className="shrink-0 text-right">
-                <span className="block text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <span className="block text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(it.value)}
                 </span>
-                <span className="mt-0.5 block text-[11px] tabular-nums" style={{ color: FAINT }}>
+                <span className="mt-0.5 block text-caption tabular-nums" style={{ color: FAINT }}>
                   {pct(share)}
                 </span>
               </span>
@@ -983,7 +988,7 @@ export function SplitRing({
         })}
       </ul>
       {unit && (
-        <p className="text-[11px] @[420px]:hidden" style={{ color: FAINT }}>
+        <p className="text-caption @[420px]:hidden" style={{ color: FAINT }}>
           {fmt(total)} {unit}
         </p>
       )}
@@ -1022,9 +1027,9 @@ export function PercentSplit({
       <div className="flex items-start justify-between gap-4">
         {sides.map((s) => (
           <div key={s.label} className={`min-w-0 flex-1 ${s.align}`}>
-            <Figure value={pct(share(s.value))} size={30} color={HERO_INK} />
-            <p className="mt-1 truncate text-[13px] text-[#1c1a16]">{s.label}</p>
-            <p className="mt-0.5 truncate text-[11px] tabular-nums" style={{ color: FAINT }}>
+            <Figure value={pct(share(s.value))} size={32} color={HERO_INK} />
+            <p className="mt-1 truncate text-small text-[#1c1a16]">{s.label}</p>
+            <p className="mt-0.5 truncate text-caption tabular-nums" style={{ color: FAINT }}>
               {fmt(s.value)}
               {unit ? ` ${unit}` : ''}
               {s.meta ? ` · ${s.meta}` : ''}
@@ -1058,14 +1063,14 @@ export function PercentSplit({
                   aria-hidden
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-[#1c1a16]">{s.label}</span>
+                  <span className="block truncate text-small text-[#1c1a16]">{s.label}</span>
                   {s.meta && (
-                    <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                       {s.meta}
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(s.value)}
                 </span>
                 <Chev on={Boolean(s.onPick)} />
@@ -1115,7 +1120,7 @@ export function CompareTiles({
   /* Six digits at 22px overflow a third of a phone card; the figure is fitted to the widest
      value in the set so all three tiles keep one size. */
   const widest = Math.max(...items.map((i) => fmt(i.value).length), 1)
-  const size = widest > 6 ? 17 : widest > 4 ? 19 : 22
+  const size = widest > 6 ? 16 : widest > 4 ? 20 : 24
 
   return (
     <div ref={ref} className={`grid ${grid} gap-2`}>
@@ -1133,7 +1138,7 @@ export function CompareTiles({
               {it.share !== undefined && <Arc percent={it.share} color={ink} animate={animate} delay={i * 90} />}
             </div>
             {(it.facts ?? []).map((f) => (
-              <p key={f} className="mt-0.5 text-[10.5px] leading-[14px]" style={{ color: MUTED }}>
+              <p key={f} className="mt-0.5 text-caption" style={{ color: MUTED }}>
                 {f}
               </p>
             ))}
@@ -1241,7 +1246,6 @@ export function RankList({
   dense?: boolean
 }) {
   const accent = useAccent()
-  const top = Math.max(...items.map((i) => i.share ?? 0), 1)
 
   return (
     <ol className="flex flex-col">
@@ -1251,14 +1255,11 @@ export function RankList({
           <>
             {rank && (
               <span
-                className="w-[17px] shrink-0 pt-[2px] text-right text-[11px] tabular-nums"
+                className="w-[17px] shrink-0 pt-[2px] text-right text-caption tabular-nums"
                 style={{ color: i < 3 ? MUTED : FAINT }}
               >
                 {i + 1}
               </span>
-            )}
-            {it.share !== undefined && (
-              <Rail share={it.share} top={top} color={it.tone && it.tone !== 'neutral' ? TONE[it.tone] : undefined} />
             )}
             {Glyph && (
               <span
@@ -1270,27 +1271,27 @@ export function RankList({
               </span>
             )}
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13.5px] leading-[18px] text-[#1c1a16]">{it.title}</span>
+              <span className="block truncate text-small text-[#1c1a16]">{it.title}</span>
               {it.meta && (
-                <span className="mt-0.5 block truncate text-[11px] leading-[15px]" style={{ color: FAINT }}>
+                <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                   {it.meta}
                 </span>
               )}
               {it.meta2 && (
-                <span className="block truncate text-[11px] leading-[15px]" style={{ color: FAINT }}>
+                <span className="block truncate text-caption" style={{ color: FAINT }}>
                   {it.meta2}
                 </span>
               )}
             </span>
             <span className="shrink-0 text-right">
               <span
-                className="block text-[15px] font-medium tabular-nums"
+                className="block text-body font-medium tabular-nums"
                 style={{ color: it.tone && it.tone !== 'neutral' ? TONE[it.tone] : VALUE }}
               >
                 {it.value}
               </span>
               {(showShare && it.share !== undefined) || it.change ? (
-                <span className="mt-0.5 flex items-baseline justify-end gap-2 text-[11px] tabular-nums">
+                <span className="mt-0.5 flex items-baseline justify-end gap-2 text-caption tabular-nums">
                   {showShare && it.share !== undefined && (
                     <span style={{ color: FAINT }}>{it.shareText ?? pct(it.share)}</span>
                   )}
@@ -1353,17 +1354,17 @@ export function Concentration({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <p className="min-w-0 truncate text-[12.5px]" style={{ color: MUTED }}>
+        <p className="min-w-0 truncate text-caption" style={{ color: MUTED }}>
           Top {items.length} of {fmt(of)} — led by {items[0]?.label}
         </p>
-        <p className="shrink-0 text-[13px] font-medium tabular-nums" style={{ color: VALUE }}>
+        <p className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
           {pct(total ? (lead / total) * 100 : 0)}
         </p>
       </div>
       <div className="mt-2.5">
         <Ribbon items={[...items, { label: 'Everything else', value: rest }]} height={9} />
       </div>
-      <p className="mt-2 text-[11px] tabular-nums" style={{ color: FAINT }}>
+      <p className="mt-2 text-caption tabular-nums" style={{ color: FAINT }}>
         {fmt(lead)} of {fmt(total)} {unit}
       </p>
     </div>
@@ -1419,17 +1420,17 @@ export function FlowSplit({
                 <Kicker color={s.dir === 'in' ? ACCENT_INK : MUTED}>{s.label}</Kicker>
               </span>
               <span className="mt-2 flex items-baseline gap-2">
-                <Figure value={fmt(s.value)} size={30} color={HERO_INK} />
+                <Figure value={fmt(s.value)} size={32} color={HERO_INK} />
                 {/* Only where there IS a change. A bare "0" beside a count reads as a second
                     figure rather than as "no movement against the period before". */}
                 {s.change !== undefined && s.change !== 0 && (
-                  <span className="shrink-0 text-[11px] font-medium tabular-nums" style={{ color: deltaInk(s.change) }}>
+                  <span className="shrink-0 text-caption font-medium tabular-nums" style={{ color: deltaInk(s.change) }}>
                     {delta(s.change)}
                   </span>
                 )}
               </span>
               {s.meta && (
-                <span className="mt-1 block text-[11px] leading-[15px]" style={{ color: FAINT }}>
+                <span className="mt-1 block text-caption" style={{ color: FAINT }}>
                   {s.meta}
                 </span>
               )}
@@ -1458,7 +1459,7 @@ export function FlowSplit({
       {net !== undefined && (
         <div className="mt-2.5 flex items-center gap-3">
           <span className="h-px flex-1" style={{ backgroundColor: HAIR }} aria-hidden />
-          <span className="shrink-0 text-[11.5px] font-medium tabular-nums" style={{ color: deltaInk(net) }}>
+          <span className="shrink-0 text-caption font-medium tabular-nums" style={{ color: deltaInk(net) }}>
             net {delta(net)}
             {unit ? ` ${unit}` : ''}
           </span>
@@ -1472,21 +1473,21 @@ export function FlowSplit({
             const row = (
               <>
                 <span
-                  className="w-[13px] shrink-0 text-[12px] leading-none"
+                  className="w-[13px] shrink-0 text-caption"
                   style={{ color: r.direction === 'in' ? ACCENT_INK : r.direction === 'out' ? MUTED : FAINT }}
                   aria-hidden
                 >
                   {r.direction === 'in' ? '↓' : r.direction === 'out' ? '↑' : '↔'}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-[#1c1a16]">{r.label}</span>
+                  <span className="block truncate text-small text-[#1c1a16]">{r.label}</span>
                   {r.meta && (
-                    <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                       {r.meta}
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(r.value)}
                 </span>
                 <Chev on={Boolean(r.onPick)} />
@@ -1557,13 +1558,13 @@ export function OutcomeSplit({
       {lead && (
         <div className="flex items-end justify-between gap-3">
           <div>
-            <Figure value={fmt(total)} size={34} color={HERO_INK} />
-            <p className="mt-1 text-[12.5px]" style={{ color: MUTED }}>
+            <Figure value={fmt(total)} size={32} color={HERO_INK} />
+            <p className="mt-1 text-caption" style={{ color: MUTED }}>
               {label}
             </p>
           </div>
           {unit && (
-            <p className="shrink-0 text-[11px]" style={{ color: FAINT }}>
+            <p className="shrink-0 text-caption" style={{ color: FAINT }}>
               {unit}
             </p>
           )}
@@ -1573,7 +1574,6 @@ export function OutcomeSplit({
       <div className={lead ? 'mt-3.5' : ''}>
         <Ribbon items={outcomes.map((o) => ({ label: o.label, value: o.value, tone: o.tone }))} height={11} />
       </div>
-
       <ul className="mt-1.5">
         {outcomes.map((o, i) => {
           const share = total ? (o.value / total) * 100 : 0
@@ -1585,9 +1585,9 @@ export function OutcomeSplit({
                 aria-hidden
               />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] text-[#1c1a16]">{o.label}</span>
+                <span className="block truncate text-small text-[#1c1a16]">{o.label}</span>
                 {o.meta && (
-                  <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                     {o.meta}
                   </span>
                 )}
@@ -1598,10 +1598,10 @@ export function OutcomeSplit({
                 </span>
               )}
               <span className="shrink-0 text-right">
-                <span className="block text-[14px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <span className="block text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(o.value)}
                 </span>
-                <span className="mt-0.5 block text-[11px] tabular-nums" style={{ color: FAINT }}>
+                <span className="mt-0.5 block text-caption tabular-nums" style={{ color: FAINT }}>
                   {pct(share)}
                 </span>
               </span>
@@ -1651,6 +1651,41 @@ export function MicroBars({ values, animate, tone }: { values: number[]; animate
   )
 }
 
+/* ── column geometry ─────────────────────────────────────────────────────── */
+
+/**
+ * HOW WIDE ONE COLUMN MAY GET, given how many are in the strip.
+ *
+ * WHAT THIS FIXES. Every column chart in the product is a flex row of `flex-1` bars, which is
+ * right for the thirty columns of a month and catastrophic for the one column of a day: the
+ * bar takes the full width of the card and the chart becomes a slab of colour with an axis
+ * under it. At that width a bar is no longer a bar — there is nothing to compare it to and
+ * nothing for the eye to measure it against, so the reader is shown a rectangle whose only
+ * content is a number already printed above it. Two columns are worse, because a full-width
+ * pair reads as a comparison between two halves of the card rather than two days.
+ *
+ * A bar's width has no meaning in any of these charts — height and stack carry all of it — so
+ * capping it costs nothing and stops the mark from degenerating. Above sixteen columns the cap
+ * is released: at that count `flex-1` is already narrower than the ceiling and the strip should
+ * use the whole card.
+ */
+export const columnCap = (n: number): number | undefined =>
+  n >= 16 ? undefined : Math.max(20, Math.min(56, 360 / n))
+
+/**
+ * The style for the strip that holds capped columns, so it centres instead of stranding them.
+ *
+ * Applied to the bars row AND to the tick row beneath it — they must share a width or the
+ * dates stop sitting under their columns. A short strip is centred rather than left-anchored:
+ * three columns hard against the left edge of a wide card read as a chart that failed to load
+ * the rest, and centred they read as all there is.
+ */
+export function strip(n: number, gap = 3): { maxWidth?: number; marginInline?: string } {
+  const cap = columnCap(n)
+  if (!cap) return {}
+  return { maxWidth: n * cap + Math.max(0, n - 1) * gap, marginInline: 'auto' }
+}
+
 /**
  * STAGES IN SEQUENCE — a funnel, and the only place in this file where a shape tapers.
  *
@@ -1684,19 +1719,19 @@ export function Lifecycle({
           const head = (
             <>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] text-[#1c1a16]">{s.label}</span>
+                <span className="block truncate text-small text-[#1c1a16]">{s.label}</span>
                 {s.meta && (
-                  <span className="mt-0.5 block truncate text-[11px]" style={{ color: FAINT }}>
+                  <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
                     {s.meta}
                   </span>
                 )}
               </span>
               <span className="shrink-0 text-right">
-                <span className="text-[15px] font-medium tabular-nums" style={{ color: VALUE }}>
+                <span className="text-body font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(s.value)}
                 </span>
                 {i > 0 && (
-                  <span className="ml-2 text-[11px] tabular-nums" style={{ color: FAINT }}>
+                  <span className="ml-2 text-caption tabular-nums" style={{ color: FAINT }}>
                     {pct(share)} of {stages[0].label.toLowerCase()}
                   </span>
                 )}
@@ -1753,7 +1788,7 @@ export function Lifecycle({
         })}
       </ol>
       {unit && (
-        <p className="mt-2 text-[11px]" style={{ color: FAINT }}>
+        <p className="mt-2 text-caption" style={{ color: FAINT }}>
           {unit}
         </p>
       )}
@@ -1788,7 +1823,7 @@ export function IncidentRail({ items, empty }: { items: Incident[]; empty?: stri
 
   if (items.length === 0) {
     return (
-      <p className="py-2 text-[13px]" style={{ color: MUTED }}>
+      <p className="py-2 text-small" style={{ color: MUTED }}>
         {empty ?? 'Nothing recorded.'}
       </p>
     )
@@ -1800,7 +1835,7 @@ export function IncidentRail({ items, empty }: { items: Incident[]; empty?: stri
         const ink = it.status && it.status.tone !== 'neutral' ? TONE[it.status.tone] : accent
         const body = (
           <>
-            <span className="w-[40px] shrink-0 pt-[1px] text-right text-[11px] tabular-nums" style={{ color: FAINT }}>
+            <span className="w-[40px] shrink-0 pt-[1px] text-right text-caption tabular-nums" style={{ color: FAINT }}>
               {it.when}
             </span>
             <span className="relative flex w-[9px] shrink-0 justify-center" aria-hidden>
@@ -1808,16 +1843,16 @@ export function IncidentRail({ items, empty }: { items: Incident[]; empty?: stri
               {i < items.length - 1 && <span className="absolute top-[17px] bottom-0 w-px" style={{ backgroundColor: HAIR }} />}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13.5px] leading-[18px] text-[#1c1a16]">{it.title}</span>
+              <span className="block truncate text-small text-[#1c1a16]">{it.title}</span>
               {it.meta && (
-                <span className="mt-0.5 block text-[11px] leading-[15px]" style={{ color: FAINT }}>
+                <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
                   {it.meta}
                 </span>
               )}
             </span>
             {it.status && (
               <span
-                className="shrink-0 rounded-full px-2 py-[3px] text-[10.5px] font-medium whitespace-nowrap"
+                className="shrink-0 rounded-full px-2 py-[3px] text-caption font-medium whitespace-nowrap"
                 style={{
                   backgroundColor: it.status.tone === 'neutral' ? '#f4f3ef' : mix(TONE[it.status.tone], 0.12),
                   color: it.status.tone === 'neutral' ? MUTED : TONE[it.status.tone],
@@ -1871,37 +1906,143 @@ export interface TreeCell {
  * not. Used once per page at most: it is the least calm mark here and earns its place only
  * where the distribution itself is the finding.
  */
-export function Treemap({ items, height = 176, onPick }: { items: TreeCell[]; height?: number; onPick?: (key: string) => void }) {
+export function Treemap({ items, height, onPick }: { items: TreeCell[]; height?: number; onPick?: (key: string) => void }) {
   const accent = useAccent()
   const { ref, animate } = usePlay()
+  const [box, setBox] = useState(0)
   const total = items.reduce((n, i) => n + i.value, 0) || 1
-  const cells = useMemo(() => squarify(items.map((i) => i.value / total), 0, 0, 100, 100), [items, total])
+
+  /*
+   * THE LAYOUT NEEDS THE REAL BOX, and this is the bug that made this mark unreadable.
+   *
+   * `squarify` was being run in a 100 × 100 space and its output used as percentages. Percent
+   * of width and percent of height are only the same unit when the box is square, and this box
+   * never is: on a tablet the card is around 1,300px across and the map was 176px tall, so
+   * every cell the algorithm carefully squared came out stretched seven and a half times
+   * horizontally. The result was a stack of horizontal slivers — precisely the shape squarify
+   * exists to avoid, produced by squarify. Measuring the box and laying out in its own
+   * coordinates is the whole fix; the algorithm below was always correct.
+   */
+  const measure = useCallback((el: HTMLDivElement | null) => {
+    ref.current = el
+    if (el) setBox(el.clientWidth)
+  }, [ref])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setBox(el.clientWidth))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
+
+  /*
+   * A TALL ENOUGH BOX TO BE A MAP. A fixed 176px was authored for a phone, where the card is
+   * about 360px across and that height is a sensible 2:1. The same 176 on a desktop column is a
+   * 7:1 letterbox, and no layout makes nine cells readable inside one — the cells would be
+   * correct and still be slivers, because the BOX is the sliver. So the height tracks the
+   * width, bounded: never squarer than 5:8 and never taller than 340px.
+   */
+  const tall = height ?? Math.round(Math.max(176, Math.min(340, box * 0.42)))
+
+  /*
+   * THE TAIL IS FOLDED INTO ONE CELL, and the fold is stated on it.
+   *
+   * A distribution running from 62% to 0.1% cannot be drawn cell-per-item at any size: the last
+   * classes come out two pixels wide, which is not a small cell but a rendering artefact — a
+   * rounded corner with nothing between it and the next one, reading as damage rather than as
+   * data. Dropping them would be worse, because the areas would no longer sum to the whole.
+   *
+   * So everything below a legible size becomes a single trailing cell whose area is exactly the
+   * sum of what it replaces. The map still adds up, the artefacts are gone, and nothing is
+   * hidden — every folded class is a row in the ranked list under the map, with its own count,
+   * share and door. The fold is what the map can honestly draw, not what the card knows.
+   */
+  const drawn: TreeCell[] = useMemo(() => {
+    /* Squarify needs its input largest-first, and so does the fold below. The call sites all
+       pass a ranked list already; sorting a copy costs nothing and removes the assumption. */
+    const sorted = [...items].sort((a, b) => b.value - a.value)
+    const area = Math.max(1, box) * tall
+    /* Roughly 46 × 46 — the smallest tile that still reads as a tile. */
+    const floor = 2100 / area
+
+    let cut = sorted.length
+    if (cut > 1 && sorted[cut - 1].value / total < floor) {
+      /* Keep folding until BOTH the next cell kept and the folded cell itself are drawable.
+         Folding only the offending item would not help: the fold's area is the sum of what it
+         replaces, so a single 0.1% class folds into a 0.1% cell and the artefact survives with
+         a different label. */
+      let sum = 0
+      while (cut > 1) {
+        const share = sorted[cut - 1].value / total
+        if (share >= floor && sum >= floor) break
+        sum += share
+        cut--
+      }
+    }
+    if (cut >= sorted.length) return sorted
+
+    const rest = sorted.slice(cut)
+    return [
+      ...sorted.slice(0, cut),
+      {
+        key: '__rest',
+        label: `+${rest.length}`,
+        value: rest.reduce((n, i) => n + i.value, 0),
+        meta: 'smaller, listed below',
+      },
+    ]
+  }, [items, total, box, tall])
+
+  const cells = useMemo(
+    () => squarify(drawn.map((i) => i.value / total), 0, 0, Math.max(1, box), tall),
+    [drawn, total, box, tall],
+  )
 
   return (
-    <div ref={ref} className="relative w-full overflow-hidden rounded-[12px]" style={{ height }}>
-      {cells.map((c, i) => {
-        const it = items[i]
+    <div ref={measure} className="relative w-full overflow-hidden rounded-[12px]" style={{ height: tall }}>
+      {box > 0 && cells.map((c, i) => {
+        const it = drawn[i]
         const wash = mix(accent, 0.86 - Math.min(0.66, i * 0.1))
         const light = i > 2
         /* A LABEL ONLY WHERE THE CELL CAN HOLD ONE. Cells run from half the card down to a
            few pixels; a name clipped to "Ga" and a figure sliced in half are worse than a cell
            that is silent and carries its facts in the ranked list underneath. The thresholds
-           are in percent of the box, which is the only measure available before layout. */
-        const named = c.w >= 17 && c.h >= 13
-        const figured = named && c.w >= 24 && c.h >= 32
+           are in pixels now that the box is measured, rather than in percentages of two
+           different axes — which is why a 40px-tall cell used to think it had room for two
+           lines of type. */
+        /* The fold cell's label is two characters, so it needs a fraction of the room a class
+           name does — and it is the one cell whose label matters most, because a silent cell
+           there would read as the artefact this fold exists to remove. */
+        const rest = it.key === '__rest'
+        const named = rest ? c.w >= 26 && c.h >= 20 : c.w >= 46 && c.h >= 30
+        const figured = !rest && named && c.w >= 62 && c.h >= 52
         const body = (
           <>
             {named && (
               <span
-                className="block truncate text-[11px] font-medium leading-[14px]"
-                style={{ color: light ? '#1c1a16' : '#ffffff' }}
+                className="block text-caption font-medium"
+                style={{
+                  color: light ? '#1c1a16' : '#ffffff',
+                  /* A NARROW CELL WRAPS RATHER THAN GOING SILENT. A tall 60px column has room
+                     for two short lines and none for one long one, and the previous rule —
+                     one truncated line or nothing — left the third largest class in the
+                     collection as an unlabelled green rectangle. Two lines, clipped after
+                     that, and a tight leading so they fit the cells that earn them. */
+                  display: '-webkit-box',
+                  WebkitLineClamp: c.h >= 46 ? 2 : 1,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  lineHeight: 1.2,
+                  overflowWrap: 'anywhere',
+                }}
               >
                 {it.label}
               </span>
             )}
             {figured && (
               <span
-                className="mt-0.5 block truncate text-[10.5px] tabular-nums"
+                className="mt-0.5 block truncate text-caption tabular-nums"
                 style={{ color: light ? MUTED : 'rgba(255,255,255,0.82)' }}
               >
                 {compact(it.value)}
@@ -1912,18 +2053,20 @@ export function Treemap({ items, height = 176, onPick }: { items: TreeCell[]; he
         return (
           <div
             key={it.key}
-            className={`absolute p-1.5 ${animate ? 'animate-veil' : ''}`}
+            className={`absolute p-[3px] ${animate ? 'animate-veil' : ''}`}
             style={{
-              left: `${c.x}%`,
-              top: `${c.y}%`,
-              width: `${c.w}%`,
-              height: `${c.h}%`,
+              left: c.x,
+              top: c.y,
+              width: c.w,
+              height: c.h,
               animationDelay: animate ? `${i * 55}ms` : undefined,
             }}
             title={`${it.label} · ${fmt(it.value)}${it.meta ? ` · ${it.meta}` : ''}`}
           >
             <div className="h-full w-full overflow-hidden rounded-[7px] p-[7px]" style={{ backgroundColor: wash }}>
-              {onPick || it.onPick ? (
+              {/* The fold is not a door — it names no single thing to open. Its members are
+                  rows in the list below, each with its own. */}
+              {!rest && (onPick || it.onPick) ? (
                 <button
                   type="button"
                   onClick={it.onPick ?? (() => onPick?.(it.key))}
