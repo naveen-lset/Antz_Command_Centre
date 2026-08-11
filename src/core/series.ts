@@ -1,109 +1,52 @@
 /**
  * DAILY SERIES — the layer that makes every window a real sum instead of an estimate.
  *
- * `metrics.ts` states five nested window totals per site. This file solves for a daily
- * series that satisfies all five exactly, and from then on every figure in the product is
- * an aggregation over days: `sum(from…to)` for a flow, `value[day]` for a level. There is
- * no scale factor anywhere, which is the point — the thing this replaces multiplied a
- * month by 2.92 to answer "quarter" and told the reader it was a quarter.
+ * WHAT THIS FILE USED TO DO, AND WHY IT NO LONGER HAS TO. `metrics.ts` stated five nested
+ * window totals per site, and this file solved for a daily series satisfying all five exactly
+ * — carving the ledger into disjoint segments and distributing each segment's total across its
+ * days with a weekly rhythm and a seeded wobble. That solve existed because nobody can author
+ * 2,192 days × 6 sites × 13 metrics.
  *
- * HOW THE SOLVE WORKS. The five authored windows nest — today ⊆ last 7 days ⊆ this month
- * ⊆ last 6 months ⊆ all time — so their differences carve the ledger into five disjoint
- * segments with a known total each. Distributing each segment's total across its own days
- * with `apportion` gives a series that reproduces every authored figure exactly, not
- * approximately, because largest-remainder rounding cannot lose or invent a unit.
+ * There is nothing left to solve. Every event in the database carries its own date, so the
+ * daily series is the events, counted — `store.ts` builds the per-site day counts on first
+ * read and caches them. No segments, no rhythm, no wobble, no scale factor anywhere. A custom
+ * range of 12–19 May sums the actual events of 12–19 May.
  *
- * WHAT IS AND ISN'T CLAIMED. Within a segment, the day-to-day shape is derived — a weekly
- * roster rhythm plus a seeded wobble. That is a real modelling choice and the only one
- * left: the totals are the data, the intra-segment shape is a plausible realisation of
- * them. It is honest in the way the old scale factors were not, because no window the
- * reader can select is ever answered by multiplying a different window. A custom range of
- * 12–19 May sums the actual days 12–19 May.
+ * LEVELS ARE READ, NOT SUMMED, and that distinction is still load-bearing. A population is a
+ * reading, so the answer to "this month" is the reading on the last day of the month — which
+ * is why every window ending today shows the same headcount, and why "last month" shows
+ * April's. Summing a level over 31 days would report a population of three million.
  *
- * LEVELS ARE INTERPOLATED, NOT SUMMED, and that distinction is load-bearing. A population
- * is a reading, so the answer to "this month" is the reading on the last day of the month
- * — which is why every window ending today shows the same headcount, and why "last month"
- * shows June's. Summing a level over 31 days would report a population of six million.
+ * TWO KINDS OF LEVEL NOW, and they are not equally well founded:
  *
- * Series are built lazily per (metric, site) and cached. Nothing is computed for a module
- * nobody opened.
+ *   POPULATION  has a real series in `levels.bin` — an exact count today, walked backwards
+ *               through the recorded movements. Read directly.
+ *   EVERYTHING   has two readings (now, and six months ago) and is interpolated between them,
+ *   ELSE        exactly as before. Coverage and caseload are point-in-time facts in the
+ *               schema; there is no history to read, so the curve between them is a
+ *               derivation and is documented as one.
  */
 
-import { HISTORY_DAYS, TODAY, WORLD_TODAY, indexOf, type Win } from './calendar'
+import { HISTORY_DAYS, TODAY, type Win } from './calendar'
 import { METRICS, type Metric } from './metrics'
-import { apportion, dayWeights, rng } from './seed'
-
-/* ── the segment boundaries the authored figures imply ────────────────────── */
-
-/** First index of the calendar month `back` months before the world's today. */
-const startOfMonthBack = (back: number): number =>
-  indexOf(new Date(WORLD_TODAY.getFullYear(), WORLD_TODAY.getMonth() - back, 1))
-
-const MONTH_START = startOfMonthBack(0)
-const SIX_START = startOfMonthBack(5)
-const WEEK_START = TODAY - 6
-
-/**
- * The five disjoint day ranges, newest first, and which pair of authored figures each
- * one's total is the difference of.
- *
- * `[0, 1]` reads "v[1] − v[0]": the last-7-days total less today's, spread over the six
- * days between them. Index 5 is a sentinel meaning zero, used by the oldest segment's
- * upper bound so the table stays uniform.
- */
-const SEGMENTS: { from: number; to: number; of: [number, number] }[] = [
-  { from: TODAY, to: TODAY, of: [5, 0] },
-  { from: WEEK_START, to: TODAY - 1, of: [0, 1] },
-  { from: MONTH_START, to: WEEK_START - 1, of: [1, 2] },
-  { from: SIX_START, to: MONTH_START - 1, of: [2, 3] },
-  { from: 0, to: SIX_START - 1, of: [3, 4] },
-]
-
-/** How much weekly rhythm each metric shows. Births do not keep office hours; intakes do. */
-const RHYTHM: Record<string, number> = {
-  births: 0.05,
-  mortality: 0.08,
-  fetal: 0.08,
-  eggs: 0.12,
-  hatched: 0.12,
-  accession: 0.5,
-  transfers: 0.55,
-  deworming: 0.6,
-  /* Vaccination runs as rounds on keeper shifts, so it is the most weekday-shaped flow in
-     the product; supplements go out with the daily feed and barely notice the week. */
-  vaccinations: 0.65,
-  supplement: 0.12,
-  lab: 0.45,
-  pharmacy: 0.4,
-  admissions: 0.25,
-  discarded: 0.3,
-  disease: 0.15,
-}
+import { dailyOf, populationSeries } from './store'
+import { rng } from './seed'
 
 /* ── construction ────────────────────────────────────────────────────────── */
 
 const cache = new Map<string, Int32Array>()
 
-function buildFlow(slug: string, siteKey: string, v: readonly number[]): Int32Array {
-  const out = new Int32Array(HISTORY_DAYS)
-  const weekly = RHYTHM[slug] ?? 0.3
+/** Shared zero series for a metric with no model. Never written to. */
+const EMPTY = new Int32Array(HISTORY_DAYS)
 
-  SEGMENTS.forEach((seg, si) => {
-    const days = seg.to - seg.from + 1
-    if (days <= 0) return
-    const [lo, hi] = seg.of
-    /* Index 5 is the sentinel for "nothing below" — the newest segment's total is just
-       today's figure. Differences are floored at zero: the authored windows are nested and
-       therefore monotonic, but a future typo should show as a flat segment rather than
-       silently subtracting days off the segment before it. */
-    const total = Math.max(0, (v[hi] ?? 0) - (lo === 5 ? 0 : (v[lo] ?? 0)))
-    if (total === 0) return
-    const shares = apportion(total, dayWeights(`${slug}:${siteKey}:${si}`, days, seg.from, weekly))
-    for (let i = 0; i < days; i++) out[seg.from + i] = shares[i]
-  })
-
-  return out
-}
+/**
+ * The earlier of the two readings a level carries, as a ledger index.
+ *
+ * The ETL computes every `then` at exactly 182 days back, so that is where the interpolation
+ * is anchored. It used to be the first day of the month five back, which was the boundary the
+ * authored six-month column sat on — a column that no longer exists.
+ */
+const SIX_START = Math.max(0, TODAY - 182)
 
 /**
  * A level's daily curve.
@@ -145,22 +88,22 @@ function buildLevel(slug: string, siteKey: string, now: number, then: number): I
 }
 
 function seriesFor(slug: string, siteKey: string): Int32Array {
+  const metric = METRICS[slug]
+  if (!metric) return EMPTY
+
+  /* A flow is its own events, counted per day — no cache here, `store.ts` holds one keyed the
+     same way, and a second copy would be 460 KB per (metric, site) for nothing. */
+  if (metric.kind === 'flow') return dailyOf(slug, siteKey)
+
+  /* The population is the one level with a real series behind it. */
+  if (slug === 'animals') return populationSeries(siteKey)
+
   const key = `${slug}:${siteKey}`
   const hit = cache.get(key)
   if (hit) return hit
 
-  const metric = METRICS[slug]
-  let built: Int32Array
-  if (!metric) {
-    built = new Int32Array(HISTORY_DAYS)
-  } else if (metric.kind === 'flow') {
-    const row = metric.flows?.find((f) => f.site === siteKey)
-    built = row ? buildFlow(slug, siteKey, row.v) : new Int32Array(HISTORY_DAYS)
-  } else {
-    const row = metric.levels?.find((l) => l.site === siteKey)
-    built = row ? buildLevel(slug, siteKey, row.now, row.then) : new Int32Array(HISTORY_DAYS)
-  }
-
+  const row = metric.levels?.find((l) => l.site === siteKey)
+  const built = row ? buildLevel(slug, siteKey, row.now, row.then) : EMPTY
   cache.set(key, built)
   return built
 }

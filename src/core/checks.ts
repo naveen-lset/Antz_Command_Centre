@@ -1,123 +1,97 @@
 /**
  * INVARIANT CHECKS — run once in development, silent in production.
  *
- * The consistency requirement is the kind that decays quietly. Nothing breaks when someone
- * edits a site row in `metrics.ts`; a headline on a page four folders away simply stops
- * matching the list underneath it, and nobody notices until a director does. So the
- * invariants are asserted rather than trusted:
+ * The consistency requirement is the kind that decays quietly. Nothing breaks when a figure
+ * drifts; a headline on a page four folders away simply stops matching the list underneath it,
+ * and nobody notices until a director does. So the invariants are asserted rather than trusted.
  *
- *   1. Every metric's current column sums to the figure the product states for it.
- *   2. The derived daily series reproduces all five authored windows EXACTLY. This is the
- *      one that makes "every window is a real sum" a fact rather than a claim.
- *   3. Breakdowns sum to their parent — species to site, site to collection — at more than
- *      one window, because an invariant that only holds in July is not an invariant.
+ * ────────────────────────────────────────────────────────────────────────────
+ * WHAT CHANGED WHEN THE PRODUCT WAS CONNECTED TO THE DATABASE.
  *
- * Failures print a single grouped console error naming the metric and both figures. They
- * are not thrown: a mismatched total should not blank the screen during a design session,
- * and the message is specific enough to fix without a stack trace.
+ * Two of the old checks are gone because the thing they guarded no longer exists. They
+ * asserted that every metric's current column summed to a headline typed elsewhere (`animals:
+ * 215432`, `mortality: 23`) and that the solved daily series reproduced five authored window
+ * totals exactly. Both were about keeping DERIVED data faithful to AUTHORED data. There is no
+ * authored data left: the series is the events, counted, so "does the series reproduce the
+ * authored figure" has no meaning and a hard-coded 215,432 would just be a second, worse copy
+ * of a number the register already holds.
+ *
+ * What survives is everything that guards the reader rather than the author:
+ *
+ *   1. The clock matches the extract. A re-run of the ETL over a newer dump must not silently
+ *      shift every date on every page — `calendar.ts` restates the horizon as a constant
+ *      because `WINDOWS` is built before the store loads, so the two are checked against each
+ *      other here.
+ *   2. Breakdowns sum to their parent — species to site, site to collection — at more than one
+ *      window, because an invariant that only holds in July is not an invariant.
+ *   3. A flow's event count equals its series sum, which is what makes the record list and the
+ *      KPI above it the same statement.
+ *   4. The registries are internally consistent, and the population reconstruction never runs
+ *      negative or exceeds today's exact count by an implausible margin.
+ *
+ * Failures print one grouped console error naming the metric and both figures. They are not
+ * thrown: a mismatched total should not blank the screen during a design session.
  */
 
-import { WINDOWS, resolveWindow, type Win } from './calendar'
+import { HISTORY_DAYS, WINDOWS, WORLD_TODAY, resolveWindow, toInput, type Win } from './calendar'
 import { METRICS } from './metrics'
-import { readSite, split, sumIn } from './series'
+import { readSite } from './series'
 import { bySpecies, figure } from './query'
 import { count } from './events'
-import { SITES, siteOf, speciesCount, classCount, enclosureCount, USERS, STAFF_TOTAL } from './world'
+import { SITES, speciesCount, classCount, enclosureCount, USERS, SPECIES } from './world'
 import { speciesStock } from './animals'
+import { data } from './store'
 import type { Scope } from './scope'
 
-/** What the product states elsewhere. A mismatch here means one of the two has moved. */
-const HEADLINES: Record<string, number> = {
-  animals: 215432,
-  accession: 18,
-  births: 45,
-  eggs: 142,
-  hatched: 96,
-  discarded: 13,
-  fetal: 5,
-  mortality: 23,
-  transfers: 28,
-  health: 124,
-  admissions: 50,
-  disease: 9,
-  deworming: 63,
-  lab: 214,
-  labOpen: 31,
-  pharmacy: 1284,
-  approvals: 14,
-  alerts: 36,
-  alertsCritical: 14,
-}
-
-/** Rate metrics, as numerator / denominator. */
-const RATES: Record<string, [number, number]> = {
-  vaccination: [2184, 2374],
-  preventive: [2136, 2374],
-  tasks: [41, 76],
-  attendance: [243, 312],
-  welfare: [82, 89],
-  breeding: [45, 58],
-  healthScore: [564, 600],
-  wastage: [34, 1000],
+/**
+ * Metrics with no source in `species_mgmt_anon`, and what is missing.
+ *
+ * Listed so the console says WHY a module is empty rather than leaving someone to work it out
+ * from a blank card. Each of these was a real metric in the authored model and is now absent
+ * on purpose — see the header of `metrics.ts`.
+ */
+const UNSOURCED: Record<string, string> = {
+  eggs: 'no egg, clutch or incubation table',
+  hatched: 'no hatch record',
+  discarded: 'no egg record',
+  fetal: 'no fetal-loss record',
+  escaped: 'no escape record',
+  escapedOpen: 'no escape record',
+  lab: 'no lab test table — only a lab_test_id_count column',
+  labOpen: 'no lab test table',
+  approvals: 'no approvals table',
+  tasks: 'no tasks table',
+  attendance: 'no attendance table',
+  alerts: 'no alerts table',
+  alertsCritical: 'no alerts table',
+  welfare: 'assessments exist but carry no pass/fail',
+  breeding: 'no pairing outcome record',
+  healthScore: 'no composite index in the source',
+  wastage: 'no feed record — vaccination/deworming wastage is a dose figure, not feed',
+  preventive: 'superseded by the per-programme coverage rates',
 }
 
 export function runChecks(): void {
   const fails: string[] = []
   const month = WINDOWS.find((w) => w.key === 'month')!
+  const meta = data().meta
 
-  /* 1 · authored columns sum to the stated headlines. */
-  for (const [slug, expected] of Object.entries(HEADLINES)) {
-    const s = split(slug, month)
-    if (!s) {
-      fails.push(`${slug}: no metric defined`)
-      continue
-    }
-    if (Math.round(s.total) !== expected) fails.push(`${slug}: rows sum to ${s.total}, product states ${expected}`)
-  }
+  /* 1 · the clock matches the extract it was pinned to. */
+  if (toInput(WORLD_TODAY) !== meta.today)
+    fails.push(
+      `clock: calendar.ts says today is ${toInput(WORLD_TODAY)}, the extract ends ${meta.today} — ` +
+        `update WORLD_TODAY and HISTORY_DAYS in core/calendar.ts`,
+    )
+  if (HISTORY_DAYS !== meta.historyDays)
+    fails.push(`clock: calendar.ts has ${HISTORY_DAYS} days, the extract has ${meta.historyDays}`)
 
-  for (const [slug, [num, den]] of Object.entries(RATES)) {
-    const s = split(slug, month)
-    if (!s) {
-      fails.push(`${slug}: no metric defined`)
-      continue
-    }
-    const gotNum = s.rows.reduce((n, r) => n + r.value, 0)
-    if (gotNum !== num) fails.push(`${slug}: numerator sums to ${gotNum}, product states ${num}`)
-    if (s.totalOf !== den) fails.push(`${slug}: denominator sums to ${s.totalOf}, product states ${den}`)
-  }
-
-  /* 2 · the daily series reproduces every authored window exactly. */
-  const authored: [string, Win][] = [
-    ['today', resolveWindow('today')],
-    ['last7', resolveWindow('last7')],
-    ['month', month],
-    /* The six-month preset sits on the fourth authored column, so it is checked like the other
-       three rather than trusted — if the segment boundaries in `series.ts` ever move, this is
-       the assertion that says so. */
-    ['half', resolveWindow('half')],
-  ]
-
-  for (const [slug, metric] of Object.entries(METRICS)) {
-    if (metric.kind !== 'flow') continue
-    for (const row of metric.flows ?? []) {
-      const want = { today: row.v[0], last7: row.v[1], month: row.v[2], half: row.v[3] }
-      for (const [name, win] of authored) {
-        const got = sumIn(slug, row.site, win.from, win.to)
-        const expected = want[name as keyof typeof want]
-        if (got !== expected)
-          fails.push(`${slug}/${row.site} ${name}: series sums to ${got}, authored ${expected}`)
-      }
-    }
-  }
-
-  /* 3 · breakdowns sum to their parent, at more than one window. */
+  /* 2 · breakdowns sum to their parent, at more than one window. */
   const windows: Win[] = [month, resolveWindow('last7'), resolveWindow('year'), resolveWindow('lastMonth')]
 
   for (const win of windows) {
     for (const slug of Object.keys(METRICS)) {
-      const metric = METRICS[slug]
       /* Rates pool rather than sum, so the species check does not apply to them. */
-      if (metric.kind === 'rate') continue
+      if (METRICS[slug].kind === 'rate') continue
 
       const overall: Scope = { site: null, win }
       const head = figure(overall, slug)
@@ -136,7 +110,7 @@ export function runChecks(): void {
     }
   }
 
-  /* 4 · a flow's event count equals its series sum — the record list and the KPI. */
+  /* 3 · a flow's event count equals its series sum — the record list and the KPI. */
   for (const slug of Object.keys(METRICS)) {
     if (METRICS[slug].kind !== 'flow') continue
     for (const site of SITES) {
@@ -146,12 +120,26 @@ export function runChecks(): void {
     }
   }
 
-  /* 5 · the entity registry matches the counts the home screen states. */
+  /* 4 · the registries and the reconstruction hold together. */
+  const today = HISTORY_DAYS - 1
+  const exact = SITES.reduce((n, s) => n + (data().sites.find((x) => x.key === s.key)?.animals ?? 0), 0)
   const stock = SITES.reduce((n, s) => n + speciesStock(s.key, month).reduce((m, r) => m + r.count, 0), 0)
-  if (stock !== HEADLINES.animals) fails.push(`population: species stock sums to ${stock}, expected ${HEADLINES.animals}`)
+  const onToday = SITES.reduce(
+    (n, s) => n + speciesStock(s.key, { ...month, to: today } as Win).reduce((m, r) => m + r.count, 0),
+    0,
+  )
+  if (onToday !== exact)
+    fails.push(`population: species stock on the last day is ${onToday}, the register holds ${exact}`)
+  if (stock < 0) fails.push(`population: reconstruction ran negative (${stock})`)
+
   if (enclosureCount !== SITES.reduce((n, s) => n + s.enclosures, 0))
-    fails.push(`enclosures: registry has ${enclosureCount}`)
-  if (USERS.length !== STAFF_TOTAL) fails.push(`users: registry has ${USERS.length}, expected ${STAFF_TOTAL}`)
+    fails.push(`enclosures: registry has ${enclosureCount}, sites declare ${SITES.reduce((n, s) => n + s.enclosures, 0)}`)
+  if (!SITES.length) fails.push('sites: registry is empty — did core/boot.ts run?')
+  if (!SPECIES.length) fails.push('species: registry is empty')
+
+  /* 5 · nothing that has a source is silently missing, and nothing missing is a surprise. */
+  const missing = Object.keys(UNSOURCED).filter((slug) => METRICS[slug])
+  for (const slug of missing) fails.push(`${slug}: listed as unsourced but a metric exists — update core/checks.ts`)
 
   if (fails.length) {
     /* One group, not one line per failure — a hundred species mismatches from a single
@@ -164,11 +152,21 @@ export function runChecks(): void {
     console.info(
       `%c✓ data consistency`,
       'color:#1e7a44;font-weight:600',
-      `${Object.keys(METRICS).length} metrics · ${speciesCount} species · ${classCount} classes · ` +
-        `${enclosureCount} enclosures · ${USERS.length} users · ${SITES.length} sites`,
+      `${Object.keys(METRICS).length} metrics · ${SITES.length} sites · ${speciesCount} species · ` +
+        `${classCount} classes · ${enclosureCount} enclosures · ${USERS.length} staff · ` +
+        `${exact.toLocaleString('en-US')} animals`,
     )
   }
-}
 
-/** Named for the console, so the info line above says something useful. */
-export const siteNames = SITES.map((s) => siteOf(s.key)?.name).join(', ')
+  /* The unsourced list, printed once, so an empty module is explained rather than mysterious. */
+  console.groupCollapsed(
+    `%c○ ${Object.keys(UNSOURCED).length} metrics have no source in ${meta.database}`,
+    'color:#8a5d06;font-weight:600',
+  )
+  for (const [slug, why] of Object.entries(UNSOURCED)) console.info(`${slug} — ${why}`)
+  console.info(
+    'These render the empty state rather than a zero. Rows discarded during the build:',
+    meta.discarded,
+  )
+  console.groupEnd()
+}

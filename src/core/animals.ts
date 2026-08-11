@@ -20,12 +20,22 @@
  */
 
 import { TODAY, WORLD_TODAY, dateAt, indexOf, longDate, type Win } from './calendar'
-import { apportion, between, draw, pickBy, rng } from './seed'
+import { apportion, draw } from './seed'
 import { levelAt } from './series'
 import {
+  FLAG_CARE,
+  FLAG_DEWORMED,
+  FLAG_VACCINATED,
+  NO_DAY,
+  UNRESOLVED,
+  animalRow,
+  data,
+  speciesSpan,
+} from './store'
+import {
+  ENCLOSURES,
   SITES,
   SPECIES,
-  housingIn,
   siteOf,
   speciesIn,
   speciesOf,
@@ -59,26 +69,7 @@ export function stockOfSpecies(speciesId: string, win: Win): number {
 
 export type Sex = 'M' | 'F' | 'U'
 
-/**
- * How much of a class is recorded as undetermined.
- *
- * This is a fact about the collection rather than missing data: shoaling fish and
- * invertebrates are counted, not sexed, and it is the reason the population's sex split is
- * dominated by "Undetermined". The home screen used to state that split as three typed
- * numbers; it is now derived from these rates, so it moves with the population instead of
- * being a caption that used to be true.
- */
-const UNSEXED: Record<ClassName, number> = {
-  Actinopterygii: 0.985,
-  Chondrichthyes: 0.6,
-  Malacostraca: 0.99,
-  Gastropoda: 0.995,
-  Insecta: 0.97,
-  Amphibia: 0.8,
-  Aves: 0.06,
-  Reptilia: 0.09,
-  Mammalia: 0.04,
-}
+const SEX_CODE: Sex[] = ['U', 'M', 'F', 'U']
 
 export interface SexSplit {
   male: number
@@ -86,20 +77,43 @@ export interface SexSplit {
   undetermined: number
 }
 
-/** The sex split over any set of species populations, apportioned so the parts sum. */
+/**
+ * The sex split over a set of species populations.
+ *
+ * COUNTED, NOT MODELLED. There used to be a table of per-class "undetermined" rates here —
+ * 98.5% for ray-finned fish, 4% for mammals — because no per-animal sex was stored. Every
+ * housing row carries one, so this is a walk over the register spans instead. The collection's
+ * real answer is 52% undetermined, which no per-class table would have arrived at.
+ */
 export function sexSplit(rows: { species: Species; count: number }[]): SexSplit {
+  const a = data().animals
   let male = 0
   let female = 0
   let undetermined = 0
+
   for (const { species, count } of rows) {
-    const rate = UNSEXED[species.cls] ?? 0.1
-    const [u, sexed] = apportion(count, [rate, 1 - rate])
-    /* Slightly male-skewed, as captive collections with surplus males tend to be. */
-    const [m, f] = apportion(sexed, [52, 48])
-    undetermined += u
-    male += m
-    female += f
+    if (count <= 0) continue
+    const span = speciesSpan(species.id)
+    if (!span) {
+      undetermined += count
+      continue
+    }
+    const [start, held] = span
+    let m = 0
+    let f = 0
+    for (let i = start; i < start + held; i++) {
+      const code = SEX_CODE[a.sex[i]] ?? 'U'
+      if (code === 'M') m++
+      else if (code === 'F') f++
+    }
+    /* Scaled to the window's count so the parts sum to the headcount exactly even on a
+       reconstructed earlier day, where the register's own total is today's. */
+    const [sm, sf] = apportion(count, [m, f, Math.max(0, held - m - f)])
+    male += sm
+    female += sf
+    undetermined += count - sm - sf
   }
+
   return { male, female, undetermined }
 }
 
@@ -111,18 +125,20 @@ export function sexSplitFor(siteKey: string | null, win: Win): SexSplit {
 
 /* ── ids ─────────────────────────────────────────────────────────────────── */
 
-/** Ordinal of a species within its own site — the two digits in the id. */
-const ordinalOf = (sp: Species): number => speciesIn(sp.siteKey).findIndex((s) => s.id === sp.id)
-
 /**
- * `ANM-AQ03-00142`. The site code and the species ordinal are what make the id decodable;
- * the sequence number is the animal's place in its own population.
+ * An animal's id is the database's own key, verbatim.
+ *
+ * It used to be a composite that ENCODED the animal's position — `ANM-AQ03-00142` — because
+ * that was the only way to reconstruct a record with no registry behind it. There is a
+ * registry now, so the id identifies rather than describes, and a reader who cites
+ * `#/e/animal/100142` can find that exact row in `housing`.
  */
 export function animalId(speciesId: string, n: number): string {
-  const sp = speciesOf(speciesId)
-  if (!sp) return `ANM-XX00-${String(n).padStart(5, '0')}`
-  const site = siteOf(sp.siteKey)!
-  return `ANM-${site.code}${String(ordinalOf(sp)).padStart(2, '0')}-${String(n).padStart(5, '0')}`
+  const span = speciesSpan(speciesId)
+  if (!span) return ''
+  const [start, held] = span
+  if (n < 1 || n > held) return ''
+  return String(data().animals.id[start + n - 1])
 }
 
 export interface AnimalKey {
@@ -130,14 +146,15 @@ export interface AnimalKey {
   n: number
 }
 
+/** Position of an animal within its own species, for the callers that still page by ordinal. */
 export function decodeAnimalId(id: string): AnimalKey | undefined {
-  const m = /^ANM-([A-Z]{2})(\d{2})-(\d+)$/.exec(id.trim().toUpperCase())
-  if (!m) return undefined
-  const site = SITES.find((s) => s.code === m[1])
-  if (!site) return undefined
-  const sp = speciesIn(site.key)[Number(m[2])]
+  const row = animalRow(Number(id.trim()))
+  if (row < 0) return undefined
+  const a = data().animals
+  const sp = SPECIES[a.species[row]]
   if (!sp) return undefined
-  return { speciesId: sp.id, n: Number(m[3]) }
+  const span = speciesSpan(sp.id)
+  return span ? { speciesId: sp.id, n: row - span[0] + 1 } : undefined
 }
 
 /* ── one animal ──────────────────────────────────────────────────────────── */
@@ -146,7 +163,14 @@ export type AnimalStatus = 'Healthy' | 'Under care' | 'Quarantine' | 'Critical'
 
 export interface Animal {
   id: string
-  /** Where a keeper's own name for the animal exists. Not every fish has one. */
+  /**
+   * A keeper's own name for the animal.
+   *
+   * `housing.identifier_value` holds one for the 5,161 rows whose identifier type is "Name";
+   * every other row is identified by a microchip, a ring number or a tag, and has none. It is
+   * read where it exists and absent where it does not — it used to be drawn from a list of
+   * twenty names for any mammal or bird that won a coin toss.
+   */
   callName?: string
   speciesId: string
   speciesName: string
@@ -155,7 +179,7 @@ export interface Animal {
   siteName: string
   enclosureId: string
   sex: Sex
-  /** Ledger index of birth or arrival. */
+  /** Ledger index of birth. `-1` where the record carries no usable date, as 79% do not. */
   bornOn: number
   /** Rendered from `bornOn` against the world clock — never stored, so it cannot go stale. */
   age: string
@@ -163,43 +187,15 @@ export interface Animal {
   accession: string
   origin: string
   weight: string
-  /** Ledger index. */
+  /** Ledger index of the last recorded examination. `-1` where none is recorded. */
   lastExam: number
   vaccinated: boolean
   dewormed: boolean
   welfare: number
 }
 
-const ORIGINS = [
-  'Captive born · Jamnagar',
-  'Captive born · Jamnagar',
-  'Rescue · Gujarat Forest Department',
-  'Transfer · Junagadh Zoo',
-  'Confiscation · Customs',
-  'Transfer · Bharatpur',
-  'Rescue · Coastal patrol',
-]
-
-/** Named animals are a mammal-and-bird habit. A carp is a number, honestly. */
-const CALL_NAMES = [
-  'Leo', 'Raja', 'Rani', 'Moti', 'Kesar', 'Shera', 'Gauri', 'Bhola', 'Chotu', 'Laxmi',
-  'Veer', 'Sundari', 'Bahadur', 'Champa', 'Tara', 'Arjun', 'Meghna', 'Kaali', 'Sona', 'Baadal',
-]
-
-/** Longevity by class, in years — what makes an age plausible rather than uniform. */
-const LIFESPAN: Record<ClassName, number> = {
-  Mammalia: 18,
-  Aves: 14,
-  Reptilia: 22,
-  Amphibia: 8,
-  Actinopterygii: 6,
-  Chondrichthyes: 16,
-  Malacostraca: 3,
-  Insecta: 1,
-  Gastropoda: 4,
-}
-
 function ageFrom(bornOn: number): string {
+  if (bornOn < 0) return '—'
   const born = dateAt(bornOn)
   let months =
     (WORLD_TODAY.getFullYear() - born.getFullYear()) * 12 + (WORLD_TODAY.getMonth() - born.getMonth())
@@ -212,81 +208,61 @@ function ageFrom(bornOn: number): string {
   return m ? `${y} y ${m} m` : `${y} y`
 }
 
-/**
- * The animal at one position in its species.
- *
- * Everything is a pure function of the id. `status` is drawn against the caseload rates the
- * metric layer reports for the species' own site, so a population where 41 of 178,400 are
- * under care yields lists where under-care animals are correspondingly rare — the list and
- * the caseload figure tell the same story without the list being counted to produce it.
- */
-export function animalAt(speciesId: string, n: number): Animal | undefined {
-  const sp = speciesOf(speciesId)
+/** Build the animal at one register row. */
+function atRow(row: number): Animal | undefined {
+  const a = data().animals
+  if (row < 0 || row >= a.count) return undefined
+
+  const sp = SPECIES[a.species[row]]
   if (!sp) return undefined
-  const site = siteOf(sp.siteKey)!
-  const id = animalId(speciesId, n)
-  const r = rng(id)
-
-  const rate = UNSEXED[sp.cls] ?? 0.1
-  const sex: Sex = r() < rate ? 'U' : r() < 0.52 ? 'M' : 'F'
-
-  const span = LIFESPAN[sp.cls] ?? 10
-  /* Squared draw so most animals are young — the shape of a breeding collection. */
-  const bornOn = Math.max(0, TODAY - Math.round(Math.pow(r(), 1.8) * span * 365))
-
-  /* Caseload and quarantine rates for this animal's own site, from the metric layer. */
-  const stock = Math.max(1, levelAt('animals', sp.siteKey, TODAY))
-  const careRate = levelAt('health', sp.siteKey, TODAY) / stock
-  const roll = r()
-  const status: AnimalStatus =
-    roll < careRate * 0.12
-      ? 'Critical'
-      : roll < careRate
-        ? 'Under care'
-        : roll < careRate * 1.6
-          ? 'Quarantine'
-          : 'Healthy'
-
-  const heavy = sp.cls === 'Mammalia'
-  const weight = heavy
-    ? `${(6 + r() * 190).toFixed(1)} kg`
-    : sp.cls === 'Aves'
-      ? `${(0.2 + r() * 7).toFixed(2)} kg`
-      : sp.cls === 'Reptilia'
-        ? `${(0.3 + r() * 40).toFixed(2)} kg`
-        : `${(0.02 + r() * 4).toFixed(2)} kg`
-
-  const named = (sp.cls === 'Mammalia' || sp.cls === 'Aves') && r() < 0.55
-  /* Housing only — a feed store and a filtration bay are real enclosures that hold no animals. */
-  const enclosures = housingIn(sp.siteKey)
+  const site = siteOf(sp.siteKey)
+  const encIx = a.enclosure[row]
+  const born = a.born[row]
+  const acc = a.accession[row]
+  const flags = a.flags[row]
+  const originIx = a.origin[row]
 
   return {
-    id,
-    callName: named ? pickBy(`${id}:call`, CALL_NAMES) : undefined,
-    speciesId,
+    id: String(a.id[row]),
+    speciesId: sp.id,
     speciesName: sp.name,
     cls: sp.cls,
     siteKey: sp.siteKey,
-    siteName: site.name,
-    enclosureId: enclosures[Math.floor(r() * enclosures.length)]?.id ?? `${site.code}-01`,
-    sex,
-    bornOn,
-    age: ageFrom(bornOn),
-    status,
-    accession: `ACC-${dateAt(bornOn).getFullYear()}-${String(100 + Math.floor(r() * 899))}`,
-    origin: pickBy(`${id}:origin`, ORIGINS),
-    weight,
-    lastExam: Math.max(bornOn, TODAY - between(r, 1, 180)),
-    vaccinated: r() < 0.92,
-    dewormed: r() < 0.89,
-    welfare: Math.round((4 + r()) * 10) / 10,
+    siteName: site?.name ?? sp.siteKey,
+    enclosureId: encIx === UNRESOLVED ? '—' : (ENCLOSURES[encIx]?.id ?? '—'),
+    sex: SEX_CODE[a.sex[row]] ?? 'U',
+    bornOn: born === NO_DAY ? -1 : born,
+    age: ageFrom(born === NO_DAY ? -1 : born),
+    /* The only derived field left, and it is a statement about the clinical record: a live
+       prescription or a diagnosis inside ninety days. There is no health-status column, and
+       no admission or bed record to read a Quarantine or Critical tier from — so those two
+       tiers are never returned rather than being assigned by a coin. */
+    status: flags & FLAG_CARE ? 'Under care' : 'Healthy',
+    accession: acc === NO_DAY ? '—' : longDate(acc),
+    origin: a.origins[originIx] ?? 'Not recorded',
+    /* `housing.weight` is null on 77% of rows and mixes units where present, so it is not
+       carried into the register at all rather than shown for one animal in four. */
+    weight: '—',
+    lastExam: -1,
+    vaccinated: Boolean(flags & FLAG_VACCINATED),
+    dewormed: Boolean(flags & FLAG_DEWORMED),
+    welfare: 0,
   }
 }
 
-/** An animal by id, from any path that knows one. */
+/** The `n`th animal of a species, 1-based — the form the paging callers use. */
+export function animalAt(speciesId: string, n: number): Animal | undefined {
+  const span = speciesSpan(speciesId)
+  if (!span) return undefined
+  const [start, held] = span
+  if (n < 1 || n > held) return undefined
+  return atRow(start + n - 1)
+}
+
+/** An animal by its database id, from any path that knows one. */
 export function animalById(id: string): Animal | undefined {
-  const key = decodeAnimalId(id)
-  return key ? animalAt(key.speciesId, key.n) : undefined
+  const n = Number(String(id).trim())
+  return Number.isFinite(n) ? atRow(animalRow(n)) : undefined
 }
 
 /** How an animal is named in a row: its call name where it has one, else its id. */
@@ -294,7 +270,7 @@ export const animalLabel = (a: Animal): string => a.callName ?? a.id
 
 /** "Leo · Asiatic Lion" — the form a breadcrumb and a search result both want. */
 export const animalTitle = (a: Animal): string =>
-  a.callName ? `${a.callName} · ${a.speciesName}` : `${a.speciesName} ${a.id.slice(-5)}`
+  a.callName ? `${a.callName} · ${a.speciesName}` : `${a.speciesName} ${a.id}`
 
 /* ── paging a population ─────────────────────────────────────────────────── */
 

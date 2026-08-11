@@ -18,5 +18,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* `src/components` is untracked, unreferenced dead code left over from an earlier version —
+     nothing imports it and it already failed to compile (it reaches for a `src/data` module
+     that does not exist). Excluded rather than deleted, so it stays available to look at. */
+  "exclude": ["src/components"]
 }

@@ -19,9 +19,31 @@
  * species list of forty. `speciesCount`, `classCount` and `enclosureCount` read the
  * registry, so the headline and the list it drills into cannot disagree — and adding a
  * species updates the KPI without anyone remembering to.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * THE REGISTRIES NOW COME FROM THE DATABASE, not from this file.
+ *
+ * Sites, species, enclosures, departments and staff are read from `store.ts`, which loads
+ * what `tools/etl/build.py` compiled out of `species_mgmt_anon`. The hand-authored versions
+ * they replace described a different collection: six sites against the database's fifty,
+ * forty species against 2,411, ninety-six enclosures against 15,959, and a headcount that was
+ * four-fifths fish where the real one is two-fifths birds.
+ *
+ * They are `const` arrays FILLED at load rather than reassigned, so every `import { SITES }`
+ * elsewhere keeps working against the same reference — and the scalars below are `export let`
+ * so their live bindings update with them. Nothing may read either before `loadWorld()`
+ * resolves, which is why `main.tsx` awaits it before mounting React.
+ *
+ * WHAT IS STILL AUTHORED, AND WHY. Hospitals, wards, laboratories, lab departments,
+ * pharmacies, medicines, nurseries and incubators have NO counterpart anywhere in the
+ * schema — not a table, not a column. They are left exactly as they were so the modules
+ * built on them keep rendering rather than crashing, and each is marked below. Their site
+ * keys no longer resolve, which is the honest signal that they are not part of the real
+ * graph.
  */
 
-import { apportion, between, pickBy, rng } from './seed'
+import { between, rng } from './seed'
+import { data } from './store'
 
 /* ── sites ───────────────────────────────────────────────────────────────── */
 
@@ -35,53 +57,18 @@ export interface Site {
   about: string
 }
 
-/** Ordered biggest-collection first, which is also how every module's rows sort. */
-export const SITES: Site[] = [
-  {
-    key: 'aquatic',
-    name: 'Aquatic Halls',
-    code: 'AQ',
-    enclosures: 22,
-    about: 'Freshwater and marine systems. Holds four fifths of the collection by headcount.',
-  },
-  {
-    key: 'aviary',
-    name: 'Aviary Complex',
-    code: 'AV',
-    enclosures: 24,
-    about: 'Walk-through and breeding aviaries, and the zoo’s main hatchery.',
-  },
-  {
-    key: 'savanna',
-    name: 'Savanna',
-    code: 'SV',
-    enclosures: 18,
-    about: 'Open grassland paddocks for herding ungulates. Site of the central hospital.',
-  },
-  {
-    key: 'reptile',
-    name: 'Reptile House',
-    code: 'RP',
-    enclosures: 14,
-    about: 'Controlled-climate vivaria, incubation unit and the quarantine block.',
-  },
-  {
-    key: 'primate',
-    name: 'Primate Forest',
-    code: 'PR',
-    enclosures: 11,
-    about: 'Forested islands and night houses for arboreal primates.',
-  },
-  {
-    key: 'carnivore',
-    name: 'Carnivore Ridge',
-    code: 'CR',
-    enclosures: 7,
-    about: 'Large predator enclosures with off-show holding and a dedicated feed store.',
-  },
-]
+/**
+ * Every site the database names, biggest collection first — which is also how every module's
+ * rows sort. Filled by `hydrate()`; empty until then.
+ *
+ * FIFTY, NOT FORTY-EIGHT. `housing` names 48, but two more appear in the reporting tables
+ * without a housed animal behind them. Dropping those would silently lose the deaths and
+ * accessions attributed to them, so the canonical list is the union.
+ */
+export const SITES: Site[] = []
 
-export const siteOf = (key: string): Site | undefined => SITES.find((s) => s.key === key)
+const siteById = new Map<string, Site>()
+export const siteOf = (key: string): Site | undefined => siteById.get(key)
 export const siteName = (key: string): string => siteOf(key)?.name ?? key
 
 /* ── enclosures ──────────────────────────────────────────────────────────── */
@@ -104,193 +91,53 @@ export interface Enclosure {
   houses: boolean
 }
 
-/** Kinds that exist for the operation rather than for an animal to live in. */
-const SERVICE_KINDS = new Set(['Filtration bay', 'Feed store', 'Incubation room'])
-
-const ENCLOSURE_KINDS: Record<string, string[]> = {
-  aquatic: ['Display tank', 'Holding tank', 'Quarantine tank', 'Filtration bay'],
-  aviary: ['Walk-through', 'Breeding aviary', 'Flight cage', 'Night shelter'],
-  savanna: ['Paddock', 'Night house', 'Holding pen', 'Browse yard'],
-  reptile: ['Vivarium', 'Terrarium', 'Basking enclosure', 'Incubation room'],
-  primate: ['Island', 'Night house', 'Enrichment yard'],
-  carnivore: ['Enclosure', 'Off-show holding', 'Feed store'],
-}
-
 /**
- * Enclosures are generated from each site's own count, so the registry and the KPI are
- * the same fact. `AQ-01 … AQ-22` is exactly the code form the records already print.
+ * Every enclosure named in `housing`, under the site that holds it.
+ *
+ * The `kind` and `capacity` this interface carries have no source in the schema — the
+ * database stores an enclosure as a name and nothing else — so they are left blank rather
+ * than filled with a plausible guess. `houses` is true for all of them: every enclosure here
+ * is one an animal was actually found in, which is a stronger guarantee than the service-space
+ * flag it replaces.
+ *
+ * The site → enclosure hierarchy is strict in the data: of 15,959 enclosures, none appears
+ * under two sites.
  */
-export const ENCLOSURES: Enclosure[] = SITES.flatMap((site) =>
-  Array.from({ length: site.enclosures }, (_, i) => {
-    const id = `${site.code}-${String(i + 1).padStart(2, '0')}`
-    const kinds = ENCLOSURE_KINDS[site.key] ?? ['Enclosure']
-    const r = rng(`enc:${id}`)
-    const kind = kinds[i % kinds.length]
-    return {
-      id,
-      name: id,
-      siteKey: site.key,
-      kind,
-      capacity: between(r, 4, 60),
-      houses: !SERVICE_KINDS.has(kind),
-    }
-  }),
-)
+export const ENCLOSURES: Enclosure[] = []
 
-export const enclosuresOf = (siteKey: string): Enclosure[] =>
-  ENCLOSURES.filter((e) => e.siteKey === siteKey)
+const enclosuresBySite = new Map<string, Enclosure[]>()
+
+export const enclosuresOf = (siteKey: string): Enclosure[] => enclosuresBySite.get(siteKey) ?? []
 
 /** Only the enclosures an animal can be assigned to. */
-export const housingIn = (siteKey: string): Enclosure[] =>
-  ENCLOSURES.filter((e) => e.siteKey === siteKey && e.houses)
+export const housingIn = (siteKey: string): Enclosure[] => enclosuresOf(siteKey)
 
-export const enclosureCount = ENCLOSURES.length
+export let enclosureCount = 0
 
 /* ── species ─────────────────────────────────────────────────────────────── */
 
-/** The nine scientific classes the collection spans. Derived below, not asserted. */
-export type ClassName =
-  | 'Mammalia'
-  | 'Aves'
-  | 'Reptilia'
-  | 'Amphibia'
-  | 'Actinopterygii'
-  | 'Chondrichthyes'
-  | 'Malacostraca'
-  | 'Insecta'
-  | 'Gastropoda'
-
-/** [common name, class, share of its site's headcount]. Weights, not percentages. */
-type Sp = [string, ClassName, number]
-
 /**
- * The species each site holds, in the proportions the collection actually has.
+ * A scientific class, as the database spells it.
  *
- * AQUATIC HALLS IS DELIBERATELY LOPSIDED. One carp population is tens of thousands of
- * animals against Carnivore Ridge's entire 1,892, and that asymmetry is the single most
- * surprising true fact about a collection this size. A tidy even split across every site
- * would make all six look the same shape and lose the only thing this level exists to
- * show.
+ * WIDENED FROM A NINE-MEMBER UNION TO A STRING, because the union was a claim about the
+ * collection and the collection disagrees. The database holds thirteen classes and does not
+ * use the same names: `Teleostei` where this file said `Actinopterygii`, plus `Arachnida`,
+ * `Chilopoda`, `Holostei` and `Dipnoi` — and none of the `Gastropoda` or `Insecta` the union
+ * asserted. Every consumer already defaults on an unknown key, so widening loses nothing.
  */
-const SPECIES_BY_SITE: Record<string, Sp[]> = {
-  aquatic: [
-    ['Common Carp', 'Actinopterygii', 300],
-    ['Nile Tilapia', 'Actinopterygii', 230],
-    ['Rohu', 'Actinopterygii', 180],
-    ['Silver Barb', 'Actinopterygii', 120],
-    ['Mrigal Carp', 'Actinopterygii', 96],
-    ['Catla', 'Actinopterygii', 88],
-    ['Rose Shrimp', 'Malacostraca', 140],
-    ['Giant River Prawn', 'Malacostraca', 74],
-    ['Indian Mud Crab', 'Malacostraca', 46],
-    ['Fiddler Crab', 'Malacostraca', 28],
-    ['Apple Snail', 'Gastropoda', 34],
-    ['Freshwater Mussel', 'Gastropoda', 22],
-    ['Mosquitofish', 'Actinopterygii', 64],
-    ['Zebra Danio', 'Actinopterygii', 58],
-    ['Climbing Perch', 'Actinopterygii', 30],
-    ['Snakehead Murrel', 'Actinopterygii', 24],
-    ['Blacktip Reef Shark', 'Chondrichthyes', 9],
-    ['Whitespotted Bamboo Shark', 'Chondrichthyes', 6],
-    ['Freshwater Stingray', 'Chondrichthyes', 5],
-    ['Honeycomb Whipray', 'Chondrichthyes', 3],
-    ['Indian Bullfrog', 'Amphibia', 12],
-    ['Common Skittering Frog', 'Amphibia', 9],
-  ],
-  aviary: [
-    ['Zebra Finch', 'Aves', 260],
-    ['Rock Pigeon', 'Aves', 150],
-    ['Indian Peafowl', 'Aves', 132],
-    ['Grey Francolin', 'Aves', 108],
-    ['Red Avadavat', 'Aves', 96],
-    ['Common Myna', 'Aves', 84],
-    ['Rose-ringed Parakeet', 'Aves', 76],
-    ['Painted Stork', 'Aves', 54],
-    ['Black-headed Ibis', 'Aves', 42],
-    ['Lesser Whistling Duck', 'Aves', 40],
-    ['Indian Skimmer', 'Aves', 30],
-    ['Sarus Crane', 'Aves', 22],
-    ['Greater Flamingo', 'Aves', 34],
-    ['Spot-billed Pelican', 'Aves', 20],
-    ['Barn Owl', 'Aves', 14],
-    ['Indian Eagle-Owl', 'Aves', 10],
-    ['Oriental Darter', 'Aves', 16],
-    ['White-rumped Vulture', 'Aves', 8],
-    ['Crested Serpent Eagle', 'Aves', 6],
-  ],
-  savanna: [
-    ['Chital', 'Mammalia', 250],
-    ['Blackbuck', 'Mammalia', 200],
-    ['Sambar', 'Mammalia', 140],
-    ['Nilgai', 'Mammalia', 116],
-    ['Indian Gazelle', 'Mammalia', 78],
-    ['Sangai Deer', 'Mammalia', 62],
-    ['Hog Deer', 'Mammalia', 48],
-    ['Wild Boar', 'Mammalia', 44],
-    ['Four-horned Antelope', 'Mammalia', 34],
-    ['Indian Bison', 'Mammalia', 22],
-    ['Barasingha', 'Mammalia', 26],
-    ['Asiatic Wild Ass', 'Mammalia', 18],
-    ['Blue Bull Calf Herd', 'Mammalia', 16],
-    ['Indian Hare', 'Mammalia', 30],
-    ['Indian Crested Porcupine', 'Mammalia', 20],
-  ],
-  reptile: [
-    ['Indian Flapshell Turtle', 'Reptilia', 230],
-    ['Indian Rock Python', 'Reptilia', 160],
-    ['Bengal Monitor', 'Reptilia', 140],
-    ['Indian Star Tortoise', 'Reptilia', 120],
-    ['Marsh Crocodile', 'Reptilia', 96],
-    ['Indian Cobra', 'Reptilia', 74],
-    ['Russell’s Viper', 'Reptilia', 58],
-    ['Malabar Pit Viper', 'Reptilia', 44],
-    ['Common Rat Snake', 'Reptilia', 62],
-    ['Checkered Keelback', 'Reptilia', 50],
-    ['Garden Lizard', 'Reptilia', 40],
-    ['Gharial', 'Reptilia', 18],
-    ['King Cobra', 'Reptilia', 10],
-    ['Indian Chameleon', 'Reptilia', 24],
-    ['Common Indian Toad', 'Amphibia', 26],
-    ['Bombay Bush Frog', 'Amphibia', 14],
-    ['Atlas Moth', 'Insecta', 30],
-    ['Common Rose Butterfly', 'Insecta', 22],
-    ['Giant Wood Spider Beetle', 'Insecta', 12],
-  ],
-  primate: [
-    ['Rhesus Macaque', 'Mammalia', 260],
-    ['Hanuman Langur', 'Mammalia', 210],
-    ['Bonnet Macaque', 'Mammalia', 150],
-    ['Lion-tailed Macaque', 'Mammalia', 96],
-    ['Nilgiri Langur', 'Mammalia', 64],
-    ['Slow Loris', 'Mammalia', 52],
-    ['Capped Langur', 'Mammalia', 40],
-    ['Assamese Macaque', 'Mammalia', 34],
-    ['Hoolock Gibbon', 'Mammalia', 20],
-    ['Slender Loris', 'Mammalia', 24],
-  ],
-  carnivore: [
-    ['Bengal Fox', 'Mammalia', 220],
-    ['Jungle Cat', 'Mammalia', 180],
-    ['Striped Hyena', 'Mammalia', 140],
-    ['Asiatic Lion', 'Mammalia', 116],
-    ['Fishing Cat', 'Mammalia', 96],
-    ['Indian Leopard', 'Mammalia', 84],
-    ['Golden Jackal', 'Mammalia', 70],
-    ['Rusty-spotted Cat', 'Mammalia', 44],
-    ['Sloth Bear', 'Mammalia', 38],
-    ['Indian Grey Mongoose', 'Mammalia', 46],
-    ['Honey Badger', 'Mammalia', 22],
-    ['Caracal', 'Mammalia', 14],
-  ],
-}
+export type ClassName = string
 
 export interface Species {
   id: string
   name: string
   cls: ClassName
   siteKey: string
-  /** Share of its site's headcount. Normalised at read time. */
+  /** Animals of this species currently housed at this site. A real count, not a share. */
   weight: number
+  /** IUCN Red List category, verbatim from the reference table. */
+  iucn?: string | null
+  /** CITES appendix, verbatim from the reference table. */
+  cites?: string | null
 }
 
 const slug = (s: string): string =>
@@ -301,33 +148,43 @@ const slug = (s: string): string =>
     .replace(/^-|-$/g, '')
 
 /**
- * The species registry.
+ * THE SPECIES REGISTRY, read from the database.
  *
- * The id carries the site, because the same common name held in two sites is two
- * populations with two enclosure sets and two keepers. Where a *curator's* view is
- * wanted — one Common Carp, wherever it lives — `speciesByName` merges them, and the
- * merge is by name so the two views can never drift apart.
+ * Keyed by (site, common name), because the same species held at two sites is two
+ * populations with two enclosure sets and two keepers — the convention this file already
+ * used. `weight` is no longer a share to apportion by: it is the REAL number of that species
+ * currently housed at that site, counted from `housing`.
+ *
+ * The registry spans every (site, species) pair seen anywhere in the data, not just the
+ * currently-housed ones. A mortality record names a species that may no longer be held, and
+ * an event whose species cannot be resolved would break the invariant that every event lands
+ * in exactly one bucket of every dimension. Those pairs carry a weight of zero and are
+ * filtered out of population views by the `count > 0` tests already in place.
+ *
+ * 5,717 pairs across 2,411 distinct common names, against the forty this file used to hold.
  */
-export const SPECIES: Species[] = Object.entries(SPECIES_BY_SITE).flatMap(([siteKey, list]) =>
-  list.map(([name, cls, weight]) => ({ id: `${siteKey}:${slug(name)}`, name, cls, siteKey, weight })),
-)
+export const SPECIES: Species[] = []
 
-export const speciesOf = (id: string): Species | undefined => SPECIES.find((s) => s.id === id)
+const speciesById = new Map<string, Species>()
+const speciesBySite = new Map<string, Species[]>()
+const speciesByCommonName = new Map<string, Species[]>()
+
+export const speciesOf = (id: string): Species | undefined => speciesById.get(id)
 
 export const speciesIn = (siteKey?: string): Species[] =>
-  siteKey ? SPECIES.filter((s) => s.siteKey === siteKey) : SPECIES
+  siteKey ? (speciesBySite.get(siteKey) ?? []) : SPECIES
 
 /** Distinct common names — what a curator means by "how many species do we hold". */
-export const speciesNames: string[] = [...new Set(SPECIES.map((s) => s.name))].sort()
+export let speciesNames: string[] = []
 
-export const speciesCount = speciesNames.length
+export let speciesCount = 0
 
-export const CLASSES: ClassName[] = [...new Set(SPECIES.map((s) => s.cls))] as ClassName[]
+export let CLASSES: ClassName[] = []
 
-export const classCount = CLASSES.length
+export let classCount = 0
 
 /** Every population of one common name, across sites. */
-export const speciesByName = (name: string): Species[] => SPECIES.filter((s) => s.name === name)
+export const speciesByName = (name: string): Species[] => speciesByCommonName.get(name) ?? []
 
 /* ── hospitals and wards · the Medical hierarchy ──────────────────────────── */
 
@@ -561,129 +418,153 @@ export interface Department {
   weight: number
 }
 
-export const DEPARTMENTS: Department[] = (
-  [
-    ['Animal Keeping', 34],
-    ['Veterinary', 14],
-    ['Curatorial', 8],
-    ['Laboratory', 7],
-    ['Pharmacy', 4],
-    ['Nutrition', 6],
-    ['Horticulture', 8],
-    ['Security', 10],
-    ['Administration', 6],
-    ['IT & Systems', 3],
-  ] as [string, number][]
-).map(([name, weight]) => ({ id: slug(name), name, weight }))
+/**
+ * The departments the staff register actually splits into.
+ *
+ * `users` has no department column — it has a ROLE, thirty-nine of them, and that is the
+ * finest real grouping the data supports. So a "department" here is a role, and the Users
+ * module's Department → User drill is a Role → User drill. That is a rename of a level, not
+ * an invention of one: every row under it is a real person with that real job title.
+ */
+export const DEPARTMENTS: Department[] = []
 
-export const departmentOf = (id: string): Department | undefined => DEPARTMENTS.find((d) => d.id === id)
+const departmentById = new Map<string, Department>()
+export const departmentOf = (id: string): Department | undefined => departmentById.get(id)
 
 export interface User {
   id: string
   name: string
   role: string
   departmentId: string
-  siteKey: string
-  /** Ledger day index of last sign-in. Drives active / dormant. */
-  lastActive: number
-  /** Sign-ins in the last 90 days — the adoption figure. */
+  /** `null` where the account has no site assigned, which 84 of them do not. */
+  siteKey: string | null
+  /** Ledger day index of last sign-in. `null` where the account has never signed in. */
+  lastActive: number | null
+  /**
+   * Records this account has created — observations, medical records and assessments summed.
+   *
+   * The database counts WORK, not sign-ins, so this is no longer a 90-day session count. It is
+   * the better figure for the question the Users module asks ("activity, not headcount") and
+   * it is real, which the session count never was.
+   */
   sessions90: number
   status: 'active' | 'dormant' | 'never'
 }
 
-const FIRST = [
-  'Aarav', 'Vivaan', 'Aditya', 'Vihaan', 'Arjun', 'Reyansh', 'Kabir', 'Ishaan', 'Rudra', 'Aryan',
-  'Ananya', 'Diya', 'Aadhya', 'Saanvi', 'Meera', 'Kavya', 'Ira', 'Riya', 'Anika', 'Pari',
-  'Rajesh', 'Suresh', 'Mahesh', 'Nilesh', 'Bhavesh', 'Jayesh', 'Hitesh', 'Paresh',
-  'Priya', 'Sunita', 'Rekha', 'Asha', 'Nita', 'Bhavna', 'Falguni', 'Hansa',
-  'Subhash', 'Dinesh', 'Kiran', 'Manoj', 'Vikram', 'Sanjay', 'Pankaj', 'Deepak',
-]
+/** The staff register, read from `users`. */
+export const USERS: User[] = []
 
-const LAST = [
-  'Patel', 'Shah', 'Desai', 'Joshi', 'Mehta', 'Trivedi', 'Chauhan', 'Solanki',
-  'Rathod', 'Parmar', 'Vaghela', 'Gohil', 'Jadeja', 'Bhatt', 'Pandya', 'Dave',
-  'Modi', 'Amin', 'Thakkar', 'Sheth', 'Raval', 'Panchal', 'Vyas', 'Kapadia',
-]
-
-const ROLES: Record<string, string[]> = {
-  'animal-keeping': ['Head Keeper', 'Senior Keeper', 'Keeper', 'Assistant Keeper'],
-  veterinary: ['Chief Veterinarian', 'Senior Veterinarian', 'Veterinarian', 'Veterinary Assistant'],
-  curatorial: ['Curator', 'Assistant Curator', 'Registrar'],
-  laboratory: ['Lab In-charge', 'Lab Technician', 'Sample Coordinator'],
-  pharmacy: ['Pharmacist', 'Store Keeper'],
-  nutrition: ['Nutritionist', 'Kitchen Supervisor', 'Feed Assistant'],
-  horticulture: ['Horticulturist', 'Gardener', 'Browse Supervisor'],
-  security: ['Security Supervisor', 'Security Guard', 'Gate Officer'],
-  administration: ['Director', 'Administrative Officer', 'Accounts Officer'],
-  'it-systems': ['Systems Administrator', 'Support Engineer'],
-}
-
-/*
- * `calendar.ts` is deliberately NOT imported here. It would be a cycle — the calendar has no
- * need of the world, and the world needs exactly one number from it — so the ledger's last
- * index is restated. It must be declared BEFORE the `USERS` initialiser below rather than
- * after it: `const` is hoisted but not initialised, so a reference from an IIFE that runs
- * during module evaluation hits the temporal dead zone. It did, and only in the browser —
- * the bundler used for the invariant checks reordered the declarations and hid it.
- */
-const TODAY_INDEX = 2191
-
-/** Total staff accounts. Matches the 312 the attendance module reports against. */
-export const STAFF_TOTAL = 312
-
-/**
- * The staff register.
- *
- * Generated, but generated ONCE and deterministically, so a user has one identity
- * wherever they are reached from — an approval's approver, a lab sample's requester, the
- * Users module's own list. Before this, each of those invented its own name.
- *
- * `status` is derived from `lastActive` rather than stored beside it, so the Users
- * module's "dormant" count and the date on the row can never contradict each other.
- */
-export const USERS: User[] = (() => {
-  const perDept = apportion(STAFF_TOTAL, DEPARTMENTS.map((d) => d.weight))
-  /* Staff are spread across sites in proportion to how much housing each one has, which
-     is the closest honest proxy for where the work is. */
-  const siteWeights = SITES.map((s) => s.enclosures)
-
-  return DEPARTMENTS.flatMap((dept, di) => {
-    const count = perDept[di]
-    const perSite = apportion(count, siteWeights)
-    return SITES.flatMap((site, si) =>
-      Array.from({ length: perSite[si] }, (_, i) => {
-        const id = `USR-${String(1000 + di * 100 + si * 12 + i).slice(0, 4)}-${di}${si}${i}`
-        const r = rng(id)
-        const name = `${pickBy(`${id}:f`, FIRST)} ${pickBy(`${id}:l`, LAST)}`
-        const roles = ROLES[dept.id] ?? ['Officer']
-        /* Roles are ordered seniority-first, so the first person generated in a
-           department at a site is its senior — one head keeper per site, not fourteen. */
-        const role = i === 0 ? roles[0] : roles[Math.min(roles.length - 1, 1 + Math.floor(r() * (roles.length - 1)))]
-
-        const roll = r()
-        const lastActive =
-          roll < 0.06 ? -1 : Math.max(0, Math.round(TODAY_INDEX - Math.pow(r(), 2.4) * 210))
-        const status: User['status'] =
-          lastActive < 0 ? 'never' : TODAY_INDEX - lastActive > 30 ? 'dormant' : 'active'
-        const sessions90 =
-          status === 'active' ? between(r, 8, 120) : status === 'dormant' ? between(r, 0, 6) : 0
-
-        return { id, name, role, departmentId: dept.id, siteKey: site.key, lastActive, sessions90, status }
-      }),
-    )
-  })
-})()
-
-
-export const userOf = (id: string): User | undefined => USERS.find((u) => u.id === id)
+const userById = new Map<string, User>()
+export const userOf = (id: string): User | undefined => userById.get(id)
 export const usersIn = (siteKey?: string, departmentId?: string): User[] =>
   USERS.filter((u) => (!siteKey || u.siteKey === siteKey) && (!departmentId || u.departmentId === departmentId))
 
+/** Total staff accounts. */
+export let STAFF_TOTAL = 0
+
 /* ── the organisation ────────────────────────────────────────────────────── */
 
-export const ORG = {
+export const ORG: { name: string; zoo: string; viewer: User | undefined } = {
   name: 'Vantara Wildlife Trust',
   zoo: 'Jamnagar Zoo',
-  /** Who is signed in. Read from the register rather than typed beside it. */
-  viewer: USERS.find((u) => u.role === 'Director') ?? USERS[0],
+  /**
+   * Who is signed in. Read from the register rather than typed beside it — and assigned in
+   * `hydrate()` rather than here, because the register is empty until the data loads.
+   */
+  viewer: undefined,
+}
+
+/* ── hydration ───────────────────────────────────────────────────────────────── */
+
+/**
+ * Fill the registries from the loaded database. Called once by `loadWorld()`.
+ *
+ * The arrays are MUTATED rather than reassigned so that every `import { SITES }` across the
+ * product keeps pointing at the same reference — a reassignment would leave every module that
+ * imported before the load holding an empty array forever. The scalars are `export let`, whose
+ * ES-module live bindings do update for their importers.
+ */
+export function hydrate(): void {
+  if (SITES.length) return
+  const d = data()
+
+  for (const s of d.sites) {
+    const site: Site = {
+      key: s.key,
+      name: s.name,
+      code: s.code,
+      enclosures: s.enclosures,
+      /* Composed from what the record actually says about the site. The authored version
+         described what each site was FOR, which nothing in the schema records. */
+      about: `${s.animals.toLocaleString('en-US')} animals · ${s.enclosures.toLocaleString('en-US')} enclosures · ${s.sections} sections`,
+    }
+    SITES.push(site)
+    siteById.set(site.key, site)
+  }
+
+  for (const e of d.enclosures) {
+    const enc: Enclosure = { id: e.id, name: e.name, siteKey: e.siteKey, kind: '', capacity: 0, houses: true }
+    ENCLOSURES.push(enc)
+    const at = enclosuresBySite.get(enc.siteKey)
+    if (at) at.push(enc)
+    else enclosuresBySite.set(enc.siteKey, [enc])
+  }
+  enclosureCount = ENCLOSURES.length
+
+  for (const s of d.species) {
+    const sp: Species = {
+      id: s.id,
+      name: s.name,
+      cls: s.cls,
+      siteKey: s.siteKey,
+      weight: s.weight,
+      iucn: s.iucn,
+      cites: s.cites,
+    }
+    SPECIES.push(sp)
+    speciesById.set(sp.id, sp)
+    const bySite = speciesBySite.get(sp.siteKey)
+    if (bySite) bySite.push(sp)
+    else speciesBySite.set(sp.siteKey, [sp])
+    const byName = speciesByCommonName.get(sp.name)
+    if (byName) byName.push(sp)
+    else speciesByCommonName.set(sp.name, [sp])
+  }
+  speciesNames = [...speciesByCommonName.keys()].sort()
+  speciesCount = speciesNames.length
+  CLASSES = d.classes
+  classCount = CLASSES.length
+
+  /* Pharmacies are the one authored hierarchy keyed off the real sites, so it is built here
+     rather than at module scope — a site dispensary per site, plus the central store. There
+     is no pharmacy table; this is a shape for the module, not a claim about the estate. */
+  for (const s of SITES) {
+    PHARMACIES.push({ id: `ph-${s.key}`, name: `${s.name} Pharmacy`, siteKey: s.key, central: false })
+  }
+
+  for (const dept of d.departments) {
+    DEPARTMENTS.push(dept)
+    departmentById.set(dept.id, dept)
+  }
+
+  for (const u of d.users) {
+    const user: User = {
+      id: u.id,
+      name: u.name,
+      role: u.role,
+      departmentId: u.departmentId,
+      siteKey: u.siteKey,
+      lastActive: u.lastActive,
+      sessions90: u.observations + u.records + u.assessments,
+      status: u.lastActive === null ? 'never' : u.status,
+    }
+    USERS.push(user)
+    userById.set(user.id, user)
+  }
+  STAFF_TOTAL = USERS.length
+
+  ORG.viewer =
+    USERS.find((u) => /director/i.test(u.role)) ??
+    USERS.find((u) => /curator/i.test(u.role)) ??
+    USERS[0]
 }

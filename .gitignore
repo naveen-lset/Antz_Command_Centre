@@ -14,3 +14,9 @@ tools/figma/antz-icons.json
 tools/figma/plugin/
 .vercel
 .env*
+
+# The SQL extract the ETL reads. 194 MB — past GitHub's 100 MB per-file limit, and it is an
+# INPUT rather than a deliverable: `tools/etl/build.py` compiles it into public/data, which is
+# committed. Drop the dump in the repo root to re-run the build.
+Dump20260622.sql
+*.sql

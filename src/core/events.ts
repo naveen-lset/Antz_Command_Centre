@@ -1,45 +1,41 @@
 /**
  * EVENTS — the individual records behind every flow figure.
  *
- * THE RECORD LIST AND THE KPI ARE THE SAME DATA. A day's count comes from `series.ts`; an
- * event is one unit of that count given an identity. So "23 deaths this month" and the
- * list of deaths this month are not two sources that have to be kept in step — the list is
- * the number, enumerated. Filter the window and both move together; scope to a site and
- * both narrow; group by cause and the groups sum to 23 because every death is in exactly
- * one of them.
+ * THE RECORD LIST AND THE KPI ARE THE SAME DATA. A day's count comes from the daily series; an
+ * event is one row of that count. So "23 deaths this month" and the list of deaths this month
+ * are not two sources that have to be kept in step — the list is the number, enumerated.
+ * Filter the window and both move together; scope to a site and both narrow; group by cause
+ * and the groups sum to 23 because every death is in exactly one of them.
  *
- * This is what the requirement's "Recent Records = Jamnagar" asks for, and it is worth
- * noting how the product used to do it: each module page carried a hand-written array of
- * five or six plausible rows, unrelated to its own headline figure and unaffected by either
- * filter. Scoping to Carnivore Ridge left a list of aquatic samples on screen.
+ * ────────────────────────────────────────────────────────────────────────────
+ * THESE ARE NOW REAL ROWS. Every event used to be SYNTHESISED — its species, cause and
+ * subject animal drawn from weighted tables seeded on (metric, site, day, index), because no
+ * record corpus existed to read. There is one now: 305,754 events compiled out of
+ * `species_mgmt_anon` into five typed arrays, and `eventAt` reads the row rather than
+ * inventing it.
  *
- * NOTHING IS MATERIALISED UNTIL ASKED FOR. `count` reads the series. `tally` walks days and
- * increments integers. Only `page` allocates objects, and only for the rows on screen — so
- * an all-time pharmacy window is 89,000 records to group and twenty to build.
+ * WHAT THAT DELETES, AND WHY IT MATTERS. The `DETAILS` table held the vocabularies — eight
+ * causes of death, five intake routes, eleven vaccines — with a weight against each, and
+ * `AGENT_CLASSES` constrained which vaccine could reach which class so the draw would not hand
+ * a shrimp a distemper booster. All of it is gone. The real vocabularies are wider and messier
+ * than the authored ones (26 manners of death against 8, 42 vaccines against 11, 330
+ * diagnoses) and they need no constraining, because a real dose was given to a real animal.
  *
- * ATTRIBUTION IS A WEIGHTED DRAW, SEEDED ON (metric, site, day, index). That makes it
- * stable — the same event has the same species and the same cause on every read — and it
- * makes every grouping exact by construction, because each event lands in exactly one
- * bucket of every dimension.
+ * WHAT IS NOT ATTRIBUTED ANY MORE. An event used to carry a hospital, ward, lab department,
+ * pharmacy, medicine, nursery or incubator, drawn from registries this schema does not have.
+ * Those fields are now left undefined, so a grouping by one of them returns nothing rather
+ * than a plausible fiction. `Ev` keeps the fields so the modules reading them still compile.
+ *
+ * STILL NOTHING IS MATERIALISED UNTIL ASKED FOR. `count` reads the series. `tally` walks rows
+ * and increments integers. Only `page` allocates objects, and only for the rows on screen.
  */
 
 import { TODAY, shortDate, type Win } from './calendar'
 import { METRICS } from './metrics'
 import { daily, sumIn } from './series'
-import { draw, rng } from './seed'
-import {
-  HOSPITALS,
-  INCUBATORS,
-  LAB_DEPARTMENTS,
-  MEDICINES,
-  NURSERIES,
-  SITES,
-  WARDS,
-  siteOf,
-  speciesIn,
-  type Species,
-} from './world'
-import { animalAt, animalId, animalLabel, stockOfSpecies, type Animal } from './animals'
+import { flowOf, rowIndex, UNRESOLVED } from './store'
+import { SITES, SPECIES, siteOf, type Species } from './world'
+import { animalById, animalLabel, type Animal } from './animals'
 
 export type Tone = 'good' | 'warn' | 'bad' | 'neutral'
 
@@ -65,369 +61,172 @@ export interface Ev {
   incubatorId?: string
 }
 
-/* ── the classifying dimension, per metric ───────────────────────────────── */
-
-/** [label, relative weight, tone]. Weights make a cause distribution rather than a menu. */
-type Detail = [string, number, Tone]
-
-const DETAILS: Record<string, Detail[]> = {
-  mortality: [
-    ['Disease', 30, 'bad'],
-    ['Old age', 22, 'neutral'],
-    ['Trauma / injury', 14, 'bad'],
-    ['Parasitic load', 10, 'warn'],
-    ['Nutritional', 7, 'warn'],
-    ['Neonatal loss', 8, 'bad'],
-    ['Predation', 4, 'bad'],
-    ['Undetermined', 5, 'neutral'],
-  ],
-  births: [
-    ['Live birth', 74, 'good'],
-    ['Hand-reared', 14, 'warn'],
-    ['Assisted delivery', 9, 'warn'],
-    ['Multiple birth', 3, 'good'],
-  ],
-  accession: [
-    ['Rescue · Forest Dept', 34, 'good'],
-    ['Transfer in · zoo', 26, 'neutral'],
-    ['Confiscation · Customs', 16, 'warn'],
-    ['Rehabilitation intake', 14, 'good'],
-    ['Breeding loan', 10, 'neutral'],
-  ],
-  transfers: [
-    ['Internal move', 44, 'neutral'],
-    ['Outward · other zoo', 26, 'neutral'],
-    ['Inward · other zoo', 18, 'good'],
-    ['Release to wild', 8, 'good'],
-    ['Breeding loan', 4, 'neutral'],
-  ],
-  admissions: [
-    ['Reduced appetite', 20, 'warn'],
-    ['Lameness', 16, 'warn'],
-    ['Wound / abscess', 15, 'warn'],
-    ['Respiratory signs', 13, 'warn'],
-    ['Gastrointestinal', 12, 'warn'],
-    ['Ocular', 8, 'neutral'],
-    ['Dermatological', 8, 'neutral'],
-    ['Critical presentation', 8, 'bad'],
-  ],
-  disease: [
-    ['Aeromonas septicaemia', 18, 'bad'],
-    ['Avian pox', 14, 'bad'],
-    ['Coccidiosis', 14, 'warn'],
-    ['Aspergillosis', 12, 'warn'],
-    ['Foot-and-mouth watch', 10, 'bad'],
-    ['Mange', 10, 'warn'],
-    ['Columnaris', 12, 'warn'],
-    ['Tuberculosis screen', 10, 'bad'],
-  ],
-  fetal: [
-    ['Late-term loss', 38, 'bad'],
-    ['Mid-term loss', 30, 'bad'],
-    ['Early resorption', 20, 'warn'],
-    ['Dystocia', 12, 'bad'],
-  ],
-  /* An escape's classifying dimension is its OUTCOME, because that is the only thing anyone
-     asks about one. Most are back the same day; the tail is what the escape card counts. */
-  escaped: [
-    ['Recovered · same day', 54, 'warn'],
-    ['Recovered · within 7 days', 26, 'warn'],
-    ['Recovered · off site', 9, 'warn'],
-    ['Not recovered', 11, 'bad'],
-  ],
-  lab: [
-    ['Blood panel', 22, 'neutral'],
-    ['Faecal float', 20, 'neutral'],
-    ['Swab · culture', 16, 'neutral'],
-    ['Water quality', 12, 'neutral'],
-    ['Histopathology', 10, 'neutral'],
-    ['Serology', 10, 'neutral'],
-    ['PCR panel', 6, 'neutral'],
-    ['Toxicology', 4, 'warn'],
-  ],
-  deworming: [
-    ['Ivermectin', 34, 'good'],
-    ['Fenbendazole', 28, 'good'],
-    ['Praziquantel', 22, 'good'],
-    ['Albendazole', 16, 'good'],
-  ],
-  /* A dose's classifying dimension is the VACCINE, which is what makes
-     Vaccination → Vaccine → Site → Species → Animal a real drill rather than a label.
-
-     The list spans the classes the collection actually vaccinates, because a zoo whose
-     headcount is four fifths fish runs an immersion programme as well as a needle one.
-     Which vaccine can reach which class is declared in `AGENT_CLASSES` below — without it
-     the weighted draw hands a shrimp a canine distemper booster, and one line like that on
-     an executive page costs the reader's trust in every other line. */
-  vaccinations: [
-    ['Rabies', 16, 'good'],
-    ['Foot-and-mouth', 13, 'good'],
-    ['Newcastle disease', 12, 'good'],
-    ['Aeromonas · immersion', 14, 'good'],
-    ['Columnaris · immersion', 10, 'good'],
-    ['Clostridial 7-in-1', 9, 'good'],
-    ['Avian pox', 8, 'good'],
-    ['Canine distemper', 7, 'good'],
-    ['Reptile core panel', 6, 'good'],
-    ['Brucellosis', 5, 'good'],
-    ['Tetanus toxoid', 4, 'good'],
-  ],
-  supplement: [
-    ['Calcium + D3', 26, 'neutral'],
-    ['Multivitamin', 22, 'neutral'],
-    ['Vitamin A', 16, 'neutral'],
-    ['Mineral mix', 14, 'neutral'],
-    ['Omega-3', 10, 'neutral'],
-    ['Vitamin E + selenium', 7, 'neutral'],
-    ['Probiotic', 5, 'neutral'],
-  ],
-  eggs: [
-    ['Clutch set', 62, 'neutral'],
-    ['Single egg set', 24, 'neutral'],
-    ['Recovered from nest', 14, 'neutral'],
-  ],
-  hatched: [
-    ['Hatched · unassisted', 78, 'good'],
-    ['Hatched · assisted', 16, 'warn'],
-    ['Hatched · early', 6, 'warn'],
-  ],
-  discarded: [
-    ['Infertile', 46, 'neutral'],
-    ['Dead in shell', 28, 'bad'],
-    ['Cracked / damaged', 16, 'warn'],
-    ['Contaminated', 10, 'bad'],
-  ],
-  pharmacy: [
-    ['Treatment course', 52, 'neutral'],
-    ['Single dose', 28, 'neutral'],
-    ['Prophylactic', 14, 'good'],
-    ['Emergency issue', 6, 'warn'],
-  ],
-}
-
-const FALLBACK: Detail[] = [['Recorded', 1, 'neutral']]
+/* ── the classifying dimension ────────────────────────────────────────────── */
 
 /**
- * WHICH CLASSES AN AGENT CAN REACH.
+ * The values a metric's classifying dimension actually takes, biggest-first as the ETL found
+ * them.
  *
- * Only the preventive vocabularies need this, and they need it badly: every other metric's
- * dimension is a fact about the event (a cause of death, a sample type) and applies to any
- * animal, while a vaccine, an anthelmintic and a supplement each apply to some animals and
- * not others. A name absent from this map reaches everything.
- *
- * Declared beside the vocabulary it constrains, and read by both the record stream and the
- * overdue roster — so the vaccine an animal is overdue for is drawn from the same rule as
- * the vaccine it would have been given.
+ * Read from the metric rather than authored beside it, so adding a manner of death to the
+ * database adds it here without an edit. Exported because a caller sometimes needs the
+ * vocabulary without walking the events — a filter chip row, for instance.
  */
-const AGENT_CLASSES: Record<string, string[]> = {
-  /* vaccines */
-  Rabies: ['Mammalia'],
-  'Foot-and-mouth': ['Mammalia'],
-  'Clostridial 7-in-1': ['Mammalia'],
-  'Canine distemper': ['Mammalia'],
-  Brucellosis: ['Mammalia'],
-  'Tetanus toxoid': ['Mammalia'],
-  'Newcastle disease': ['Aves'],
-  'Avian pox': ['Aves'],
-  'Aeromonas · immersion': ['Actinopterygii', 'Chondrichthyes'],
-  'Columnaris · immersion': ['Actinopterygii'],
-  'Reptile core panel': ['Reptilia', 'Amphibia'],
-  /* anthelmintics — praziquantel is the fluke drug and reaches the water classes too */
-  Ivermectin: ['Mammalia', 'Aves', 'Reptilia'],
-  Fenbendazole: ['Mammalia', 'Aves', 'Reptilia'],
-  Albendazole: ['Mammalia', 'Aves'],
-  /* supplements */
-  'Vitamin E + selenium': ['Mammalia', 'Aves'],
-  'Omega-3': ['Actinopterygii', 'Chondrichthyes', 'Mammalia'],
-}
+export const detailsFor = (kind: string, _cls?: string): { label: string; weight: number }[] =>
+  (METRICS[kind]?.details ?? []).map((label) => ({ label, weight: 1 }))
 
-const reaches = (label: string, cls?: string): boolean => {
-  const only = AGENT_CLASSES[label]
-  return !only || !cls || only.includes(cls)
-}
+/** What the dimension is called on this metric — "Manner of death", "Vaccine". */
+export const detailLabelOf = (kind: string): string => METRICS[kind]?.detailLabel ?? 'Detail'
 
 /**
- * The classifying values a metric draws from, in weight order, narrowed to a class.
+ * Whether a class is on a metric's protocol at all.
  *
- * Exported so a caller that needs the vocabulary without walking the events — the overdue
- * roster needs a vaccine name per animal, and no event exists for a dose that was never
- * given — draws from the same table under the same rule the records do.
+ * ALWAYS TRUE NOW. The authored model needed this because it DREW a vaccine for an animal and
+ * had to avoid absurd pairings. Real doses were administered to real animals, so there is
+ * nothing to constrain — and answering false would hide records that exist.
  */
-/**
- * The agents that reach a class — EMPTY where none do, unlike `tableFor` below.
- *
- * The difference is the point. An event must land in some bucket, so the event stream falls
- * back to the whole vocabulary; a protocol roster must not, because "this shrimp is overdue
- * for its avian pox vaccine" is worse than saying nothing. A caller building a roster reads
- * the empty list as "this class is not on the protocol" and leaves the species out.
- */
-export const detailsFor = (kind: string, cls?: string): { label: string; weight: number }[] =>
-  (DETAILS[kind] ?? FALLBACK).filter(([label]) => reaches(label, cls)).map(([label, weight]) => ({ label, weight }))
+export const onProtocol = (_kind: string, _cls: string): boolean => true
 
-/** Whether a class is on a metric's protocol at all. */
-export const onProtocol = (kind: string, cls: string): boolean => detailsFor(kind, cls).length > 0
+/** The species a metric's records actually touch at a site. */
+export const protocolSpecies = (siteKey: string, _kind: string): Species[] =>
+  SPECIES.filter((s) => s.siteKey === siteKey)
+
+/* ── tone ────────────────────────────────────────────────────────────────── */
 
 /**
- * The vocabulary for one (metric, class), cached.
+ * How a record reads — good, bad, or neither.
  *
- * Cached rather than filtered per call because `tally` asks for it once per event, and a
- * six-year pharmacy window is 89,000 events — an array allocation each would turn a
- * grouping pass into garbage collection.
+ * Per metric rather than per value, with a handful of overrides where the recorded value
+ * genuinely carries a signal. The authored model gave every one of its invented causes a tone;
+ * the real vocabularies are too wide and too specific for that to be anything but guesswork,
+ * so the default is the metric's own tone and only the unambiguous cases are singled out.
  */
-const tableCache = new Map<string, Detail[]>()
-
-function tableFor(kind: string, cls?: string): Detail[] {
-  const key = `${kind}:${cls ?? ''}`
-  const hit = tableCache.get(key)
-  if (hit) return hit
-  const all = DETAILS[kind] ?? FALLBACK
-  const narrowed = all.filter(([label]) => reaches(label, cls))
-  /* A class no agent reaches falls back to the full table rather than to nothing — an event
-     with no detail would break the invariant that every event lands in exactly one bucket. */
-  const out = narrowed.length ? narrowed : all
-  tableCache.set(key, out)
-  return out
+const METRIC_TONE: Record<string, Tone> = {
+  births: 'good',
+  accession: 'good',
+  mortality: 'bad',
+  transfers: 'neutral',
+  vaccinations: 'good',
+  deworming: 'good',
+  supplement: 'neutral',
+  admissions: 'warn',
+  disease: 'bad',
+  pharmacy: 'neutral',
 }
 
-/* ── weighted draw ───────────────────────────────────────────────────────── */
+const TONE_OVERRIDE: [RegExp, Tone][] = [
+  [/wild release/i, 'good'],
+  [/not recorded|undetermined|indeterminate/i, 'neutral'],
+]
 
-/** Cumulative weights, cached per key — built once, then binary-searched. */
-const cumCache = new Map<string, number[]>()
-
-function cumulative(key: string, weights: number[]): number[] {
-  const hit = cumCache.get(key)
-  if (hit) return hit
-  const out: number[] = []
-  let run = 0
-  for (const w of weights) {
-    run += Math.max(0, w)
-    out.push(run)
-  }
-  cumCache.set(key, out)
-  return out
-}
-
-function indexFrom(cum: number[], t: number): number {
-  const target = t * (cum[cum.length - 1] ?? 1)
-  let lo = 0
-  let hi = cum.length - 1
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    if (cum[mid] < target) lo = mid + 1
-    else hi = mid
-  }
-  return lo
-}
-
-/**
- * Which species an event in this site belongs to. Weighted by the site's own composition.
- *
- * NARROWED WHERE THE METRIC HAS A PROTOCOL. A death, a transfer and a lab sample can happen
- * to anything the site holds. A vaccination cannot: the preventive vocabularies declare
- * which classes each agent reaches, so for those metrics the draw is over the species on the
- * protocol rather than over the whole site. Without it a tenth of Aquatic Halls' doses land
- * on prawns and snails.
- *
- * The narrowed list is cached per (site, metric), and the cumulative weights are keyed the
- * same way — `tally` and `eventAt` must make the identical draw or a grouping and its
- * records would name different species for the same event.
- */
-const speciesCache = new Map<string, Species[]>()
-
-function speciesPool(siteKey: string, kind?: string): Species[] {
-  const key = `${siteKey}:${kind ?? ''}`
-  const hit = speciesCache.get(key)
-  if (hit) return hit
-  const all = speciesIn(siteKey)
-  const pool = kind && HAS_PROTOCOL.has(kind) ? all.filter((s) => onProtocol(kind, s.cls)) : all
-  const out = pool.length ? pool : all
-  speciesCache.set(key, out)
-  return out
-}
-
-/** The metrics whose vocabulary is class-restricted, and therefore whose species pool is too. */
-const HAS_PROTOCOL = new Set(['vaccinations', 'deworming', 'supplement'])
-
-function speciesFor(siteKey: string, seed: string, kind?: string): Species {
-  const list = speciesPool(siteKey, kind)
-  const cum = cumulative(`sp:${siteKey}:${kind ?? ''}`, list.map((s) => s.weight))
-  return list[indexFrom(cum, draw(seed))] ?? list[0]
-}
-
-/** The species a metric's protocol covers at a site — what a roster is apportioned across. */
-export const protocolSpecies = (siteKey: string, kind: string): Species[] => speciesPool(siteKey, kind)
-
-/** The classifying value for one event. `cls` narrows the vocabulary where an agent needs it. */
-function detailFor(kind: string, seed: string, cls?: string): Detail {
-  const table = tableFor(kind, cls)
-  const cum = cumulative(`dt:${kind}:${cls ?? ''}`, table.map((d) => d[1]))
-  return table[indexFrom(cum, draw(seed))] ?? table[0]
+function toneOf(kind: string, detail: string): Tone {
+  for (const [test, tone] of TONE_OVERRIDE) if (test.test(detail)) return tone
+  return METRIC_TONE[kind] ?? 'neutral'
 }
 
 /* ── one event ───────────────────────────────────────────────────────────── */
 
+/** A species that could not be matched to the registry — shown as such, never guessed at. */
+const UNKNOWN_SPECIES = { id: '', name: 'Unrecorded species', cls: 'Unknown' }
+
 /**
- * Build the `i`th event of `kind` on `day` in `siteKey`.
+ * The `i`th event of `kind` on `day` in `siteKey`.
  *
- * The seed is exactly those four things, so the same event is the same record on every
- * read, in any order, from any page — which is what lets a record list be paged backwards
- * without the rows changing under the reader.
+ * A direct read: the ETL sorts each metric's events by (site, day), so the row is found by
+ * arithmetic rather than by searching. Stable by construction — the same event is the same
+ * database row on every read, from any page, in any order.
  */
 export function eventAt(kind: string, siteKey: string, day: number, i: number): Ev {
-  const seed = `${kind}:${siteKey}:${day}:${i}`
-  const species = speciesFor(siteKey, `${seed}:sp`, kind)
-  /* The species is drawn first so the detail can be narrowed to what reaches its class. */
-  const [detail, , tone] = detailFor(kind, `${seed}:dt`, species.cls)
-  const r = rng(seed)
+  const f = flowOf(kind)
+  const r = f ? rowIndex(kind, siteKey, day, i) : -1
 
-  /* The subject animal. Drawn from the species' real population so the id decodes to a
-     real record — an event never points at an animal that cannot be opened. */
-  const stock = Math.max(1, stockOfSpecies(species.id, { from: 0, to: day, days: day + 1 } as Win))
-  const animal = animalId(species.id, 1 + Math.floor(r() * stock))
+  if (!f || r < 0) {
+    return {
+      id: `${kind.toUpperCase().slice(0, 3)}-${day}-${i}`,
+      kind,
+      day,
+      siteKey,
+      speciesId: '',
+      speciesName: UNKNOWN_SPECIES.name,
+      animalId: '',
+      detail: 'Not recorded',
+      tone: 'neutral',
+    }
+  }
 
-  const ev: Ev = {
-    id: `${kind.toUpperCase().slice(0, 3)}-${day}-${siteKey.slice(0, 2).toUpperCase()}-${i}`,
+  const spx = f.species[r]
+  const sp = spx === UNRESOLVED ? undefined : SPECIES[spx]
+  const detail = f.details[f.detail[r]] ?? 'Not recorded'
+  const animal = f.animal[r]
+
+  return {
+    /* The database's own animal id in the record id, so a row a reader cites can be found in
+       the source table. */
+    id: `${kind.toUpperCase().slice(0, 3)}-${day}-${animal || i}`,
     kind,
-    day,
+    day: f.day[r],
     siteKey,
-    speciesId: species.id,
-    speciesName: species.name,
-    animalId: animal,
+    speciesId: sp?.id ?? '',
+    speciesName: sp?.name ?? UNKNOWN_SPECIES.name,
+    animalId: animal ? String(animal) : '',
     detail,
-    tone,
+    tone: toneOf(kind, detail),
+  }
+}
+
+/* ── facets ──────────────────────────────────────────────────────────────── */
+
+/** The facets a metric records beyond its primary dimension. */
+export const facetsOf = (kind: string): { name: string; label: string; values: string[] }[] => {
+  const f = flowOf(kind)
+  return f ? [...f.facets.entries()].map(([name, spec]) => ({ name, label: spec.label, values: spec.values })) : []
+}
+
+/** One event's value for one facet. `undefined` where the metric has no such column. */
+export function facetAt(kind: string, siteKey: string, day: number, i: number, facet: string): string | undefined {
+  const f = flowOf(kind)
+  const spec = f?.facets.get(facet)
+  if (!f || !spec) return undefined
+  const r = rowIndex(kind, siteKey, day, i)
+  return r < 0 ? undefined : spec.values[spec.col[r]]
+}
+
+/**
+ * Group a window's events by a facet, biggest first.
+ *
+ * The same walk `tally` makes over the site's own contiguous slice, reading a different
+ * column. The buckets sum to `count` exactly, because every row carries exactly one value of
+ * every facet — including "Not recorded", which is a real answer and is shown as one rather
+ * than dropped.
+ */
+export function tallyFacet(
+  slug: string,
+  siteKey: string | null,
+  win: Win,
+  facet: string,
+): { key: string; label: string; value: number }[] {
+  const f = flowOf(slug)
+  const spec = f?.facets.get(facet)
+  if (!f || !spec) return []
+
+  const totals = new Map<string, number>()
+  const from = Math.max(0, win.from)
+  const to = Math.min(TODAY, win.to)
+
+  for (const key of sitesFor(slug, siteKey)) {
+    const span = f.slices[key]
+    if (!span) continue
+    const [start, count] = span
+    for (let r = start; r < start + count; r++) {
+      const day = f.day[r]
+      if (day < from || day > to) continue
+      const label = spec.values[spec.col[r]] ?? 'Not recorded'
+      totals.set(label, (totals.get(label) ?? 0) + 1)
+    }
   }
 
-  /* Attribution into whichever other hierarchy the metric belongs to. Each is a weighted
-     draw over the real registry, so every id here resolves. */
-  if (kind === 'admissions' || kind === 'health') {
-    const near = HOSPITALS.filter((h) => h.siteKey === siteKey)
-    const hospital = (near.length ? near : HOSPITALS)[Math.floor(r() * (near.length || HOSPITALS.length))]
-    ev.hospitalId = hospital.id
-    const wards = WARDS.filter((w) => w.hospitalId === hospital.id)
-    ev.wardId = wards[Math.floor(r() * wards.length)]?.id
-  }
-
-  if (kind === 'lab') {
-    /* Field Pathology takes the water and parasite work, so aquatic samples lean to it. */
-    const prefer = siteKey === 'aquatic' ? 'fpl' : 'cdl'
-    const pool = LAB_DEPARTMENTS.filter((d) => (r() < 0.72 ? d.labId === prefer : true))
-    ev.labDeptId = (pool.length ? pool : LAB_DEPARTMENTS)[Math.floor(r() * (pool.length || LAB_DEPARTMENTS.length))].id
-  }
-
-  if (kind === 'pharmacy') {
-    ev.pharmacyId = `ph-${siteKey}`
-    const cum = cumulative('med', MEDICINES.map((m) => m.weight))
-    ev.medicineId = MEDICINES[indexFrom(cum, r())].id
-  }
-
-  if (kind === 'eggs' || kind === 'hatched' || kind === 'discarded') {
-    const nursery = NURSERIES.find((n) => n.siteKey === siteKey) ?? NURSERIES[0]
-    ev.nurseryId = nursery.id
-    const incubators = INCUBATORS.filter((n) => n.nurseryId === nursery.id)
-    ev.incubatorId = incubators[Math.floor(r() * incubators.length)]?.id
-  }
-
-  return ev
+  return [...totals.entries()]
+    .map(([label, value]) => ({ key: label, label, value }))
+    .sort((a, b) => b.value - a.value)
 }
 
 /* ── counting, without building anything ─────────────────────────────────── */
@@ -475,65 +274,54 @@ export function tally(
     else totals.set(key, { label, value: 1 })
   }
 
+  const f = flowOf(slug)
+  if (!f) return []
+
+  const from = Math.max(0, win.from)
+  const to = Math.min(TODAY, win.to)
+
   for (const key of sitesFor(slug, siteKey)) {
-    const s = daily(slug, key)
-    for (let day = Math.max(0, win.from); day <= Math.min(TODAY, win.to); day++) {
-      for (let i = 0; i < s[day]; i++) {
-        /* `detail`, `species`, `class` and `site` need no event object at all — the two
-           draws that decide them are the same two the event would make. */
-        if (by === 'site') {
-          add(key, siteOf(key)?.name ?? key)
-          continue
-        }
-        const seed = `${slug}:${key}:${day}:${i}`
-        if (by === 'detail') {
-          /* Same two draws the event itself makes, in the same order, so a grouping by
-             detail and the records it groups cannot disagree. */
-          const label = detailFor(slug, `${seed}:dt`, speciesFor(key, `${seed}:sp`, slug).cls)[0]
-          add(label, label)
-          continue
-        }
-        const sp = speciesFor(key, `${seed}:sp`, slug)
-        if (by === 'species') add(sp.name, sp.name)
-        else if (by === 'class') add(sp.cls, sp.cls)
-        else {
-          /* The remaining dimensions live on the built event. */
-          const ev = eventAt(slug, key, day, i)
-          const id =
-            by === 'hospital' ? ev.hospitalId
-            : by === 'ward' ? ev.wardId
-            : by === 'labdept' ? ev.labDeptId
-            : by === 'medicine' ? ev.medicineId
-            : by === 'incubator' ? ev.incubatorId
-            : ev.nurseryId
-          if (id) add(id, labelFor(by, id))
-        }
+    /* Every dimension is a column read now, so the grouping is a walk over the site's own
+       contiguous slice with no event object built and nothing drawn. The buckets still sum to
+       `count` exactly — for the stronger reason that each row carries one recorded value. */
+    if (by === 'site') {
+      const n = sumIn(slug, key, from, to)
+      if (n > 0) add(key, siteOf(key)?.name ?? key)
+      const at = totals.get(key)
+      if (at) at.value = n
+      continue
+    }
+
+    const span = f.slices[key]
+    if (!span) continue
+    const [start, count] = span
+
+    for (let r = start; r < start + count; r++) {
+      const day = f.day[r]
+      if (day < from || day > to) continue
+
+      if (by === 'detail') {
+        const label = f.details[f.detail[r]] ?? 'Not recorded'
+        add(label, label)
+        continue
       }
+      if (by === 'species' || by === 'class') {
+        const spx = f.species[r]
+        const sp = spx === UNRESOLVED ? undefined : SPECIES[spx]
+        if (by === 'species') add(sp?.name ?? UNKNOWN_SPECIES.name, sp?.name ?? UNKNOWN_SPECIES.name)
+        else add(sp?.cls ?? UNKNOWN_SPECIES.cls, sp?.cls ?? UNKNOWN_SPECIES.cls)
+        continue
+      }
+      /* Hospital, ward, lab department, medicine, nursery and incubator have no counterpart
+         in the schema, so there is nothing to group by. Returning nothing is the honest
+         answer; the authored model's answer was a weighted draw over registries that do not
+         describe this collection. */
     }
   }
 
   return [...totals.entries()]
     .map(([key, v]) => ({ key, label: v.label, value: v.value }))
     .sort((a, b) => b.value - a.value)
-}
-
-function labelFor(by: Dimension, id: string): string {
-  switch (by) {
-    case 'hospital':
-      return HOSPITALS.find((h) => h.id === id)?.name ?? id
-    case 'ward':
-      return WARDS.find((w) => w.id === id)?.name ?? id
-    case 'labdept':
-      return LAB_DEPARTMENTS.find((d) => d.id === id)?.name ?? id
-    case 'medicine':
-      return MEDICINES.find((m) => m.id === id)?.name ?? id
-    case 'incubator':
-      return INCUBATORS.find((i) => i.id === id)?.name ?? id
-    case 'nursery':
-      return NURSERIES.find((n) => n.id === id)?.name ?? id
-    default:
-      return id
-  }
 }
 
 /* ── paging ──────────────────────────────────────────────────────────────── */
@@ -665,15 +453,18 @@ export function eventsForAnimal(animal: Animal, win: Win, kinds?: string[]): Ev[
 /** "31 Jul · Chital · Disease" — the one-line form a record row and a timeline share. */
 export const evLine = (ev: Ev): string => `${shortDate(ev.day)} · ${ev.speciesName} · ${ev.detail}`
 
-/** The animal an event is about, built on demand. */
-export const subjectOf = (ev: Ev): Animal | undefined => {
-  const key = ev.animalId
-  const decoded = /^ANM-([A-Z]{2})(\d{2})-(\d+)$/.exec(key)
-  if (!decoded) return undefined
-  const site = SITES.find((s) => s.code === decoded[1])
-  if (!site) return undefined
-  const sp = speciesIn(site.key)[Number(decoded[2])]
-  return sp ? animalAt(sp.id, Number(decoded[3])) : undefined
-}
+/**
+ * The animal an event is about.
+ *
+ * A register lookup now, not a decode. The id used to encode the animal's position in a
+ * derived collection (`ANM-AQ03-00142` = the 142nd animal of the 4th species in Aquatic Halls)
+ * because there was no register to look anything up in; the id is the database's own key now,
+ * so the animal is found rather than reconstructed.
+ *
+ * Returns undefined for an event whose subject is no longer housed — a death or a transfer —
+ * which is correct, and which callers already handle.
+ */
+export const subjectOf = (ev: Ev): Animal | undefined =>
+  ev.animalId ? animalById(ev.animalId) : undefined
 
 export { animalLabel }

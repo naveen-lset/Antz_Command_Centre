@@ -18,11 +18,20 @@
  * a timezone question on every read. `Date` appears only at the edges, for parsing input
  * and formatting output.
  *
- * THE CLOCK IS FIXED AT 31 JULY 2025, deliberately. The data set is a closed month and a
- * "today" that moved with the wall clock would drift out of it — by next week "this
- * month" would be an empty August. Anchoring on the last day of July also makes the
- * windows nest properly: today ⊆ last 7 days ⊆ July ⊆ trailing six months ⊆ all time,
- * which is what lets a daily series satisfy all five authored figures at once.
+ * THE CLOCK IS FIXED AT THE DATA'S OWN HORIZON, deliberately. A "today" that moved with the
+ * wall clock would drift past the end of the extract, and by next month every window would be
+ * empty. It is pinned to the last date any feed in `species_mgmt_anon` carries.
+ *
+ * THAT DATE MOVED FROM 31 JULY 2025 TO 20 MAY 2026 when the product was connected to the
+ * database, and it had to. The dump's mass sits in 2025–2026 and two feeds begin AFTER the old
+ * anchor — vaccination starts on 15 August 2025 and deworming is 17,153 of its 20,446 rows in
+ * 2026. Left at July 2025, the entire preventive module would have read zero.
+ *
+ * The two constants below are properties of the extract, so they are restated here rather than
+ * read from `store.ts`: `WINDOWS` is built at module evaluation and the store has not loaded
+ * yet. `core/checks.ts` asserts them against the loaded metadata on every dev boot, so a
+ * re-run of the ETL over a newer dump fails loudly here instead of quietly shifting every date
+ * on every page.
  */
 
 const MS_DAY = 86_400_000
@@ -34,15 +43,17 @@ const MONTHS_LONG = [
 ]
 
 /** The last day the world holds data for. Local midnight, so day arithmetic is exact. */
-export const WORLD_TODAY = new Date(2025, 6, 31)
+export const WORLD_TODAY = new Date(2026, 4, 20)
 
 /**
- * Six years of history. Chosen from the data rather than picked round: the authored
- * all-time figures sit at roughly twelve times the trailing-six-month ones, which is the
- * span they imply. A shorter ledger would force the early years to carry impossible
- * daily rates to reach the all-time totals.
+ * The ledger, from 1 January 2020 to the horizon above.
+ *
+ * The epoch is chosen from the data: rows do exist before 2020, but they are a scatter of a
+ * few hundred across six years and several are plainly corrupt — deaths dated 1970,
+ * accessions dated 0001. Everything the product reports on falls inside this span, and the
+ * ETL counts what it discards rather than silently clamping it in.
  */
-export const HISTORY_DAYS = 2192
+export const HISTORY_DAYS = 2332
 
 /** Day 0. Everything in the world is indexed from here. */
 export const EPOCH = addDays(WORLD_TODAY, -(HISTORY_DAYS - 1))
