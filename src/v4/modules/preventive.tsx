@@ -59,7 +59,7 @@ import {
   fmt,
   mix,
 } from '../../exec/system'
-import { EventTrend } from '../../exec/marks'
+import { EventTrend, TileGrid } from '../../exec/marks'
 import { RangeTabs, useChartRange } from '../../exec/range'
 import { MoreRows, usePaged } from '../perf'
 import { FindField } from '../filters'
@@ -117,6 +117,29 @@ const STREAM_ICON = { vaccination: Syringe, deworming: Activity, supplement: Cli
 const Wide = ({ children }: { children: React.ReactNode }) => (
   <div className="min-w-0 @[760px]:col-span-2">{children}</div>
 )
+
+/**
+ * HOW MANY ROWS OF FIFTY SITES A CARD PRINTS BEFORE IT ASKS.
+ *
+ * This page measured 18,389px at 1440 — twenty screens — and the reason was not that it has
+ * fourteen blocks. It is that the FIFTY SITES WERE ENUMERATED FOUR TIMES: a sortable table in
+ * `StreamSites`, the same fifty again in `SiteComparison`, a plain drill list inside
+ * `SupplementTrend`, and a fourth inside `BadlyOverdue`. Four fifty-row lists held 11,136px of
+ * the 17,644px stack, and three of the four were answering the same question — how much per
+ * site — in three different shapes.
+ *
+ * Nothing is truncated to fix it. Every list still walks its real total and states it: eight
+ * rows, the count beside them, and `Show more` for the rest. That is the same `usePaged` /
+ * `MoreRows` pair the two species lists on this page already used — the site lists were the
+ * ones that never got it. Sorting happens over ALL fifty and then pages, so "which site has
+ * the most overdue" still puts the worst site in the first row rather than the worst of eight.
+ *
+ * Eight, not twenty, because a site row here is two lines and six figures wide; twenty of them
+ * is a screen and a half before the next question starts. The species lists open at ten for the
+ * same reason — one line each, so ten costs what eight sites do.
+ */
+const SITE_ROWS = 8
+const SPECIES_ROWS = 10
 
 /* ── the page ────────────────────────────────────────────────────────────── */
 
@@ -603,6 +626,15 @@ function BadlyOverdue() {
   const species = useMemo(() => overdueBySpecies(site, stream, 16).slice(0, 8), [site, stream])
   const total = sites.reduce((n, s) => n + s.value, 0)
 
+  /* The by-site half of this card was up to fifty rows and the card ran to 1,913px. Eight and
+     the count, like every other site list here — and because `overdueBySite` returns worst
+     first, the eight printed are the eight a curator would start with. */
+  const page = usePaged<(typeof sites)[number]>(
+    (offset, limit) => ({ rows: sites.slice(offset, offset + limit), total: sites.length }),
+    SITE_ROWS,
+    [sites],
+  )
+
   return (
     <Section icon={TriangleAlert} label="Over 15 days overdue" aside="vaccination · today">
       <div className="flex items-end gap-4">
@@ -625,7 +657,7 @@ function BadlyOverdue() {
         <>
           <Rule label="By site" />
           <DrillList>
-            {sites.map((s) => (
+            {page.rows.map((s) => (
               <DrillRow
                 key={s.id}
                 label={s.label}
@@ -641,6 +673,7 @@ function BadlyOverdue() {
               />
             ))}
           </DrillList>
+          <MoreRows page={page} noun="sites" />
           <Rule label="By species" />
           <DrillList>
             {species.map((s) => (
@@ -686,6 +719,14 @@ function StreamSites({ stream }: { stream: Stream }) {
     return [...lines].sort((a, b) => by(b) - by(a))
   }, [scope, stream, sortKey])
 
+  /* Sorted first, paged second — see `SITE_ROWS`. `rows` is the dep rather than its length
+     because a scope change recuts all fifty values without changing how many there are. */
+  const page = usePaged<SiteLine>(
+    (offset, limit) => ({ rows: rows.slice(offset, offset + limit), total: rows.length }),
+    SITE_ROWS,
+    [rows],
+  )
+
   const columns: Column<SiteLine>[] = [
     { key: 'given', head: stream.label === 'Vaccination' ? 'Given' : 'Treated', cell: (r) => fmt(r.given), sort: SORTS.given },
     { key: 'covered', head: 'Covered', cell: (r) => `${Math.round(r.percent)}%`, sort: SORTS.covered },
@@ -698,7 +739,7 @@ function StreamSites({ stream }: { stream: Stream }) {
     <Wide>
       <Section icon={MapPin} label={`${stream.label} by site`} aside={`${rows.length} · sortable`}>
       <SortableList
-        rows={rows}
+        rows={page.rows}
         columns={columns}
         sortKey={sortKey}
         onSort={setSortKey}
@@ -712,6 +753,7 @@ function StreamSites({ stream }: { stream: Stream }) {
           })
         }
         />
+        <MoreRows page={page} noun="sites" />
       </Section>
     </Wide>
   )
@@ -751,8 +793,8 @@ function StreamSpecies({ stream }: { stream: Stream }) {
   const filtered = useMemo(() => (q ? all.filter((r) => r.label.toLowerCase().includes(q) || (r.sub ?? '').toLowerCase().includes(q)) : all), [all, q])
   const page = usePaged(
     (offset, limit) => ({ rows: filtered.slice(offset, offset + limit), total: filtered.length }),
-    20,
-    [filtered.length, q, stream.key],
+    SPECIES_ROWS,
+    [filtered, q, stream.key],
   )
 
   return (
@@ -787,7 +829,14 @@ function StreamSpecies({ stream }: { stream: Stream }) {
 
 /* ── 9 · deworming ───────────────────────────────────────────────────────── */
 
-/** The anthelmintic rotation — the mark that is this programme's and nothing else's. */
+/**
+ * Coverage, and what the worming ran on — the mark that is this programme's and nothing else's.
+ *
+ * The block used to be titled "Rotation" and to print a cycle position under every drug. The
+ * extract holds SIXTY distinct anthelmintics and no rotation order at all, so both were
+ * inventions on top of real counts; `RotationCycle`'s own note carries the detail. What is
+ * left is honest and is still the question: how much of the worming leans on one drug.
+ */
 function DewormingRotation() {
   const { scope } = useScope()
   const { open } = useSheet()
@@ -810,7 +859,7 @@ function DewormingRotation() {
               { label: 'Outstanding', value: fmt(cover.outstanding), tone: 'warn' },
             ]}
           />
-          <Rule label="Rotation" />
+          <Rule label="By anthelmintic" />
         </>
       )}
       <RotationCycle
@@ -969,6 +1018,9 @@ function SupplementTrend() {
     () => siteLines(scope, stream).sort((a, b) => b.given - a.given),
     [scope, stream],
   )
+  /* The tiles' meter reads against the widest tile; this is the denominator for the SHARE each
+     tile carries, which is a share of what actually went out in the page's window. */
+  const total = useMemo(() => sites.reduce((n, s) => n + s.given, 0), [sites])
 
   return (
     <Section icon={ClipboardList} label="Supplement trend" aside={win.window}>
@@ -981,24 +1033,54 @@ function SupplementTrend() {
         unit={stream.noun}
         empty={`No ${stream.noun} recorded in ${win.window}.`}
       />
+      {/* A BREAKDOWN OF NOTHING IS NOT A BREAKDOWN. `medical_records` — which is where the
+          supplement flow comes from — stops on 25 Apr 2026, and the world clock is 20 May 2026,
+          so on the default window every one of the fifty sites has administered nothing. The
+          flow itself is real: 3,929 administrations across the extract. But fifty tiles each
+          reading 0 with an empty meter assert a comparison that does not exist, and fifty of
+          them assert it fifty times where `EventTrend` above has already said it once in a
+          sentence. So the site split appears when there is something to split. */}
+      {total === 0 ? null : (
+        <>
       <Rule label="By site" />
-      <DrillList>
-        {sites.map((s) => (
-          <DrillRow
-            key={s.site.key}
-            label={s.site.name}
-            sub={`${s.species} species`}
-            value={fmt(s.given)}
-            onOpen={() =>
-              open({
-                title: s.site.name,
-                eyebrow: 'Supplements › Site',
-                body: <StreamSiteSheet stream={stream} siteKey={s.site.key} />,
-              })
-            }
-          />
-        ))}
-      </DrillList>
+      {/* FIFTY SITES AS TILES, AND ALL FIFTY. As drill rows this was 3,475px — the tallest
+          card on the page, and most of it was fifty site names printed under a chart about
+          time. The prose is what made the row tall, not the count: a name, a species count
+          and a figure, where the only question this block asks is which sites the supplements
+          went to. Tiles keep every site with no control to operate — the name and the species
+          count survive as the tile's tooltip and accessible label, and the figure is one tap
+          from the site's own sheet. This is the SECONDARY site comparison on the page; the
+          primary one is `SiteComparison`, which keeps a sortable table because putting the
+          three programmes side by side is a table's job. */}
+      <div className="mt-1">
+        <TileGrid
+          items={sites.map((s) => ({
+            key: s.site.key,
+            code: s.site.code,
+            label: `${s.site.name} · ${s.species} species · ${fmt(s.given)} ${stream.noun}`,
+            value: s.given,
+            share: total > 0 ? (s.given / total) * 100 : 0,
+          }))}
+          onPick={(key) => {
+            const s = sites.find((x) => x.site.key === key)
+            if (!s) return
+            open({
+              title: s.site.name,
+              eyebrow: 'Supplements › Site',
+              body: <StreamSiteSheet stream={stream} siteKey={s.site.key} />,
+            })
+          }}
+          /* 104px rather than the 132px default, because this card sits in a HALF-WIDTH column.
+             `TileGrid`'s own note that fifty tiles come to about 800px assumes a full column: at
+             132px a 506px half fits three across, which is seventeen rows and a wall rather than
+             small multiples. Four across is thirteen. A tile carries a two-letter code, a figure
+             and a 3px meter, so 104px is not a squeeze — and this is the lever to reach for
+             before capping the list, because a narrower tile hides nothing. */
+          min={104}
+        />
+      </div>
+        </>
+      )}
     </Section>
   )
 }
@@ -1024,6 +1106,15 @@ function SiteComparison() {
     return [...preventiveSiteLines(scope)].sort((a, b) => by(b) - by(a))
   }, [scope, sortKey])
 
+  /* The page's one cross-programme table, and still only eight rows tall — see `SITE_ROWS`.
+     It opens sorted by `vaccinationOver15`, so the eight printed are the eight that need a
+     decision, not the first eight alphabetically. */
+  const page = usePaged<PreventiveSiteLine>(
+    (offset, limit) => ({ rows: rows.slice(offset, offset + limit), total: rows.length }),
+    SITE_ROWS,
+    [rows],
+  )
+
   const columns: Column<PreventiveSiteLine>[] = [
     { key: 'vaccinations', head: 'Vacc', cell: (r) => fmt(r.vaccinations), sort: SITE_SORTS.vaccinations },
     { key: 'vaccinationOverdue', head: 'Vacc late', cell: (r) => fmt(r.vaccinationOverdue), sort: SITE_SORTS.vaccinationOverdue, tone: () => 'warn' },
@@ -1043,7 +1134,7 @@ function SiteComparison() {
     <Wide>
       <Section icon={MapPin} label="Site-wise preventive care" aside={`${rows.length} · sortable`}>
       <SortableList
-        rows={rows}
+        rows={page.rows}
         columns={columns}
         sortKey={sortKey}
         onSort={setSortKey}
@@ -1057,6 +1148,7 @@ function SiteComparison() {
           })
         }
         />
+        <MoreRows page={page} noun="sites" />
       </Section>
     </Wide>
   )
@@ -1077,8 +1169,8 @@ function SpeciesComparison() {
   )
   const page = usePaged<SpeciesLine>(
     (offset, limit) => ({ rows: filtered.slice(offset, offset + limit), total: filtered.length }),
-    20,
-    [filtered.length, q],
+    SPECIES_ROWS,
+    [filtered, q],
   )
 
   return (

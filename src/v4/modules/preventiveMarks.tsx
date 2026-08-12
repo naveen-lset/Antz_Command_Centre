@@ -8,9 +8,12 @@
  *   VACCINATION  is a calendar. Rounds happen on days, days cluster into campaigns, and the
  *                question "when did the work happen" is answered by looking at the grid, not
  *                by reading a curve. `ScheduleGrid`.
- *   DEWORMING    is a rotation. Anthelmintics are cycled deliberately so parasites do not
- *                settle on one drug, so the useful mark is the share each drug took of the
- *                round, laid out as the cycle it is. `RotationCycle`.
+ *   DEWORMING    is a rotation IN THE FIELD, and the extract does not record it. Anthelmintics
+ *                are cycled deliberately so parasites do not settle on one drug — but there is
+ *                no sequence, cycle or round column anywhere in the schema, so the mark shows
+ *                the share each drug took of the window and leaves the cycle unclaimed. It
+ *                used to print a position in a cycle it had inferred from volume;
+ *                `RotationCycle`'s own note carries what that was and why it is gone.
  *   SUPPLEMENTS  is consumption. It goes out with the feed every day and nobody schedules
  *                it, so it gets the quietest mark in the set: one composition bar and the
  *                names behind it. `UsageSplit`.
@@ -202,35 +205,55 @@ export function gridCells(win: Win, countIn: (from: number, to: number) => numbe
   return { cells, grain }
 }
 
-/* ── deworming · the rotation ────────────────────────────────────────────── */
+/* ── deworming · what the programme leans on ─────────────────────────────── */
 
 /**
- * The anthelmintic rotation, as a cycle rather than a ranking.
+ * WHAT THE PROGRAMME LEANS ON — every anthelmintic's share of the window, on one track.
  *
- * A bar chart of four drugs answers "which is most used", which is not the question a
- * veterinary director asks about worming — rotation is a policy, and what matters is that
- * the programme moves through the classes rather than leaning on one. So the drugs are laid
- * around a track in rotation order with each one's share of the window under it, and the
- * widest segment is visible as a lean rather than reported as a winner.
+ * THIS MARK USED TO CLAIM A ROTATION ORDER THAT DOES NOT EXIST, and the claim survived
+ * because it was phrased as a fact about each row. Under every drug it printed "Cycle
+ * position 3 of 4", which reads as where that drug sits in the worming cycle. Its only
+ * caller passes `byDimension(scope, 'deworming', 'detail')`, and `core/events.ts` sorts a
+ * tally by VALUE DESCENDING — so the printed cycle position was the drug's rank by volume,
+ * relabelled. The schema has no rotation, sequence or cycle column anywhere to derive a real
+ * one from. With sixty distinct anthelmintics in the extract it also read as "Cycle position
+ * 47 of 60", which is not a rotation any veterinary programme runs.
+ *
+ * What survives is the part that was always true and is still the question worth asking:
+ * a policy wants the programme moving across the classes rather than leaning on one drug,
+ * and a single track carrying each drug's share of the window shows a lean at a glance
+ * without ranking anything. Every drug is in the track. The list under it names the leaders
+ * and states the tail rather than printing sixty rows — see `max`.
  */
 export function RotationCycle({
   items,
   unit,
   onOpen,
+  max = 8,
 }: {
   items: { id: string; label: string; value: number }[]
   unit?: string
   onOpen?: (id: string) => void
+  /**
+   * How many drugs the list names. The TRACK always carries every one of them, so nothing is
+   * hidden from the shape — this caps the reading, not the data, and the remainder states
+   * itself underneath with its own share.
+   */
+  max?: number
 }) {
   const accent = useAccent()
   const { ref, animate } = usePlay()
   const total = items.reduce((n, i) => n + i.value, 0) || 1
+  const shown = items.slice(0, max)
+  const rest = items.slice(max)
+  const restValue = rest.reduce((n, i) => n + i.value, 0)
 
   return (
     <div ref={ref}>
-      {/* The cycle itself — one continuous track, each drug holding its share of it.
-          Each segment grows from its own left edge in rotation order, so the track builds
-          the way the programme runs rather than appearing all at once. */}
+      {/* The track — one continuous bar, each drug holding its share of it, widest first
+          because that is the order the tally arrives in. Segments grow from their own left
+          edge one after another so the bar fills rather than appearing at once; that is a
+          reading order, and it is not claimed to be a treatment order. */}
       <div className="flex h-[10px] w-full overflow-hidden rounded-full">
         {items.map((it, i) => (
           <span
@@ -245,30 +268,25 @@ export function RotationCycle({
           />
         ))}
       </div>
-      <ul className="mt-4 grid gap-x-4 gap-y-3 @[420px]:grid-cols-2">
-        {items.map((it, i) => {
+      {/* One line per drug, not two. The second line was the cycle-position claim; with that
+          gone the swatch, the name, the count and the share say everything the row has to
+          say, and the block reads at half the height it did. */}
+      <ul className="mt-4 grid gap-x-4 gap-y-2 @[420px]:grid-cols-2">
+        {shown.map((it, i) => {
           const share = Math.round((it.value / total) * 100)
           const body = (
-            <>
-              <span className="flex items-center gap-2">
-                <span className="size-[9px] shrink-0 rounded-[3px]" style={{ backgroundColor: mix(accent, step(i)) }} aria-hidden />
-                <span className="min-w-0 flex-1 truncate text-small" style={{ color: INK }}>
-                  {it.label}
-                </span>
-                <span className="shrink-0 font-display text-small font-bold tabular-nums" style={{ color: VALUE }}>
-                  {fmt(it.value)}
-                </span>
-                <span className="w-[30px] shrink-0 text-right text-caption tabular-nums" style={{ color: FAINT }}>
-                  {share}%
-                </span>
+            <span className="flex items-center gap-2">
+              <span className="size-[9px] shrink-0 rounded-[3px]" style={{ backgroundColor: mix(accent, step(i)) }} aria-hidden />
+              <span className="min-w-0 flex-1 truncate text-small" style={{ color: INK }}>
+                {it.label}
               </span>
-              {/* The rotation position, stated as a step rather than a rank — "3 of 4" says
-                  where in the cycle this drug sits, which a bar's length cannot. */}
-              <span className="mt-1 block text-caption" style={{ color: '#b3aea6' }}>
-                Cycle position {i + 1} of {items.length}
-                {unit ? ` · ${unit}` : ''}
+              <span className="shrink-0 font-display text-small font-bold tabular-nums" style={{ color: VALUE }}>
+                {fmt(it.value)}
               </span>
-            </>
+              <span className="w-[30px] shrink-0 text-right text-caption tabular-nums" style={{ color: FAINT }}>
+                {share}%
+              </span>
+            </span>
           )
           return (
             <li key={it.id}>
@@ -287,6 +305,17 @@ export function RotationCycle({
           )
         })}
       </ul>
+      {/* The tail, counted rather than dropped. Sixty anthelmintics is a formulary, and a
+          reader told the top eight without being told how many there are has been told the
+          programme runs on eight drugs. */}
+      {rest.length > 0 && (
+        <p className="mt-3 text-caption" style={{ color: FAINT }}>
+          <span className="tabular-nums">{rest.length}</span> more ·{' '}
+          <span className="tabular-nums">{fmt(restValue)}</span>
+          {unit ? ` ${unit}` : ''} ·{' '}
+          <span className="tabular-nums">{Math.round((restValue / total) * 100)}%</span> of the window
+        </p>
+      )}
     </div>
   )
 }
