@@ -88,6 +88,7 @@ import {
   MUTED,
   VALUE,
   FAINT,
+  HAIR,
   Figure,
   Hero,
   RED_LIST,
@@ -110,7 +111,6 @@ import {
   RankList,
   Ribbon,
   SplitRing,
-  TileGrid,
   pct,
 } from '../../exec/marks'
 import { compareOf, pointsOf, tail } from '../plot'
@@ -941,23 +941,39 @@ function LeadersCard({ siteKey, facets, bare }: { siteKey: string | null; facets
   const openSpecies = (row: SpeciesRow) =>
     open({ title: row.name, eyebrow: row.siteName, body: <SpeciesPanel row={row} win={win} /> })
 
+  /* THE FIVE ARE NOT FIVE OF A KIND, and the old 3-column grid said they were. Largest species,
+     largest site and fastest growing are the card's finding; highest increase and lowest
+     population are the footnotes to it. Split by KEY rather than by index because `leaders()`
+     drops "fastest" when no species clears its 500-animal floor and "gained" when nothing grew,
+     so position four is not reliably the same insight from one window to the next. */
+  const all = leaders(species, sites)
+  const of = (key: string) => all.find((l) => l.key === key)
+  const primary = ['largest-species', 'largest-site', 'fastest'].map(of).filter(Boolean) as Leader[]
+  const secondary = ['gained', 'smallest'].map(of).filter(Boolean) as Leader[]
+  const openFor = (l: Leader) =>
+    l.species ? () => openSpecies(l.species!) : l.siteKey ? () => openSite(l.siteKey!) : undefined
+
   return (
     <Section bare={bare} icon={Trophy} label="Population leaders" aside={pill}>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-5 @[560px]:grid-cols-3">
-        {leaders(species, sites).map((l) => (
-          <LeaderTile
-            key={l.key}
-            leader={l}
-            onOpen={
-              l.species
-                ? () => openSpecies(l.species!)
-                : l.siteKey
-                  ? () => openSite(l.siteKey!)
-                  : undefined
-            }
-          />
+      {/* Three rows on hairlines, the same separator the site table uses — the two cards in this
+          band read as one system rather than as a table beside a grid. */}
+      <ul className="flex flex-col">
+        {primary.map((l) => (
+          <li key={l.key} className="border-b last:border-0" style={{ borderColor: HAIR }}>
+            <LeaderRow leader={l} onOpen={openFor(l)} />
+          </li>
         ))}
-      </div>
+      </ul>
+      {secondary.length > 0 && (
+        /* THE FOOTNOTES, PAIRED. Half the type size of the three above and side by side, so the
+           eye reads three findings and then two asides rather than five equal claims. This block
+           is what closes the 74px of white the card used to end on. */
+        <div className="mt-3 grid grid-cols-2 gap-x-4 border-t pt-3" style={{ borderColor: HAIR }}>
+          {secondary.map((l) => (
+            <LeaderMini key={l.key} leader={l} onOpen={openFor(l)} />
+          ))}
+        </div>
+      )}
       <CardWindowNote win={win} overridden={overridden} />
     </Section>
   )
@@ -1028,7 +1044,8 @@ function Grid({ cols, children }: { cols: 2 | 3 | 4; children: ReactNode }) {
         ? '@[560px]:grid-cols-2 @[900px]:grid-cols-3'
         : '@[560px]:grid-cols-2 @[1000px]:grid-cols-4'
   return (
-    <div className={`@[760px]:col-span-2 grid grid-cols-1 items-start gap-[var(--space-4)] ${steps}`}>
+    /* Stretched, not `items-start` — cards on one row end level. See the note in `Stack`. */
+    <div className={`@[760px]:col-span-2 grid grid-cols-1 gap-[var(--space-4)] ${steps}`}>
       {children}
     </div>
   )
@@ -1077,30 +1094,86 @@ function sexOfHolding(h: Holding, sex: 'M' | 'F' | 'U'): number {
    `PopulationChangeCard` no longer carries. `Recorded flows` owns that list. */
 
 
-function LeaderTile({ leader, onOpen }: { leader: Leader; onOpen?: () => void }) {
-  const accent = useAccent()
+/**
+ * One of the three headline insights — label, figure, subject.
+ *
+ * THE FIGURE AND THE NAME SIT ON ONE LINE, which is the whole reason the card now fits. Stacked
+ * — label, figure, name, sub, as the tiles had it — a leader is four lines and about 94px; three
+ * of those plus the footnote pair overruns the 353px this card has by forty. Side by side it is
+ * two lines and 56px, the hierarchy survives intact because it was never carried by the stacking
+ * but by the type sizes, and the card gains back the room the old grid was wasting on gutters.
+ *
+ * THE FIGURE COLUMN IS A FIXED WIDTH so the three subjects start on one vertical. Sized to the
+ * widest figure the card can hold — a five-digit grouped count at the desktop tier, "14,445" —
+ * and stepped down a notch below 900px of column, where the type steps down with it.
+ */
+function LeaderRow({ leader, onOpen }: { leader: Leader; onOpen?: () => void }) {
   const body = (
     <>
-      <p className="truncate text-overline font-medium uppercase" style={{ color: accent }}>
+      <p className="truncate text-overline font-semibold uppercase" style={{ color: FAINT }}>
         {leader.tag}
       </p>
-      <div className="mt-1">
-        <Figure value={leader.value} size={24} />
+      {/* CENTRED, NOT BASELINED. On a baseline the figure's ascent stacks on top of the name
+          column's descent — and that column is two lines, so its descent carries the sub as
+          well. Measured, that cost seven pixels a row over centring for no typographic gain,
+          since the thing the eye aligns here is the figure against the PAIR, not against the
+          first of two lines. Twenty-one pixels across the three rows, which is most of what
+          this card had to give back. */}
+      <div className="mt-0.5 flex items-center gap-3">
+        <span className="w-[100px] shrink-0 @[900px]:w-[116px]">
+          <Figure value={leader.value} size={24} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body font-medium text-[#1c1a16]">{leader.label}</span>
+          {leader.sub && (
+            <span className="block truncate text-caption" style={{ color: FAINT }}>
+              {leader.sub}
+            </span>
+          )}
+        </span>
       </div>
-      <p className="mt-1 text-small text-[#1c1a16]">{leader.label}</p>
-      {leader.sub && <p className="mt-1 text-caption text-[#9b958b]">{leader.sub}</p>}
     </>
   )
-  return (
-    <div className="border-l-2 pl-3" style={{ borderColor: mix(accent, 0.55) }}>
-      {onOpen ? (
-        <button type="button" onClick={onOpen} className="card-press block w-full text-left">
-          {body}
-        </button>
-      ) : (
-        body
-      )}
-    </div>
+  return onOpen ? (
+    <button type="button" onClick={onOpen} className="card-press -mx-2 block w-full rounded-[10px] px-2 py-1.5 text-left">
+      {body}
+    </button>
+  ) : (
+    <div className="py-1.5">{body}</div>
+  )
+}
+
+/**
+ * One of the two footnote insights — the same three fields at half the weight.
+ *
+ * The `sub` the tiles printed here ("357 held", the site a lone animal is kept at) is on the
+ * hover title rather than a third line: these two exist to be glanced at under three findings
+ * that outrank them, and a fourth line would cost this pair the size difference that makes it
+ * read as secondary at all. The drill-down behind each still opens the full record.
+ */
+function LeaderMini({ leader, onOpen }: { leader: Leader; onOpen?: () => void }) {
+  const body = (
+    <>
+      <p className="truncate text-overline font-semibold uppercase" style={{ color: FAINT }}>
+        {leader.tag}
+      </p>
+      <div className="mt-0.5">
+        <Figure value={leader.value} size={17} />
+      </div>
+      <p className="truncate text-small text-[#1c1a16]">{leader.label}</p>
+    </>
+  )
+  return onOpen ? (
+    <button
+      type="button"
+      onClick={onOpen}
+      title={leader.sub ? `${leader.label} · ${leader.sub}` : leader.label}
+      className="card-press -mx-2 block w-full min-w-0 rounded-[10px] px-2 py-1 text-left"
+    >
+      {body}
+    </button>
+  ) : (
+    <div className="min-w-0 py-1">{body}</div>
   )
 }
 
@@ -1560,11 +1633,11 @@ function CollectionExplorer({
           not of window — because two 45% panels on a phone are two unusable panels. */}
       <div className="grid grid-cols-1 gap-4 @[880px]:grid-cols-[30%_1fr] @[880px]:gap-6">
         {/* ── left · classes ─────────────────────────────────────────────── */}
-        <div className="@[880px]:border-r @[880px]:border-[#f0efec] @[880px]:pr-6">
+        <div className="flex min-h-0 flex-col @[880px]:border-r @[880px]:border-[#f0efec] @[880px]:pr-6">
           <p className="mb-2 text-overline font-semibold uppercase" style={{ color: FAINT }}>
             Collection classes
           </p>
-          <ul className="flex max-h-[292px] flex-col overflow-y-auto pr-1 scrollbar-hidden">
+          <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto pr-1 scrollbar-hidden">
             {classes.map((c) => {
               const on = c.cls === active?.cls
               const Glyph = classGlyph(c.cls)
@@ -1590,7 +1663,12 @@ function CollectionExplorer({
           </ul>
           {/* THE LIST SCROLLS IN PLACE instead of offering "View all 12 classes". Twelve rows is
               not a listing that needs a sheet — it needs about four rows of height back, which a
-              scroll area gives while keeping every class one gesture away in the same container. */}
+              scroll area gives while keeping every class one gesture away in the same container.
+
+              ITS HEIGHT IS THE COLUMN'S, NOT A NUMBER. A fixed max-height clipped the list at
+              eight rows while the species column beside it left the panel half empty below — the
+              list was cut short in a container that had the room. `flex-1` spends whatever height
+              the row already has, so the scroll only starts once the space is genuinely gone. */}
         </div>
 
         {/* ── right · species in the selected class ──────────────────────── */}
@@ -1700,8 +1778,16 @@ function SexBar({ row }: { row: SpeciesRow }) {
   )
 }
 
-/** Tiles rendered into the page. The rest live in the sheet. */
-const SITE_TILES = 8
+/**
+ * Rows rendered into the page. The rest live in the sheet.
+ *
+ * FIVE, DOWN FROM EIGHT TILES. A named row costs more width than a code tile but it is the
+ * name that answers "where is the collection" — "CF 14,445" needs a decoder, "Crimson Frosted
+ * Wildlife Estate 14,445" does not. Five named rows and eight anonymous tiles occupy the same
+ * height, so the card did not grow; it stopped spending its height on a legend the reader
+ * holds in their head.
+ */
+const SITE_ROWS = 5
 
 /* ── sites ───────────────────────────────────────────────────────────────── */
 
@@ -1713,17 +1799,24 @@ const SITE_SORTS: [SiteSort, string][] = [
 ]
 
 /**
- * EVERY SITE, AS A RANKED LIST — one rendering, not two.
+ * THE TOP FIVE SITES, NAMED — a ranked table, not a grid of tiles.
  *
- * This card used to be a six-column table above 560px and, below it, six stacked rows each
- * carrying a full-width progress bar. Both were drawing the ranking twice: the rows are already
- * in order, so the bar was a chart of the fact that row one is above row two. What a director
- * reads off a site is its position, its headcount, its share and which way it moved — all four
- * of which are type — so the only mark left is the rail down the left edge, whose weight carries
- * the share.
+ * The tiles this replaces showed a two-letter code, a figure and a share bar, eight to a card in
+ * three columns. Three things were wrong with that. The CODE IS NOT THE SITE: "CF" and "CH" are
+ * a lookup the reader performs from memory, and the name — the one field that answers "where is
+ * the collection" — was reachable only on hover. The BAR RE-DREW THE ORDER: the tiles are sorted,
+ * so a bar under each one charted the fact that tile one outranks tile two. And a 3-column grid
+ * of small boxes spends its width on gutters and box padding rather than on content, which is
+ * why eight tiles and five named rows come to the same height.
  *
- * One rendering means the tablet and the desktop get the same list with more room in it rather
- * than a different component, and the phone stops being the version with a bar in it.
+ * Four fields, four columns, one line each: rank, name, population, change. Population is the
+ * primary value and is set a step above the name; change is secondary and carries the only
+ * colour in the card, because direction is the one thing here that is not a magnitude.
+ *
+ * SPECIES AND ENCLOSURE COUNTS STAY ON THE HOVER TITLE, where the tiles already kept them. A
+ * second line under each name is the one change that would not fit: five rows of two lines is
+ * 280px against the 230px this card has to give, so the metadata would have cost the card its
+ * fifth site. It is one tap away in the site sheet, which is where a full record belongs.
  */
 function SitesCard({
   rows,
@@ -1735,7 +1828,6 @@ function SitesCard({
   onOpen: (key: string) => void
   onViewAll: () => void; bare?: boolean }) {
   const [sort, setSort] = useState<SiteSort>('animals')
-  const accent = useAccent()
   const shown = useMemo(() => sortSites(scoped ? rows.filter((r) => r.key === scoped) : rows, sort), [rows, scoped, sort])
 
   /* The leaders, stated rather than left to be counted off the grid — concentration is the
@@ -1743,6 +1835,10 @@ function SitesCard({
   const total = shown.reduce((n, r) => n + r.animals, 0)
   const lead = sortSites(shown, 'animals').slice(0, 3)
   const leadShare = total ? (lead.reduce((n, r) => n + r.animals, 0) / total) * 100 : 0
+  /* The five that print. `shown` is already in the reader's chosen order, so the rank column is
+     the row's position in THAT order — sort by Change and 01 is the biggest mover, not the
+     biggest site. */
+  const top = shown.slice(0, SITE_ROWS)
 
   return (
     <Section bare={bare} icon={MapPin} label="Site population" aside={`${shown.length} of ${rows.length} sites`}>
@@ -1751,48 +1847,89 @@ function SitesCard({
         value={sort}
         onPick={(v) => setSort(v as SiteSort)}
       />
-      {shown.length > 3 && (
-        <p className="mt-3 text-caption" style={{ color: MUTED }}>
-          Top 3 hold <span className="font-medium tabular-nums">{pct(leadShare)}</span> of{' '}
-          <span className="tabular-nums">{fmt(total)}</span> — led by {lead[0]?.name}
-        </p>
-      )}
-      {/* FIFTY ROWS BECAME FIFTY TILES. As list rows this card was 3,211px — five screens for
-          one block, and the single biggest reason the page ran to 18,000. The rows were not
-          long because there were fifty of them but because each carried a name, a code, a
-          species count and an enclosure count, none of which is what "where is the collection"
-          asks. `TileGrid` keeps every site and drops the prose; the name survives on hover and
-          for the screen reader, and the counts are one tap away in the drill. */}
-      {/* EIGHT TILES, NOT FIFTY. All fifty were rendered into the page: even as tiles that is
-          ten rows of grid, which made this the tallest card on the page and the reason the
-          Collection band ran three screens. Eight is the leaders plus enough tail to show the
-          shape of the drop-off; the remaining forty-two are one tap away in the sheet, which is
-          where a complete listing belongs. `shown.length` is still stated in the header, so a
-          reader is never told fifty exist and shown eight without being told. */}
-      <div className="mt-3">
-        <TileGrid
-          items={shown.slice(0, SITE_TILES).map((r) => ({
-            key: r.key,
-            code: r.code,
-            label: `${r.name} · ${r.species} species · ${r.enclosures} enclosures`,
-            value: r.animals,
-            share: r.percent,
-            change: r.net === 0 ? undefined : signed(r.net),
-            changeTone: r.net > 0 ? ('good' as const) : ('bad' as const),
-          }))}
-          onPick={onOpen}
-        />
+      {/* THE COLUMN HEADER NAMES THE TWO FIGURES, and is the reason the rows need no labels of
+          their own. `text-overline` is the scale's own table-header size — see `index.css`. The
+          three widths are repeated on every row below rather than being a grid, because a
+          four-cell grid would make the rank a track wide enough to matter on a 352px tablet
+          card; as flex, the rank and the two figures are fixed and the NAME takes the rest. */}
+      {/* THE TWO FIGURE COLUMNS ARE SIZED TO THE HEADER, NOT THE FIGURE. "POPULATION" sets 81px
+          at the overline size and "14,445" only 66 — size to the number and the header word
+          overflows its cell and runs back under the site name, which it did at both tiers. The
+          widths are the same at every tier for the same reason: the header does not shrink. */}
+      <div
+        className="mt-3 flex items-center gap-2 border-b pb-1.5 text-overline font-semibold uppercase @[900px]:gap-3"
+        style={{ borderColor: HAIR, color: FAINT }}
+      >
+        <span className="w-[16px] shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1">Site</span>
+        <span className="w-[84px] shrink-0 text-right">Population</span>
+        <span className="w-[56px] shrink-0 text-right">Change</span>
       </div>
-      {shown.length > SITE_TILES && (
-        <button
-          type="button"
-          onClick={() => onViewAll()}
-          className="card-press mt-3 w-full rounded-[11px] py-2 text-small font-semibold"
-          style={{ backgroundColor: mix(accent, 0.1), color: ACCENT_INK }}
-        >
-          View all {shown.length} sites
-        </button>
-      )}
+
+      <ul className="flex flex-col">
+        {top.map((r, i) => (
+          <li key={r.key} className="border-b last:border-0" style={{ borderColor: HAIR }}>
+            <button
+              type="button"
+              onClick={() => onOpen(r.key)}
+              /* The species and enclosure counts the tiles carried, in the one place they can go
+                 without costing the row a second line. */
+              title={`${r.name} · ${fmt(r.species)} species · ${fmt(r.enclosures)} enclosures`}
+              /* `w-[calc(100%+1rem)]`, NOT `w-full`. The `-mx-2`/`px-2` pair exists so the press
+                 highlight bleeds past the text to the card's padding edge. With `w-full` the
+                 width is pinned to the row, so the negative margins only SHIFT the button 8px
+                 left — every figure landed 16px inside its own column header. Widening by the
+                 two margins is what makes the bleed a bleed instead of an offset. */
+              className="card-press -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-[10px] px-2 py-[7px] text-left @[900px]:gap-3"
+            >
+              <span className="w-[16px] shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-body text-[#1c1a16]">{r.name}</span>
+              <span
+                className="w-[84px] shrink-0 text-right font-semibold tabular-nums @[900px]:text-lead"
+                style={{ color: VALUE }}
+              >
+                {fmt(r.animals)}
+              </span>
+              {/* THE ONLY COLOUR IN THE CARD. A zero is a sourced fact here — the site held
+                  station — so it prints as 0 in the faint ink rather than as a dash, which this
+                  product reserves for a figure it does not have. */}
+              <span
+                className="w-[56px] shrink-0 text-right text-small font-semibold tabular-nums"
+                style={{ color: r.net === 0 ? FAINT : TONE[netTone(r.net)] }}
+              >
+                {signed(r.net)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {/* THE CONCENTRATION LINE AND THE ACTION SHARE A ROW. The sentence used to sit above the
+          grid and restate what row one now says in full — "led by <name>" is the first row of
+          the table. What it still knows that the table does not is the SHARE the leaders hold,
+          so that clause survives and the rest goes, on the same line as the action, for nothing. */}
+      <div className="mt-3 flex items-baseline justify-between gap-3">
+        {shown.length > 3 ? (
+          <p className="min-w-0 truncate text-caption" style={{ color: MUTED }}>
+            Top 3 hold <span className="font-medium tabular-nums">{pct(leadShare)}</span> of{' '}
+            <span className="tabular-nums">{fmt(total)}</span>
+          </p>
+        ) : (
+          <span />
+        )}
+        {shown.length > SITE_ROWS && (
+          <button
+            type="button"
+            onClick={() => onViewAll()}
+            className="card-press shrink-0 text-small font-semibold whitespace-nowrap"
+            style={{ color: ACCENT_INK }}
+          >
+            View all {shown.length} sites →
+          </button>
+        )}
+      </div>
     </Section>
   )
 }

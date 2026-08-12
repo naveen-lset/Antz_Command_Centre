@@ -378,8 +378,15 @@ export function Section({
   return (
     /* Each card fades up as it scrolls in; the marks inside read the same signal
        through their own observer, so a card and its data animate together. */
-    <Reveal>
-      <section className={`rounded-[var(--radius-card)] bg-white ${tight ? 'p-[var(--pad-card-sm)]' : 'p-[var(--pad-card)]'}`} aria-label={label}>
+    /* `h-full` TWICE, and both are load-bearing. The grid rows this sits in stretch their
+       items, but the item is this `Reveal` wrapper — the white `<section>` is a block inside
+       it and would still end at its own content, leaving two cards on one row ending at
+       different heights with the shorter one's card floating in a taller invisible box. The
+       wrapper takes the row height, the section fills the wrapper, and the two cards end on
+       the same line. Outside a grid the parent's height is auto, `height: 100%` resolves to
+       auto, and nothing changes — which is why this is safe on all sixty-odd Sections. */
+    <Reveal className="h-full">
+      <section className={`h-full rounded-[var(--radius-card)] bg-white ${tight ? 'p-[var(--pad-card-sm)]' : 'p-[var(--pad-card)]'}`} aria-label={label}>
         {label && (
           <header className={`flex items-center justify-between gap-3 ${tight ? 'mb-3' : 'mb-4'}`}>
             <span className="flex min-w-0 items-center gap-2">
@@ -430,7 +437,12 @@ export function Stack({ children }: { children: ReactNode }) {
      class name that tells the motion layer "these are the sections". Every module and
      record page renders through here, so marking it once marks all of them. */
   return (
-    <div className="page-stack flex w-full flex-col gap-[var(--gap)] px-[var(--gutter)] pb-2 @[760px]:grid @[760px]:grid-cols-2 @[760px]:items-start">
+    /* NO `items-start`. It sized every card to its own content, so two cards sharing a row
+       ended at different heights and the row read as ragged rather than as a row. The grid
+       default — stretch — gives both the height of the taller, which is what `Section`'s
+       `h-full` then fills. Content still sits at the top of each card; only the white ends
+       level. */
+    <div className="page-stack flex w-full flex-col gap-[var(--gap)] px-[var(--gutter)] pb-2 @[760px]:grid @[760px]:grid-cols-2">
       {children}
     </div>
   )
@@ -441,7 +453,9 @@ export function Duo({ children }: { children: ReactNode }) {
   /* Inside a two-column `Stack` this would nest a pair inside a half, giving four
      cards across and none of them legible, so past the break it spans the full
      stack width and keeps its own two-up split. */
-  return <div className="grid grid-cols-2 items-start gap-[var(--gap)] @[760px]:col-span-2">{children}</div>
+  /* Stretched, not `items-start` — a pair on one line is the case where two cards ending at
+     different heights is most obvious. See the note in `Stack`. */
+  return <div className="grid grid-cols-2 gap-[var(--gap)] @[760px]:col-span-2">{children}</div>
 }
 
 /** Subhead inside a card, so one card can carry two grouped fact sets. */
@@ -568,10 +582,22 @@ export function Hero({
               centred ? '' : '@[640px]:mt-0 @[640px]:shrink-0 @[640px]:border-t-0 @[640px]:border-l @[640px]:pt-0 @[640px]:pl-6'
             }`}
           >
+            {/* `flex-auto`, NOT `flex-1`. The difference is the flex BASIS, and it decided whether
+                the last figure stayed inside the card. `flex-1` is `1 1 0%`: every stat starts from
+                zero and takes an equal third, so three columns came out 68px wide apiece while
+                "15,959" needs about 95 — the figure painted 25px past its column, and that column
+                sits flush against the card's right padding, so it painted 25px outside the CARD.
+                Measured at 1000/1280/1512/1920, it spilled at every one of them; this was not a
+                narrow-window case. `flex-auto` is `1 1 auto`: each stat starts at its own content
+                width and only SURPLUS is shared equally. Side by side, where the group hugs its
+                content, there is no surplus and each figure gets exactly the width it needs.
+                Stacked across a full-width card the surplus is large and they still spread — the
+                two layouts differed by about a pixel per column, which is why one class serves
+                both and no breakpoint is involved. */}
             {stats.map((s, i) => (
               <span
                 key={`${s.label}-${i}`}
-                className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-4' : ''} ${
+                className={`min-w-0 flex-auto ${i ? 'border-l border-[#f0efec] pl-4' : ''} ${
                   i < stats.length - 1 ? 'pr-4' : ''
                 } ${centred ? 'text-center' : ''}`}
               >
