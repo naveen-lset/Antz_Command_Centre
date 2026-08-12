@@ -491,10 +491,51 @@
    * band the spec asks card padding to sit in; snapping 22 to 24 would only collapse
    * the middle tier into the top one and buy a reader nothing.
    */
-  --gutter: 20px; /* page side padding — header and card stack alike */
-  --gap: 12px; /* gap between cards */
-  --pad-card: 20px;
-  --pad-card-sm: 16px;
+  /**
+   * THE SPACING SCALE — a 4px grid, named once.
+   *
+   * DELIBERATELY IN `:root` AND NOT IN `@theme`. Keys in the `@theme` block are a live Tailwind
+   * v4 utility namespace, and a name that collides with a built-in silently redefines it — see
+   * the note on `--container-page` above, which cost every `w-full` in the app. These are read
+   * through `var()` by the layout tokens below and by nothing else, so they have no business
+   * generating utilities.
+   *
+   * THE SCALE IS NOT A SECOND SYSTEM. The tokens underneath it — `--gutter`, `--gap`,
+   * `--pad-card`, `--shell-pad`, `--shell-gap` — are still the ones components read, and they
+   * still step per container tier. What changes is that their VALUES are now drawn from this
+   * scale by name rather than typed as numbers, so "is 20 on the grid?" stops being a question
+   * anyone has to answer twice.
+   */
+  --space-1: 4px; /* micro */
+  --space-2: 8px; /* tight */
+  --space-3: 12px; /* compact */
+  --space-4: 16px; /* default */
+  --space-5: 20px; /* comfortable */
+  --space-6: 24px; /* component / card */
+  --space-8: 32px; /* section */
+  --space-10: 40px; /* major section */
+  --space-12: 48px; /* page-level */
+  --space-16: 64px; /* hero / major separation */
+
+  /**
+   * SEMANTIC LAYOUT TOKENS — aliases, not copies.
+   *
+   * Each points at the responsive token that already owns the decision, so there is exactly one
+   * place a page gutter is decided and these names are a vocabulary over it rather than a second
+   * source of truth. A component may read either; they cannot disagree.
+   */
+  --page-gutter: var(--gutter);
+  --card-padding: var(--pad-card);
+  --component-gap: var(--gap);
+  --section-gap: var(--space-8);
+
+  /* 16px on a phone, per the spacing spec, stepping to 24 and 32 with the container. This was
+     20px — one token consolidated from two (see the note above), and the consolidation took the
+     larger of the pair without asking whether it was the right floor. */
+  --gutter: var(--space-4); /* page side padding — header and card stack alike */
+  --gap: var(--space-3); /* gap between cards */
+  --pad-card: var(--space-5);
+  --pad-card-sm: var(--space-4);
   --radius-card: 16px;
 
   /**
@@ -577,8 +618,8 @@
      the cards start from the screen edge, and it stacks with the card gutter
      inside. Two paddings doing one job is how a 16px inset became 40px of dead
      rail on a tablet. */
-  --shell-pad: 12px; /* page padding around the whole three-column shell */
-  --shell-gap: 12px; /* space between sidebar, content and panel */
+  --shell-pad: var(--space-3); /* page padding around the whole three-column shell */
+  --shell-gap: var(--space-3); /* space between sidebar, content and panel */
   /**
    * WHERE THE APP STOPS GETTING WIDER.
    *
@@ -600,8 +641,8 @@
 @media (min-width: 1024px) {
   :root {
     --rail: 268px;
-    --shell-pad: 16px;
-    --shell-gap: 16px;
+    --shell-pad: var(--space-4);
+    --shell-gap: var(--space-4);
   }
 }
 
@@ -609,8 +650,8 @@
   :root {
     --rail: 284px;
     --panel: 320px;
-    --shell-pad: 20px;
-    --shell-gap: 20px;
+    --shell-pad: var(--space-5);
+    --shell-gap: var(--space-5);
   }
 }
 
@@ -635,8 +676,14 @@
    an iPad mini at 744px, leaves 472px of content. */
 @container (min-width: 460px) {
   .tier {
-    --gutter: 24px;
-    --gap: 16px;
+    --gutter: var(--space-6);
+    --gap: var(--space-4);
+    /* 22 AND 18 ARE OFF THE 4px GRID ON PURPOSE, and this is the documented exception the note
+       further up refers to. `--pad-card` interpolates INSIDE the 16–24px band the spec asks card
+       padding to sit in: 20 → 22 → 24. Snapping the middle step to 24 would collapse it into the
+       top tier and buy a reader nothing, and snapping it to 20 would collapse it into the bottom
+       one. The same argument covers `--pad-card-sm` at 16 → 18 → 20. Radius is not spacing and is
+       not governed by the scale. */
     --pad-card: 22px;
     --pad-card-sm: 18px;
     --radius-card: 18px;
@@ -662,10 +709,10 @@
    the step above — the figures only grow once there is column to put them in. */
 @container (min-width: 900px) {
   .tier {
-    --gutter: 32px;
-    --gap: 20px;
-    --pad-card: 24px;
-    --pad-card-sm: 20px;
+    --gutter: var(--space-8);
+    --gap: var(--space-5);
+    --pad-card: var(--space-6);
+    --pad-card-sm: var(--space-5);
     --radius-card: 20px;
 
     --fs-hero: 80px;

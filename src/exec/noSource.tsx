@@ -112,7 +112,7 @@ export function NoSource({ icon: Glyph, what, metrics, related }: NoSourceProps)
             >
               <span className="min-w-0 flex-1">
                 <span className="block text-small font-medium text-[#1c1a16]">{related.label}</span>
-                <span className="mt-0.5 block text-caption text-balance text-[#6d6860]">{related.note}</span>
+                <span className="mt-1 block text-caption text-balance text-[#6d6860]">{related.note}</span>
               </span>
               <ArrowRight size={16} strokeWidth={1.75} style={{ color: FAINT }} aria-hidden />
             </a>

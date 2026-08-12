@@ -326,7 +326,7 @@ export function UsageSplit({
           </span>
         )
         return (
-          <li key={it.id} className="border-b border-[#f0efec] py-2.5 last:border-0">
+          <li key={it.id} className="border-b border-[#f0efec] py-3 last:border-0">
             {onOpen ? (
               <button type="button" onClick={() => onOpen(it.id)} className="card-press -mx-2 block w-full rounded-[10px] px-2 text-left">
                 {body}
@@ -364,7 +364,7 @@ export function OverdueLadder({
   const max = Math.max(...rows.map((r) => r.value), 1)
 
   return (
-    <ul ref={ref} className="flex flex-col gap-2.5">
+    <ul ref={ref} className="flex flex-col gap-3">
       {rows.map((r, i) => {
         const bad = Boolean(r.over15)
         const colour = bad ? TONE.bad : mix(accent, step(i))
@@ -483,7 +483,7 @@ export function SortableList<T>({
             type="button"
             aria-pressed={sortKey === c.key}
             onClick={() => onSort(c.key)}
-            className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+            className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
               sortKey === c.key ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
             }`}
           >
@@ -534,12 +534,12 @@ export function SortableList<T>({
                 style={{ animationDelay: animate ? `${Math.min(i * 45, 400)}ms` : undefined }}
                 onClick={onOpen ? () => onOpen(row) : undefined}
               >
-                <td className="py-2.5 pr-3">
+                <td className="py-3 pr-3">
                   <span className="block truncate text-small" style={{ color: INK }}>
                     {name(row)}
                   </span>
                   {sub?.(row) && (
-                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                    <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                       {sub(row)}
                     </span>
                   )}
@@ -549,7 +549,7 @@ export function SortableList<T>({
                   return (
                     <td
                       key={c.key}
-                      className="py-2.5 pl-3 text-right text-small font-medium tabular-nums"
+                      className="py-3 pl-3 text-right text-small font-medium tabular-nums"
                       style={{ color: tone && tone !== 'neutral' ? TONE[tone] : VALUE }}
                     >
                       {c.cell(row)}
@@ -575,7 +575,7 @@ export function SortableList<T>({
                     {name(row)}
                   </span>
                   {sub?.(row) && (
-                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                    <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                       {sub(row)}
                     </span>
                   )}

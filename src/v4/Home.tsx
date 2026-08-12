@@ -456,7 +456,7 @@ function SectionHead({
   tone?: 'good' | 'warn' | 'bad'
 }) {
   return (
-    <div className="mt-5 flex items-center gap-2.5 px-1 first:mt-0">
+    <div className="mt-5 flex items-center gap-3 px-1 first:mt-0">
       <Glyph size={14} strokeWidth={2} style={{ color: MUTED }} aria-hidden />
       <h2 className="text-overline font-semibold text-[#3d3a34] uppercase">
         {title}
@@ -587,7 +587,7 @@ function EmptyCard({ label, icon: Glyph }: { label: string; icon: HeadlineKpi['i
           {label}
         </span>
       </span>
-      <span className="mt-2.5 block font-display text-n-lg font-bold" style={{ color: '#c9c4bb' }}>
+      <span className="mt-3 block font-display text-n-lg font-bold" style={{ color: '#c9c4bb' }}>
         —
       </span>
       <span className="mt-1 block text-caption text-[#9b958b]">Not reported for this scope</span>
@@ -784,7 +784,7 @@ function Upcoming() {
                     body: <UpcomingPanel group={group} horizon={horizon} />,
                   })
                 }
-                className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-2.5 text-left"
+                className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-3 text-left"
               >
                 <span
                   className="grid size-7 shrink-0 place-items-center rounded-[9px]"
@@ -801,7 +801,7 @@ function Upcoming() {
                       into the list's body colour — at which point it has stopped
                       marking anything. The dot marks the same rows and leaves the
                       text readable. */}
-                  <span className="mt-0.5 flex items-center gap-1.5 truncate text-caption" style={{ color: FAINT }}>
+                  <span className="mt-1 flex items-center gap-1.5 truncate text-caption" style={{ color: FAINT }}>
                     {soon && (
                       <span
                         className="size-[5px] shrink-0 rounded-full"
@@ -861,7 +861,7 @@ function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
             <span className="min-w-0 truncate text-small text-[#1c1a16]">{risk.label}</span>
             <LevelChip level={risk.level} />
           </span>
-          <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{risk.note}</span>
+          <span className="mt-1 block truncate text-caption text-[#9b958b]">{risk.note}</span>
         </span>
         {/* Ink, for the same reason as the alert count above — the icon and the chip carry the
             level, so the figure carries only the figure. */}
@@ -940,7 +940,7 @@ function TrendsSection() {
                 role="tab"
                 aria-selected={span === s.key}
                 onClick={() => setSpan(s.key)}
-                className={`rounded-full px-2.5 py-[3px] text-caption font-medium transition-colors ${
+                className={`rounded-full px-3 py-[3px] text-caption font-medium transition-colors ${
                   span === s.key ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a]'
                 }`}
               >

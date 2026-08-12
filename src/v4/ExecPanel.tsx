@@ -56,14 +56,14 @@ function Weather() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-small font-medium text-[#1c1a16]">{site.zooName}</p>
-          <p className="mt-0.5 text-caption text-[#9b958b]">{site.weather.summary}</p>
+          <p className="mt-1 text-caption text-[#9b958b]">{site.weather.summary}</p>
         </div>
         <CloudSun size={26} strokeWidth={1.5} className="shrink-0 text-[#0284c7]" aria-hidden />
       </div>
       <p className="mt-3 font-display text-n-xl font-bold tabular-nums text-[#1c1a16]">
         {site.weather.tempC}°
       </p>
-      <p className="mt-2.5 flex items-center gap-1.5 text-caption tabular-nums text-[#6d6860]">
+      <p className="mt-3 flex items-center gap-1.5 text-caption tabular-nums text-[#6d6860]">
         <Thermometer size={12} strokeWidth={1.75} aria-hidden />
         Feels {site.weather.feelsLike}° · H {site.weather.high}° · L {site.weather.low}°
       </p>
@@ -133,7 +133,7 @@ function QueueRow({
       <li className="flex items-center gap-2 py-2">
         <span className="min-w-0 flex-1">
           <span className="block truncate text-small font-medium text-[#9b958b]">{queue.label}</span>
-          <span className="mt-0.5 block truncate text-caption text-[#c9c4bb]">not recorded</span>
+          <span className="mt-1 block truncate text-caption text-[#c9c4bb]">not recorded</span>
         </span>
         <span className="shrink-0 font-display text-n-sm font-bold tabular-nums text-[#c9c4bb]">—</span>
       </li>
@@ -153,7 +153,7 @@ function QueueRow({
     <>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-small font-medium text-[#1c1a16]">{queue.label}</span>
-        <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{note}</span>
+        <span className="mt-1 block truncate text-caption text-[#9b958b]">{note}</span>
       </span>
       <span
         className="shrink-0 font-display text-n-sm font-bold tabular-nums"
@@ -206,7 +206,7 @@ function TopRisks() {
               <r.icon size={15} strokeWidth={1.75} className="shrink-0" style={{ color: TONE.bad }} aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-small font-medium text-[#1c1a16]">{r.label}</span>
-                <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{r.note}</span>
+                <span className="mt-1 block truncate text-caption text-[#9b958b]">{r.note}</span>
               </span>
               <span className="shrink-0 font-display text-n-sm font-bold tabular-nums" style={{ color: TONE.bad }}>
                 {r.value}
@@ -238,7 +238,7 @@ function Recent() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-small text-[#3d3a34]">{a.text}</span>
-                <span className="mt-0.5 block text-caption tabular-nums text-[#9b958b]">{a.at}</span>
+                <span className="mt-1 block text-caption tabular-nums text-[#9b958b]">{a.at}</span>
               </span>
             </a>
           </li>

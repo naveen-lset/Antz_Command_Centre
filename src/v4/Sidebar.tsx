@@ -37,8 +37,8 @@ export function Sidebar({ route }: { route: string }) {
     >
       <div className="shrink-0 px-4 pt-5 pb-3">
         <p className="px-1 text-body font-semibold text-[#1c1a16]">{site.org}</p>
-        <p className="mt-0.5 px-1 text-caption text-[#9b958b]">{site.zooName}</p>
-        <label className="mt-4 flex items-center gap-2 rounded-[11px] bg-[#f4f6f4] px-3 py-2.5 focus-within:ring-2 focus-within:ring-[#37bd69]/35">
+        <p className="mt-1 px-1 text-caption text-[#9b958b]">{site.zooName}</p>
+        <label className="mt-4 flex items-center gap-2 rounded-[11px] bg-[#f4f6f4] px-3 py-3 focus-within:ring-2 focus-within:ring-[#37bd69]/35">
           <Search size={15} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
           <input
             type="search"
@@ -75,7 +75,7 @@ export function Sidebar({ route }: { route: string }) {
           /* 14px between groups and 4px under a heading, down from 16 and 6. Four headings
              instead of two cost about a row and a half of height, and the rail is worth
              keeping inside a 13-inch laptop — this is where that comes back from. */
-          <div key={group.name} className="mt-3.5 first:mt-3">
+          <div key={group.name} className="mt-4 first:mt-3">
             <h2 className="px-3 pb-1 text-overline font-semibold text-[#9b958b] uppercase">
               {group.name}
             </h2>
@@ -130,7 +130,7 @@ export function Sidebar({ route }: { route: string }) {
         <button
           type="button"
           onClick={() => open({ title: 'Settings', eyebrow: site.zooName, body: <SettingsPanel /> })}
-          className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-[9px] text-left text-small font-medium text-[#3d3a34] transition-colors hover:bg-[#f6f7f6]"
+          className="flex w-full items-center gap-3 rounded-[10px] px-3 py-[9px] text-left text-small font-medium text-[#3d3a34] transition-colors hover:bg-[#f6f7f6]"
         >
           <SETTINGS.icon size={16} strokeWidth={1.75} className="text-[#9b958b]" aria-hidden />
           <span className="min-w-0 flex-1 truncate">{SETTINGS.label}</span>
@@ -162,7 +162,7 @@ function SidebarLink({
     <a
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex items-center gap-2.5 rounded-[10px] px-3 transition-colors duration-200 ${
+      className={`flex items-center gap-3 rounded-[10px] px-3 transition-colors duration-200 ${
         small ? 'py-[6px] text-small' : 'py-2 text-body'
       } ${active ? 'bg-[#e7f0ea] font-semibold text-[#0a4d3c]' : 'font-medium text-[#3d3a34] hover:bg-[#f6f7f6]'}`}
     >

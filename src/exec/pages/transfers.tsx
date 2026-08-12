@@ -77,11 +77,11 @@ function TransferHero() {
         <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
           <span className="min-w-0 flex-1 pr-4">
             <Figure value={fmt(destinations)} size={28} />
-            <span className="mt-0.5 block truncate text-caption text-[#6d6860]">Destinations</span>
+            <span className="mt-1 block truncate text-caption text-[#6d6860]">Destinations</span>
           </span>
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
             <Figure value={top ? `${Math.round(top.percent)}` : '—'} unit={top ? '%' : undefined} size={28} />
-            <span className="mt-0.5 block truncate text-caption text-[#6d6860]">
+            <span className="mt-1 block truncate text-caption text-[#6d6860]">
               {top ? `To ${top.label}` : 'Nothing moved'}
             </span>
           </span>

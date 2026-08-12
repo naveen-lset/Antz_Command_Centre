@@ -224,14 +224,14 @@ function PreventiveHero() {
           ].map((s, i) => (
             <span key={s.label} className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-4' : 'pr-4'}`}>
               <Figure value={s.value} size={24} />
-              <span className="mt-0.5 block truncate text-caption text-[#6d6860]">{s.label}</span>
+              <span className="mt-1 block truncate text-caption text-[#6d6860]">{s.label}</span>
             </span>
           ))}
           {/* The one due-status figure on the card, separated and captioned as one — the
               other three move with the date filter and this one does not. */}
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
             <Figure value={fmt(overdue)} size={24} color={TONE.bad} />
-            <span className="mt-0.5 block truncate text-caption" style={{ color: TONE.bad }}>
+            <span className="mt-1 block truncate text-caption" style={{ color: TONE.bad }}>
               Overdue · today
             </span>
           </span>
@@ -424,7 +424,7 @@ function OverviewCard({ stream, site, onOpen }: { stream: Stream; site: string |
     <button
       type="button"
       onClick={onOpen}
-      className="card-press -mx-2 block rounded-[12px] px-2 py-2.5 text-left"
+      className="card-press -mx-2 block rounded-[12px] px-2 py-3 text-left"
     >
       <span className="flex items-center gap-2">
         <span
@@ -439,7 +439,7 @@ function OverviewCard({ stream, site, onOpen }: { stream: Stream; site: string |
           ›
         </span>
       </span>
-      <span className="mt-2.5 flex items-baseline gap-2">
+      <span className="mt-3 flex items-baseline gap-2">
         <Figure value={fmt(given)} size={32} color={HERO_INK} />
         {move !== undefined && (
           <span
@@ -451,10 +451,10 @@ function OverviewCard({ stream, site, onOpen }: { stream: Stream; site: string |
           </span>
         )}
       </span>
-      <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
+      <span className="mt-1 block text-caption" style={{ color: FAINT }}>
         {stream.noun} · {scope.win.label.toLowerCase()}
       </span>
-      <span className="mt-2.5 flex items-center gap-2 border-t border-[#f0efec] pt-2.5">
+      <span className="mt-3 flex items-center gap-2 border-t border-[#f0efec] pt-3">
         {cover ? (
           <>
             <span className="min-w-0 flex-1 truncate text-caption" style={{ color: FAINT }}>

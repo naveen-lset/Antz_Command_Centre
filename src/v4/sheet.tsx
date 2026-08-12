@@ -536,11 +536,11 @@ function SheetHost({
         onPointerCancel={endDrag}
       >
         {!side && (
-          <div className="flex justify-center pt-2.5" aria-hidden>
+          <div className="flex justify-center pt-3" aria-hidden>
             <span className="h-[4px] w-9 rounded-full bg-[#16150f]/10" />
           </div>
         )}
-        <header className={`flex items-center gap-3 px-5 pb-4 ${side ? 'pt-5' : 'pt-2.5'}`}>
+        <header className={`flex items-center gap-3 px-5 pb-4 ${side ? 'pt-5' : 'pt-3'}`}>
           {deep && (
             <button
               type="button"

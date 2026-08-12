@@ -64,7 +64,7 @@ export function useCardWindow(): { win: Win; pill: ReactNode; overridden: boolea
           type="button"
           onClick={() => setOverride(null)}
           title={`Follow the page window (${scope.win.label})`}
-          className="card-press grid size-[22px] shrink-0 place-items-center rounded-full"
+          className="card-press grid size-7 shrink-0 place-items-center rounded-full"
           style={{ backgroundColor: mix(ACCENT, 0.12), color: ACCENT_INK }}
         >
           <RotateCcw size={11} strokeWidth={2.5} aria-hidden />
@@ -90,7 +90,10 @@ export function useCardWindow(): { win: Win; pill: ReactNode; overridden: boolea
             ),
           })
         }
-        className="card-press flex shrink-0 items-center gap-1 rounded-full px-2.5 py-[3px] text-caption font-medium whitespace-nowrap"
+        /* 28px, not 22. `py-[3px]` on 12px/16px text gave a pill shorter than the gap beside it —
+           cramped against a 24px card title and under any sensible click target. 28 is the 4px
+           grid's step that clears both without competing with the 36px header pills. */
+        className="card-press flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-caption font-medium whitespace-nowrap"
         style={
           overridden
             ? { backgroundColor: mix(ACCENT, 0.14), color: ACCENT_INK }
@@ -118,7 +121,7 @@ export function CardWindowNote({ win, overridden }: { win: Win; overridden: bool
   const { scope } = useScope()
   if (!overridden) return null
   return (
-    <p className="mt-3 border-t pt-2.5 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
+    <p className="mt-3 border-t pt-3 text-caption" style={{ borderColor: HAIR, color: FAINT }}>
       This card is on {win.window} — the rest of the page is on {scope.win.window}.
     </p>
   )
@@ -171,7 +174,7 @@ function CardRangeSheet({
         <button
           type="button"
           onClick={() => onPick({ key: 'custom', custom: draft })}
-          className="card-press mt-4 w-full rounded-[11px] py-2.5 text-body font-semibold text-white"
+          className="card-press mt-4 w-full rounded-[11px] py-3 text-body font-semibold text-white"
           style={{ backgroundColor: '#123a2c' }}
         >
           Apply to this card
@@ -201,13 +204,13 @@ function Option({
         type="button"
         onClick={onClick}
         aria-pressed={on}
-        className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-2.5 text-left"
+        className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-3 text-left"
       >
         <span className="min-w-0 flex-1">
           <span className={`block truncate text-small ${on ? 'font-semibold' : ''}`} style={{ color: '#1c1a16' }}>
             {label}
           </span>
-          <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+          <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
             {sub}
           </span>
         </span>

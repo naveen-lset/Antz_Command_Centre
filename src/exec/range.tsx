@@ -142,7 +142,7 @@ function Pill({
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+      className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
         on ? 'text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
       }`}
       style={on ? { backgroundColor: tone } : undefined}

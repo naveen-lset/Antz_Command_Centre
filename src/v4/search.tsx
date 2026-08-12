@@ -98,7 +98,7 @@ function Row({ hit, onGo, meta = false }: { hit: Hit; onGo: (slug: string) => vo
         className="shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-small font-medium text-[#1c1a16]">{hit.page.title}</span>
-        {meta && <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{sub}</span>}
+        {meta && <span className="mt-1 block truncate text-caption text-[#9b958b]">{sub}</span>}
       </span>
       <ChevronRight size={16} strokeWidth={2} className="shrink-0 text-[#c8c3ba]" aria-hidden />
     </button>
@@ -118,7 +118,7 @@ function EntityResult({ entity, sub, onGo }: { entity: Entity; sub?: string; onG
         className="shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-small font-medium text-[#1c1a16]">{entity.name}</span>
-        <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+        <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
           {sub ?? `${KIND_ONE[entity.kind]}${entity.sub ? ` · ${entity.sub}` : ''}`}
         </span>
       </span>
@@ -238,7 +238,7 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
               The 44px start is the search button's own size, so what expands is
               visibly the control that was tapped rather than a new thing. */}
           <div
-            className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5"
+            className="flex items-center gap-2 rounded-full bg-white px-4 py-3"
             style={{
               clipPath: open ? 'inset(0 0 0 0 round 999px)' : 'inset(0 0 0 calc(100% - 44px) round 999px)',
               transition: `clip-path ${open ? 'var(--dur-emphasis) var(--ease-out)' : 'var(--dur-emphasis-out) var(--ease-in)'}`,

@@ -111,7 +111,7 @@ export function ModuleHero({
                 }`}
               >
                 <Figure value={s.value} unit={s.unit} size={24} />
-                <span className="mt-0.5 block truncate text-caption text-[#6d6860]">{s.label}</span>
+                <span className="mt-1 block truncate text-caption text-[#6d6860]">{s.label}</span>
               </span>
             ))}
           </div>
@@ -163,7 +163,7 @@ export function DrillRow({
         )}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-small text-[#1c1a16]">{label}</span>
-          {sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{sub}</span>}
+          {sub && <span className="mt-1 block text-caption text-[#9b958b]">{sub}</span>}
         </span>
         <span className="shrink-0 text-right">
           <span
@@ -183,11 +183,11 @@ export function DrillRow({
   return (
     <li className="border-b border-[#f0efec] last:border-0">
       {onOpen ? (
-        <button type="button" onClick={onOpen} className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left">
+        <button type="button" onClick={onOpen} className="card-press -mx-2 block w-full rounded-[10px] px-2 py-3 text-left">
           {body}
         </button>
       ) : (
-        <div className="py-2.5">{body}</div>
+        <div className="py-3">{body}</div>
       )}
     </li>
   )
@@ -242,7 +242,7 @@ export function NodePanel({
             {title}
             {unit ? ` · ${unit}` : ''}
           </p>
-          {trail.length > 0 && <p className="mt-2.5 text-caption text-[#9b958b]">{trail.join(' › ')}</p>}
+          {trail.length > 0 && <p className="mt-3 text-caption text-[#9b958b]">{trail.join(' › ')}</p>}
         </section>
       </div>
       <Stack>
@@ -290,17 +290,17 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={fmt(node.value)} unit={node.unit} size={48} color={node.tone ? TONE[node.tone] : HERO_INK} />
           <p className="mt-1 text-body text-[#3d3a34]">{node.label}</p>
-          {node.sub && <p className="mt-2.5 text-caption text-[#9b958b]">{node.sub}</p>}
+          {node.sub && <p className="mt-3 text-caption text-[#9b958b]">{node.sub}</p>}
         </section>
       </div>
       <Stack>
         <Section icon={MapPin} label="Record" aside={trail[trail.length - 2] ?? ''}>
           <ul className="divide-y divide-[#f0efec]">
             {(node.facts ?? []).map((f) => (
-              <li key={f.label} className="flex items-baseline gap-3 py-2.5 first:pt-0 last:pb-0">
+              <li key={f.label} className="flex items-baseline gap-3 py-3 first:pt-0 last:pb-0">
                 <span className="min-w-0 flex-1">
                   <span className="block text-small text-[#1c1a16]">{f.label}</span>
-                  {f.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{f.sub}</span>}
+                  {f.sub && <span className="mt-1 block text-caption text-[#9b958b]">{f.sub}</span>}
                 </span>
                 <span
                   className="shrink-0 text-small font-medium tabular-nums"
@@ -361,7 +361,7 @@ export function RankedBars({ items, unit }: { items: [string, number][]; unit?: 
 export function OfChip({ n, of, label }: { n: number; of: number; label: string }) {
   const accent = useAccent()
   return (
-    <span className="inline-flex items-baseline gap-1.5 rounded-full px-2.5 py-1" style={{ backgroundColor: mix(accent, 0.1) }}>
+    <span className="inline-flex items-baseline gap-1.5 rounded-full px-3 py-1" style={{ backgroundColor: mix(accent, 0.1) }}>
       <span className="font-display text-small font-bold tabular-nums" style={{ color: ACCENT_INK }}>
         {compact(n)}
       </span>

@@ -69,7 +69,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
             </span>
             <div className="min-w-0">
               <Figure value={fmt(stated)} size={40} color={HERO_INK} />
-              <p className="mt-0.5 text-small text-[#3d3a34]">animals</p>
+              <p className="mt-1 text-small text-[#3d3a34]">animals</p>
             </div>
           </div>
           <p className="mt-3 text-body text-[#1c1a16]">{cat.name}</p>

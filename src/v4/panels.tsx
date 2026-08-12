@@ -117,7 +117,7 @@ export function TapRow({
   const Glyph = lead
   const inner = (
     <>
-      <span className="flex min-w-0 flex-1 items-center gap-2.5">
+      <span className="flex min-w-0 flex-1 items-center gap-3">
         {Glyph && (
           <span
             className="grid size-7 shrink-0 place-items-center rounded-[9px]"
@@ -133,7 +133,7 @@ export function TapRow({
               already sets in the design system: the label is an identifier and can be
               clipped, but the sub carries the where and the when — "ANM-22140 ·
               Savanna · Zone A ·…" has thrown away the only part that was new. */}
-          {sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{sub}</span>}
+          {sub && <span className="mt-1 block text-caption text-[#9b958b]">{sub}</span>}
         </span>
       </span>
       <span className="shrink-0 text-right">
@@ -168,13 +168,13 @@ export function TapRow({
           type="button"
           onClick={onOpen}
           aria-pressed={active}
-          className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left"
+          className="card-press -mx-2 block w-full rounded-[10px] px-2 py-3 text-left"
           style={active ? { backgroundColor: mix(accent, 0.09) } : undefined}
         >
           {body}
         </button>
       ) : (
-        <div className="py-2.5">{body}</div>
+        <div className="py-3">{body}</div>
       )}
     </li>
   )
@@ -328,7 +328,7 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
           <p className="mt-1 text-body text-[#3d3a34]">
             {def.unit} · {scopeLabel === 'Zoo-wide' ? 'zoo-wide' : scopeLabel}
           </p>
-          <p className="mt-2.5 text-caption text-[#9b958b]">{period.window}</p>
+          <p className="mt-3 text-caption text-[#9b958b]">{period.window}</p>
         </section>
       </div>
 
@@ -549,15 +549,15 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
           <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
             <span className="min-w-0 flex-1 pr-4">
               <span className="block text-small font-medium text-[#1c1a16]">{SEX_WORD[r.sex]}</span>
-              <span className="mt-0.5 block text-caption text-[#9b958b]">Sex</span>
+              <span className="mt-1 block text-caption text-[#9b958b]">Sex</span>
             </span>
             <span className="min-w-0 flex-1 border-l border-[#f0efec] px-4">
               <span className="block text-small font-medium text-[#1c1a16]">{r.age}</span>
-              <span className="mt-0.5 block text-caption text-[#9b958b]">Age</span>
+              <span className="mt-1 block text-caption text-[#9b958b]">Age</span>
             </span>
             <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
               <span className="block truncate text-small font-medium text-[#1c1a16]">{r.weight}</span>
-              <span className="mt-0.5 block text-caption text-[#9b958b]">Weight</span>
+              <span className="mt-1 block text-caption text-[#9b958b]">Weight</span>
             </span>
           </div>
         </section>
@@ -752,7 +752,7 @@ function ApprovalCard({
         <button
           type="button"
           onClick={() => onDecide('approved')}
-          className="card-press flex flex-1 items-center justify-center gap-1.5 rounded-[11px] py-2.5 text-small font-semibold text-white"
+          className="card-press flex flex-1 items-center justify-center gap-1.5 rounded-[11px] py-3 text-small font-semibold text-white"
           style={{ backgroundColor: '#1e7a44' }}
         >
           <Check size={15} strokeWidth={2.5} aria-hidden />
@@ -761,7 +761,7 @@ function ApprovalCard({
         <button
           type="button"
           onClick={() => onDecide('rejected')}
-          className="card-press flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border border-[#eceae5] py-2.5 text-small font-semibold"
+          className="card-press flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border border-[#eceae5] py-3 text-small font-semibold"
           style={{ color: TONE.bad }}
         >
           <X size={15} strokeWidth={2.5} aria-hidden />

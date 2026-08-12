@@ -66,14 +66,14 @@ export class Boundary extends Component<Props, State> {
             <button
               type="button"
               onClick={this.retry}
-              className="card-press rounded-full px-3.5 py-2 text-caption font-semibold text-white"
+              className="card-press rounded-full px-4 py-2 text-caption font-semibold text-white"
               style={{ backgroundColor: '#123a2c' }}
             >
               Try again
             </button>
             <a
               href="#/"
-              className="card-press rounded-full bg-[#f2f1ed] px-3.5 py-2 text-caption font-semibold text-[#3d3a34]"
+              className="card-press rounded-full bg-[#f2f1ed] px-4 py-2 text-caption font-semibold text-[#3d3a34]"
             >
               Command centre
             </a>

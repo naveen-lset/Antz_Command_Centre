@@ -491,7 +491,7 @@ function ChipRow({
               type="button"
               aria-pressed={on}
               onClick={() => onPick(on ? undefined : o)}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+              className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
                 on ? 'text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
               }`}
               style={on ? { backgroundColor: MORTALITY_ACCENT } : undefined}
@@ -560,7 +560,7 @@ function MortalityTrend({ cut }: { cut: Cut }) {
               type="button"
               aria-pressed={g === active}
               onClick={() => setGrain(g)}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium transition-colors ${
+              className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium transition-colors ${
                 g === active
                   ? 'text-white'
                   : 'border border-[#e8e6e0] text-[#55524a] active:bg-[#f4f3ef]'
@@ -725,7 +725,7 @@ function SiteWise({ rows, prev }: { rows: Death[]; prev: Death[] }) {
             type="button"
             aria-pressed={sortKey === key}
             onClick={() => setSortKey(key)}
-            className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium transition-colors ${
+            className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium transition-colors ${
               sortKey === key ? 'text-white' : 'bg-[#f4f3ef] text-[#55524a]'
             }`}
             style={sortKey === key ? { backgroundColor: MORTALITY_ACCENT } : undefined}
@@ -790,7 +790,7 @@ function SpeciesWise({ rows }: { rows: Death[] }) {
   return (
     <Section icon={Dna} label="Species-wise mortality" aside={`${lines.length} species`}>
       <FindField value={query} onChange={setQuery} placeholder="Search species" />
-      <div className="mt-3.5">
+      <div className="mt-4">
         <RankTable
           rows={page.rows}
           columns={cols}
@@ -861,7 +861,7 @@ function MajorImpact({ rows }: { rows: Death[] }) {
           {Math.round(top.percent)}% of total mortality · {sites.length === 1 ? sites[0] : `${sites.length} sites`}
         </p>
         {top.sub && (
-          <p className="mt-0.5 text-caption" style={{ color: FAINT }}>
+          <p className="mt-1 text-caption" style={{ color: FAINT }}>
             {top.sub}
           </p>
         )}
@@ -1211,7 +1211,7 @@ function RecordsSection({ rows }: { rows: Death[] }) {
       label="Mortality & necropsy records"
       aside={`${fmt(rows.length)} deaths · ${fmt(referred.length)} necropsies`}
     >
-      <div className="mb-3.5 flex gap-1.5">
+      <div className="mb-4 flex gap-1.5">
         {(
           [
             ['deaths', `Deaths ${rows.length}`],

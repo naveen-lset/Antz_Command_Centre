@@ -87,7 +87,7 @@ export function RankTable<T>({
               type="button"
               aria-pressed={sortKey === c.key}
               onClick={() => onSort(c.key)}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+              className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
                 sortKey === c.key ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
               }`}
             >
@@ -140,10 +140,10 @@ export function RankTable<T>({
                 className={`border-b border-[#f6f5f2] last:border-0 ${onOpen ? 'cursor-pointer transition-colors hover:bg-[#faf9f7]' : ''}`}
                 onClick={onOpen ? () => onOpen(r) : undefined}
               >
-                <td className="py-2.5 pr-3">
+                <td className="py-3 pr-3">
                   <span className="block truncate text-small text-[#1c1a16]">{name(r)}</span>
                   {sub?.(r) && (
-                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                    <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                       {sub(r)}
                     </span>
                   )}
@@ -153,7 +153,7 @@ export function RankTable<T>({
                   return (
                     <td
                       key={c.key}
-                      className="py-2.5 text-right text-small font-medium tabular-nums whitespace-nowrap"
+                      className="py-3 text-right text-small font-medium tabular-nums whitespace-nowrap"
                       style={{ color: t && t !== 'neutral' ? TONE[t] : VALUE }}
                     >
                       {c.cell(r)}
@@ -161,7 +161,7 @@ export function RankTable<T>({
                   )
                 })}
                 {onOpen && (
-                  <td className="py-2.5 pl-1 align-middle" style={{ color: accent }} aria-hidden>
+                  <td className="py-3 pl-1 align-middle" style={{ color: accent }} aria-hidden>
                     <ChevronRight size={13} strokeWidth={2.25} />
                   </td>
                 )}
@@ -187,7 +187,7 @@ export function RankTable<T>({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-small text-[#1c1a16]">{name(r)}</span>
                   {sub?.(r) && (
-                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                    <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                       {sub(r)}
                     </span>
                   )}
@@ -240,12 +240,12 @@ export function RankTable<T>({
                 <button
                   type="button"
                   onClick={() => onOpen(r)}
-                  className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left"
+                  className="card-press -mx-2 block w-full rounded-[10px] px-2 py-3 text-left"
                 >
                   {body}
                 </button>
               ) : (
-                <div className="py-2.5">{body}</div>
+                <div className="py-3">{body}</div>
               )}
             </li>
           )

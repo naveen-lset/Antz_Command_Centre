@@ -75,7 +75,7 @@ export function PageSkeleton() {
         {[0, 1].map((card) => (
           <div key={card} className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
             <Bone w={110} h={11} />
-            <div className="mt-4 flex flex-col gap-3.5">
+            <div className="mt-4 flex flex-col gap-4">
               {[0, 1, 2, 3].map((row) => (
                 <div key={row} className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
@@ -96,7 +96,7 @@ export function PageSkeleton() {
 /** A few rows' worth, for a list that is fetching a further page. */
 export function RowsSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <div className="flex flex-col gap-3.5 py-2" role="status" aria-label="Loading rows">
+    <div className="flex flex-col gap-4 py-2" role="status" aria-label="Loading rows">
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-3">
           <div className="min-w-0 flex-1">

@@ -179,7 +179,7 @@ export function DateSheet() {
             setCustom(draft)
             back()
           }}
-          className="card-press mt-4 w-full rounded-[11px] py-2.5 text-body font-semibold text-white"
+          className="card-press mt-4 w-full rounded-[11px] py-3 text-body font-semibold text-white"
           style={{ backgroundColor: '#123a2c' }}
         >
           Apply range
@@ -320,13 +320,13 @@ function Option({
         type="button"
         onClick={onClick}
         aria-pressed={on}
-        className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-2.5 text-left"
+        className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-3 text-left"
         style={on ? { backgroundColor: mix(ACCENT, 0.09) } : undefined}
       >
         <span className="min-w-0 flex-1">
           <span className={`block truncate text-small ${on ? 'font-semibold' : ''} text-[#1c1a16]`}>{label}</span>
           {sub && (
-            <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+            <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
               {sub}
             </span>
           )}

@@ -32,7 +32,7 @@ export function SubModules({ slug }: { slug: string }) {
             <li key={kid.slug} className="border-b border-[#f0efec] last:border-0">
               <a
                 href={`#/${kid.slug}`}
-                className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2.5"
+                className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-3"
               >
                 <span
                   className="grid size-7 shrink-0 place-items-center rounded-[9px]"
@@ -45,7 +45,7 @@ export function SubModules({ slug }: { slug: string }) {
                   <span className="block truncate text-small text-[#1c1a16]">{kid.label}</span>
                   {/* The registry's own keywords, which are the words someone would search
                       for — so the row says what the page is for without a sentence. */}
-                  <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                  <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                     {(execPages[kid.slug]?.keywords ?? []).slice(0, 3).join(' · ')}
                   </span>
                 </span>

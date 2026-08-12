@@ -99,7 +99,7 @@ function SheetHero({
         <Figure value={value} unit={unit} size={48} color={tone ? TONE[tone] : HERO_INK} />
         <p className="mt-1 text-body text-[#3d3a34]">{label}</p>
         {note && (
-          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
+          <p className="mt-3 text-caption" style={{ color: FAINT }}>
             {note}
           </p>
         )}
