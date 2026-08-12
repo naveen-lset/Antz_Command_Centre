@@ -24,7 +24,7 @@ import { TODAY, shortDate, type Win } from '../../core/calendar'
 import { speciesStock } from '../../core/animals'
 import { count, tally } from '../../core/events'
 import { levelAt, series } from '../../core/series'
-import { SITES, speciesByName, type Species } from '../../core/world'
+import { SITES, speciesByName, speciesOf, type Species } from '../../core/world'
 import { standingOf, type Standing } from './regulatory'
 
 /* ── the reading, and how it moved ───────────────────────────────────────── */
@@ -153,6 +153,108 @@ export function movement(siteKey: string | null, win: Win): Movement {
     recorded: additions - removals,
     additions,
     removals,
+  }
+}
+
+/* ── the circle of life, at one species ──────────────────────────────────── */
+
+/**
+ * ONE SPECIES' LIFECYCLE — the four stages a headcount actually moves through.
+ *
+ * WHY THIS IS NOT SIX KPI CARDS. Births, deaths, transfers and escapes were already readable
+ * one at a time, and reading them that way is exactly what fails: a reader given "births 12"
+ * and "deaths 9" beside each other has to do the arithmetic that decides whether the species
+ * is growing, and has no way to tell whether the two figures even cover the same window. The
+ * stages below are ONE partition of one window — everything that entered, the reading it
+ * arrived at, and everything that left — so the story is legible without arithmetic.
+ *
+ * THE OPENING READING IS A LEVEL, READ ON THE DAY BEFORE. `change()` above does this for a
+ * site; a species needs the same treatment for the same reason, and gets it by asking
+ * `speciesStock` for a window that ends the day before this one starts. Summing the flows and
+ * calling the result a population is the error this shape exists to make impossible.
+ *
+ * FLOWS WITH NO EVENTS ARE NAMED, NOT DROPPED. `silent` carries the stages the extract holds
+ * nothing for in this window, so the page can say "no transfers recorded" rather than printing
+ * a zero that reads as a measured nil — the distinction §22 of the brief turns on, and the one
+ * the transfers bug in the header note above got wrong.
+ *
+ * NO PARTITIONS ARE ATTEMPTED HERE. `AS.birthsNatural`/`birthsAssisted` match none of the
+ * extract's own birth vocabulary — `dims.json` records the single detail value 'Natality' — so
+ * splitting births into natural and assisted would print two confident zeros under a real
+ * total. The totals are what the database can answer, so the totals are what this returns.
+ */
+export interface LifeStage {
+  key: string
+  label: string
+  value: number
+  /** Which side of the headcount the stage sits on: entering, held, or leaving. */
+  side: 'in' | 'stock' | 'out'
+  /** What one row of this stage is, for the sheet the stage opens. */
+  slug?: string
+}
+
+export interface Lifecycle {
+  opening: number
+  closing: number
+  net: number
+  stages: LifeStage[]
+  additions: number
+  removals: number
+  /** Stage labels the window holds no recorded events for. */
+  silent: string[]
+  /** Fetal loss, held apart — a breeding-programme figure, not a headcount movement. */
+  fetal: number
+}
+
+/**
+ * A flow's count for one species, within that species' own site.
+ *
+ * `tally(…, 'species')` keys on the recorded species NAME, so this is scoped to the species'
+ * site first — without that, a name held in two sites would return both sites' events under a
+ * page headed one of them.
+ */
+const flowOfSpecies = (slug: string, siteKey: string, win: Win, name: string): number =>
+  tally(slug, siteKey, win, 'species').find((t) => t.key === name)?.value ?? 0
+
+export function speciesLifecycle(speciesId: string, win: Win): Lifecycle | undefined {
+  const sp = speciesOf(speciesId)
+  if (!sp) return undefined
+
+  const at = (day: number): number =>
+    speciesStock(sp.siteKey, { ...win, to: day }).find((r) => r.species.id === speciesId)?.count ?? 0
+
+  const opening = at(Math.max(0, win.from - 1))
+  const closing = at(win.to)
+
+  const of = (slug: string) => flowOfSpecies(slug, sp.siteKey, win, sp.name)
+
+  const births = of('births')
+  const accessions = of('accession')
+  const deaths = of('mortality')
+  const transfers = of('transfers')
+  const escapes = of('escaped')
+  const fetal = of('fetal')
+
+  /* Ordered as the population moves: what arrived, what is held, what left. The stock stage
+     sits third rather than first so the row reads left to right as a sentence. */
+  const stages: LifeStage[] = [
+    { key: 'births', label: 'Births', value: births, side: 'in', slug: 'births' },
+    { key: 'accession', label: 'Accessions', value: accessions, side: 'in', slug: 'accession' },
+    { key: 'held', label: 'Held', value: closing, side: 'stock' },
+    { key: 'mortality', label: 'Deaths', value: deaths, side: 'out', slug: 'mortality' },
+    { key: 'transfers', label: 'Transferred out', value: transfers, side: 'out', slug: 'transfers' },
+    { key: 'escaped', label: 'Escaped', value: escapes, side: 'out', slug: 'escaped' },
+  ]
+
+  return {
+    opening,
+    closing,
+    net: closing - opening,
+    stages,
+    additions: births + accessions,
+    removals: deaths + transfers + escapes,
+    silent: stages.filter((s) => s.side !== 'stock' && s.value === 0).map((s) => s.label),
+    fetal,
   }
 }
 

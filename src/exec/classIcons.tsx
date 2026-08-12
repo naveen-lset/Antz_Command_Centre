@@ -96,13 +96,23 @@ export function Arachnid(props: IconProps) {
  * because that is what the page prints — the common name is the sub-label.
  */
 export const CLASS_ICONS: Record<string, ClassIcon> = {
-  Actinopterygii: Fish,
+  /* THE KEYS ARE THE NAMES THE EXTRACT USES, which is not the same list this map was written
+     against. `dims.json` reports Aves, Mammalia, Reptilia, Teleostei, Arachnida, Amphibia,
+     Malacostraca, Chilopoda, Chondrichthyes, Holostei, Cladistei, Dipnoi and Unknown — so
+     `Actinopterygii`, `Insecta` and `Euchelicerata` matched nothing and seven of the thirteen
+     classes fell through to the default glyph. The four fish classes share the fish, because
+     Teleostei, Holostei, Cladistei and Dipnoi are all ray-finned or lobe-finned fish and a
+     reader scanning a class list needs to know "this is a fish" rather than which infraclass. */
   Aves: Bird,
-  Malacostraca: Shrimp,
   Mammalia: Rabbit,
   Reptilia: Turtle,
-  Insecta: Bug,
-  Chondrichthyes: Shark,
   Amphibia: Frog,
-  Euchelicerata: Arachnid,
+  Teleostei: Fish,
+  Holostei: Fish,
+  Cladistei: Fish,
+  Dipnoi: Fish,
+  Chondrichthyes: Shark,
+  Malacostraca: Shrimp,
+  Arachnida: Arachnid,
+  Chilopoda: Bug,
 }

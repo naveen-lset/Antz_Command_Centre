@@ -22,7 +22,7 @@
  * and the animal record at the bottom is the same `AnimalPanel` the rest of the product opens.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Activity,
   ArrowLeftRight,
@@ -41,7 +41,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { shortDate, type Win } from '../../core/calendar'
 import { animalsInScope, animalsOfSpecies, type Animal } from '../../core/animals'
-import { page as eventPage, type Ev } from '../../core/events'
+import { page as eventPage, tally, type Ev } from '../../core/events'
 import { SITES, siteOf, speciesByName } from '../../core/world'
 import {
   Bars,
@@ -61,6 +61,7 @@ import {
 } from '../../exec/system'
 import { AnimalPanel, TapList, TapRow } from '../panels'
 import { useSheet } from '../sheet'
+import { useScope } from '../scope'
 import { MoreRows, usePaged } from '../perf'
 import { animalFromId } from '../drill'
 import {
@@ -140,7 +141,7 @@ function SheetHero({
           </p>
         )}
         {note && (
-          <p className="mt-2.5 text-caption" style={{ color: FAINT }}>
+          <p className="mt-3 text-caption" style={{ color: FAINT }}>
             {note}
           </p>
         )}
@@ -277,6 +278,120 @@ export function SitePanel({ siteKey, win }: { siteKey: string; win: Win }) {
           deps={[siteKey, win.to]}
           eyebrow={site.name}
         />
+      </Stack>
+    </>
+  )
+}
+
+/* ── one bucket of one flow — the graph's own drill ──────────────────────── */
+
+/**
+ * WHAT ONE COLUMN OF A BIRTHS OR MORTALITY CHART CONTAINS.
+ *
+ * THE BRIDGE THE PRODUCT WAS MISSING. A bar was a figure with nowhere to go: the reader could
+ * see that the 12th was the month's worst day for deaths and had no way to ask which species.
+ * This is the sheet that answers it, and it is deliberately the ONLY thing between the mark and
+ * a species page — graph → sheet → species → species details, with no intermediate screen.
+ *
+ * IT IS SCOPED TO THE BUCKET, NOT TO THE PAGE. `win` here is the column's own span, handed over
+ * by `EventTrend`'s `onPick` (see `Pt.from`), so a weekly bucket on a six-month range lists that
+ * week and a daily bucket lists that day. The site comes from the page's own scope, so a reader
+ * who narrowed to one site sees that site's species and the header says so. This is the whole of
+ * "never lose the active filter context": both halves travel with the click.
+ *
+ * SEARCH ONLY WHERE THERE IS SOMETHING TO SEARCH. A field over four rows is furniture.
+ */
+export function FlowBucketPanel({
+  slug,
+  title,
+  bucketLabel,
+  win,
+  siteKey,
+  tone,
+}: {
+  slug: string
+  title: string
+  /** The column's own label — "12 May", "25 – 31 Jul". Stated, never rebuilt from the span. */
+  bucketLabel: string
+  win: Win
+  siteKey: string | null
+  tone?: 'good' | 'warn' | 'bad' | 'neutral'
+}) {
+  const { go } = useScope()
+  const [query, setQuery] = useState('')
+
+  const rows = useMemo(() => tally(slug, siteKey, win, 'species'), [slug, siteKey, win])
+  const total = useMemo(() => rows.reduce((n, r) => n + r.value, 0), [rows])
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return q ? rows.filter((r) => r.label.toLowerCase().includes(q)) : rows
+  }, [rows, query])
+
+  const where = siteKey ? (siteOf(siteKey)?.name ?? siteKey) : 'All sites'
+
+  /**
+   * NAVIGATE, AND DO NOT CALL `close()`.
+   *
+   * `SheetProvider` already listens for `hashchange` and empties the stack, so the route change
+   * IS the close — and it takes the host's exit animation with it, which is the coordinated
+   * transition rather than a sheet yanked off screen.
+   *
+   * Calling `close()` here as well was a real bug, not a redundancy: `close()` is
+   * `history.go(-depth)`, which is ASYNCHRONOUS, so it landed after the hash had been set and
+   * navigated straight back to this page. The sheet closed, the species page never opened, and
+   * nothing errored — the worst shape a navigation bug can take.
+   */
+  const openSpecies = (name: string) => {
+    const sp = speciesByName(name).sort((a, b) => b.weight - a.weight)[0]
+    if (!sp) return
+    go(`e/species/${encodeURIComponent(sp.id)}`)
+  }
+
+  return (
+    <>
+      <SheetHero
+        value={fmt(total)}
+        label={title}
+        note={`${bucketLabel} · ${where}`}
+        tone={tone}
+      />
+      <Stack>
+        <Section icon={PawPrint} label="Species" aside={fmt(rows.length)}>
+          {rows.length === 0 ? (
+            <p className="py-2 text-caption" style={{ color: FAINT }}>
+              Nothing recorded in {bucketLabel}.
+            </p>
+          ) : (
+            <>
+              {rows.length > 8 && (
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search species"
+                  aria-label="Search species"
+                  className="mb-3 w-full rounded-[10px] bg-[#f7f6f3] px-3 py-2 text-small text-[#1c1a16] outline-none focus:ring-2 focus:ring-[#37bd69]/35"
+                />
+              )}
+              <TapList>
+                {shown.map((r) => (
+                  <TapRow
+                    key={r.key}
+                    label={r.label}
+                    value={fmt(r.value)}
+                    onOpen={() => openSpecies(r.label)}
+                  />
+                ))}
+              </TapList>
+              {shown.length === 0 && (
+                <p className="py-2 text-caption" style={{ color: FAINT }}>
+                  No species matches “{query}”.
+                </p>
+              )}
+            </>
+          )}
+        </Section>
       </Stack>
     </>
   )

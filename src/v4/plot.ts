@@ -41,6 +41,9 @@ export function pointsOf(slug: string, siteKey: string | null, win: Win, max = 3
   return values.map((value, i) => ({
     label: spans[i] ? spanLabel(spans[i].from, spans[i].to) : shortDate(win.to),
     value,
+    /* Carried so a mark can drill into the bucket the reader actually tapped. See `Pt`. */
+    from: spans[i]?.from,
+    to: spans[i]?.to,
   }))
 }
 

@@ -179,6 +179,17 @@ export interface Pt {
   /** The bucket's own date or range — "31 Jul", "25 – 31 Jul". */
   label: string
   value: number
+  /**
+   * The bucket's own span, in day indices — present where the mark is drillable.
+   *
+   * A BUCKET IS NOT ALWAYS ONE DAY, which is the whole reason this is a span and not a `day`.
+   * `pointsOf` caps a long window at 24 or 30 buckets, so on a six-month range one column is a
+   * week. A drill that took a single day off a column labelled "25 – 31 Jul" would open one
+   * seventh of the figure the reader tapped — the same class of error as a card whose sheet
+   * reads a different window from the card.
+   */
+  from?: number
+  to?: number
 }
 
 /**
@@ -222,14 +233,19 @@ function useScrub(n: number) {
 /** The readout above a time mark: the value under the cursor, what it is, and its delta. */
 function PlotHead({
   value,
-  caption,
   aside,
   format,
   unit,
   live = false,
 }: {
   value: number
-  caption: string
+  /**
+   * The change, rendered BESIDE the figure rather than in a right-hand column.
+   *
+   * It used to sit right-aligned with the compared span named under it, which put the two
+   * halves of one sentence at opposite ends of the card and printed a date range the reader had
+   * already chosen in the filter. A delta belongs against the number it moved.
+   */
   aside?: ReactNode
   format: (n: number) => string
   unit?: string
@@ -237,7 +253,7 @@ function PlotHead({
   live?: boolean
 }) {
   return (
-    <div className="flex items-start justify-between gap-3">
+    <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
       <div className="min-w-0">
         {/* A SCRUBBED FIGURE DOES NOT COUNT UP. `Figure` tweens to every new value, which is
             right when a card scrolls into view and wrong under a moving finger — the number
@@ -261,11 +277,11 @@ function PlotHead({
         ) : (
           <Figure value={format(value)} size={32} color={HERO_INK} unit={unit} />
         )}
-        <p className="mt-1 truncate text-caption" style={{ color: MUTED }}>
-          {caption}
-        </p>
+        {/* THE CAPTION LINE IS GONE. It restated the window the global filter already shows
+            ("births · 1 – 20 May 2026") or the axis already labels ("20 May · animals held"),
+            once per chart, three charts to a page. */}
       </div>
-      {aside && <div className="shrink-0 pt-1 text-right">{aside}</div>}
+      {aside && <div className="shrink-0">{aside}</div>}
     </div>
   )
 }
@@ -382,15 +398,11 @@ export function AreaTrend({
         value={shown.value}
         format={format}
         live={at !== null}
-        caption={at === null ? `${shown.label}${unit ? ` · ${unit}` : ''}` : shown.label}
         aside={
           move !== undefined ? (
             <>
               <span className="text-small font-medium tabular-nums" style={{ color: deltaInk(move) }}>
                 {delta(move)}
-              </span>
-              <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
-                {at === null ? compare?.label : 'vs previous'}
               </span>
             </>
           ) : undefined
@@ -404,7 +416,7 @@ export function AreaTrend({
       <div
         /* Focusable, because the mark is readable by keyboard — but wearing the app's own ring
            rather than the browser's electric blue over a sage card. */
-        className="relative mt-3.5 cursor-crosshair rounded-[8px] outline-none select-none focus-visible:ring-2"
+        className="relative mt-4 cursor-crosshair rounded-[8px] outline-none select-none focus-visible:ring-2"
         style={{ height, touchAction: 'pan-y', outlineColor: 'transparent', ...FOCUS_RING }}
         role="img"
         tabIndex={0}
@@ -514,23 +526,35 @@ export function AreaTrend({
 export function EventTrend({
   points,
   unit,
-  span,
   compare,
   height = 118,
   tone,
   marks,
+  onPick,
   format = fmt,
   empty = 'Nothing recorded in this window.',
 }: {
   points: Pt[]
   unit?: string
-  /** The whole window, for the caption — never assembled from two bucket labels. */
+  /**
+   * ACCEPTED AND NO LONGER RENDERED. It named the whole window under the figure; the global
+   * filter states that window once, at the top of the page. Kept in the type because seven other
+   * module pages pass it, and breaking them to delete one caption is the wrong trade.
+   */
   span?: string
   compare?: Compare
   height?: number
   tone?: Tone
   /** Buckets to flag, by index. */
   marks?: { index: number; tone?: Tone; note?: string }[]
+  /**
+   * Makes each non-empty column a button, handing back the bucket it represents.
+   *
+   * The WHOLE Pt rather than a day, because the bucket carries its own span and the caller has
+   * to scope to that span — see the note on `Pt.from`. Empty buckets stay inert: there is
+   * nothing behind a zero to open, and a tappable zero invites the reader to find out.
+   */
+  onPick?: (pt: Pt) => void
   format?: (n: number) => string
   empty?: string
 }) {
@@ -557,14 +581,13 @@ export function EventTrend({
       <PlotHead
         value={total}
         format={format}
-        caption={`${unit ?? 'recorded'} · ${span ?? points[0].label}`}
         aside={
           compare ? (
             <>
               <span className="text-small font-medium tabular-nums" style={{ color: deltaInk(total - compare.value) }}>
                 {delta(total - compare.value)}
               </span>
-              <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
+              <span className="mt-1 block text-caption" style={{ color: FAINT }}>
                 {compare.label}
               </span>
             </>
@@ -587,15 +610,11 @@ export function EventTrend({
         value={at === null ? total : shown.value}
         format={format}
         live={at !== null}
-        caption={at === null ? `${unit ?? 'recorded'} · ${span ?? `${points[0].label} – ${points[points.length - 1].label}`}` : shown.label}
         aside={
           move !== undefined ? (
             <>
               <span className="text-small font-medium tabular-nums" style={{ color: deltaInk(move) }}>
                 {delta(move)}
-              </span>
-              <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
-                {at === null ? compare?.label : 'vs previous'}
               </span>
             </>
           ) : undefined
@@ -606,7 +625,7 @@ export function EventTrend({
           than a slab the width of the card. The scrub reads this element's own rect, so a
           capped width narrows the target without shifting which column it picks. */}
       <div
-        className="relative mt-3.5 flex items-end gap-[3px] rounded-[8px] outline-none select-none focus-visible:ring-2"
+        className="relative mt-4 flex items-end gap-[3px] rounded-[8px] outline-none select-none focus-visible:ring-2"
         style={{ height, touchAction: 'pan-y', ...FOCUS_RING, ...strip(points.length) }}
         role="img"
         tabIndex={0}
@@ -616,6 +635,28 @@ export function EventTrend({
         {points.map((p, i) => {
           const on = i === shownIndex
           const flag = flagged.get(i)
+          const barTone = tone && tone !== 'neutral' ? TONE[tone] : accent
+          const bar = (
+            <span
+              className={`w-full origin-bottom rounded-[3px] ${animate ? 'animate-grow-y' : ''}`}
+              style={{
+                /* A floor of 2px so a zero period is a mark on the axis rather than a gap
+                   the eye reads as missing data. */
+                height: `${Math.max(2, (p.value / hi) * (height - 12))}px`,
+                /* A VERTICAL GRADIENT, LIGHT AT THE TOP. A flat fill makes a column read as a
+                   solid block whose top edge is the only thing carrying the value; grading it
+                   from a pale tint at the tip to the full tone at the axis gives the bar weight
+                   where it is anchored and lets the tip breathe against the card. The tone still
+                   comes from the metric — green for arrivals, red for deaths — so the hue says
+                   what the bar is and only the lightness varies. */
+                background: `linear-gradient(180deg, ${mix(barTone, on ? 0.5 : 0.24)} 0%, ${
+                  on ? barTone : mix(barTone, 0.62)
+                } 100%)`,
+                animationDelay: animate ? `${i * 24}ms` : undefined,
+              }}
+            />
+          )
+          const live = Boolean(onPick) && p.value > 0
           return (
             <span key={`${p.label}-${i}`} className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
               {flag && (
@@ -626,20 +667,22 @@ export function EventTrend({
                   aria-hidden
                 />
               )}
-              <span
-                className={`w-full origin-bottom rounded-[3px] ${animate ? 'animate-grow-y' : ''}`}
-                style={{
-                  /* A floor of 2px so a zero period is a mark on the axis rather than a gap
-                     the eye reads as missing data. */
-                  height: `${Math.max(2, (p.value / hi) * (height - 12))}px`,
-                  backgroundColor: on
-                    ? tone && tone !== 'neutral'
-                      ? TONE[tone]
-                      : accent
-                    : mix(tone && tone !== 'neutral' ? TONE[tone] : accent, 0.24),
-                  animationDelay: animate ? `${i * 24}ms` : undefined,
-                }}
-              />
+              {live ? (
+                /* The button fills the column's full height, not just the bar: a two-animal day
+                   is four pixels tall, and a four-pixel target is not one. `items-end` keeps the
+                   bar drawn from the axis while the hit area covers the whole slot. */
+                <button
+                  type="button"
+                  onClick={() => onPick!(p)}
+                  aria-label={`${p.label}: ${format(p.value)} — open breakdown`}
+                  className="flex h-full w-full items-end rounded-[3px] outline-none focus-visible:ring-2"
+                  style={FOCUS_RING}
+                >
+                  {bar}
+                </button>
+              ) : (
+                bar
+              )}
             </span>
           )
         })}
@@ -939,8 +982,12 @@ export function SplitRing({
           </g>
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <Figure value={compact(total)} size={24} color={HERO_INK} />
-          <span className="mt-0.5 text-caption" style={{ color: FAINT }}>
+          {/* 20, not 24. `compact` can render five glyphs ("110K"), and at 24px that filled the
+              ring's inner diameter edge to edge with no air around it. */}
+          {/* Scales with the ring: a 20px figure that sat right inside a 128px ring is lost
+              inside a 158px one. Callers on the default size are unaffected. */}
+          <Figure value={compact(total)} size={size >= 150 ? 24 : 20} color={HERO_INK} />
+          <span className="mt-1 text-caption" style={{ color: FAINT }}>
             {label}
           </span>
         </div>
@@ -954,7 +1001,7 @@ export function SplitRing({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
                 {it.meta && (
-                  <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                  <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                     {it.meta}
                   </span>
                 )}
@@ -963,7 +1010,7 @@ export function SplitRing({
                 <span className="block text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(it.value)}
                 </span>
-                <span className="mt-0.5 block text-caption tabular-nums" style={{ color: FAINT }}>
+                <span className="mt-1 block text-caption tabular-nums" style={{ color: FAINT }}>
                   {pct(share)}
                 </span>
               </span>
@@ -976,12 +1023,12 @@ export function SplitRing({
                 <button
                   type="button"
                   onClick={it.onPick}
-                  className="card-press -mx-2 flex w-full items-start gap-2.5 rounded-[10px] px-2 py-2 text-left"
+                  className="card-press -mx-2 flex w-full items-start gap-3 rounded-[10px] px-2 py-2 text-left"
                 >
                   {row}
                 </button>
               ) : (
-                <div className="flex items-start gap-2.5 py-2">{row}</div>
+                <div className="flex items-start gap-3 py-2">{row}</div>
               )}
             </li>
           )
@@ -1029,7 +1076,7 @@ export function PercentSplit({
           <div key={s.label} className={`min-w-0 flex-1 ${s.align}`}>
             <Figure value={pct(share(s.value))} size={32} color={HERO_INK} />
             <p className="mt-1 truncate text-small text-[#1c1a16]">{s.label}</p>
-            <p className="mt-0.5 truncate text-caption tabular-nums" style={{ color: FAINT }}>
+            <p className="mt-1 truncate text-caption tabular-nums" style={{ color: FAINT }}>
               {fmt(s.value)}
               {unit ? ` ${unit}` : ''}
               {s.meta ? ` · ${s.meta}` : ''}
@@ -1037,7 +1084,7 @@ export function PercentSplit({
           </div>
         ))}
       </div>
-      <div className="mt-3.5">
+      <div className="mt-4">
         <Ribbon
           items={[
             { label: left.label, value: left.value },
@@ -1055,7 +1102,7 @@ export function PercentSplit({
                 type="button"
                 onClick={s.onPick}
                 disabled={!s.onPick}
-                className="card-press -mx-2 flex w-full items-center gap-2.5 rounded-[10px] px-2 py-2.5 text-left disabled:opacity-100"
+                className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-3 text-left disabled:opacity-100"
               >
                 <span
                   className="size-[8px] shrink-0 rounded-full"
@@ -1065,7 +1112,7 @@ export function PercentSplit({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-small text-[#1c1a16]">{s.label}</span>
                   {s.meta && (
-                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                    <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                       {s.meta}
                     </span>
                   )}
@@ -1138,14 +1185,14 @@ export function CompareTiles({
               {it.share !== undefined && <Arc percent={it.share} color={ink} animate={animate} delay={i * 90} />}
             </div>
             {(it.facts ?? []).map((f) => (
-              <p key={f} className="mt-0.5 text-caption" style={{ color: MUTED }}>
+              <p key={f} className="mt-1 text-caption" style={{ color: MUTED }}>
                 {f}
               </p>
             ))}
           </>
         )
         return (
-          <div key={it.key} className="rounded-[13px] p-2.5" style={{ backgroundColor: mix(accent, 0.07) }}>
+          <div key={it.key} className="rounded-[13px] p-3" style={{ backgroundColor: mix(accent, 0.07) }}>
             {it.onPick ? (
               <button type="button" onClick={it.onPick} className="card-press block w-full text-left">
                 {body}
@@ -1271,9 +1318,9 @@ export function RankList({
               </span>
             )}
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-small text-[#1c1a16]">{it.title}</span>
+              <span className="block truncate text-small font-medium text-[#1c1a16]">{it.title}</span>
               {it.meta && (
-                <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                   {it.meta}
                 </span>
               )}
@@ -1291,7 +1338,7 @@ export function RankList({
                 {it.value}
               </span>
               {(showShare && it.share !== undefined) || it.change ? (
-                <span className="mt-0.5 flex items-baseline justify-end gap-2 text-caption tabular-nums">
+                <span className="mt-1 flex items-baseline justify-end gap-2 text-caption tabular-nums">
                   {showShare && it.share !== undefined && (
                     <span style={{ color: FAINT }}>{it.shareText ?? pct(it.share)}</span>
                   )}
@@ -1306,19 +1353,19 @@ export function RankList({
             <Chev on={Boolean(it.onPick)} />
           </>
         )
-        const pad = dense ? 'py-2' : 'py-2.5'
+        const pad = dense ? 'py-2' : 'py-3'
         return (
           <li key={it.key} className="border-b border-[#f0efec] last:border-0">
             {it.onPick ? (
               <button
                 type="button"
                 onClick={it.onPick}
-                className={`card-press -mx-2 flex w-full items-stretch gap-2.5 rounded-[10px] px-2 text-left ${pad}`}
+                className={`card-press -mx-2 flex w-full items-stretch gap-3 rounded-[10px] px-2 text-left ${pad}`}
               >
                 {row}
               </button>
             ) : (
-              <div className={`flex items-stretch gap-2.5 ${pad}`}>{row}</div>
+              <div className={`flex items-stretch gap-3 ${pad}`}>{row}</div>
             )}
           </li>
         )
@@ -1361,7 +1408,7 @@ export function Concentration({
           {pct(total ? (lead / total) * 100 : 0)}
         </p>
       </div>
-      <div className="mt-2.5">
+      <div className="mt-3">
         <Ribbon items={[...items, { label: 'Everything else', value: rest }]} height={9} />
       </div>
       <p className="mt-2 text-caption tabular-nums" style={{ color: FAINT }}>
@@ -1457,7 +1504,7 @@ export function FlowSplit({
       </div>
 
       {net !== undefined && (
-        <div className="mt-2.5 flex items-center gap-3">
+        <div className="mt-3 flex items-center gap-3">
           <span className="h-px flex-1" style={{ backgroundColor: HAIR }} aria-hidden />
           <span className="shrink-0 text-caption font-medium tabular-nums" style={{ color: deltaInk(net) }}>
             net {delta(net)}
@@ -1482,7 +1529,7 @@ export function FlowSplit({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-small text-[#1c1a16]">{r.label}</span>
                   {r.meta && (
-                    <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                    <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                       {r.meta}
                     </span>
                   )}
@@ -1499,12 +1546,12 @@ export function FlowSplit({
                   <button
                     type="button"
                     onClick={r.onPick}
-                    className="card-press -mx-2 flex w-full items-center gap-2.5 rounded-[10px] px-2 py-2.5 text-left"
+                    className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-3 text-left"
                   >
                     {row}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2.5 py-2.5">{row}</div>
+                  <div className="flex items-center gap-3 py-3">{row}</div>
                 )}
               </li>
             )
@@ -1571,7 +1618,7 @@ export function OutcomeSplit({
         </div>
       )}
 
-      <div className={lead ? 'mt-3.5' : ''}>
+      <div className={lead ? 'mt-4' : ''}>
         <Ribbon items={outcomes.map((o) => ({ label: o.label, value: o.value, tone: o.tone }))} height={11} />
       </div>
       <ul className="mt-1.5">
@@ -1587,7 +1634,7 @@ export function OutcomeSplit({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-small text-[#1c1a16]">{o.label}</span>
                 {o.meta && (
-                  <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                  <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                     {o.meta}
                   </span>
                 )}
@@ -1601,7 +1648,7 @@ export function OutcomeSplit({
                 <span className="block text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {fmt(o.value)}
                 </span>
-                <span className="mt-0.5 block text-caption tabular-nums" style={{ color: FAINT }}>
+                <span className="mt-1 block text-caption tabular-nums" style={{ color: FAINT }}>
                   {pct(share)}
                 </span>
               </span>
@@ -1614,12 +1661,12 @@ export function OutcomeSplit({
                 <button
                   type="button"
                   onClick={o.onPick}
-                  className="card-press -mx-2 flex w-full items-start gap-2.5 rounded-[10px] px-2 py-2.5 text-left"
+                  className="card-press -mx-2 flex w-full items-start gap-3 rounded-[10px] px-2 py-3 text-left"
                 >
                   {row}
                 </button>
               ) : (
-                <div className="flex items-start gap-2.5 py-2.5">{row}</div>
+                <div className="flex items-start gap-3 py-3">{row}</div>
               )}
             </li>
           )
@@ -1721,7 +1768,7 @@ export function Lifecycle({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-small text-[#1c1a16]">{s.label}</span>
                 {s.meta && (
-                  <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                  <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                     {s.meta}
                   </span>
                 )}
@@ -1748,12 +1795,12 @@ export function Lifecycle({
                 <button
                   type="button"
                   onClick={s.onPick}
-                  className="card-press -mx-2 flex w-full items-baseline gap-2.5 rounded-[10px] px-2 pt-1 text-left"
+                  className="card-press -mx-2 flex w-full items-baseline gap-3 rounded-[10px] px-2 pt-1 text-left"
                 >
                   {head}
                 </button>
               ) : (
-                <div className="flex items-baseline gap-2.5 pt-1">{head}</div>
+                <div className="flex items-baseline gap-3 pt-1">{head}</div>
               )}
               <div
                 className={`mt-1.5 h-[13px] rounded-full ${animate ? 'animate-grow-x' : ''}`}
@@ -1845,7 +1892,7 @@ export function IncidentRail({ items, empty }: { items: Incident[]; empty?: stri
             <span className="min-w-0 flex-1">
               <span className="block truncate text-small text-[#1c1a16]">{it.title}</span>
               {it.meta && (
-                <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
+                <span className="mt-1 block text-caption" style={{ color: FAINT }}>
                   {it.meta}
                 </span>
               )}
@@ -1870,14 +1917,14 @@ export function IncidentRail({ items, empty }: { items: Incident[]; empty?: stri
               <button
                 type="button"
                 onClick={it.onPick}
-                className={`card-press -mx-2 flex w-full items-start gap-2.5 rounded-[10px] px-2 text-left ${
+                className={`card-press -mx-2 flex w-full items-start gap-3 rounded-[10px] px-2 text-left ${
                   i < items.length - 1 ? 'pb-4' : ''
                 }`}
               >
                 {body}
               </button>
             ) : (
-              <div className={`flex items-start gap-2.5 ${i < items.length - 1 ? 'pb-4' : ''}`}>{body}</div>
+              <div className={`flex items-start gap-3 ${i < items.length - 1 ? 'pb-4' : ''}`}>{body}</div>
             )}
           </li>
         )
@@ -2042,7 +2089,7 @@ export function Treemap({ items, height, onPick }: { items: TreeCell[]; height?:
             )}
             {figured && (
               <span
-                className="mt-0.5 block truncate text-caption tabular-nums"
+                className="mt-1 block truncate text-caption tabular-nums"
                 style={{ color: light ? MUTED : 'rgba(255,255,255,0.82)' }}
               >
                 {compact(it.value)}
@@ -2245,7 +2292,7 @@ export function TileGrid({
             </span>
           </>
         )
-        const shell = 'block w-full rounded-[10px] px-2.5 py-2 text-left'
+        const shell = 'block w-full rounded-[10px] px-3 py-2 text-left'
         return onPick ? (
           <button
             key={it.key}

@@ -54,15 +54,20 @@
  */
 
 import { UNSOURCED } from '../../core/metrics'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowLeftRight,
+  Baby,
+  Boxes,
   Dna,
+  Footprints,
+  Info,
   Layers,
   MapPin,
   PawPrint,
   ScrollText,
   Search,
+  Skull,
   Shell,
   ShieldAlert,
   SlidersHorizontal,
@@ -83,14 +88,11 @@ import {
   MUTED,
   VALUE,
   FAINT,
-  Facts,
   Figure,
   Hero,
-  HERO_INK,
   RED_LIST,
   Rule,
   Section,
-  Snapshot,
   Stack,
   TONE,
   RedList,
@@ -101,7 +103,7 @@ import {
 } from '../../exec/system'
 import {
   AreaTrend,
-  CompareTiles,
+  EventTrend,
   Concentration,
   PercentSplit,
   MicroBars,
@@ -112,6 +114,8 @@ import {
   pct,
 } from '../../exec/marks'
 import { compareOf, pointsOf, tail } from '../plot'
+import type { Pt } from '../../exec/marks'
+import type { LucideIcon } from 'lucide-react'
 import { AnimalPanel } from '../panels'
 import { useSheet } from '../sheet'
 import { CardWindowNote, useCardWindow } from '../cardWindow'
@@ -125,7 +129,6 @@ import {
   holdings,
   iucnCounts,
   isRegulated,
-  plural,
   regulatorySplit,
   scheduleBands,
   standingLabel,
@@ -138,8 +141,8 @@ import {
   TREND_RANGES,
   change,
   leaders,
-  movement,
   sexTotals,
+  movement,
   siteRows,
   sortSites,
   sortSpecies,
@@ -153,14 +156,12 @@ import {
 } from './population'
 import {
   CitesGroup,
-  ClassGroup,
-  FlowPanel,
+  FlowBucketPanel,
   IucnGroup,
   RegulatoryGroup,
   ScheduleGroup,
   SitePanel,
   SpeciesPanel,
-  flowSpecs,
 } from './populationSheets'
 
 /* ── the contextual lens ─────────────────────────────────────────────────── */
@@ -238,30 +239,9 @@ function useLens(siteKey: string | null, win: Win, facets: Facets) {
   return { allHoldings, rows, allSpecies, species }
 }
 
-/**
- * The flow sheets a card opens, bound to THAT CARD'S window rather than the page's.
- *
- * This is the part of per-card ranges that is a correctness requirement rather than a
- * convenience. A Births card set to six months whose "Birth records" sheet opened on the page's
- * window would list a different set of records from the figure the reader tapped to get there —
- * the single most damaging thing a drill-down can do, because the reader has no way to tell.
- */
-function useFlowSheets(siteKey: string | null, win: Win) {
-  const { open } = useSheet()
-  const move = useMemo(() => movement(siteKey, win), [siteKey, win])
-  const specs = useMemo(() => flowSpecs(move), [move])
-  const openFlow = (key: keyof typeof specs) => {
-    const spec = specs[key]
-    open({ title: spec.title, eyebrow: 'Animal Population', body: <FlowPanel spec={spec} siteKey={siteKey} win={win} /> })
-  }
-  const openFlowSite = (key: keyof typeof specs, row: string) =>
-    open({
-      title: siteOf(row)?.name ?? row,
-      eyebrow: specs[key].title,
-      body: <FlowPanel spec={specs[key]} siteKey={row} win={win} />,
-    })
-  return { move, openFlow, openFlowSite }
-}
+/* `useFlowSheets` lived here — it built the per-flow sheets the movement list opened.
+   That list and the summary strip under it are both gone; the flows are reached from the
+   Births and Mortality columns and from `Recorded flows`, which route to the module. */
 
 /* ── the page ────────────────────────────────────────────────────────────── */
 
@@ -281,7 +261,7 @@ export default function Animals() {
   applyRef.current = setFacets
   const applyFacets = useCallback((next: Facets) => applyRef.current(next), [])
 
-  const { allHoldings, rows, allSpecies, species } = useLens(siteKey, win, facets)
+  const { allHoldings, rows, species } = useLens(siteKey, win, facets)
 
   const total = totalOf(rows)
   const collection = totalOf(allHoldings)
@@ -293,17 +273,58 @@ export default function Animals() {
 
   const openSite = (key: string) =>
     open({ title: siteOf(key)?.name ?? key, eyebrow: 'Animal Population', body: <SitePanel siteKey={key} win={win} /> })
+  /* "View all" is the same contextual sheet every other drill uses, holding the complete
+     listing the card only shows the head of. Each row opens that site's own panel, so the
+     sheet is a way IN rather than a terminus. */
+  /* The complete listing keeps `SpeciesCard` — it already carries search, four sorts and
+     paging over 4,745 rows, and rebuilding that inside the sheet would be a second
+     implementation of a control that works. */
+  const openAllSpecies = () =>
+    open({
+      title: 'Species',
+      eyebrow: 'Collection Explorer',
+      body: (
+        <div className="pb-2">
+          <SpeciesCard rows={species} query={query} onQuery={setQuery} onOpen={openSpecies} />
+        </div>
+      ),
+    })
+
+  const openAllSites = () =>
+    open({
+      title: 'Sites',
+      eyebrow: 'Animal Population',
+      body: (
+        <div className="px-[var(--gutter)] pb-2">
+          <Section icon={MapPin} label="Site population" aside={`${sites.length} sites`}>
+            <RankList
+              items={sites.map((r) => ({
+                key: r.key,
+                title: r.name,
+                meta: `${r.code} · ${r.species} species · ${r.enclosures} enclosures`,
+                value: fmt(r.animals),
+                share: r.percent,
+                change: r.net === 0 ? undefined : signed(r.net),
+                onPick: () => openSite(r.key),
+              }))}
+            />
+          </Section>
+        </div>
+      ),
+    })
+
   const openSpecies = (row: SpeciesRow) =>
     open({ title: row.name, eyebrow: row.siteName, body: <SpeciesPanel row={row} win={win} /> })
 
   /* THE SAME FOUR SHEETS THE ROWS ALWAYS OPENED, named rather than inlined five times over.
      What changed on this page is which mark carries the tap, never where the tap goes. */
-  const openClass = (cls: string) =>
-    open({
-      title: cls,
-      eyebrow: 'Collection composition',
-      body: <ClassGroup cls={cls} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
-    })
+  /* `openClass` opened the class sheet. Selecting a class in the explorer recuts the panel
+     beside it instead, which is the whole point of the two-panel layout. */
+
+
+
+
+
   const openRegulatory = (regulated: boolean) =>
     open({
       title: regulated ? 'Regulatory' : 'Non-regulatory',
@@ -334,10 +355,6 @@ export default function Animals() {
   const scheduleTotal = schedules.reduce((n, b) => n + b.animals, 0)
   const citesShare = total ? (citesTotal / total) * 100 : 0
 
-
-
-
-
   return (
     <>
       {/* 1 · TOOLBAR. The router's header already carries the back chevron, the title, the
@@ -356,10 +373,6 @@ export default function Animals() {
         head={
           <Toolbar
             bare
-            scopeName={scopeName}
-            asOf={longDate(win.to)}
-            sites={siteKey ? 1 : SITES.length}
-            species={allSpecies.length}
             query={query}
             onQuery={setQuery}
             facets={facets}
@@ -409,138 +422,123 @@ export default function Animals() {
           WHAT WE ANSWER FOR    the three regulatory instruments
       */}
       <Stack>
-        <Wide>
-          <Section icon={PawPrint} label="What we hold" aside={`as of ${longDate(win.to)}`}>
-            {/* Composition first: the shape of the collection before any list of it.
+        <SectionLabel n={1}>Population</SectionLabel>
+        <Grid cols={2}>
+          <div className="@[560px]:col-span-2">
+            <PopulationOverview siteKey={siteKey} facets={facets} onSex={(v) => setFacets({ ...facets, sex: v })} />
+          </div>
+          {/* BIRTHS AND MORTALITY SHARE A ROW, and the order is the argument for it: they are
+              the same question with opposite signs, so reading them side by side is reading
+              population IN against population OUT. Split across rows — trend beside births,
+              mortality beside flows — the comparison needed a scroll. They are also two copies
+              of the same mark at the same height, so the row edges come out level without any
+              equal-height override. */}
+          <FlowTrendCard slug="births" label="Births" noun="births" icon={Baby} tone="good" siteKey={siteKey} />
+          <FlowTrendCard slug="mortality" label="Mortality" noun="deaths" icon={Skull} tone="bad" siteKey={siteKey} />
+          {/* The curve and the ledger that explains it, paired: the trend states WHAT the
+              headcount did, the flows state WHY. */}
+          <TrendCard siteKey={siteKey} scopeName={scopeName} globalWin={win} />
+          <FlowSummaries siteKey={siteKey} />
+        </Grid>
 
-                THE TREEMAP IS GONE AND THE RULE WENT WITH IT. It drew three near-identical
-                green blocks — Aves, Mammalia, Reptilia — above a row of unlabelled slivers for
-                the nine classes under about 13% of the box, in 330px, directly on top of a list
-                naming the same three classes with the same three figures. Two marks answering
-                one question, and the more prominent of them was the one that could not name its
-                own cells. A squarified treemap earns its space on a deep hierarchy with a
-                readable spread; a 39/32/27 split with a nine-class tail is neither.
+        <SectionLabel n={2}>Collection</SectionLabel>
+        {/* TWO COLUMNS, NOT THREE. The band holds Site population, Population leaders and the
+            full-width explorer — so a 3-column grid put two cards in row one and left the third
+            cell EMPTY, which measured as a 351px ragged edge. Two columns fill the row. */}
+        <Grid cols={2}>
+          <SitesCard rows={sites} scoped={siteKey} onOpen={openSite} onViewAll={openAllSites} />
+          <LeadersCard siteKey={siteKey} facets={facets} />
 
-                What replaces it is the one thing the list underneath genuinely cannot show: all
-                twelve classes as parts of a single whole, in one line. The list has the names
-                and the numbers; the strip has the proportion. */}
-            <Section bare icon={Layers} label="Collection composition" aside={plural(classes.length, 'class')}>
-              <Ribbon items={classes.map((c) => ({ label: c.cls, value: c.animals }))} height={12} />
-              <RankList
-                rank={false}
-                items={classes.map((c) => ({
-                  key: c.cls,
-                  title: c.cls,
-                  meta: `${c.species} species`,
-                  value: fmt(c.animals),
-                  share: c.percent,
-                  lead: classGlyph(c.cls),
-                  onPick: () => openClass(c.cls),
-                }))}
-              />
-            </Section>
-
-            <SexCard bare siteKey={siteKey} facets={facets} />
-            <SitesCard bare rows={sites} scoped={siteKey} onOpen={openSite} />
-            <SpeciesCard bare rows={species} query={query} onQuery={setQuery} onOpen={openSpecies} />
-            <LeadersCard bare siteKey={siteKey} facets={facets} />
-          </Section>
-        </Wide>
-
-        <Wide>
-          <Section icon={Sparkles} label="What changed" aside={win.window}>
-            <PopulationChangeCard bare siteKey={siteKey} />
-            <TrendCard bare siteKey={siteKey} scopeName={scopeName} globalWin={win} />
-            {/* FIVE MODULES STOPPED BEING RE-ANSWERED HERE.
-
-                Births ran to 3,444px inside this card and Mortality to 4,198px — each a full
-                module page's worth of trend, calendar, site ladder, species table and cause
-                breakdown, inlined. Together with transfers, escapes and fetal loss that was
-                8,213px, 42% of a page that measured eighteen thousand, and every one of those
-                questions has a page of its own that now reads the same tables directly.
-
-                The reason it was built this way no longer holds. When those modules were
-                authored fixtures, inlining them here was the only place the figures agreed;
-                now `#/births` and `#/mortality` derive from the same events under the same
-                scope, so a summary that links out cannot disagree with what it links to.
-
-                What stays is what belongs on a POPULATION page: the size of each flow, its
-                direction, and its recent shape. What goes is the analysis of each flow, which
-                is the module's job. */}
-            <FlowSummaries bare siteKey={siteKey} />
-          </Section>
-        </Wide>
-
-        <Wide>
-          <Section icon={ScrollText} label="What we answer for" aside={`${pct(reg.regulated.percent)} regulated`}>
-            {/* THE THREE INSTRUMENTS STAY APART INSIDE THE GROUP. CITES is a trade convention,
-                the Schedules are Indian domestic law and the Red List is an assessment of
-                extinction risk. An animal routinely carries two of them or all three, so they do
-                NOT sum and must never be drawn as one distribution. Grouping them in one card is
-                a statement about where a reader looks, not about the figures adding up. */}
-            <Section bare icon={ScrollText} label="Regulatory standing" aside={`${pct(reg.regulated.percent)} regulated`}>
-            <PercentSplit
-            unit="animals"
-            left={{
-            label: 'Regulatory',
-            value: reg.regulated.animals,
-            meta: `${reg.regulated.species} species`,
-            onPick: () => openRegulatory(true),
-            }}
-            right={{
-            label: 'Non-regulatory',
-            value: reg.open.animals,
-            meta: `${reg.open.species} species`,
-            onPick: () => openRegulatory(false),
-            }}
+          {/* THE EXPLORER SPANS THE ROW. Two cards became one: the composition list is now the
+              class index on its left, and the species list is what a class selection recuts. */}
+          <div className="@[560px]:col-span-2 @[900px]:col-span-3">
+            <CollectionExplorer
+              classes={classes}
+              species={species}
+              onOpenSpecies={openSpecies}
+              onViewAllSpecies={openAllSpecies}
             />
-            </Section>
+          </div>
+        </Grid>
 
-            <Section bare icon={ShieldAlert} label="CITES" aside={`${pct(citesShare)} of collection listed`}>
+        <SectionLabel n={3}>Conservation &amp; Regulatory</SectionLabel>
+        {/* THE THREE INSTRUMENTS STAY APART. CITES is a trade convention, the Schedules are
+            Indian domestic law and the Red List is an assessment of extinction risk. An animal
+            routinely carries two or all three, so they do NOT sum and must never be drawn as one
+            distribution — four cards, not one stacked chart. */}
+        <Grid cols={2}>
+          <Section icon={ScrollText} label="Regulatory standing" aside={`${pct(reg.regulated.percent)} regulated`}>
+            <PercentSplit
+              unit="animals"
+              left={{
+                label: 'Regulatory',
+                value: reg.regulated.animals,
+                meta: `${reg.regulated.species} species`,
+                onPick: () => openRegulatory(true),
+              }}
+              right={{
+                label: 'Non-regulatory',
+                value: reg.open.animals,
+                meta: `${reg.open.species} species`,
+                onPick: () => openRegulatory(false),
+              }}
+            />
+          </Section>
+
+          <Section icon={ShieldAlert} label="CITES" aside={`${pct(citesShare)} listed`}>
             <Ribbon items={cites.map((b) => ({ label: b.label, value: b.animals }))} height={11} />
             <div className="mt-4">
-            <RankList
-            rank={false}
-            showShare={false}
-            items={cites.map((b) => ({
-            key: b.key,
-            title: b.label,
-            meta: `${b.species} species · ${pct(b.percent)} of collection`,
-            value: fmt(b.animals),
-            share: citesTotal ? (b.animals / citesTotal) * 100 : 0,
-            onPick: b.animals > 0 ? () => openCites(b.key as CitesAppendix) : undefined,
-            }))}
-            />
+              <RankList
+                rank={false}
+                showShare={false}
+                items={cites.map((b) => ({
+                  key: b.key,
+                  title: b.label,
+                  meta: `${b.species} species · ${pct(b.percent)}`,
+                  value: fmt(b.animals),
+                  share: citesTotal ? (b.animals / citesTotal) * 100 : 0,
+                  onPick: b.animals > 0 ? () => openCites(b.key as CitesAppendix) : undefined,
+                }))}
+              />
             </div>
-            </Section>
-
-            <Section bare icon={ScrollText} label="Wildlife Protection Act" aside="Schedule I · II · III">
-            <CompareTiles
-            items={schedules.map((b) => ({
-            key: b.key,
-            kicker: `Schedule ${b.key}`,
-            value: b.animals,
-            share: scheduleTotal ? (b.animals / scheduleTotal) * 100 : 0,
-            facts: [`${b.species} species`, `${pct(b.percent)} of collection`],
-            onPick: b.animals > 0 ? () => openSchedule(b.key as ScheduleClass) : undefined,
-            }))}
-            />
-            </Section>
-
-            <Section bare icon={ShieldAlert} label="IUCN conservation status" aside="tap a category">
-            <RedList
-            counts={iucnCounts(rows)}
-            onOpen={(code) =>
-            open({
-            title: RED_LIST.find((c) => c.code === code)?.name ?? code,
-            eyebrow: 'IUCN Red List',
-            body: <IucnGroup code={code} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
-            })
-            }
-            />
-            </Section>
           </Section>
-        </Wide>
+
+          <Section icon={ScrollText} label="Wildlife Protection Act" aside="Schedule I · II · III">
+            {/* A LIST, LIKE CITES ABOVE IT. Three comparison tiles gave each schedule a box of
+                its own, which reads as three separate findings and cost three times the height
+                of three rows — and the two cards sit side by side stating the same KIND of
+                thing, so they should stack the same way. */}
+            <RankList
+              rank={false}
+              showShare={false}
+              items={schedules.map((b) => ({
+                key: b.key,
+                title: `Schedule ${b.key}`,
+                meta: `${b.species} species · ${pct(b.percent)}`,
+                value: fmt(b.animals),
+                share: scheduleTotal ? (b.animals / scheduleTotal) * 100 : 0,
+                onPick: b.animals > 0 ? () => openSchedule(b.key as ScheduleClass) : undefined,
+              }))}
+            />
+          </Section>
+
+          <Section icon={ShieldAlert} label="IUCN conservation status" aside="tap a category">
+            <RedList
+              counts={iucnCounts(rows)}
+              onOpen={(code) =>
+                open({
+                  title: RED_LIST.find((c) => c.code === code)?.name ?? code,
+                  eyebrow: 'IUCN Red List',
+                  body: <IucnGroup code={code} rows={rows} win={win} siteKey={siteKey ?? undefined} />,
+                })
+              }
+            />
+          </Section>
+        </Grid>
+
+        <SectionFoot>
+          All numbers are as of {longDate(win.to)} and based on the selected filters.
+        </SectionFoot>
       </Stack>
     </>
   )
@@ -549,144 +547,206 @@ export default function Animals() {
 /* ── the eight cards that carry their own date range ─────────────────────── */
 
 /**
- * Each of these was a `<Section>` inline in the page body, reading the page's window and
- * printing it back out as static text in its header. They are components now for one reason:
- * a card that can be set to its own range has to DERIVE its own figures, and the derivation
- * needs hooks, so it needs a component. The bodies are otherwise the markup they always were.
+ * POPULATION OVERVIEW — the headcount and who it is made of, in one container.
  *
- * Every one of them takes `siteKey` and the lens rather than the resolved data, because the data
- * is a function of the window and the window is theirs.
+ * TWO CARDS BECAME ONE, AND THE REASON IS HEIGHT RATHER THAN TIDINESS. Population change and Sex
+ * distribution were two cards in one row that could not agree on a height, because one is a
+ * bridge plus a six-part breakdown and the other is a ring plus three rows. Whichever was shorter
+ * ended in white space. Merged, there is one header, one set of padding and one card edge, and the
+ * two zones simply end where their content ends — the divider between them carries the boundary
+ * the two card edges used to.
+ *
+ * 55/45, and the left is wider because it holds a 3x2 grid of figures while the right holds a ring
+ * and three rows.
+ *
+ * THE SPLIT ENGAGES AT 880px OF CARD, NOT 700. At 700 it turned on before there was room for it:
+ * measured at a 1024px viewport the right zone was 315px, the ring took 140 of them, and the
+ * legend labels rendered at ZERO width — three coloured dots with numbers and no words. The class
+ * list in the explorer went the same way, truncating "Mammalia" to "Mam...". 880 is the width at
+ * which both zones hold their content without a single truncation; below it they stack, which
+ * measures clean at every width tested.
+ *
+ * CENSUS ADJUSTMENT IS HIDDEN AT ZERO. It was "Census revision" and always rendered — a technical
+ * word for the arithmetic gap between the register and the records, printing "0" on an executive
+ * overview to say nothing happened. It now appears only when it is non-zero, which is the only
+ * time it is information, and it is named for what a reader would call it.
  */
+/* The three inks this container uses, named where they are used. Neutral dark rather than pure
+   black: #1F2421 on a white card reads as considered, #000 reads as a default. */
+const INK = '#1F2421'
+const INK_2 = '#777C78'
+const INK_3 = '#9A9E9B'
 
-/**
- * The rows of the movement column, and what each one is allowed to claim.
- *
- * THREE SUB-LINES CAME OFF THESE ROWS, each of them a real column split into categories the
- * column does not contain:
- *
- *   · "0 natural · 0 assisted" under Births. `report_births.accession_type` is 'Natality' on
- *     all 66,303 rows, so both halves of the split are empty and the line said the collection
- *     had no natural births in the window.
- *   · "Transfer in +0". Every destination in the extract is outbound — see `population.ts`.
- *     The row is gone rather than zeroed, because an animal arriving is an accession and is
- *     already counted one row down.
- *   · "Transfer out" is now "Released or transferred out", which is what 84% Wild Release is.
- *
- * The deaths sub-line survives because it is a genuine ratio of two real counts.
- */
-const MOVEMENTS = (
-  move: ReturnType<typeof movement>,
-  delta: { closing: number },
-): { key: 'births' | 'mortality' | 'transferOut' | null; label: string; sub?: string; value: number }[] => [
-  { key: 'births', label: 'Births', value: move.births.total },
-  { key: null, label: 'Accessions', sub: 'Rescue, confiscation, intake', value: move.accessions },
-  {
-    key: 'mortality',
-    label: 'Deaths',
-    sub: `${((move.deaths / Math.max(1, delta.closing)) * 100).toFixed(3)}% of collection`,
-    value: -move.deaths,
-  },
-  {
-    key: 'transferOut',
-    label: 'Released or transferred out',
-    sub: 'External · releases, loans and rehoming',
-    value: -move.transfers.out,
-  },
-]
-
-function PopulationChangeCard({ siteKey, bare }: { siteKey: string | null; bare?: boolean }) {
-  const { win, pill, overridden } = useCardWindow()
-  const { move, openFlow } = useFlowSheets(siteKey, win)
+function PopulationOverview({
+  siteKey,
+  facets,
+  onSex,
+}: {
+  siteKey: string | null
+  facets: Facets
+  onSex: (sex: Facets['sex']) => void
+}) {
+  /* NO PER-CARD WINDOW. The pill let this card be recut independently of the page, which is right
+     for a chart buried mid-page and wrong for the page's headline card — an overview on a different
+     window from the filter above it is the contradiction the scope header exists to prevent. */
+  const { scope } = useScope()
+  const win = scope.win
+  const move = useMemo(() => movement(siteKey, win), [siteKey, win])
   const delta = useMemo(() => change(siteKey, win), [siteKey, win])
+  const { species } = useLens(siteKey, win, facets)
+  const sexes = useMemo(() => sexTotals(species), [species])
+
+  const share = (n: number) => Math.round((n / Math.max(1, sexes.total)) * 100)
+
+  const flows: { key: string; label: string; icon: LucideIcon; value: number | null; sign: 1 | -1; note?: string }[] = [
+    { key: 'births', label: 'Births', icon: Baby, value: move.births.total, sign: 1 },
+    { key: 'accession', label: 'Accessions', icon: Boxes, value: move.accessions, sign: 1 },
+    { key: 'mortality', label: 'Mortality', icon: Skull, value: move.deaths, sign: -1 },
+    { key: 'transfers', label: 'Transfers out', icon: ArrowLeftRight, value: move.transfers.out, sign: -1 },
+    { key: 'escaped', label: 'Escapes', icon: Footprints, value: null, sign: -1, note: UNSOURCED.escaped },
+    { key: 'fetal', label: 'Fetal loss', icon: Dna, value: null, sign: -1, note: UNSOURCED.fetal },
+  ]
+
+  /* Lightness steps of the accent, never cycled hues — the house rule in `exec/marks.tsx`. */
+  /* Three flat steps of the brand green, and white ink ONLY on the one dark enough to carry it —
+     white on the two pale segments is the low-contrast label the brief rules out. */
+  const bars = [
+    { key: 'm', label: 'Male', value: sexes.male, fill: '#37bd69', ink: '#ffffff' },
+    { key: 'f', label: 'Female', value: sexes.female, fill: '#8fd9ae', ink: '#15512f' },
+    { key: 'u', label: 'Undetermined', value: sexes.unknown, fill: '#d6f0e0', ink: '#15512f' },
+  ]
 
   return (
-    <Section bare={bare} icon={Sparkles} label="Population change" aside={pill}>
-      {/* THE BRIDGE IS ONE ROW, NOT THREE.
+    <Section lead icon={Sparkles} label="Population overview">
+      <div className="grid grid-cols-1 gap-5 @[880px]:grid-cols-[55%_1fr] @[880px]:gap-7">
+        {/* ── left · how the headcount moved ─────────────────────────────── */}
+        <div className="min-w-0 @[880px]:border-r @[880px]:border-[#f0efec] @[880px]:pr-7">
+          {/* EACH FIGURE SITS OVER ITS OWN CAPTION. Inline, the date read as part of the number
+              beside it — "109,878 30 Apr" is two facts with no boundary, and at three figures to a
+              row the eye had to work out where each one ended. Stacked, the number is the thing
+              and the line under it says which number it is. */}
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+            <span className="min-w-0">
+              <span className="block font-display text-n-sm font-medium tabular-nums" style={{ color: INK_2 }}>
+                {fmt(delta.opening)}
+              </span>
+              <span className="mt-1 block text-caption" style={{ color: INK_3 }}>
+                {shortDate(Math.max(0, win.from - 1))} · starting
+              </span>
+            </span>
+            <span className="pb-5 text-caption" style={{ color: INK_3 }} aria-hidden>
+              →
+            </span>
+            <span className="min-w-0">
+              <span
+                className="block font-display text-n font-semibold tabular-nums"
+                style={{ color: TONE[netTone(delta.net)] }}
+              >
+                {signed(delta.net)}
+              </span>
+              <span className="mt-1 block text-caption" style={{ color: INK_3 }}>
+                net change
+              </span>
+            </span>
+            <span className="pb-5 text-caption" style={{ color: INK_3 }} aria-hidden>
+              →
+            </span>
+            <span className="min-w-0">
+              <span className="block font-display text-n-xl font-semibold tabular-nums" style={{ color: INK }}>
+                {fmt(delta.closing)}
+              </span>
+              <span className="mt-1 block text-caption" style={{ color: INK_3 }}>
+                {shortDate(win.to)} · current
+              </span>
+            </span>
+          </div>
 
-          Opening, change and current were three full-width rows carrying one number each —
-          about 180px to say 109,677 → +142 → 109,813, and stacked like that the reader has to
-          hold two figures in their head to see that the middle one connects the other two. The
-          relationship IS the card, so it is drawn as a relationship: three terms on one line
-          with the arithmetic between them, in a third of the height. */}
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="tabular-nums" style={{ color: MUTED }}>
-          <span className="text-body font-medium">{fmt(delta.opening)}</span>
-          <span className="ml-1.5 text-caption">{shortDate(Math.max(0, win.from - 1))}</span>
-        </span>
-        <span className="text-caption" style={{ color: FAINT }} aria-hidden>
-          →
-        </span>
-        <span
-          className="text-body font-semibold tabular-nums"
-          style={{ color: TONE[netTone(delta.net)] }}
-        >
-          {signed(delta.net)}
-        </span>
-        <span className="text-caption" style={{ color: FAINT }} aria-hidden>
-          →
-        </span>
-        <span className="tabular-nums" style={{ color: HERO_INK }}>
-          <span className="font-display text-n-md font-bold">{fmt(delta.closing)}</span>
-          <span className="ml-1.5 text-caption" style={{ color: MUTED }}>
-            {shortDate(win.to)}
-          </span>
-        </span>
-      </div>
-      <Rule label="Recorded movement" />
-      <ul className="flex flex-col">
-        {MOVEMENTS(move, delta).map((f) => (
-          <MoveRow
-            key={f.label}
-            label={f.label}
-            sub={f.sub}
-            value={f.value}
-            peak={Math.max(move.births.total, move.deaths, move.accessions, move.transfers.out, 1)}
-            onOpen={f.key ? () => openFlow(f.key!) : undefined}
+          {/* A LABEL, NOT A `Rule`. The rule drew a hairline the full width of the zone and cost
+              about 40px to say two words — and §6 asks for fewer dividers, keeping only the one
+              above Net change and the vertical one between the zones. */}
+          <p className="mt-6 mb-3 text-body font-semibold" style={{ color: INK }}>What changed</p>
+          <ul className="grid grid-cols-2 gap-x-5 gap-y-3 @[420px]:grid-cols-3">
+            {flows.map((f) => (
+              <li key={f.key} className="min-w-0">
+                <span className="flex items-center gap-2">
+                  <f.icon size={18} strokeWidth={1.75} className="shrink-0" style={{ color: INK_3 }} aria-hidden />
+                  <span className="min-w-0 truncate text-body" style={{ color: INK_2 }}>
+                    {f.label}
+                  </span>
+                </span>
+                {/* "NA", not an em dash. A dash reads as a value the card declined to print; NA
+                    reads as "not available", which is what `UNSOURCED` means — the extract holds
+                    no escape or fetal-loss record. The reason stays in the tooltip. */}
+                {f.value === null ? (
+                  <span className="mt-1 block text-lead font-medium italic" style={{ color: INK_3 }} title={f.note}>
+                    NA
+                  </span>
+                ) : (
+                  <span
+                    className="mt-1 block font-display text-lead font-bold tabular-nums"
+                    style={{ color: f.value === 0 ? INK_3 : f.sign > 0 ? TONE.good : TONE.bad }}
+                  >
+                    {f.value === 0 ? '0' : signed(f.sign * f.value)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* "Net change from records" and "Census adjustment" lived here. The first was the
+              third printing of +142 — the bridge above states it as the net, and the six metrics
+              beside it are what it is the sum of. */}
+        </div>
+
+        {/* ── right · who they are ───────────────────────────────────────── */}
+        <div className="min-w-0">
+          {/* 140, NOT 158 — AND THE META LINE IS GONE. At 158 the ring took so much of a 45%
+              zone that the legend beside it collapsed: measured at a 1180px viewport, "Male" had
+              27px for 30px of text and "Undetermined" 36px for 90px, so every label rendered as
+              a sliver. Three coloured dots with numbers and no words is not a legend.
+
+              "Shoals, colonies, unsexed" went with it for the same reason — it needed 136px and
+              had 36px, so it was never readable at this width, and the word Undetermined already
+              carries the meaning it was explaining. */}
+          <SplitRing
+            size={140}
+            label="Animals"
+            unit="animals"
+            items={[
+              { key: 'm', label: 'Male', value: sexes.male, onPick: () => onSex('M') },
+              { key: 'f', label: 'Female', value: sexes.female, onPick: () => onSex('F') },
+              { key: 'u', label: 'Undetermined', value: sexes.unknown, onPick: () => onSex('U') },
+            ]}
           />
-        ))}
-      </ul>
-      {/* Escapes are not a zero here, they are an absence. `core/metrics.ts` lists `escaped`
-          under UNSOURCED — there is no escape record in the extract — and the row used to
-          render "−0 · 0 not recovered of 0", which states that nothing escaped rather than
-          that nothing is recorded. Same distinction the nine empty modules exist for. */}
-      <p className="mt-2 flex items-baseline justify-between gap-3 border-t border-[#f0efec] pt-2.5">
-        <span className="text-small" style={{ color: MUTED }}>
-          Escapes
-        </span>
-        <span className="text-caption" style={{ color: FAINT }}>
-          — {UNSOURCED.escaped}
-        </span>
-      </p>
-      <div className="mt-3 border-t border-[#f0efec] pt-3">
-        <Facts
-          items={[
-            { label: 'Net recorded movement', value: signed(move.recorded), tone: netTone(move.recorded) },
-            {
-              label: 'Census revision',
-              sub: 'Change not attributed to records',
-              value: signed(delta.net - move.recorded),
-            },
-          ]}
-        />
+          {/* ONE BAR, NO LEGEND UNDER IT. The rows above already state each count and share, so a
+              second set of figures below the bar would be the third printing of the same three
+              numbers. The bar answers only "how do they compare", which needs no labels of its
+              own beyond the percentages inside it. */}
+          {/* A FLOOR ON EVERY SEGMENT'S WIDTH. At 6% the Undetermined band was 40px of a 570px
+              bar and read as a rounding artefact rather than a third category — the brief's
+              objection exactly. A 12% floor keeps it legible while the two majors still divide
+              the rest in their true ratio, and the percentage inside states the real figure so
+              nothing is overstated. */}
+          <span className="mt-5 flex h-[38px] w-full overflow-hidden rounded-[10px]" aria-hidden>
+            {bars.map((p) => {
+              const real = (p.value / Math.max(1, sexes.total)) * 100
+              return p.value > 0 ? (
+                <span
+                  key={p.key}
+                  className="grid place-items-center text-caption font-semibold tabular-nums"
+                  /* FLAT, NOT GRADED. The gradient read as a grey wash over the green — the
+                     "dirty" look — because `mix()` lightens toward the page ground, so the top of
+                     each segment drifted off-hue. A composition bar states three shares; the only
+                     thing its fill has to do is tell them apart. */
+                  style={{ width: `${Math.max(12, real)}%`, backgroundColor: p.fill, color: p.ink }}
+                >
+                  {share(p.value)}%
+                </span>
+              ) : null
+            })}
+          </span>
+        </div>
       </div>
-      {/* Fetal loss is a breeding figure, not a headcount movement — a fetus was never in
-          the collection. It sits under its own rule so it cannot be added into the column
-          above, and it opens the same sheet the Fetal Death section does. */}
-      {/* Fetal loss used to sit here under its own rule, on the good argument that a fetus was
-          never in the collection so its loss must not be added into the column above. The
-          argument still holds and the figure does not: `fetal` is in `UNSOURCED`, so the row
-          rendered "0 stillbirth · 0 abortion" beside a real headcount — three zeros stating
-          that the collection lost no pregnancies this month. It is listed with the escapes
-          instead, where the dash says what is true. */}
-      <p className="mt-2 flex items-baseline justify-between gap-3 border-t border-[#f0efec] pt-2.5">
-        <span className="text-small" style={{ color: MUTED }}>
-          Fetal loss
-        </span>
-        <span className="text-caption" style={{ color: FAINT }}>
-          — {UNSOURCED.fetal}
-        </span>
-      </p>
-      <CardWindowNote win={win} overridden={overridden} />
     </Section>
   )
 }
@@ -731,7 +791,7 @@ function FlowSummaries({ siteKey, bare }: { siteKey: string | null; bare?: boole
       <ul className="flex flex-col">
         {rows.map((r) => (
           <li key={r.slug} className="border-b border-[#f0efec] last:border-0">
-            <a href={r.href} className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2.5 no-underline">
+            <a href={r.href} className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-3 no-underline">
               <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{r.label}</span>
               <span className="hidden w-[86px] shrink-0 @[420px]:block">
                 <MicroBars values={r.spark} tone={r.tone} />
@@ -747,7 +807,7 @@ function FlowSummaries({ siteKey, bare }: { siteKey: string | null; bare?: boole
           </li>
         ))}
         {(['escaped', 'fetal'] as const).map((slug) => (
-          <li key={slug} className="flex items-baseline justify-between gap-3 border-b border-[#f0efec] py-2.5 last:border-0">
+          <li key={slug} className="flex items-baseline justify-between gap-3 border-b border-[#f0efec] py-3 last:border-0">
             <span className="text-small" style={{ color: MUTED }}>
               {slug === 'escaped' ? 'Escapes' : 'Fetal loss'}
             </span>
@@ -762,26 +822,112 @@ function FlowSummaries({ siteKey, bare }: { siteKey: string | null; bare?: boole
   )
 }
 
-function SexCard({ siteKey, facets, bare }: { siteKey: string | null; facets: Facets; bare?: boolean }) {
-  const { win, pill, overridden } = useCardWindow()
-  const { species } = useLens(siteKey, win, facets)
-  const sexes = useMemo(() => sexTotals(species), [species])
+/**
+ * ONE CARD FOR BOTH DIRECTIONS — births and deaths, drawn identically and read together.
+ *
+ * PARAMETERISED RATHER THAN WRITTEN TWICE. Two near-identical event cards is how "births by day"
+ * and "deaths by day" end up bucketed differently, or one gains a drill the other never got.
+ * They are the same question about opposite signs, so the only things that vary are the slug,
+ * the word and the tone.
+ *
+ * A LEVEL GETS A CURVE AND A FLOW GETS COLUMNS. A line through "births per day" claims a value
+ * between the days and there is not one — eleven births on the 3rd and none on the 4th is not a
+ * slope.
+ *
+ * IT CARRIES ITS OWN WINDOW, like every other card on this page. These two were the only cards
+ * reading the page window directly, so they were the only two with no control in their corner —
+ * a filter row above six cards, four of which could be recut and two of which could not, for no
+ * reason a reader could see.
+ *
+ * THE GRAPH IS THE INTERACTION, and there is no "View details" button beside it. A column opens
+ * `FlowBucketPanel` for that column's own span, scoped to the site in force. Zero columns stay
+ * inert, because nothing is behind them.
+ */
+function FlowTrendCard({
+  slug,
+  label,
+  noun,
+  icon,
+  tone,
+  siteKey,
+  bare,
+}: {
+  slug: string
+  label: string
+  noun: string
+  icon: LucideIcon
+  tone: 'good' | 'bad'
+  siteKey: string | null
+  bare?: boolean
+}) {
+  const { open } = useSheet()
+  /* CHIPS, NOT A DATE PILL. The pill opened a sheet to choose a range — two taps and a modal to
+     do what six always-visible chips do in one, on a card whose whole subject is a time series.
+     `TREND_RANGES` is the same ladder `TrendCard` offers, so the two charts on this page are
+     recut by the same set of spans rather than by two different vocabularies. */
+  const [range, setRange] = useState(FLOW_RANGE_DEFAULT)
+  const win = (TREND_RANGES.find((r) => r.key === range) ?? TREND_RANGES[1]).win
+  const max = win.days > 200 ? 24 : 30
+  const points = useMemo(() => pointsOf(slug, siteKey, win, max), [slug, siteKey, win, max])
+  const compare = useMemo(() => compareOf(slug, siteKey, win, max), [slug, siteKey, win, max])
+
+  /* The bucket's own span becomes the sheet's window. `days` is recomputed rather than carried,
+     so a bucket can never claim a length its own bounds do not support. */
+  const pick = (pt: Pt) => {
+    if (pt.from === undefined || pt.to === undefined) return
+    const bucket: Win = { ...win, from: pt.from, to: pt.to, days: pt.to - pt.from + 1, window: pt.label }
+    open({
+      title: label,
+      eyebrow: 'Animal Population',
+      body: (
+        <FlowBucketPanel
+          slug={slug}
+          title={`${label} · ${pt.label}`}
+          bucketLabel={pt.label}
+          win={bucket}
+          siteKey={siteKey}
+          tone={tone}
+        />
+      ),
+    })
+  }
 
   return (
-    <Section bare={bare} icon={Venus} label="Sex distribution" aside={pill}>
-      <SplitRing
-        label="Animals"
-        unit="animals"
-        items={[
-          { key: 'u', label: 'Undetermined', value: sexes.unknown, meta: 'Shoals, colonies, unsexed' },
-          { key: 'm', label: 'Male', value: sexes.male },
-          { key: 'f', label: 'Female', value: sexes.female },
-        ]}
+    <Section bare={bare} icon={icon} label={label}>
+      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
+        {TREND_RANGES.map((r) => {
+          const on = r.key === range
+          return (
+            <button
+              key={r.key}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setRange(r.key)}
+              className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+                on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
+              }`}
+            >
+              {r.label}
+            </button>
+          )
+        })}
+      </div>
+      {/* Keyed on the scope for the reason `TrendCard` documents: `usePlay` latches on scroll, so
+          a card already in view would swap to a different span with no motion at all. */}
+      <EventTrend
+        key={`${slug}-${siteKey ?? 'all'}-${win.from}-${win.to}`}
+        points={points}
+        compare={compare}
+        unit={noun}
+        tone={tone}
+        onPick={pick}
+        empty={`No ${noun} recorded in ${win.window}.`}
       />
-      <CardWindowNote win={win} overridden={overridden} />
     </Section>
   )
 }
+
+/* `SexCard` was merged into `PopulationOverview` above. */
 
 
 function LeadersCard({ siteKey, facets, bare }: { siteKey: string | null; facets: Facets; bare?: boolean }) {
@@ -822,10 +968,81 @@ function LeadersCard({ siteKey, facets, bare }: { siteKey: string | null; facets
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmt(Math.abs(n))}`
 const netTone = (n: number): 'good' | 'bad' | 'neutral' => (n > 0 ? 'good' : n < 0 ? 'bad' : 'neutral')
 
-/** A section that spans both columns once the stack has split — tables and the Red List. */
-const Wide = ({ children }: { children: React.ReactNode }) => (
-  <div className="@[760px]:col-span-2">{children}</div>
-)
+/* ── the page's own layout: three labelled bands of cards ────────────────── */
+
+/**
+ * A NUMBERED SECTION LABEL, and why it is not a card.
+ *
+ * The page used to wrap each band in a white `Section` whose children were `bare` blocks. That
+ * made three enormous cards, and a card is a unit of reading — one card holding six charts says
+ * "these six are one thing". The band is now a LABEL over a grid: the heading carries no surface,
+ * and every block inside is a card of its own.
+ */
+function SectionLabel({ n, children }: { n: number; children: ReactNode }) {
+  return (
+    <div className="@[760px]:col-span-2 pt-2 first:pt-0">
+      <h2 className="text-overline font-semibold uppercase" style={{ color: ACCENT_INK }}>
+        <span className="tabular-nums">{n}.</span> {children}
+      </h2>
+    </div>
+  )
+}
+
+/**
+ * A CARD GRID that steps 1 → 2 → n with the CONTENT COLUMN, not the window.
+ *
+ * CARDS SIZE TO THEIR CONTENT — `items-start`, not stretch.
+ *
+ * This went the other way for one revision: `[&>*]:h-full` made every card fill its grid row, so
+ * the ROW edges were flush. It traded a ragged outer edge for white space inside the shorter
+ * card, which is the worse of the two — an empty half-card reads as a card that failed to load,
+ * where a short card that stops where its content stops reads as finished.
+ *
+ * The real fix is not in this component. Ragged columns are a symptom of one card carrying far
+ * more rows than its neighbour; the cure is capping the long lists and moving the remainder into
+ * the sheet, which is what `SitesCard`, `SpeciesCard` and the composition card do.
+ *
+ * ONE GAP, 16px, AT EVERY WIDTH. It was `--gap`, which steps 12 → 16 → 20 with the container,
+ * so card-to-card spacing grew as the cards did and a wide desktop drew 20px channels between
+ * six cards while the section spacing above them stayed put — two different rhythms on one
+ * screen. `--space-4` is the scale's `default` step and does not move, so the grid reads as one
+ * consistent field of cards at every tier. The token, not the number, because the whole point of
+ * the scale is that 16 is written down once.
+ *
+ * SECTION SPACING IS STILL `--gap`, and deliberately: the space between a label and its grid, and
+ * between one band and the next, should breathe more on a wide screen than the gap between two
+ * cards inside a row. That is the hierarchy — cards are tighter than sections.
+ *
+ * The thresholds are written as literals because Tailwind scans source text — a class name
+ * assembled at runtime never reaches the stylesheet.
+ *
+ * WHY THE COUNTS DIFFER PER BAND. Two for Population, whose cards carry charts that need width.
+ * Three for Collection and four for Conservation, which are lists and meters that read perfectly
+ * well narrow. One count for all three would either starve the charts or waste width on lists.
+ */
+function Grid({ cols, children }: { cols: 2 | 3 | 4; children: ReactNode }) {
+  const steps =
+    cols === 2
+      ? '@[560px]:grid-cols-2'
+      : cols === 3
+        ? '@[560px]:grid-cols-2 @[900px]:grid-cols-3'
+        : '@[560px]:grid-cols-2 @[1000px]:grid-cols-4'
+  return (
+    <div className={`@[760px]:col-span-2 grid grid-cols-1 items-start gap-[var(--space-4)] ${steps}`}>
+      {children}
+    </div>
+  )
+}
+
+/** The page's closing line — one statement of the scope every figure above was cut to. */
+function SectionFoot({ children }: { children: ReactNode }) {
+  return (
+    <p className="@[760px]:col-span-2 flex items-start gap-2 pt-1 pb-2 text-caption" style={{ color: FAINT }}>
+      <Info size={13} strokeWidth={2} className="mt-1 shrink-0" aria-hidden />
+      <span>{children}</span>
+    </p>
+  )
+}
 
 /**
  * The class glyph, as `TapRow` wants it.
@@ -856,72 +1073,8 @@ function sexOfHolding(h: Holding, sex: 'M' | 'F' | 'U'): number {
 
 
 
-/**
- * A signed movement row.
- *
- * `Movers` draws exactly this bar and `TapRow` draws exactly this chevron; neither draws both,
- * and the whole point of the movement card is that each flow is a figure you can open. So the
- * two are composed here, in the one place that needs it, from the same tokens.
- */
-function MoveRow({
-  label,
-  sub,
-  value,
-  peak,
-  onOpen,
-}: {
-  label: string
-  sub?: string
-  value: number
-  peak: number
-  onOpen?: () => void
-}) {
-  const up = value >= 0
-  const body = (
-    <span className="flex items-center gap-3">
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-small text-[#1c1a16]">{label}</span>
-        {sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{sub}</span>}
-      </span>
-      <span
-        className="w-[46px] shrink-0 text-right text-small font-medium tabular-nums"
-        style={{ color: value === 0 ? FAINT : up ? TONE.good : TONE.bad }}
-      >
-        {/* A zero takes no sign. `+0` claims a direction that a nil does not have, and this
-            column carries genuine zeros — no transfer was recorded in a twenty-day window. */}
-        {value === 0 ? '' : up ? '+' : '−'}
-        {fmt(Math.abs(value))}
-      </span>
-      <span className="relative h-[8px] w-[68px] shrink-0" aria-hidden>
-        <span className="absolute inset-y-0 left-1/2 w-px" style={{ backgroundColor: '#e3e1dc' }} />
-        <span
-          className="absolute top-[1px] h-[6px]"
-          style={{
-            left: up ? '50%' : undefined,
-            right: up ? undefined : '50%',
-            width: `${Math.max(2, (Math.abs(value) / Math.max(1, peak)) * 50)}%`,
-            borderRadius: up ? '0 3px 3px 0' : '3px 0 0 3px',
-            backgroundColor: value === 0 ? '#e3e1dc' : up ? TONE.good : mix(TONE.bad, 0.6),
-          }}
-        />
-      </span>
-      <span className="w-[10px] shrink-0" style={{ color: onOpen ? ACCENT_INK : 'transparent' }} aria-hidden>
-        ›
-      </span>
-    </span>
-  )
-  return (
-    <li className="border-b border-[#f0efec] last:border-0">
-      {onOpen ? (
-        <button type="button" onClick={onOpen} className="card-press -mx-2 block w-full rounded-[10px] px-2 py-2.5 text-left">
-          {body}
-        </button>
-      ) : (
-        <div className="py-2.5">{body}</div>
-      )}
-    </li>
-  )
-}
+/* `MoveRow` lived here — the row component for the movement list that
+   `PopulationChangeCard` no longer carries. `Recorded flows` owns that list. */
 
 
 function LeaderTile({ leader, onOpen }: { leader: Leader; onOpen?: () => void }) {
@@ -934,8 +1087,8 @@ function LeaderTile({ leader, onOpen }: { leader: Leader; onOpen?: () => void })
       <div className="mt-1">
         <Figure value={leader.value} size={24} />
       </div>
-      <p className="mt-0.5 text-small text-[#1c1a16]">{leader.label}</p>
-      {leader.sub && <p className="mt-0.5 text-caption text-[#9b958b]">{leader.sub}</p>}
+      <p className="mt-1 text-small text-[#1c1a16]">{leader.label}</p>
+      {leader.sub && <p className="mt-1 text-caption text-[#9b958b]">{leader.sub}</p>}
     </>
   )
   return (
@@ -954,10 +1107,6 @@ function LeaderTile({ leader, onOpen }: { leader: Leader; onOpen?: () => void })
 /* ── the toolbar ─────────────────────────────────────────────────────────── */
 
 function Toolbar({
-  scopeName,
-  asOf,
-  sites,
-  species,
   query,
   onQuery,
   facets,
@@ -967,10 +1116,6 @@ function Toolbar({
   win,
   bare,
 }: {
-  scopeName: string
-  asOf: string
-  sites: number
-  species: number
   query: string
   onQuery: (v: string) => void
   facets: Facets
@@ -991,14 +1136,9 @@ function Toolbar({
 
   const body = (
     <>
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="min-w-0 truncate text-small font-medium text-[#1c1a16]">
-            {scopeName} · as of {asOf}
-          </p>
-          <p className="shrink-0 text-caption whitespace-nowrap" style={{ color: FAINT }}>
-            {sites} {sites === 1 ? 'site' : 'sites'} · {fmt(species)} species
-          </p>
-        </div>
+        {/* The "Overall · as of …" / "50 sites · 4,745 species" line lived here. Both are
+            restated below — the as-of date by the page footer, the counts by the hero's own
+            stats. The search field and the filter button stay. */}
         <div className="mt-3 flex items-center gap-2">
           <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
             <Search size={14} strokeWidth={2} className="shrink-0" style={{ color: FAINT }} aria-hidden />
@@ -1067,11 +1207,11 @@ function Toolbar({
         )}
 
         {on > 0 && (
-          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {activeChips(facets).map((c) => (
               <span
                 key={c.key}
-                className="inline-flex items-center gap-1 rounded-full bg-[#f4f3ef] py-[4px] pr-1.5 pl-2.5 text-caption font-medium text-[#55524a]"
+                className="inline-flex items-center gap-1 rounded-full bg-[#f4f3ef] py-[4px] pr-1.5 pl-3 text-caption font-medium text-[#55524a]"
               >
                 {c.label}
                 <button
@@ -1218,7 +1358,7 @@ function FacetSheet({
             onApply(NO_FACETS)
             back()
           }}
-          className="card-press flex-1 rounded-[11px] border border-[#eceae5] bg-white py-2.5 text-small font-semibold text-[#3d3a34]"
+          className="card-press flex-1 rounded-[11px] border border-[#eceae5] bg-white py-3 text-small font-semibold text-[#3d3a34]"
         >
           Reset
         </button>
@@ -1228,7 +1368,7 @@ function FacetSheet({
             onApply(draft)
             back()
           }}
-          className="card-press flex-[2] rounded-[11px] py-2.5 text-small font-semibold text-white"
+          className="card-press flex-[2] rounded-[11px] py-3 text-small font-semibold text-white"
           style={{ backgroundColor: '#123a2c' }}
         >
           Apply
@@ -1258,7 +1398,7 @@ function Chips({
             type="button"
             aria-pressed={on}
             onClick={() => onPick(key)}
-            className={`shrink-0 rounded-full px-2.5 py-[5px] text-caption font-medium whitespace-nowrap transition-colors ${
+            className={`shrink-0 rounded-full px-3 py-[5px] text-caption font-medium whitespace-nowrap transition-colors ${
               on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
             }`}
           >
@@ -1297,14 +1437,10 @@ function TrendCard({
     return c && { ...c, series: undefined }
   }, [siteKey, win, max])
 
-  const values = points.map((p) => p.value)
-  const last = values[values.length - 1] ?? 0
-  const high = values.length ? Math.max(...values) : 0
-  const low = values.length ? Math.min(...values) : 0
 
   return (
     <Section bare={bare} icon={TrendingUp} label="Population trend">
-      <div className="-mx-1 mb-3.5 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
+      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
         {[...TREND_RANGES.map((r) => [r.key, r.label] as [string, string]), ['custom', 'Custom'] as [string, string]].map(
           ([key, label]) => {
             const on = key === range
@@ -1319,7 +1455,7 @@ function TrendCard({
                     open({ title: 'Date range', eyebrow: globalWin.window, body: <DateSheet /> })
                   }
                 }}
-                className={`shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+                className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
                   on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
                 }`}
               >
@@ -1355,25 +1491,217 @@ function TrendCard({
         empty={`${win.window} is a single reading — pick a longer range to see the curve.`}
       />
 
-      {points.length > 1 && (
-        /* A READOUT OF THE CURVE, NOT A SECOND NET CHANGE. The population card above owns the
-           delta and the window it was measured over; a change computed here across a different
-           range would sit two cards away from it reading as a contradiction. High, low and
-           latest are properties of the line that is drawn. */
-        <div className="mt-4 border-t border-[#f0efec] pt-3">
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Latest', value: fmt(last) },
-              { label: 'Range high', value: fmt(high) },
-              { label: 'Range low', value: fmt(low) },
-            ]}
-          />
-        </div>
-      )}
+      {/* THE LATEST / RANGE-HIGH / RANGE-LOW READOUT LIVED HERE.
+
+          Removed: "Latest" restated the headline figure directly above it — the same number
+          twice in one card — and the two range bounds were already the two figures printed
+          inside the plot's own scale. Three stats, none of which the curve had not already
+          said. Taking them out is what makes this card the height of its chart.
+          `last`, `high` and `low` go with it. */}
     </Section>
   )
 }
+
+/** Births and Mortality open on the same span as the population curve. */
+const FLOW_RANGE_DEFAULT = '30d'
+
+/** Species rows rendered into the page. The rest live in the sheet. */
+const SPECIES_ROWS = 5
+
+/**
+ * THE COLLECTION EXPLORER — class on the left, its species on the right, one container.
+ *
+ * WHAT IT REPLACES AND WHY. The composition card listed twelve classes with counts; the species
+ * card listed species with a metadata line naming their class. Two cards, one hierarchy, and the
+ * relationship between them — these species are IN that class — was left for the reader to infer
+ * from a string. Selecting a class here recuts the right panel in place, so the hierarchy is the
+ * interaction rather than a caption.
+ *
+ * NO SCIENTIFIC NAME. The brief asks for one under each species; the extract is anonymised and
+ * carries no binomial, so the row states what the database holds. An invented Latin name is the
+ * one thing worse than its absence.
+ *
+ * NOTHING IS FETCHED OR RECOMPUTED. `classes` and `species` are the same two arrays the old
+ * cards read, already scoped to the page's site and window. The class filter is a `filter` over
+ * rows that are already in memory, which is why switching class costs nothing.
+ */
+function CollectionExplorer({
+  classes,
+  species,
+  onOpenSpecies,
+  onViewAllSpecies,
+}: {
+  classes: { cls: string; animals: number; species: number; percent: number }[]
+  species: SpeciesRow[]
+  onOpenSpecies: (row: SpeciesRow) => void
+  onViewAllSpecies: () => void
+}) {
+  const accent = useAccent()
+  /* Default is the largest class rather than a hardcoded name — "Aves" is only first because it
+     happens to be biggest, and a filtered scope may not hold it at all. */
+  const [cls, setCls] = useState<string>(classes[0]?.cls ?? '')
+  /* Fixed order: the top of a class by population. The full listing in the sheet sorts. */
+  const sort: SpeciesSort = 'animals'
+
+  const active = classes.find((c) => c.cls === cls) ?? classes[0]
+  const inClass = useMemo(
+    () => sortSpecies(species.filter((r) => r.cls === (active?.cls ?? '')), sort),
+    [species, active, sort],
+  )
+  const shown = inClass.slice(0, SPECIES_ROWS)
+
+  return (
+    <Section
+      icon={Layers}
+      label="Collection Explorer"
+    >
+      {/* 30/70, and the split is the argument: the class list is a short index the reader passes
+          through, the species list is where they spend their time. Stacked below 700px of CARD —
+          not of window — because two 45% panels on a phone are two unusable panels. */}
+      <div className="grid grid-cols-1 gap-4 @[880px]:grid-cols-[30%_1fr] @[880px]:gap-6">
+        {/* ── left · classes ─────────────────────────────────────────────── */}
+        <div className="@[880px]:border-r @[880px]:border-[#f0efec] @[880px]:pr-6">
+          <p className="mb-2 text-overline font-semibold uppercase" style={{ color: FAINT }}>
+            Collection classes
+          </p>
+          <ul className="flex max-h-[292px] flex-col overflow-y-auto pr-1 scrollbar-hidden">
+            {classes.map((c) => {
+              const on = c.cls === active?.cls
+              const Glyph = classGlyph(c.cls)
+              return (
+                <li key={c.cls}>
+                  <button
+                    type="button"
+                    onClick={() => setCls(c.cls)}
+                    aria-pressed={on}
+                    className="card-press -mx-2 flex w-full items-center gap-2 rounded-[10px] px-2 py-2 text-left transition-colors"
+                    style={on ? { backgroundColor: mix(accent, 0.1) } : undefined}
+                  >
+                    <Glyph size={14} strokeWidth={1.75} className="shrink-0" style={{ color: on ? ACCENT_INK : FAINT }} aria-hidden />
+                    <span className="min-w-0 flex-1 truncate text-small font-medium text-[#1c1a16]">{c.cls}</span>
+                    <span className="shrink-0 text-caption tabular-nums text-[#3d3a34]">{fmt(c.animals)}</span>
+                    <span className="w-[38px] shrink-0 text-right text-caption tabular-nums" style={{ color: FAINT }}>
+                      {pct(c.percent)}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          {/* THE LIST SCROLLS IN PLACE instead of offering "View all 12 classes". Twelve rows is
+              not a listing that needs a sheet — it needs about four rows of height back, which a
+              scroll area gives while keeping every class one gesture away in the same container. */}
+        </div>
+
+        {/* ── right · species in the selected class ──────────────────────── */}
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <p className="text-small font-semibold text-[#1c1a16]">Species in {active?.cls ?? '—'}</p>
+            <span className="flex items-baseline gap-3">
+              <span className="text-body font-medium tabular-nums" style={{ color: MUTED }}>
+                {fmt(inClass.length)} species
+              </span>
+              {/* AT THE TOP, beside the count it qualifies. At the foot it sat below eight rows,
+                  so a reader had to reach the end of a truncated list to learn it was truncated. */}
+              {inClass.length > shown.length && (
+                <button type="button" onClick={onViewAllSpecies} className="text-caption font-semibold" style={{ color: ACCENT_INK }}>
+                  View all →
+                </button>
+              )}
+            </span>
+          </div>
+
+          {/* The four sort chips lived here. The list is the top eight of a class by population,
+              which is the one order that answers "what dominates this class" — re-sorting eight
+              rows by name is a control with nothing to do. The full listing in the sheet keeps all
+              four sorts, where 2,232 rows make them worth having. */}
+
+          {shown.length === 0 ? (
+            <p className="py-2 text-caption" style={{ color: FAINT }}>
+              No species recorded in {active?.cls ?? 'this class'}.
+            </p>
+          ) : (
+            <ul className="flex flex-col">
+              {shown.map((r) => (
+                <li key={r.id} className="border-b border-[#f0efec] last:border-0">
+                  <button
+                    type="button"
+                    onClick={() => onOpenSpecies(r)}
+                    className="card-press -mx-2 flex w-full items-start gap-3 rounded-[10px] px-2 py-3 text-left"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 truncate text-small font-medium text-[#1c1a16]">{r.name}</span>
+                        <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
+                          {fmt(r.animals)}
+                        </span>
+                      </span>
+                      <SexBar row={r} />
+                    </span>
+                    <span className="shrink-0 pt-1 text-right">
+                      {r.net !== 0 && (
+                        <span
+                          className="block text-caption font-medium tabular-nums"
+                          style={{ color: r.net > 0 ? TONE.good : TONE.bad }}
+                        >
+                          {signed(r.net)}
+                        </span>
+                      )}
+                    </span>
+                    <ChevronRight size={13} strokeWidth={2.25} className="mt-1 shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+/**
+ * ONE SEGMENTED BAR, not three unrelated figures.
+ *
+ * Male, female and undetermined are parts of one headcount, so they are drawn as one bar whose
+ * segments sum to it. The three percentages are stated under it because a bar answers "which is
+ * bigger" and a reader also needs "by how much" — the bar is for scanning, the numbers for the
+ * one row they stopped on.
+ */
+function SexBar({ row }: { row: SpeciesRow }) {
+  const accent = useAccent()
+  const parts = [
+    { key: 'm', word: 'Male', value: row.male, fill: mix(accent, 0.85) },
+    { key: 'f', word: 'Female', value: row.female, fill: mix(accent, 0.5) },
+    { key: 'u', word: 'Undetermined', value: row.unknown, fill: mix(accent, 0.22) },
+  ]
+
+  /* THE HAIRLINE BAR IS GONE, and so is the dot-separated string it sat under. Five pixels of
+     three-part bar is too thin to compare and too wide to ignore, and "M 49% · F 42% · U 9% · 2
+     sites" is four facts run into one line where none of them can be found. Each sex is now a
+     labelled figure with its own swatch, which is what "properly shown" means for three parts of
+     one headcount: the word, the count, the share, aligned so the eye can go down the column. */
+  return (
+    <span className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+      {parts.map((p) => (
+        <span key={p.key} className="flex items-baseline gap-1.5">
+          <span className="size-[7px] shrink-0 translate-y-[-1px] rounded-full" style={{ backgroundColor: p.fill }} aria-hidden />
+          <span className="text-caption" style={{ color: FAINT }}>
+            {p.word}
+          </span>
+          <span className="text-caption font-medium tabular-nums text-[#3d3a34]">{fmt(p.value)}</span>
+        </span>
+      ))}
+      <span className="text-caption tabular-nums" style={{ color: FAINT }}>
+        {row.sites} {row.sites === 1 ? 'site' : 'sites'}
+      </span>
+    </span>
+  )
+}
+
+/** Tiles rendered into the page. The rest live in the sheet. */
+const SITE_TILES = 8
 
 /* ── sites ───────────────────────────────────────────────────────────────── */
 
@@ -1400,11 +1728,14 @@ const SITE_SORTS: [SiteSort, string][] = [
 function SitesCard({
   rows,
   scoped,
-  onOpen, bare }: {
+  onOpen,
+  onViewAll, bare }: {
   rows: SiteRow[]
   scoped: string | null
-  onOpen: (key: string) => void; bare?: boolean }) {
+  onOpen: (key: string) => void
+  onViewAll: () => void; bare?: boolean }) {
   const [sort, setSort] = useState<SiteSort>('animals')
+  const accent = useAccent()
   const shown = useMemo(() => sortSites(scoped ? rows.filter((r) => r.key === scoped) : rows, sort), [rows, scoped, sort])
 
   /* The leaders, stated rather than left to be counted off the grid — concentration is the
@@ -1432,9 +1763,15 @@ function SitesCard({
           species count and an enclosure count, none of which is what "where is the collection"
           asks. `TileGrid` keeps every site and drops the prose; the name survives on hover and
           for the screen reader, and the counts are one tap away in the drill. */}
+      {/* EIGHT TILES, NOT FIFTY. All fifty were rendered into the page: even as tiles that is
+          ten rows of grid, which made this the tallest card on the page and the reason the
+          Collection band ran three screens. Eight is the leaders plus enough tail to show the
+          shape of the drop-off; the remaining forty-two are one tap away in the sheet, which is
+          where a complete listing belongs. `shown.length` is still stated in the header, so a
+          reader is never told fifty exist and shown eight without being told. */}
       <div className="mt-3">
         <TileGrid
-          items={shown.map((r) => ({
+          items={shown.slice(0, SITE_TILES).map((r) => ({
             key: r.key,
             code: r.code,
             label: `${r.name} · ${r.species} species · ${r.enclosures} enclosures`,
@@ -1446,6 +1783,16 @@ function SitesCard({
           onPick={onOpen}
         />
       </div>
+      {shown.length > SITE_TILES && (
+        <button
+          type="button"
+          onClick={() => onViewAll()}
+          className="card-press mt-3 w-full rounded-[11px] py-2 text-small font-semibold"
+          style={{ backgroundColor: mix(accent, 0.1), color: ACCENT_INK }}
+        >
+          View all {shown.length} sites
+        </button>
+      )}
     </Section>
   )
 }

@@ -117,7 +117,11 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
              theirs names the parent or the kind, which is a fact about the thing on screen. */
           title: titleOf(route.slug),
           moduleTitle: titleOf(route.slug),
-          onBack: phone ? home : undefined,
+          /* THE CHEVRON IS ON EVERY TIER NOW, not just the phone. It was hidden at shell width
+             on the reasoning that the sidebar shows where you are — true, but the sidebar cannot
+             say where you came FROM, and a reader who reached this page from a KPI or a drill had
+             no way back but the browser. */
+          onBack: home,
           /* The module, then its chapters. `SubModules` renders nothing for a module that
              has none, and it is here rather than in the pages so that folding a page into
              a parent in `nav.ts` is the only edit that folding it ever needs — see the note

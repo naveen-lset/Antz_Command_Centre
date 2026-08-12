@@ -28,7 +28,7 @@ import { WORLD_TODAY, longDate } from '../core/calendar'
 import { TODAY } from '../core/calendar'
 import { crumbs, type Scope } from '../core/scope'
 import type { Ref } from '../core/entities'
-import { ACCENT, FAINT, MUTED, TONE, mix } from '../exec/system'
+import { ACCENT, FAINT, TONE, mix } from '../exec/system'
 import { useNow } from '../hooks/useNow'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useScope } from './scope'
@@ -120,7 +120,11 @@ export function ScopeStrip({ scope }: { scope: Scope }) {
   const narrowed = Boolean(scope.site)
 
   return (
-    <div className="flex flex-wrap items-center gap-2 pt-3">
+    /* THE FILTERS SIT IN A CONTAINER, not on the sage. Three pills floating on the page ground
+       read as chrome belonging to the browser rather than as controls belonging to the page, and
+       they left a band of empty ground between the title and the first card. On a white surface
+       they are a toolbar, and the band becomes the toolbar's own padding. */
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] bg-white px-[var(--pad-card-sm)] py-3 @[760px]:justify-end">
       <ScopePill
         icon={CalendarRange}
         label={scope.win.label}
@@ -132,17 +136,14 @@ export function ScopeStrip({ scope }: { scope: Scope }) {
         on={narrowed}
         onClick={() => open({ title: 'Site', eyebrow: scope.site ? scope.site.name : 'All sites', body: <SiteSheet /> })}
       />
-      <span className="flex min-w-0 items-center gap-1.5 text-caption tabular-nums" style={{ color: MUTED }}>
-        <span className="truncate">{scope.win.window}</span>
-        <span aria-hidden>·</span>
-        <span className="truncate">{scope.win.days === 1 ? '1 day' : `${scope.win.days} days`}</span>
-      </span>
+      {/* The resolved dates and the day count lived here. The date pill beside them already
+          names the window, and every card that is cut to a different one says so itself. */}
 
       {narrowed && (
         <button
           type="button"
           onClick={() => setSite(null)}
-          className="card-press flex shrink-0 items-center gap-1 rounded-full px-2.5 py-[4px] text-caption font-semibold"
+          className="card-press flex shrink-0 items-center gap-1 rounded-full px-3 py-[4px] text-caption font-semibold"
           style={{ backgroundColor: mix(TONE.warn, 0.14), color: TONE.warn }}
         >
           <RotateCcw size={10} strokeWidth={2.5} aria-hidden />

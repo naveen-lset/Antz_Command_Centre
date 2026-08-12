@@ -44,6 +44,13 @@ import { lazyPage } from '../../v4/perf'
 export interface ExecPage {
   title: string
   /**
+   * One line under the page title — what this page is FOR.
+   *
+   * Optional, and deliberately not defaulted: a blurb that restates the title is noise, so a
+   * page earns one only where the scope of the answer is not obvious from the name.
+   */
+  blurb?: string
+  /**
    * A lazily-loaded chunk, not a statically imported component.
    *
    * All twenty-three pages plus the design system used to be one bundle, so opening the home
@@ -77,6 +84,7 @@ export const execPages: Record<string, ExecPage> = {
   /* report track */
   animals: {
     title: 'Animal Population',
+    blurb: 'Live overview of population across all sites',
     Page: lazyPage(() => import('../../v4/modules/animals')),
     icon: PawPrint,
     periods: true,

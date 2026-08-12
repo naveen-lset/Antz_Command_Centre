@@ -27,6 +27,7 @@ import { useMemo, useState } from 'react'
 import {
   Activity,
   ArrowLeftRight,
+  Baby,
   Boxes,
   Building2,
   ChevronRight,
@@ -39,6 +40,7 @@ import {
   MapPin,
   PawPrint,
   Pill,
+  ShieldCheck,
   Skull,
   Sparkles,
   Stethoscope,
@@ -87,7 +89,9 @@ import {
   fmt,
   mix,
 } from '../exec/system'
-import { RankList, SplitRing } from '../exec/marks'
+import { FlowSplit, RankList, SplitRing } from '../exec/marks'
+import { speciesLifecycle } from './modules/population'
+import { standingOf } from './modules/regulatory'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
 
@@ -134,7 +138,7 @@ function Hero({
           {Glyph && <Glyph size={15} strokeWidth={1.75} style={{ color: ACCENT }} aria-hidden />}
           {label}
         </p>
-        {sub && <p className="mt-2.5 text-caption" style={{ color: FAINT }}>{sub}</p>}
+        {sub && <p className="mt-3 text-caption" style={{ color: FAINT }}>{sub}</p>}
       </section>
     </div>
   )
@@ -154,7 +158,7 @@ function EntityRow({
   const Glyph = KIND_ICON[entity.kind]
   return (
     <li className="border-b border-[#f0efec] last:border-0">
-      <a href={href(entityHref(entity).slice(2))} className="card-press -mx-2 flex items-stretch gap-3 rounded-[10px] px-2 py-2.5">
+      <a href={href(entityHref(entity).slice(2))} className="card-press -mx-2 flex items-stretch gap-3 rounded-[10px] px-2 py-3">
         {/* The row's share as the weight of a rail rather than a bar under it — see the note on
             `TapRow`'s `bar` in `v4/panels.tsx`. */}
         <span className="flex min-w-0 flex-1 items-center gap-3">
@@ -168,7 +172,7 @@ function EntityRow({
           <span className="min-w-0 flex-1">
             <span className="block truncate text-small text-[#1c1a16]">{entity.name}</span>
             {entity.sub && (
-              <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+              <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                 {entity.sub}
               </span>
             )}
@@ -225,7 +229,7 @@ function MetricStrip({ slugs, siteKey }: { slugs: string[]; siteKey: string | nu
   }
 
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 @[560px]:grid-cols-3">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-4 @[560px]:grid-cols-3">
       {rows.map((r) => (
         <a key={r.slug} href={href(r.slug)} className="card-press min-w-0 rounded-[10px]">
           <span className="block truncate text-overline font-medium uppercase" style={{ color: FAINT }}>
@@ -241,7 +245,7 @@ function MetricStrip({ slugs, siteKey }: { slugs: string[]; siteKey: string | nu
               </span>
             )}
           </span>
-          <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+          <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
             {r.unit}
           </span>
         </a>
@@ -322,11 +326,11 @@ function RecordList({
           <li key={ev.id} className="border-b border-[#f0efec] last:border-0">
             <a
               href={href(`e/animal/${ev.animalId}`)}
-              className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2.5"
+              className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-3"
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-small text-[#1c1a16]">{ev.speciesName}</span>
-                <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+                <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
                   {ev.detail} · {ev.animalId}
                 </span>
               </span>
@@ -582,7 +586,7 @@ function ScopeConflict({ entity }: { entity: Entity }) {
 
   return (
     <div className="px-[var(--gutter)] pb-3">
-      <div className="flex items-center gap-2 rounded-[12px] px-3 py-2.5" style={{ backgroundColor: mix(TONE.warn, 0.1) }}>
+      <div className="flex items-center gap-2 rounded-[12px] px-3 py-3" style={{ backgroundColor: mix(TONE.warn, 0.1) }}>
         <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: TONE.warn }} aria-hidden />
         <span className="min-w-0 flex-1 text-caption font-medium" style={{ color: TONE.warn }}>
           {entity.name} is in {home.name}, but the filter is set to {scope.site.name}. Figures below are
@@ -621,13 +625,13 @@ function FollowScope({ entity }: { entity: Entity }) {
       <button
         type="button"
         onClick={() => setSite(site)}
-        className="card-press flex w-full items-center gap-2 rounded-[12px] bg-white px-3 py-2.5 text-left"
+        className="card-press flex w-full items-center gap-2 rounded-[12px] bg-white px-3 py-3 text-left"
       >
         <MapPin size={13} strokeWidth={2} className="shrink-0" style={{ color: ACCENT }} aria-hidden />
         <span className="min-w-0 flex-1 text-caption" style={{ color: MUTED }}>
           Figures below are {site.name}'s. Narrow every other page to it as well?
         </span>
-        <span className="shrink-0 rounded-full px-2.5 py-[3px] text-caption font-semibold text-white" style={{ backgroundColor: '#123a2c' }}>
+        <span className="shrink-0 rounded-full px-3 py-[3px] text-caption font-semibold text-white" style={{ backgroundColor: '#123a2c' }}>
           Scope to site
         </span>
       </button>
@@ -787,21 +791,86 @@ function Breakdown({ slug, by, label, siteKey }: { slug: string; by: Dimension; 
   )
 }
 
+/* ── the entity tab strip, shared ────────────────────────────────────────── */
+
+/**
+ * EXTRACTED RATHER THAN COPIED. Two entity pages now carry tabs, and a second copy of this
+ * markup is how the two drift into looking like different controls. Scrolls rather than wraps
+ * for the reason the animal's nine tabs established: a wrapped second row of tabs reads as a
+ * second, different control rather than as more of the same one.
+ */
+function EntityTabs({
+  tabs,
+  tab,
+  onPick,
+  label,
+}: {
+  tabs: readonly { key: string; label: string; icon: LucideIcon }[]
+  tab: string
+  onPick: (key: string) => void
+  label: string
+}) {
+  return (
+    <div className="px-[var(--gutter)] pb-3">
+      <div
+        className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hidden"
+        role="tablist"
+        aria-label={label}
+      >
+        {tabs.map((t) => {
+          const on = t.key === tab
+          return (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => onPick(t.key)}
+              className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-caption font-medium whitespace-nowrap transition-colors ${
+                on ? 'bg-[#123a2c] text-white' : 'bg-white text-[#3d3a34]'
+              }`}
+            >
+              <t.icon size={13} strokeWidth={2} style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /* ── species ─────────────────────────────────────────────────────────────── */
 
 /**
  * A species page — the level between a site and an animal.
  *
+ * THREE TABS, NOT ONE SCROLL. This page used to stack sex, mortality events and the animal
+ * list into one column, which made the animal list — 12,400 rows for a carp — the thing a
+ * reader had to scroll past to reach anything else. The three tabs are the three questions a
+ * species is actually asked: what is it, how did its population move, and which animals are
+ * they. Tabs rather than routes for the reason the animal page states: switching tab is not
+ * going somewhere, and should not cost a history entry or a scroll position.
+ *
  * The animals list is PAGED rather than capped. The old drill took the first forty and printed
  * a note explaining why; forty of 12,400 carp is not a sample anyone can reason about, and the
  * note did not make it one.
  */
+const SPECIES_TABS = [
+  { key: 'overview', label: 'Overview', icon: Layers },
+  { key: 'life', label: 'Circle of Life', icon: Sparkles },
+  { key: 'animals', label: 'Animals', icon: Heart },
+] as const
+
 function SpeciesPage({ entity }: { entity: Entity }) {
   const { scope } = useScope()
   const sp = speciesOf(entity.id)
+  const [tab, setTab] = useState<string>('overview')
   const total = stockOfSpecies(entity.id, scope.win)
 
   const split = useMemo(() => (sp ? sexSplit([{ species: sp, count: total }]) : undefined), [sp, total])
+  const life = useMemo(() => speciesLifecycle(entity.id, scope.win), [entity.id, scope.win])
+  const standing = useMemo(() => (sp ? standingOf(sp.name) : undefined), [sp])
 
   const paged = usePaged<Animal>(
     (offset, limit) => {
@@ -820,6 +889,13 @@ function SpeciesPage({ entity }: { entity: Entity }) {
     [sp, entity.id, scope.win],
   )
 
+  /* The recorded flows and the two level readings are separate statements about the same
+     window, and they are allowed to disagree — the extract's events do not fully account for
+     every change in the register. Stating both, and naming the gap where there is one, is the
+     honest form; reconciling them silently would be the invented figure. */
+  const recorded = life ? life.additions - life.removals : 0
+  const unexplained = life ? life.net - recorded : 0
+
   return (
     <>
       <ScopeConflict entity={entity} />
@@ -830,47 +906,136 @@ function SpeciesPage({ entity }: { entity: Entity }) {
         icon={PawPrint}
       />
 
+      <EntityTabs tabs={SPECIES_TABS} tab={tab} onPick={setTab} label="Species record" />
+
       <Stack>
-        {split && (
-          <Section icon={Layers} label="Sex" aside="derived from class">
-            <SplitRing
-              label="Animals"
-              unit="animals"
-              items={[
-                { key: 'u', label: 'Undetermined', value: split.undetermined },
-                { key: 'm', label: 'Male', value: split.male },
-                { key: 'f', label: 'Female', value: split.female },
-              ]}
-            />
-          </Section>
+        {tab === 'overview' && (
+          <>
+            {split && (
+              <Section icon={Layers} label="Sex" aside="counted from the register">
+                <SplitRing
+                  label="Animals"
+                  unit="animals"
+                  items={[
+                    { key: 'u', label: 'Undetermined', value: split.undetermined },
+                    { key: 'm', label: 'Male', value: split.male },
+                    { key: 'f', label: 'Female', value: split.female },
+                  ]}
+                />
+              </Section>
+            )}
+
+            <Section icon={ShieldCheck} label="Standing" aside="published">
+              <Facts
+                items={[
+                  { label: 'Class', value: sp?.cls ?? '—' },
+                  { label: 'Site', value: siteOf(sp?.siteKey ?? '')?.name ?? '—' },
+                  { label: 'IUCN Red List', value: standing?.iucn ?? '—' },
+                  {
+                    label: 'CITES',
+                    value: standing?.cites ? `Appendix ${standing.cites}` : 'Not listed',
+                  },
+                  /* The schema carries no Wildlife Protection Act column, so this says so
+                     rather than printing a zero or an unearned "Not scheduled". */
+                  {
+                    label: 'WPA schedule',
+                    value: standing?.schedule ? `Schedule ${standing.schedule}` : 'Not recorded',
+                  },
+                ]}
+              />
+            </Section>
+          </>
         )}
 
-        <Section icon={Activity} label="Events" aside={scope.win.window}>
-          {events && events.total > 0 ? (
+        {tab === 'life' && life && (
+          <>
+            {/* §14's requirement, as the direction mark rather than six unrelated cards: what
+                entered, what left, and the net between them, with each flow named below. */}
+            <Section icon={Sparkles} label="Circle of Life" aside={scope.win.window}>
+              <FlowSplit
+                inward={{ label: 'Entered', value: life.additions, icon: Baby }}
+                outward={{ label: 'Left', value: life.removals, icon: ArrowLeftRight }}
+                net={recorded}
+                routes={life.stages
+                  .filter((s) => s.side !== 'stock')
+                  .map((s) => ({
+                    key: s.key,
+                    label: s.label,
+                    value: s.value,
+                    direction: s.side === 'in' ? ('in' as const) : ('out' as const),
+                  }))}
+                unit="animals"
+              />
+              {life.silent.length > 0 && (
+                <p className="mt-3 text-caption" style={{ color: FAINT }}>
+                  No {life.silent.map((s) => s.toLowerCase()).join(', ')} recorded in {scope.win.window}.
+                </p>
+              )}
+            </Section>
+
+            <Section icon={Activity} label="Population change" aside={scope.win.window}>
+              <Facts
+                items={[
+                  { label: 'Opening', value: fmt(life.opening), sub: 'the day before the window' },
+                  { label: 'Closing', value: fmt(life.closing), sub: 'as of the window’s last day' },
+                  {
+                    label: 'Change',
+                    value: `${life.net > 0 ? '+' : ''}${fmt(life.net)}`,
+                    tone: life.net === 0 ? 'neutral' : life.net > 0 ? 'good' : 'bad',
+                  },
+                  ...(unexplained !== 0
+                    ? [
+                        {
+                          label: 'Not explained by events',
+                          value: `${unexplained > 0 ? '+' : ''}${fmt(unexplained)}`,
+                          sub: 'the register moved by more than the recorded flows',
+                        },
+                      ]
+                    : []),
+                  ...(life.fetal > 0
+                    ? [
+                        {
+                          label: 'Fetal loss',
+                          value: fmt(life.fetal),
+                          sub: 'a breeding figure, not a headcount movement',
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </Section>
+
+            <Section icon={Skull} label="Deaths" aside={scope.win.window}>
+              {events && events.total > 0 ? (
+                <ul className="flex flex-col">
+                  {events.rows.map((ev) => (
+                    <li key={ev.id} className="flex items-center gap-3 border-b border-[#f0efec] py-3 last:border-0">
+                      <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{ev.detail}</span>
+                      <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
+                        {shortDate(ev.day)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="py-2 text-caption" style={{ color: FAINT }}>
+                  No deaths recorded in {scope.win.window}.
+                </p>
+              )}
+            </Section>
+          </>
+        )}
+
+        {tab === 'animals' && (
+          <Section icon={Heart} label="Animals" aside={fmt(paged.total)}>
             <ul className="flex flex-col">
-              {events.rows.map((ev) => (
-                <li key={ev.id} className="flex items-center gap-3 border-b border-[#f0efec] py-2.5 last:border-0">
-                  <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{ev.detail}</span>
-                  <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
-                    {shortDate(ev.day)}
-                  </span>
-                </li>
+              {paged.rows.map((a) => (
+                <AnimalRow key={a.id} animal={a} />
               ))}
             </ul>
-          ) : (
-            <p className="py-2 text-caption" style={{ color: FAINT }}>
-              No deaths recorded in {scope.win.window}.
-            </p>
-          )}
-        </Section>
-        <Section icon={Heart} label="Animals" aside={fmt(paged.total)}>
-          <ul className="flex flex-col">
-            {paged.rows.map((a) => (
-              <AnimalRow key={a.id} animal={a} />
-            ))}
-          </ul>
-          <MoreRows page={paged} noun="animals" />
-        </Section>
+            <MoreRows page={paged} noun="animals" />
+          </Section>
+        )}
       </Stack>
     </>
   )
@@ -884,13 +1049,13 @@ function AnimalRow({ animal }: { animal: Animal }) {
     <li className="border-b border-[#f0efec] last:border-0">
       <a
         href={href(`e/animal/${animal.id}`)}
-        className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2.5"
+        className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-3"
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-small text-[#1c1a16]">
             {animal.callName ?? animal.id}
           </span>
-          <span className="mt-0.5 block truncate text-caption" style={{ color: FAINT }}>
+          <span className="mt-1 block truncate text-caption" style={{ color: FAINT }}>
             {animal.sex} · {animal.age} · {animal.enclosureId}
           </span>
         </span>
@@ -955,34 +1120,7 @@ function AnimalPage({ id }: { id: string }) {
         tone={animal.status === 'Critical' ? 'bad' : animal.status === 'Healthy' ? 'good' : 'warn'}
       />
 
-      {/* The tab strip scrolls rather than wrapping: nine tabs will not fit across a phone,
-          and a wrapped second row of tabs reads as a second, different control. */}
-      <div className="px-[var(--gutter)] pb-3">
-        <div
-          className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hidden"
-          role="tablist"
-          aria-label="Animal record"
-        >
-          {TABS.map((t) => {
-            const on = t.key === tab
-            return (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => setTab(t.key)}
-                className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-caption font-medium whitespace-nowrap transition-colors ${
-                  on ? 'bg-[#123a2c] text-white' : 'bg-white text-[#3d3a34]'
-                }`}
-              >
-                <t.icon size={13} strokeWidth={2} style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <EntityTabs tabs={TABS} tab={tab} onPick={setTab} label="Animal record" />
 
       <Stack>
         {tab === 'overview' && (
@@ -1070,10 +1208,10 @@ function AnimalTab({ animal, tab }: { animal: Animal; tab: (typeof TABS)[number]
       ) : (
         <ul className="flex flex-col">
           {events.map((ev) => (
-            <li key={ev.id} className="flex items-start gap-3 border-b border-[#f0efec] py-2.5 last:border-0">
+            <li key={ev.id} className="flex items-start gap-3 border-b border-[#f0efec] py-3 last:border-0">
               <span className="min-w-0 flex-1">
                 <span className="block text-small text-[#1c1a16]">{ev.detail}</span>
-                <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
+                <span className="mt-1 block text-caption" style={{ color: FAINT }}>
                   {LABELS[ev.kind] ?? ev.kind} · {longDate(ev.day)}
                 </span>
               </span>
@@ -1238,7 +1376,7 @@ export function EntityIndex() {
                 <li key={r.kind} className="border-b border-[#f0efec] last:border-0">
                   <a
                     href={href(`browse/${r.kind}`)}
-                    className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2.5"
+                    className="card-press -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-3"
                   >
                     <span
                       className="grid size-7 shrink-0 place-items-center rounded-[9px]"

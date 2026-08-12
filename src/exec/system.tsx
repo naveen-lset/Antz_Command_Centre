@@ -326,6 +326,7 @@ export function Section({
   aside,
   tight = false,
   bare = false,
+  lead = false,
   children,
 }: {
   icon?: Icon
@@ -347,6 +348,13 @@ export function Section({
    * say.
    */
   bare?: boolean
+  /**
+   * The page's headline card — the label is set at heading scale rather than as an overline.
+   *
+   * Opt-in, so the other sixty-odd `Section`s on the product are untouched. One card per page may
+   * earn this; a page where several do has no headline.
+   */
+  lead?: boolean
   children: ReactNode
 }) {
   const accent = useAccent()
@@ -384,9 +392,11 @@ export function Section({
                   thing that names the card. */}
               <h2
                 className={`font-semibold text-balance text-[#1c1a16] ${
-                  tight
-                    ? 'text-body'
-                    : 'text-[length:var(--fs-title)] leading-[var(--lh-title)] tracking-[-0.2px]'
+                  lead
+                    ? 'text-h2'
+                    : tight
+                      ? 'text-body'
+                      : 'text-[length:var(--fs-title)] leading-[var(--lh-title)] tracking-[-0.2px]'
                 }`}
               >
                 {label}
@@ -530,6 +540,12 @@ export function Hero({
         aria-label={label}
       >
         {head && <div className="mb-4 border-b border-[#f0efec] pb-4">{head}</div>}
+        {/* THE FIGURE AND ITS STATS SIT SIDE BY SIDE ONCE THERE IS ROOM.
+            Stacked, a 64px figure left the right two-thirds of a wide card empty and pushed the
+            stats onto a fourth row — the single largest patch of dead space on any module page.
+            Centred heroes keep the stack, because centring is the point of them. */}
+        <div className={centred ? '' : '@[640px]:flex @[640px]:items-end @[640px]:justify-between @[640px]:gap-6'}>
+        <div className="min-w-0">
         <Figure value={value} unit={unit} size={64} color={HERO_INK} />
         <p
           className={`mt-1 flex items-center gap-2 text-body text-[#3d3a34] ${centred ? 'justify-center' : ''}`}
@@ -545,8 +561,13 @@ export function Hero({
             </span>
           </p>
         )}
+        </div>
         {stats && stats.length > 0 && (
-          <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
+          <div
+            className={`mt-5 flex items-stretch border-t border-[#f0efec] pt-4 ${
+              centred ? '' : '@[640px]:mt-0 @[640px]:shrink-0 @[640px]:border-t-0 @[640px]:border-l @[640px]:pt-0 @[640px]:pl-6'
+            }`}
+          >
             {stats.map((s, i) => (
               <span
                 key={`${s.label}-${i}`}
@@ -555,11 +576,12 @@ export function Hero({
                 } ${centred ? 'text-center' : ''}`}
               >
                 <Figure value={s.value} unit={s.unit} size={24} />
-                <span className="mt-0.5 block truncate text-caption text-[#6d6860]">{s.label}</span>
+                <span className="mt-1 block truncate text-caption text-[#6d6860]">{s.label}</span>
               </span>
             ))}
           </div>
         )}
+        </div>
       </section>
     </div>
   )
@@ -572,7 +594,7 @@ export function StatusList({ items }: { items: { label: string; value: string; t
   return (
     <ul className="divide-y divide-[#f0efec]">
       {items.map((it) => (
-        <li key={it.label} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+        <li key={it.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
           <span
             className="size-[7px] shrink-0 rounded-full"
             style={{ backgroundColor: TONE[it.tone ?? 'neutral'] }}
@@ -610,7 +632,7 @@ export function MetricGrid({
         >
           <Figure value={m.value} unit={m.unit} size={cols === 3 ? 24 : 28} />
           <p className="mt-1 text-small text-[#3d3a34]">{m.label}</p>
-          {m.note && <p className="mt-0.5 text-caption text-[#9b958b]">{m.note}</p>}
+          {m.note && <p className="mt-1 text-caption text-[#9b958b]">{m.note}</p>}
         </div>
       ))}
     </div>
@@ -664,7 +686,7 @@ export function Bars({
   }
 
   return (
-    <ul ref={ref} className={precise ? 'flex flex-col gap-3.5' : 'flex flex-col'}>
+    <ul ref={ref} className={precise ? 'flex flex-col gap-4' : 'flex flex-col'}>
       {items.map((it, i) => {
         const figure = (
           <span className="shrink-0 text-right">
@@ -673,7 +695,7 @@ export function Bars({
               {unit && <span className="ml-0.5 text-caption font-normal text-[#9b958b]">{unit}</span>}
             </span>
             {showShare && (
-              <span className="mt-0.5 block text-caption tabular-nums text-[#9b958b]">{shareText(it.value)}</span>
+              <span className="mt-1 block text-caption tabular-nums text-[#9b958b]">{shareText(it.value)}</span>
             )}
           </span>
         )
@@ -705,11 +727,11 @@ export function Bars({
 
         return (
           <li key={it.label} className="border-b border-[#f0efec] last:border-0">
-            <div className="flex items-stretch gap-2.5 py-2.5 first:pt-0">
+            <div className="flex items-stretch gap-3 py-3 first:pt-0">
               <span className="min-w-0 flex-1 self-center">
                 <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
                 {it.sub && (
-                  <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{it.sub}</span>
+                  <span className="mt-1 block truncate text-caption text-[#9b958b]">{it.sub}</span>
                 )}
               </span>
               <span className="self-center">{figure}</span>
@@ -741,7 +763,7 @@ export function Composition({ items, unit }: { items: { label: string; value: nu
           />
         ))}
       </div>
-      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5">
+      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
         {items.map((it, i) => (
           <li key={it.label} className="flex items-baseline gap-2">
             <span
@@ -1125,7 +1147,7 @@ export function Tray({
              grid into a heat map of alarm. The small dot carries state instead. */
           <div
             key={c.label}
-            className={`rounded-[12px] px-2.5 py-3 ${animate ? 'animate-fade-up' : ''}`}
+            className={`rounded-[12px] px-3 py-3 ${animate ? 'animate-fade-up' : ''}`}
             style={{ backgroundColor: mix(accent, 0.07), animationDelay: animate ? `${i * 45}ms` : undefined }}
           >
             <div className="flex items-center gap-1.5">
@@ -1198,7 +1220,7 @@ export function Lanes({
   const { ref, animate } = usePlay<HTMLUListElement>()
   const max = Math.max(...routes.map((r) => r.value), 1)
   return (
-    <ul ref={ref} className="flex flex-col gap-3.5">
+    <ul ref={ref} className="flex flex-col gap-4">
       {routes.map((r, i) => (
         <li key={`${r.from}-${r.to}`}>
           <div className="flex items-baseline gap-2 text-small">
@@ -1241,13 +1263,13 @@ export function Ledger({
   return (
     <ol className="divide-y divide-[#f0efec]">
       {items.map((it, i) => (
-        <li key={it.label} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+        <li key={it.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
           {rank && (
             <span className="w-[14px] shrink-0 text-caption tabular-nums text-[#9b958b]">{String(i + 1)}</span>
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
-            {it.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{it.sub}</span>}
+            {it.sub && <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>}
           </span>
           {it.share !== undefined && (
             <span className="h-[5px] w-[44px] shrink-0 overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
@@ -1307,7 +1329,7 @@ export function Columns({
           </span>
         ))}
       </div>
-      {unit && <p className="mt-2.5 text-caption text-[#9b958b]">{unit}</p>}
+      {unit && <p className="mt-3 text-caption text-[#9b958b]">{unit}</p>}
     </div>
   )
 }
@@ -1464,7 +1486,7 @@ export function Meter({ percent, label, value }: { percent: number; label: strin
 
 export function MeterGroup({ items }: { items: { label: string; value: string; percent: number }[] }) {
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-col gap-4">
       {items.map((m) => (
         <Meter key={m.label} label={m.label} value={m.value} percent={m.percent} />
       ))}
@@ -1477,7 +1499,7 @@ export function Records({ items }: { items: { label: string; sub: string; value:
   return (
     <ul className="divide-y divide-[#f0efec]">
       {items.map((it) => (
-        <li key={`${it.label}-${it.sub}`} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+        <li key={`${it.label}-${it.sub}`} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
           <span
             className="mt-[6px] size-[6px] shrink-0 rounded-full"
             style={{ backgroundColor: TONE[it.tone ?? 'neutral'] }}
@@ -1487,7 +1509,7 @@ export function Records({ items }: { items: { label: string; sub: string; value:
             <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
             {/* Wraps: the label is an identifier and can be clipped, but the sub
                 carries the reason and a clipped reason is worth nothing. */}
-            <span className="mt-0.5 block text-caption text-[#9b958b]">{it.sub}</span>
+            <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>
           </span>
           <span className="shrink-0 pt-[1px] text-caption tabular-nums whitespace-nowrap text-[#9b958b]">{it.value}</span>
         </li>
@@ -1527,7 +1549,7 @@ export function Facts({
           <>
             <span className="min-w-0 flex-1">
               <span className={`block ${lg ? 'text-small' : 'text-small'} text-[#1c1a16]`}>{it.label}</span>
-              {it.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{it.sub}</span>}
+              {it.sub && <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>}
             </span>
             {it.delta && (
               <span
@@ -1553,7 +1575,7 @@ export function Facts({
         /* Index-based rather than `first:`/`last:`, because those variants would key
            off the anchor — the only child of its <li> — and so fire on every row. */
         const pad = [
-          lg ? 'py-3.5' : 'py-2.5',
+          lg ? 'py-4' : 'py-3',
           i === 0 ? 'pt-0' : '',
           i === items.length - 1 ? 'pb-0' : '',
         ].join(' ')
@@ -1630,14 +1652,14 @@ export function Bridge({
     lead?: boolean
   }) => (
     <div
-      className="flex items-end justify-between gap-3 rounded-[10px] px-3 py-2.5"
+      className="flex items-end justify-between gap-3 rounded-[10px] px-3 py-3"
       style={{ backgroundColor: lead ? mix(accent, 0.1) : '#f7f6f3' }}
     >
       <span className="min-w-0">
         <span className="block text-overline font-medium uppercase" style={{ color: MUTED }}>
           {label}
         </span>
-        {sub && <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>{sub}</span>}
+        {sub && <span className="mt-1 block text-caption" style={{ color: FAINT }}>{sub}</span>}
       </span>
       <span className="flex shrink-0 items-baseline gap-2">
         {delta && (
@@ -1666,7 +1688,7 @@ export function Bridge({
               <span className="min-w-0 flex-1">
                 <span className="block text-small text-[#1c1a16]">{r.label}</span>
                 {r.sub && (
-                  <span className="mt-0.5 block text-caption" style={{ color: FAINT }}>
+                  <span className="mt-1 block text-caption" style={{ color: FAINT }}>
                     {r.sub}
                   </span>
                 )}
@@ -1708,11 +1730,11 @@ export function Bridge({
           return (
             <li key={r.label} className="border-b border-[#f0efec] last:border-0">
               {r.href ? (
-                <a href={r.href} className="card-press -mx-2 flex items-center gap-2 rounded-[10px] px-2 py-2.5">
+                <a href={r.href} className="card-press -mx-2 flex items-center gap-2 rounded-[10px] px-2 py-3">
                   {row}
                 </a>
               ) : (
-                <div className="flex items-center gap-2 py-2.5">{row}</div>
+                <div className="flex items-center gap-2 py-3">{row}</div>
               )}
             </li>
           )
@@ -1721,7 +1743,7 @@ export function Bridge({
       <Bookend label={closing.label} sub={closing.sub} value={closing.value} delta={closing.delta} lead />
 
       {!closes && (
-        <p className="mt-2.5 text-caption" style={{ color: TONE.bad }}>
+        <p className="mt-3 text-caption" style={{ color: TONE.bad }}>
           Flows sum to {fmt(running)}, not {fmt(closing.value)} — this bridge does not close.
         </p>
       )}
@@ -1782,8 +1804,8 @@ export function Snapshot({
           {/* Wraps rather than truncates: at four columns a cell is ~78px, and
               "Sample quality" clipped to "Sample qua…" states nothing. Grid rows
               size to the tallest cell, so a second line stays aligned. */}
-          <p className="mt-0.5 text-small text-[#3d3a34]">{m.label}</p>
-          {m.note && <p className="mt-0.5 text-caption text-[#9b958b]">{m.note}</p>}
+          <p className="mt-1 text-small text-[#3d3a34]">{m.label}</p>
+          {m.note && <p className="mt-1 text-caption text-[#9b958b]">{m.note}</p>}
         </div>
       ))}
     </div>
@@ -1894,7 +1916,7 @@ export function Poles({
           <Figure value={high.value} size={24} />
         </div>
         <p className="mt-1.5 truncate text-small text-[#1c1a16]">{high.label}</p>
-        {high.sub && <p className="mt-0.5 text-caption text-[#9b958b]">{high.sub}</p>}
+        {high.sub && <p className="mt-1 text-caption text-[#9b958b]">{high.sub}</p>}
       </div>
       <span className="w-px shrink-0" style={{ backgroundColor: HAIR }} aria-hidden />
       <div className="min-w-0 flex-1">
@@ -1908,7 +1930,7 @@ export function Poles({
           <Figure value={low.value} size={24} color={lowTone && lowTone !== 'neutral' ? TONE[lowTone] : INK2} />
         </div>
         <p className="mt-1.5 truncate text-small text-[#1c1a16]">{low.label}</p>
-        {low.sub && <p className="mt-0.5 text-caption text-[#9b958b]">{low.sub}</p>}
+        {low.sub && <p className="mt-1 text-caption text-[#9b958b]">{low.sub}</p>}
       </div>
     </div>
   )
@@ -1927,7 +1949,7 @@ export function Movers({ items, unit }: { items: { label: string; sub?: string; 
           <li key={it.label} className="flex items-center gap-3">
             <span className="min-w-0 flex-1">
               <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{it.sub}</span>}
+              {it.sub && <span className="mt-1 block truncate text-caption text-[#9b958b]">{it.sub}</span>}
             </span>
             <span className="relative h-[8px] w-[76px] shrink-0" aria-hidden>
               <span className="absolute inset-y-0 left-1/2 w-px" style={{ backgroundColor: '#e3e1dc' }} />
@@ -1982,7 +2004,7 @@ export function Bullet({
         <span className="text-small text-[#1c1a16]">{label}</span>
         <Figure value={value} size={20} color={fill} />
       </div>
-      <div className="relative mt-2.5 h-[10px] w-full rounded-full" style={{ backgroundColor: TRACK }}>
+      <div className="relative mt-3 h-[10px] w-full rounded-full" style={{ backgroundColor: TRACK }}>
         <div
           className="h-full rounded-full"
           style={{ width: `${Math.max(2, clamp(percent))}%`, backgroundColor: fill }}
@@ -2043,14 +2065,14 @@ export function Table({
         <tbody>
           {rows.map((r) => (
             <tr key={r.label} className="border-t border-[#f0efec]">
-              <td className="py-2.5 pr-2">
+              <td className="py-3 pr-2">
                 <span className="block text-small text-[#1c1a16]">{r.label}</span>
-                {r.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{r.sub}</span>}
+                {r.sub && <span className="mt-1 block text-caption text-[#9b958b]">{r.sub}</span>}
               </td>
               {r.cells.map((c, ci) => (
                 <td
                   key={ci}
-                  className="py-2.5 pl-3 text-right text-small font-medium tabular-nums whitespace-nowrap"
+                  className="py-3 pl-3 text-right text-small font-medium tabular-nums whitespace-nowrap"
                   style={{
                     color:
                       ci === r.cells.length - 1 && r.tone && r.tone !== 'neutral'
@@ -2080,23 +2102,23 @@ export function Ladder({
   const accent = useAccent()
   return (
     <div>
-      <div className="flex items-center gap-3 rounded-[12px] px-3.5 py-3" style={{ backgroundColor: mix(accent, 0.08) }}>
+      <div className="flex items-center gap-3 rounded-[12px] px-4 py-3" style={{ backgroundColor: mix(accent, 0.08) }}>
         <span className="font-display text-small font-bold tabular-nums" style={{ color: accent }}>
           1
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-small font-medium text-[#1c1a16]">{leader.label}</span>
-          {leader.sub && <span className="mt-0.5 block truncate text-caption text-[#6d6860]">{leader.sub}</span>}
+          {leader.sub && <span className="mt-1 block truncate text-caption text-[#6d6860]">{leader.sub}</span>}
         </span>
         <Figure value={leader.value} size={24} />
       </div>
       <ol className="mt-1 divide-y divide-[#f0efec]">
         {rest.map((it, i) => (
-          <li key={it.label} className="flex items-center gap-3 px-3.5 py-2.5">
+          <li key={it.label} className="flex items-center gap-3 px-4 py-3">
             <span className="text-caption tabular-nums text-[#9b958b]">{i + 2}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-0.5 block truncate text-caption text-[#9b958b]">{it.sub}</span>}
+              {it.sub && <span className="mt-1 block truncate text-caption text-[#9b958b]">{it.sub}</span>}
             </span>
             <span className="shrink-0 text-small font-medium tabular-nums text-[#3d3a34]">{it.value}</span>
           </li>
@@ -2124,7 +2146,7 @@ export function Band({
 }) {
   const accent = useAccent()
   return (
-    <div className="flex items-center gap-4 rounded-[12px] px-4 py-3.5" style={{ backgroundColor: mix(accent, 0.07) }}>
+    <div className="flex items-center gap-4 rounded-[12px] px-4 py-4" style={{ backgroundColor: mix(accent, 0.07) }}>
       <span className="min-w-0 flex-1">
         <span
           className="block text-overline font-medium uppercase"
@@ -2133,7 +2155,7 @@ export function Band({
           {label}
         </span>
         <span className="mt-1 block text-small text-[#1c1a16]">{title}</span>
-        {sub && <span className="mt-0.5 block text-caption text-[#6d6860]">{sub}</span>}
+        {sub && <span className="mt-1 block text-caption text-[#6d6860]">{sub}</span>}
       </span>
       <span className="shrink-0 whitespace-nowrap">
         <Figure value={value} unit={unit} size={24} color={tone && tone !== 'neutral' ? TONE[tone] : VALUE} />
@@ -2181,7 +2203,7 @@ export function Pair({
      wraps and the figure never does — a date qualifier is allowed two lines in a narrow
      card, a six-digit balance broken across two is unreadable. */
   const row = (label: string, value: string, color: string, emphasis = false) => (
-    <div className="flex items-baseline justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+    <div className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0">
       <span className={`min-w-0 text-small ${emphasis ? 'font-medium text-[#1c1a16]' : 'text-[#3d3a34]'}`}>
         {label}
       </span>
@@ -2352,7 +2374,7 @@ export function Highlights({
             <div className="mt-1">
               <Figure value={it.value} unit={it.unit} size={24} color={it.tone && it.tone !== 'neutral' ? c : VALUE} />
             </div>
-            <p className="mt-0.5 text-caption text-[#6d6860]">{it.label}</p>
+            <p className="mt-1 text-caption text-[#6d6860]">{it.label}</p>
           </li>
         )
       })}
@@ -2387,7 +2409,7 @@ export function Events({
           <span className={`flex min-w-0 flex-1 items-baseline gap-3 ${i < items.length - 1 ? 'pb-4' : ''}`}>
             <span className="min-w-0 flex-1">
               <span className="block text-small text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-0.5 block text-caption text-[#9b958b]">{it.sub}</span>}
+              {it.sub && <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>}
             </span>
             {it.value && (
               <span
@@ -2475,9 +2497,9 @@ export function Ring({
       <div className="min-w-0 flex-1">
         <Figure value={`${Math.round(p)}`} unit="%" size={32} color={c} />
         <p className="mt-1 text-small text-[#1c1a16]">{label}</p>
-        {note && <p className="mt-0.5 text-caption text-[#9b958b]">{note}</p>}
+        {note && <p className="mt-1 text-caption text-[#9b958b]">{note}</p>}
         {href && (
-          <div className="mt-2.5">
+          <div className="mt-3">
             <More href={href} />
           </div>
         )}
@@ -2591,7 +2613,7 @@ export function Donut({
         </ul>
       </div>
       {unit && (
-        <p className="mt-3.5 text-caption text-[#9b958b]">
+        <p className="mt-4 text-caption text-[#9b958b]">
           {fmt(total)} {unit}
         </p>
       )}
@@ -2760,7 +2782,7 @@ export function Trend({
           </div>
         </div>
       </div>
-      {unit && <p className="mt-2.5 text-caption text-[#9b958b]">{unit}</p>}
+      {unit && <p className="mt-3 text-caption text-[#9b958b]">{unit}</p>}
     </div>
   )
 }
@@ -2845,7 +2867,7 @@ export function Roster({
     <div className="flex flex-col gap-5">
       {groups.map((g) => (
         <div key={g.group}>
-          <div className="mb-2.5 flex items-center gap-2">
+          <div className="mb-3 flex items-center gap-2">
             <span
               className="grid size-[22px] shrink-0 place-items-center rounded-full"
               style={{ backgroundColor: mix(accent, 0.13) }}
@@ -2869,7 +2891,7 @@ export function Roster({
                     <th
                       key={h}
                       style={widths?.[i] ? { width: widths[i] } : undefined}
-                      className={`px-2.5 py-2 text-overline font-medium text-white/85 uppercase ${
+                      className={`px-3 py-2 text-overline font-medium text-white/85 uppercase ${
                         align?.[i] === 'right' ? 'text-right' : 'text-left'
                       } ${!widths && i === 0 ? 'w-[34%]' : ''} ${h === '' ? 'w-[34px] px-0' : ''}`}
                     >
@@ -2881,18 +2903,18 @@ export function Roster({
               <tbody>
                 {g.rows.map((r, ri) => (
                   <tr key={`${r.id ?? r.name}-${ri}`} style={{ backgroundColor: ri % 2 ? '#ffffff' : '#f4f7f4' }}>
-                    <td className="px-2.5 py-2.5 align-top">
+                    <td className="px-3 py-3 align-top">
                       {r.id && (
                         <span className="block text-caption font-semibold text-[#1c1a16]">{r.id}</span>
                       )}
                       <span
-                        className={`block text-caption text-[#3d3a34] ${r.id ? 'mt-0.5' : ''}`}
+                        className={`block text-caption text-[#3d3a34] ${r.id ? 'mt-1' : ''}`}
                       >
                         {r.name}
                       </span>
                     </td>
                     {r.sex && (
-                      <td className="px-0 py-2.5 text-center align-top">
+                      <td className="px-0 py-3 text-center align-top">
                         <SexChip sex={r.sex} />
                       </td>
                     )}
@@ -2903,7 +2925,7 @@ export function Roster({
                          but printing over the next column is wrong. */
                       <td
                         key={ci}
-                        className={`px-2.5 py-2.5 align-top text-caption break-words whitespace-pre-line text-[#6d6860] ${
+                        className={`px-3 py-3 align-top text-caption break-words whitespace-pre-line text-[#6d6860] ${
                           alignOf(ci) === 'right' ? 'text-right tabular-nums' : ''
                         }`}
                       >
@@ -2994,13 +3016,13 @@ export function Sites({
       <div className="flex items-end justify-between gap-3">
         <span>
           <Figure value={overall} unit={rate ? '%' : cut.unit} size={32} />
-          <p className="mt-0.5 text-small text-[#3d3a34]">
+          <p className="mt-1 text-small text-[#3d3a34]">
             Overall · {period.label.toLowerCase()}
           </p>
         </span>
         <span className="shrink-0 pb-1 text-caption whitespace-nowrap text-[#9b958b]">{note}</span>
       </div>
-      <label className="mt-3.5 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
+      <label className="mt-4 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
         <Search size={14} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
         <input
           value={query}
@@ -3040,7 +3062,7 @@ export function Sites({
                count has no ceiling, so a bar could only be scaled to the widest row, which draws
                the ranking the rows are already in; the three-pixel rail that used to say it
                instead is gone from the whole product, so the row order says it alone. */
-            <span className={rate ? 'block' : 'flex items-stretch gap-2.5'}>
+            <span className={rate ? 'block' : 'flex items-stretch gap-3'}>
               <span className="min-w-0 flex-1">
               <span className="flex items-baseline justify-between gap-3">
                 <span className="flex min-w-0 items-baseline gap-2">
@@ -3151,7 +3173,7 @@ export function RedList({
           <div key={tier.key}>
             {/* Tier header carries its own subtotal. This is where the hierarchy comes
                 from: three figures at a glance, before any individual row is read. */}
-            <div className="mb-2.5 flex items-baseline gap-3">
+            <div className="mb-3 flex items-baseline gap-3">
               <span className="text-overline font-medium whitespace-nowrap text-[#9b958b] uppercase">
                 {tier.label}
               </span>
@@ -3176,7 +3198,7 @@ export function RedList({
                     href={href}
                     type={tap ? 'button' : undefined}
                     onClick={tap}
-                    className={`flex w-full items-center gap-2.5 py-[5px] text-left ${
+                    className={`flex w-full items-center gap-3 py-[5px] text-left ${
                       live ? 'card-press -mx-2 rounded-[10px] px-2' : ''
                     }`}
                   >
@@ -3268,7 +3290,7 @@ export function Filter<T>({
 
   return (
     <div>
-      <div className="-mx-1 mb-3.5 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
+      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
         {options.map((o) => {
           const on = o === active
           const n = tally(o === options[0] ? items : items.filter((it) => match(it, o)))
@@ -3278,7 +3300,7 @@ export function Filter<T>({
               type="button"
               aria-pressed={on}
               onClick={() => setActive(o)}
-              className={`card-press shrink-0 rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+              className={`card-press shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
                 on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
               }`}
             >
