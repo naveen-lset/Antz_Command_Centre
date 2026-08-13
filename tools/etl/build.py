@@ -124,7 +124,17 @@ PROFILE_COLS = [
     "feeding_frequency", "foraging_mode", "intelligence_score", "activity_needs_score",
     "social_needs_score", "space_needs_score", "stress_risk_score", "size_score", "need_score",
     "conservation_priority", "visitor_appeal", "budget_score", "breeding_category",
-    "breeding_feasibility", "species_description", "fun_fact", "iconic_trait", "group_name",
+    "breeding_feasibility",
+    # THE SOURCE'S OWN BREEDING VOCABULARY, which the product was deriving a weaker version of.
+    # All three are 100% filled. `pairing_status` is the husbandry arrangement (Co-housed 1,047,
+    # Single-site Unsexed 643, N/A 334, Multi-site Unsexed 269, Studbook Managed 10);
+    # `breed_group` is the source's three-way partition (Breeding Possible 1,080, Unknown
+    # Potential 978, Zero Chance 285) and `breed_sub` its sub-label (All Unsexed 911, Lone
+    # Female 29, All Males 28). The Pairing tab re-derives that partition at enclosure grain
+    # from the register; carrying the species-level statement beside it means the page can show
+    # what the SOURCE says as well as what the register counts, and name the two apart.
+    "pairing_status", "breed_group", "breed_sub",
+    "species_description", "fun_fact", "iconic_trait", "group_name",
     "baby_name", "sound_description", "visitor_tip", "cultural_significance", "uniqueness",
 ]
 

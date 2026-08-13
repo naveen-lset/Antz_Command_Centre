@@ -254,6 +254,14 @@ export interface SpeciesProfile {
   budget_score?: Score
   breeding_category?: string
   breeding_feasibility?: string
+  /** The husbandry arrangement the source records — 'Co-housed', 'Studbook Managed', … */
+  pairing_status?: string
+  /** The source's own three-way breeding partition — 'Breeding Possible', 'Unknown Potential',
+   *  'Zero Chance'. Carried so a page can state what the SOURCE says beside what the register
+   *  counts, and name the two apart rather than letting one stand in for the other. */
+  breed_group?: string
+  /** Its sub-label — 'All Unsexed', 'Lone Female', … */
+  breed_sub?: string
   species_description?: string
   fun_fact?: string
   iconic_trait?: string
