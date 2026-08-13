@@ -159,7 +159,14 @@ export function resolve(kind: EntityKind, id: string): Entity | undefined {
 
     case 'enclosure': {
       const e = ENCLOSURES.find((x) => x.id === id)
-      return e && { kind, id, name: e.name, sub: `${e.kind} · capacity ${e.capacity}`, siteKey: e.siteKey, parent: { kind: 'site', id: e.siteKey } }
+      /* THE SUB WAS `${kind} · capacity ${capacity}` AND BOTH ARE PLACEHOLDERS.
+         `hydrate()` writes `kind: ''` and `capacity: 0` on every enclosure because the schema
+         stores an enclosure as a NAME and nothing else — there is no type, no capacity and no
+         occupancy anywhere in the dump. So every enclosure in the product introduced itself as
+         " · capacity 0", which is not a missing figure but a stated one that is wrong, and it
+         appeared on the entity page, in every browse list and under every enclosure row.
+         The site is the one thing an enclosure genuinely knows about itself. */
+      return e && { kind, id, name: e.name, sub: siteOf(e.siteKey)?.name, siteKey: e.siteKey, parent: { kind: 'site', id: e.siteKey } }
     }
 
     case 'hospital': {

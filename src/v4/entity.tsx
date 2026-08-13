@@ -62,7 +62,7 @@ import { SpeciesHousingTab } from './speciesHousing'
 import { SpeciesPairingTab } from './speciesPairing'
 import { SpeciesAssessmentsTab, SpeciesBreedsTab, SpeciesIdentificationTab } from './speciesRegister'
 import { SpeciesEggsTab, laysEggs } from './speciesEggs'
-import { animalById, animalsOfSpecies, holdingsByEnclosure, sexSplit, stockOfSpecies, type Animal } from '../core/animals'
+import { animalById, animalsOfSpecies, holdingsByEnclosure, sexSplit, stockOfEnclosure, stockOfSpecies, type Animal } from '../core/animals'
 import { byDimension, delta as deltaOf, figure as figureOf, population } from '../core/query'
 import { entityHref, siteKeyOf, withinScope } from '../core/scope'
 import {
@@ -689,10 +689,19 @@ function factsFor(entity: Entity, win: Scope['win']): { label: string; value: st
     case 'enclosure': {
       const e = ENCLOSURES.find((x) => x.id === entity.id)
       if (!e) break
+      /* TYPE AND CAPACITY ARE GONE because neither exists: `hydrate()` writes `kind: ''` and
+         `capacity: 0` on every enclosure, so these two rows read "Type —" and "Capacity 0
+         animals" on every enclosure page in the product. What replaces them is counted from
+         the register, which is the only thing an enclosure genuinely knows about itself
+         besides where it is. */
+      const held = stockOfEnclosure(e.id)
       return [
-        { label: 'Type', value: e.kind },
-        { label: 'Capacity', value: `${fmt(e.capacity)} animals` },
         { label: 'Site', value: siteOf(e.siteKey)?.name ?? e.siteKey },
+        { label: 'Animals', value: fmt(held.total) },
+        { label: 'Species', value: fmt(held.species) },
+        ...(held.male + held.female > 0
+          ? [{ label: 'Sexed', value: `${fmt(held.male)} male · ${fmt(held.female)} female` }]
+          : []),
       ]
     }
   }
@@ -827,14 +836,13 @@ function GenericEntityPage({ entity }: { entity: Entity }) {
     if (!spec.hero) return undefined
     const at = { site: siteKey ? (siteOf(siteKey) ?? null) : null, win: scope.win }
 
-    /* An enclosure's occupancy is its share of its site's population by capacity — the only
-       honest split available, and stated as such on the card. */
+    /* COUNTED FROM THE REGISTER, NOT APPORTIONED BY CAPACITY. This was
+       `site total × this enclosure's capacity ÷ the site's capacity`, which is zero for every
+       enclosure in the product because `hydrate()` writes `capacity: 0` on all of them — the
+       schema stores an enclosure as a name and carries no capacity at all. `animals.bin` has an
+       enclosure index per animal, resolved on all 110,005 rows, so this is a count. */
     if (entity.kind === 'enclosure') {
-      const enc = ENCLOSURES.find((e) => e.id === entity.id)
-      const all = ENCLOSURES.filter((e) => e.siteKey === entity.siteKey)
-      const total = figureOf(at, 'animals').value
-      const capacity = all.reduce((n, e) => n + e.capacity, 0) || 1
-      return { value: fmt(Math.round((total * (enc?.capacity ?? 0)) / capacity)), unit: undefined }
+      return { value: fmt(stockOfEnclosure(entity.id).total), unit: undefined }
     }
 
     /* Everything narrowed by a dimension counts its own events from the tally. */

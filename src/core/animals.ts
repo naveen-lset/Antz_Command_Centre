@@ -180,6 +180,50 @@ export function holdingsByEnclosure(speciesId: string): EnclosureHolding[] {
 }
 
 /**
+ * WHAT AN ENCLOSURE ACTUALLY HOLDS, counted rather than apportioned.
+ *
+ * THE PAGE USED TO DERIVE THIS FROM CAPACITY AND THEREFORE READ ZERO. The enclosure hero was
+ * `site total × this enclosure's capacity ÷ the site's total capacity`, described in its own
+ * comment as "the only honest split available" — but `hydrate()` writes `capacity: 0` on every
+ * enclosure, because the schema stores an enclosure as a NAME and nothing else. So the
+ * numerator was always zero and every enclosure in the product reported holding no animals.
+ *
+ * There was never any need to apportion. `animals.bin` carries an enclosure index per animal,
+ * resolved on all 110,005 rows, so the count is a walk rather than an estimate — and unlike the
+ * capacity split it is the same number the species pages already show for the same enclosure.
+ *
+ * ONE PASS OVER THE REGISTER, which is ~110k integer reads and cheap enough to do on render.
+ * Keyed by enclosure ID rather than index because `ENCLOSURES[].id` is the bare enclosure name
+ * and measured unique across all 15,959 of them.
+ */
+export function stockOfEnclosure(enclosureId: string): {
+  total: number
+  male: number
+  female: number
+  undetermined: number
+  species: number
+} {
+  const a = data().animals
+  const ix = ENCLOSURES.findIndex((e) => e.id === enclosureId)
+  const empty = { total: 0, male: 0, female: 0, undetermined: 0, species: 0 }
+  if (ix < 0) return empty
+
+  let male = 0
+  let female = 0
+  let undetermined = 0
+  const species = new Set<number>()
+  for (let i = 0; i < a.count; i++) {
+    if (a.enclosure[i] !== ix) continue
+    species.add(a.species[i])
+    const code = SEX_CODE[a.sex[i]] ?? 'U'
+    if (code === 'M') male++
+    else if (code === 'F') female++
+    else undetermined++
+  }
+  return { total: male + female + undetermined, male, female, undetermined, species: species.size }
+}
+
+/**
  * What one enclosure's composition permits, said in the only terms the dump supports.
  *
  * NOT "BREEDING READY". The reference design badges an enclosure holding one male and one
@@ -448,21 +492,17 @@ export function searchAnimals(query: string, siteKey: string | null, win: Win, l
     }
   }
 
-  /* A call name is worth matching too, but only over a bounded sample — scanning 215,432
-     derived records for "Leo" on every keystroke is not a search, it is a hang. */
-  if (out.length < limit) {
-    for (const sp of SPECIES) {
-      if (out.length >= limit) break
-      if (siteKey && sp.siteKey !== siteKey) continue
-      if (sp.cls !== 'Mammalia' && sp.cls !== 'Aves') continue
-      const stock = Math.min(60, stockOfSpecies(sp.id, win))
-      for (let n = 1; n <= stock && out.length < limit; n++) {
-        const a = animalAt(sp.id, n)
-        if (a?.callName?.toLowerCase().startsWith(q)) out.push(a)
-      }
-    }
-  }
+  /* THE CALL-NAME PASS IS GONE, AND IT WAS NOT MERELY DEAD.
+     It walked up to sixty animals of every Mammalia and Aves species, constructing an `Animal`
+     record for each, and tested `a.callName` — a field `atRow` has never assigned, because
+     nothing in the compiled register carries it. So the predicate could not be true, the loop
+     could not contribute a result, and it ran on every keystroke: thousands of object
+     allocations per character typed, guaranteed to find nothing.
 
+     Deleting it changes no search result — none was reachable through it. What a call-name
+     search would need is `housing.identifier_value` where `identifier_type` is 'Name', which
+     the ETL selects but does not emit into `animals.bin`. Until it does, this searches ids and
+     species, which is what it has always actually done. */
   return out
 }
 
