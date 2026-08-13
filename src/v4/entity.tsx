@@ -148,6 +148,53 @@ function Hero({
   )
 }
 
+/**
+ * The collection's sex composition as ONE bar rather than three figures.
+ *
+ * Male, female and undetermined are parts of one headcount, so they are drawn as one track
+ * whose segments hold their own share — the same argument `SexBar` makes on the Animal
+ * Population page, and the reason this is a rail and not a ring here: it sits under a hero
+ * that has already stated the total, so the shape wanted is the split, not the sum again.
+ *
+ * SEGMENTS WITH NOTHING IN THEM ARE NOT DRAWN. A zero-width span still paints its rounded cap
+ * against its neighbour, which reads as a hairline of a colour that has no animals behind it.
+ */
+function SexRail({ male, female, undetermined }: { male: number; female: number; undetermined: number }) {
+  const total = male + female + undetermined
+  if (total <= 0) return null
+  const parts = [
+    { key: 'm', label: 'Male', value: male, fill: '#37bd69' },
+    { key: 'u', label: 'Unsexed', value: undetermined, fill: '#cfd8d2' },
+    { key: 'f', label: 'Female', value: female, fill: '#8fd9ae' },
+  ].filter((p) => p.value > 0)
+
+  return (
+    <>
+      <div className="flex h-[10px] w-full overflow-hidden rounded-full">
+        {parts.map((p) => (
+          <span
+            key={p.key}
+            className="h-full first:rounded-l-full last:rounded-r-full"
+            style={{ width: `${(p.value / total) * 100}%`, backgroundColor: p.fill }}
+            title={`${p.label} · ${fmt(p.value)}`}
+          />
+        ))}
+      </div>
+      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
+        {parts.map((p) => (
+          <li key={p.key} className="flex items-center gap-2">
+            <span className="size-[8px] shrink-0 rounded-full" style={{ backgroundColor: p.fill }} aria-hidden />
+            <span className="text-small font-medium tabular-nums text-[#1c1a16]">{fmt(p.value)}</span>
+            <span className="text-caption" style={{ color: FAINT }}>
+              {p.label}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
 /** A row that navigates to another entity. The whole point of the layer. */
 function EntityRow({
   entity,
@@ -966,6 +1013,47 @@ function SpeciesPage({ entity }: { entity: Entity }) {
         }
         icon={PawPrint}
       />
+
+      {/* THE FOUR FIGURES A KEEPER ASKS FIRST, and only the ones that are true.
+          The reference design puts six here — animals, sex ratio, sites, enclosures, % sexed,
+          % chipped — and two of them are why this strip is built by filtering rather than by
+          listing. `% chipped` reads 110 in that design, which is a coverage figure taken from
+          a different pair than the one beside it; ours is derived from the same two numbers it
+          is printed next to, so it cannot exceed 100. The sex ratio is dropped entirely where
+          either side is zero, because "1 : 1.2" off no males is a division by zero wearing the
+          clothes of a finding. A species with nothing to say in a slot gets no slot. */}
+      {wide && wide.total > 0 && (
+        <div className="w-full px-[var(--gutter)] pb-3">
+          <section className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
+            <SexRail male={wide.male} female={wide.female} undetermined={wide.undetermined} />
+            <div className="mt-4 flex flex-wrap gap-x-8 gap-y-4">
+              {[
+                ...(wide.ratio !== undefined
+                  ? [{ label: 'Sex ratio', value: `1 : ${wide.ratio.toFixed(1)}`, sub: 'male to female' }]
+                  : []),
+                {
+                  label: wide.sites.length === 1 ? 'Site' : 'Sites',
+                  value: String(wide.sites.length),
+                  sub: scope.site ? 'filtered' : 'holding one',
+                },
+                {
+                  label: 'Sexed',
+                  value: `${Math.round(wide.sexedPct)}%`,
+                  sub: `${fmt(wide.male + wide.female)} of ${fmt(wide.total)}`,
+                },
+              ].map((s) => (
+                <div key={s.label} className="min-w-0">
+                  <Figure value={s.value} size={24} color={HERO_INK} />
+                  <p className="mt-1 text-small font-medium text-[#1c1a16]">{s.label}</p>
+                  <p className="mt-0.5 text-caption" style={{ color: FAINT }}>
+                    {s.sub}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
 
       <EntityTabs tabs={SPECIES_TABS} tab={tab} onPick={setTab} label="Species record" />
 
