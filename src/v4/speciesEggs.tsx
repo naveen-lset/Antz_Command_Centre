@@ -44,20 +44,19 @@
  */
 
 import { useMemo } from 'react'
-import { Baby, CalendarDays, Egg, Feather, Heart, ListTree, MapPin, ScrollText } from 'lucide-react'
+import { Baby, CalendarDays, Egg, Feather, Heart, ListTree, MapPin } from 'lucide-react'
 import { TODAY, buckets, longDate, shortDate, type Win } from '../core/calendar'
 import { count, eventAt, type Ev } from '../core/events'
-import { METRICS, UNSOURCED } from '../core/metrics'
 import type { SpeciesProfile } from '../core/profiles'
 import { UNRESOLVED, flowOf } from '../core/store'
 import { SPECIES, siteOf } from '../core/world'
 import { EventTrend, type Pt } from '../exec/marks'
-import { FAINT, INK, fmt } from '../exec/system'
+import { INK, fmt } from '../exec/system'
 import { useDrill } from './drillNav'
 import { TapList, TapRow } from './panels'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
-import { Band, DataTable, DefinitionList, MetricStrip, NotePanel, TabBody, type Column } from './speciesLayout'
+import { Band, DataTable, DefinitionList, MetricStrip, TabBody, type Column } from './speciesLayout'
 
 /* ── the gate ────────────────────────────────────────────────────────────── */
 
@@ -442,11 +441,6 @@ export function SpeciesEggsTab({
           ? 'Reproductive biology'
           : 'Incubation & clutch'
 
-  /* `NOTES.births` is private to `core/metrics.ts` but travels on the metric, so the caption
-     under the trend is the same sentence the rest of the product prints — not a second telling
-     of the same caveat that can drift from it. */
-  const birthsNote = METRICS.births?.note
-
   /* THE TABLE SLOT, HELD BY THE ONE TABLE THIS SOURCE SUPPORTS. The design asked for a row per
      female — clutches, eggs, hatch rate, last season — and `report_births` has no mother, father,
      sire or dam column, so there is no key to group by and no clutch to count. Site is the only
@@ -472,14 +466,6 @@ export function SpeciesEggsTab({
       {stats.length > 0 ? (
         <Band title="Young recorded" aside={win.window} icon={Baby}>
           <MetricStrip items={stats} />
-          {/* THE WORD MATTERS MORE THAN THE NUMBER HERE. Every one of these is the registration
-              of an animal; nothing in the extract says an egg preceded it, so this is not a hatch
-              count and the caption says so before anyone can read it as one. */}
-          <p className="mt-4 text-caption" style={{ color: FAINT }}>
-            Each is the registration of a young animal in the birth register. The source carries no
-            hatch event, no laying event and no fertility result, so this counts young recorded —
-            not eggs hatched.
-          </p>
         </Band>
       ) : (
         <Band title="Young recorded" aside={win.window} icon={Baby}>
@@ -513,7 +499,6 @@ export function SpeciesEggsTab({
           title={biologyLabel}
           aside="species reference"
           icon={eggShaped ? Egg : Heart}
-          note="Published figures for the species, read verbatim from the reference table — not measurements of any egg or animal we hold, and unchanged by the site and date filters above."
         >
           <DefinitionList items={biology} />
         </Band>
@@ -535,7 +520,6 @@ export function SpeciesEggsTab({
           title="When they were recorded"
           aside={win.window}
           icon={CalendarDays}
-          note="One band, not three. Laid and Fertile have no record behind them, and drawing them empty beside a real one would claim two measurements this collection never made."
         >
           {/* NO PEAK MARKER, EITHER. The one series that exists is partly dated by a data-entry
               calendar rather than by a birth, so flagging its tallest column as a peak would put a
@@ -548,12 +532,6 @@ export function SpeciesEggsTab({
             tone="good"
             empty="No young of this species were recorded in this window."
           />
-          {birthsNote && (
-            <p className="mt-3 text-caption" style={{ color: FAINT }}>
-              {birthsNote} Seasonality read off this chart is therefore partly a record-keeping
-              calendar, and there is no laying date in the source to correct it against.
-            </p>
-          )}
         </Band>
       )}
 
@@ -567,13 +545,6 @@ export function SpeciesEggsTab({
             keyOf={(s) => s.siteKey}
             onOpen={(s) => drillTo({ kind: 'site', id: s.siteKey }, { module: 'animals', label: name })}
           />
-          {/* Every site the FLOW has a slice for is walked, not the sites the register shows the
-              species at today. A site that has since emptied still recorded its births, and
-              dropping it would lose that history without saying so. */}
-          <p className="mt-3 text-caption" style={{ color: FAINT }}>
-            Counted from the birth records themselves, so a site that no longer holds the species
-            still shows the young it recorded.
-          </p>
         </Band>
       )}
 
@@ -600,64 +571,9 @@ export function SpeciesEggsTab({
             ))}
           </TapList>
           <MoreRows page={page} noun="records" />
-          {/* The sex of the young IS in `report_births` — gender is filled on every row — but the
-              ETL compiles this flow with no facets, so it is not queryable at runtime. It is not
-              recovered through the animal register either: that register is built from `housing`,
-              so any young that has since died or moved is absent and the split would be drawn over
-              a silently biased subset. A biased split under a real total is worse than none. */}
-          <p className="mt-3 text-caption" style={{ color: FAINT }}>
-            The record carries a date, a site and the animal’s own id. It carries no parent, and the
-            sex of the young is not compiled into this flow — so neither is shown.
-          </p>
         </Band>
       )}
 
-      {/* ── 6 · one panel for everything the source does not carry ────────── */}
-
-      <Band title="What is not recorded" aside="checked against the extract" icon={ScrollText}>
-        <NotePanel title="No egg record exists in this source">
-          <p>
-            {eggShaped
-              ? 'There is no egg, clutch, candling or incubation-run row anywhere in the extract. So a hatch count, a fertility rate, a females-laid figure and a died-developing count have no numerator and no denominator, and no tile stands in for them at the top of this tab — a slot with nothing behind it is dropped rather than zeroed, because a figure printed as 0 reads as a measurement. For the same reason there is no discard breakdown to draw, and the per-female table — clutches, eggs, hatch rate and a comparison against last season, under tabs for females that laid nothing, one clutch or more — has no key to be built on, because the birth register carries no mother, father, sire or dam column.'
-              : 'The birth register carries no mother, father, sire or dam column, so the female behind any young animal in the collection is unrecoverable, and there is no pairing outcome, no pregnancy and no fetal-loss record anywhere in the extract to set against these births.'}
-          </p>
-          {/* THE REASONS ARE READ FROM THE REGISTRY, NOT WRITTEN HERE. `UNSOURCED` is the same
-              object `core/checks.ts` asserts against at boot: a slug listed there that later
-              acquires a metric fails the boot as a stale entry, so this panel cannot outlive the
-              gap it describes. Only the reader-facing names are local — `noSource.tsx` keeps its
-              own `LABELS` file-private, and this pass edits one file rather than two. A slug the
-              registry has dropped renders no line rather than an empty reason. */}
-          <ul className="mt-3 flex flex-col gap-1">
-            {(eggShaped
-              ? [
-                  ['Eggs set down', UNSOURCED.eggs],
-                  ['Hatched', UNSOURCED.hatched],
-                  ['Eggs discarded', UNSOURCED.discarded],
-                  ['Breeding success', UNSOURCED.breeding],
-                ]
-              : [
-                  /* NO EGG LINES WHERE NOTHING IS LAID. The schema statement is true either way,
-                     but "Eggs set down · not recorded" against a placental mammal reads as a gap
-                     in OUR keeping rather than as an animal that does not lay. */
-                  ['Fetal loss', UNSOURCED.fetal],
-                  ['Breeding success', UNSOURCED.breeding],
-                ]
-            )
-              .filter((x): x is [string, string] => !!x[1])
-              .map(([label, why]) => (
-                <li key={label} className="text-caption">
-                  <span className="font-semibold">{label}</span> · not recorded — {why}
-                </li>
-              ))}
-          </ul>
-          {/* The two kinds of fact are named once more at the end, because this is the panel a
-              sceptical reader arrives at, and it is where the distinction has to survive testing. */}
-          <p className="mt-3 text-caption">
-            The incubation and clutch figures on this tab are the species’ published reference. The
-            young are our own records. Nothing here multiplies one by the other.
-          </p>
-        </NotePanel>
-      </Band>
     </TabBody>
   )
 }

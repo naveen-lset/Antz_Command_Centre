@@ -1258,7 +1258,7 @@ function SpeciesPage({ entity }: { entity: Entity }) {
             </Section>
           ))}
 
-        {tab === 'pairing' && <SpeciesPairingTab speciesId={entity.id} name={entity.name} />}
+        {tab === 'pairing' && <SpeciesPairingTab speciesId={entity.id} name={entity.name} profile={profile} />}
         {tab === 'housing' && <SpeciesHousingTab speciesId={entity.id} name={entity.name} />}
         {tab === 'eggs' && <SpeciesEggsTab speciesId={entity.id} name={entity.name} profile={profile} />}
         {tab === 'assessments' && <SpeciesAssessmentsTab profile={profile} />}

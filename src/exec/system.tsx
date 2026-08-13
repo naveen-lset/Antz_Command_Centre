@@ -351,6 +351,7 @@ export function Section({
   tight = false,
   bare = false,
   lead = false,
+  wide = false,
   children,
 }: {
   icon?: Icon
@@ -379,6 +380,20 @@ export function Section({
    * earn this; a page where several do has no headline.
    */
   lead?: boolean
+  /**
+   * SPAN BOTH COLUMNS OF THE STACK GRID, so the card sizes to its own content.
+   *
+   * FOR A CARD THAT IS SHORT BY NATURE. `Stack`'s rows stretch, and `h-full` makes the shorter
+   * of two cards on a row take the taller's height — right for two cards of comparable weight,
+   * wrong for a strip of four figures sitting beside a chart. Measured on the Pairing tab: a
+   * `Snapshot` of four cells ended at 141px next to a 256px bar chart, leaving 139px of white
+   * inside a card that had nothing more to say.
+   *
+   * The fix is the row, not the height. A `col-span-full` item is alone on its row, so stretch
+   * resolves to its own content and the slack cannot exist. Opt-in, because most cards genuinely
+   * do pair — this is for the lede strip that does not.
+   */
+  wide?: boolean
   children: ReactNode
 }) {
   const accent = useAccent()
@@ -409,7 +424,7 @@ export function Section({
        wrapper takes the row height, the section fills the wrapper, and the two cards end on
        the same line. Outside a grid the parent's height is auto, `height: 100%` resolves to
        auto, and nothing changes — which is why this is safe on all sixty-odd Sections. */
-    <Reveal className="h-full">
+    <Reveal className={`h-full${wide ? ' col-span-full' : ''}`}>
       <section className={`h-full rounded-[var(--radius-card)] bg-white ${tight ? 'p-[var(--pad-card-sm)]' : 'p-[var(--pad-card)]'}`} aria-label={label}>
         {label && (
           <header className={`flex items-center justify-between gap-3 ${tight ? 'mb-3' : 'mb-4'}`}>
@@ -1342,27 +1357,40 @@ export function Columns({
   labels,
   highlight,
   unit,
+  showValues = false,
+  fill,
 }: {
   values: number[]
   labels: string[]
   highlight?: number
   unit?: string
+  /** Print the value above EVERY column, not only the highlighted one. Opt-in. */
+  showValues?: boolean
+  /** Semantic colour override — mortality red, lifespan teal. Defaults to the page accent. */
+  fill?: string
 }) {
   const accent = useAccent()
   const { ref, animate } = usePlay()
   const max = Math.max(...values, 1)
   const hi = highlight ?? values.length - 1
+  const hue = fill ?? accent
   return (
     <div ref={ref}>
       <div className="flex h-[92px] items-end gap-1.5">
         {values.map((v, i) => (
           <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1.5">
-            {i === hi && <span className="text-caption font-semibold tabular-nums text-[#1c1a16]">{compact(v)}</span>}
+            {(showValues || i === hi) && (
+              <span
+                className={`text-caption tabular-nums ${i === hi ? 'font-semibold text-[#1c1a16]' : 'text-[#736e67]'}`}
+              >
+                {compact(v)}
+              </span>
+            )}
             <span
               className={`w-full origin-bottom rounded-[4px] ${animate ? 'animate-grow-y' : ''}`}
               style={{
                 height: `${Math.max(4, (v / max) * 68)}px`,
-                backgroundColor: i === hi ? accent : mix(accent, 0.28),
+                backgroundColor: i === hi ? hue : mix(hue, 0.28),
                 animationDelay: animate ? `${i * 55}ms` : undefined,
               }}
             />

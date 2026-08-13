@@ -9,14 +9,16 @@
  * rows is the population this page is otherwise about, so a reader is never left working out
  * which line they arrived on.
  *
- * THIS TAB DOES NOT MOVE WITH THE DATE FILTER, and it says so on screen rather than quietly
- * ignoring it. `animals.bin` is a snapshot of who is housed where on the extract's last day and
- * carries no enclosure-move history, so there is no honest way to answer "which enclosure was
- * this animal in last March" — the question the window pill above implies can be asked of
- * everything under it. Every other tab here is a period; this one is a position. A tab that
- * silently ignored the pill the header is displaying would be the exact contradiction this
- * product spends its effort avoiding, so the reading date is stated twice: in the card's aside
- * and in the prose under it.
+ * THIS TAB DOES NOT MOVE WITH THE DATE FILTER. `animals.bin` is a snapshot of who is housed
+ * where on the extract's last day and carries no enclosure-move history, so there is no honest
+ * way to answer "which enclosure was this animal in last March" — the question the window pill
+ * above implies can be asked of everything under it. Every other tab here is a period; this one
+ * is a position.
+ *
+ * ONE CARD, AND THE SHAPE IS A WORKSPACE RATHER THAN A DASHBOARD: a view toggle, a search, and a
+ * table. The sex-split bars and the lead sentence that used to sit above it were a second,
+ * softer telling of the M / F / U columns already in every row — the same walk, drawn twice, in
+ * the one place a reader is trying to scan a table.
  *
  * COUNTED, NOT MODELLED. The sex split is `core/animals.ts`'s walk over the register spans, not
  * `population.ts`'s `speciesRows`, whose male/female/unknown come from an authored unsexed-rate
@@ -27,17 +29,24 @@
  * register rows), and summing the parts means a row's total and its parts cannot disagree on
  * screen even if that ever stops being true.
  *
- * WHAT THIS TAB DELIBERATELY DOES NOT SHOW, and why:
- *   PAIRS — no pairing, mate or breeding-unit record exists anywhere in the dump, and the two
- *     plausible derivations disagree by four times on real data (Sable Kestrel at Lakeside
- *     Sanctuary: 61 by sum-of-min(M,F), 14 by enclosures-holding-both-sexes). What replaces the
- *     column counts enclosures holding both sexes, which is a thing that can actually be
- *     counted, and it is named for what it counts.
+ * THE "PAIRS" COLUMN COUNTS ENCLOSURES HOLDING BOTH SEXES, because no pairing, mate or
+ * breeding-unit record exists anywhere in the dump and the two plausible derivations of one
+ * disagree by four times on real data (Sable Kestrel at Lakeside Sanctuary: 61 by
+ * sum-of-min(M,F), 14 by enclosures-holding-both-sexes). This is the second of those — a thing
+ * the register actually contains — and tapping the figure opens exactly the enclosures it
+ * counted, so the number can be checked against its own evidence in one click.
+ *
+ * WHAT THIS TAB CANNOT SHOW, and why:
+ *   CAPACITY, OCCUPANCY % AND ENCLOSURE STATUS — the schema stores an enclosure as a name and
+ *     nothing else. `build.py` emits `{id, name, siteKey}` per enclosure and `hydrate()`
+ *     hard-sets `capacity: 0` and `kind: ''` on all 15,959 of them, so there is no "12 / 20
+ *     occupied" figure and nothing behind Available / Near Capacity / At Capacity / Over
+ *     Capacity / Restricted / Under Maintenance. Those two columns are absent rather than
+ *     dashed: a column of 825 em dashes is furniture, and one filled with a derived guess would
+ *     be a stated figure that is wrong.
  *   "BREEDING READY" — a maturity claim. `born` is absent on 89,579 of 110,005 animals (81%)
  *     and `maturity_age_years` exists for 775 of 2,339 species, so the strongest supportable
  *     statement is which sexes are present. `compositionOf` already words it that way.
- *   CAPACITY AND OCCUPANCY % — the schema stores an enclosure as a name and nothing else, so
- *     `hydrate()` hard-sets `capacity: 0` on every row. There is no "12 / 20 occupied" figure.
  *   SECTION (Site › Section › Enclosure) — the ETL reads `housing.section_name` only to count
  *     distinct sections per site and never emits it per animal, so an animal cannot be placed
  *     in one.
@@ -52,16 +61,16 @@
  * the reader is looking at.
  */
 
-import { useMemo, useState } from 'react'
-import { Boxes, MapPin } from 'lucide-react'
-import { compositionOf, holdingsByEnclosure, type EnclosureHolding } from '../core/animals'
-import { TODAY, longDate } from '../core/calendar'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Boxes, ChevronRight, MapPin, type LucideIcon } from 'lucide-react'
+import { holdingsByEnclosure, type EnclosureHolding } from '../core/animals'
 import { siteOf, speciesByName, speciesOf } from '../core/world'
-import { Bars, DEEP, FAINT, Rule, Section, TRACK, fmt } from '../exec/system'
+import { ACCENT_INK, DEEP, FAINT, INK, Section, TRACK, VALUE, fmt } from '../exec/system'
 import { useDrill } from './drillNav'
 import { FindField } from './filters'
 import { TapList, TapRow } from './panels'
 import { MoreRows, usePaged } from './perf'
+import { useSheet } from './sheet'
 
 /** One site's holding of one common name. Every field is counted; none is apportioned. */
 interface SiteHolding {
@@ -73,8 +82,17 @@ interface SiteHolding {
   undetermined: number
   total: number
   enclosures: number
-  /** Enclosures with at least one male AND at least one female. NOT a pair count. */
-  bothSexes: number
+  /**
+   * The enclosures holding at least one male AND at least one female.
+   *
+   * THIS IS WHAT THE "PAIRS" COLUMN COUNTS, and the rows are kept rather than just their length
+   * because the column is tappable: the count opens the enclosures behind it. It is NOT a pair
+   * record — none exists in the extract — and the two plausible derivations of one disagree by
+   * four times on real data (Sable Kestrel at Lakeside Sanctuary: 61 by sum-of-min(M,F), 14 by
+   * enclosures-holding-both-sexes). This is the second of those, because it counts a thing that
+   * is actually in the register.
+   */
+  bothSexesRows: EnclosureHolding[]
 }
 
 /**
@@ -96,12 +114,14 @@ function Segments<T extends string>({
   onChange,
 }: {
   value: T
-  options: [T, string][]
+  options: [T, string, LucideIcon][]
   onChange: (v: T) => void
 }) {
   return (
-    <div className="mb-4 flex gap-1.5" role="group">
-      {options.map(([key, label]) => {
+    /* A `span` rather than a `div`, because this now sits in `Section`'s `aside`, which is a
+       span — a block element inside it is invalid markup the browser silently re-parents. */
+    <span className="flex gap-1.5" role="group">
+      {options.map(([key, label, Glyph]) => {
         const on = key === value
         return (
           <button
@@ -109,13 +129,141 @@ function Segments<T extends string>({
             type="button"
             aria-pressed={on}
             onClick={() => onChange(key)}
-            className="card-press shrink-0 rounded-full px-3 py-1 text-caption font-medium"
+            className="card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-caption font-medium"
             style={on ? { backgroundColor: DEEP, color: '#ffffff' } : { backgroundColor: TRACK, color: '#44544a' }}
           >
+            <Glyph size={13} strokeWidth={2} aria-hidden />
             {label}
           </button>
         )
       })}
+    </span>
+  )
+}
+
+/* ── the housing table ───────────────────────────────────────────────────── */
+
+/**
+ * One column of the housing table.
+ *
+ * `sticky` is a LEFT OFFSET IN PIXELS, not a boolean, because two columns are pinned and the
+ * second has to know how wide the first is. Getting it from the DOM would mean measuring on
+ * every render; declaring it beside the width that produces it keeps the two numbers adjacent
+ * and wrong together rather than apart and wrong separately.
+ */
+export interface HCol<T> {
+  key: string
+  head: string
+  align?: 'right'
+  width?: string
+  sticky?: number
+  /** The identifying column — carries the row's weight. One per table. */
+  strong?: boolean
+  /** Ordinals and other supporting figures, set back so the counts read first. */
+  muted?: boolean
+  cell: (row: T, i: number) => ReactNode
+}
+
+/**
+ * THE HOUSING TABLE — a real table at every width, scrolled rather than restacked.
+ *
+ * WHY THIS IS NOT `DataTable`. The kit's table drops low-priority columns at tablet and becomes
+ * a stack of cards on a phone, which is the right default for the analytical tabs and the wrong
+ * one here: this tab is a location workspace whose whole value is reading M / F / U / Total
+ * across a row, and a card per site is that row taken apart. So the table keeps all its columns
+ * at all widths and scrolls horizontally, with the ordinal and the name pinned to the left edge
+ * so the row a reader is scrolling stays identified.
+ *
+ * EVERY VISUAL HERE IS AN EXISTING TOKEN. The header type is `mortalityTable`'s — `text-overline`
+ * semibold uppercase — over the palette's own recessive surface; the row hairline, the hover
+ * wash and the chevron are that table's too. Nothing is a new colour, and the only thing this
+ * component adds to the product is the pinning.
+ *
+ * THE ROW BACKGROUND IS A CLASS, NOT A STYLE, and that is load-bearing rather than stylistic: an
+ * inline `backgroundColor` outranks a `hover:` class, so setting the active tint inline would
+ * silently kill the hover state on exactly the row the reader is most likely to point at.
+ */
+export function HousingTable<T>({
+  rows,
+  columns,
+  keyOf,
+  onOpen,
+  active,
+}: {
+  rows: T[]
+  columns: HCol<T>[]
+  keyOf: (row: T) => string
+  onOpen?: (row: T) => void
+  /** The row this page already belongs to — tinted so the reader can find it in a long list. */
+  active?: (row: T) => boolean
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[700px] border-collapse">
+        <thead>
+          <tr>
+            {columns.map((c, ci) => (
+              <th
+                key={c.key}
+                className={`px-3 py-2.5 text-overline font-semibold whitespace-nowrap uppercase ${
+                  c.align === 'right' ? 'text-right' : 'text-left'
+                } ${ci === 0 ? 'rounded-l-[8px]' : ''} ${
+                  !onOpen && ci === columns.length - 1 ? 'rounded-r-[8px]' : ''
+                } ${c.sticky !== undefined ? 'sticky z-20' : ''}`}
+                style={{ backgroundColor: TRACK, color: '#44544a', width: c.width, left: c.sticky }}
+              >
+                {c.head}
+              </th>
+            ))}
+            {onOpen && (
+              <th className="w-[30px] rounded-r-[8px]" style={{ backgroundColor: TRACK }} aria-hidden />
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr
+              key={keyOf(row)}
+              onClick={onOpen ? () => onOpen(row) : undefined}
+              className={`border-b last:border-0 ${
+                onOpen ? 'cursor-pointer transition-colors' : ''
+              } ${active?.(row) ? 'bg-[#f2f8f4] hover:bg-[#ecf4ef]' : 'bg-white hover:bg-[#faf9f7]'}`}
+              style={{ borderColor: '#f6f5f2' }}
+            >
+              {columns.map((c) => (
+                <td
+                  key={c.key}
+                  className={`px-3 py-3.5 text-small whitespace-nowrap ${
+                    c.align === 'right' ? 'text-right tabular-nums' : ''
+                  } ${c.strong ? 'font-medium' : ''} ${c.sticky !== undefined ? 'sticky z-10 bg-inherit' : ''}`}
+                  style={{ color: c.muted ? FAINT : c.strong ? INK : VALUE, left: c.sticky }}
+                >
+                  {c.cell(row, i)}
+                </td>
+              ))}
+              {onOpen && (
+                <td className="px-2 py-3.5 align-middle" style={{ color: ACCENT_INK }} aria-hidden>
+                  <ChevronRight size={13} strokeWidth={2.25} />
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** The one empty state this tab can reach, in the product's own inline form. */
+function NoRecords() {
+  return (
+    <div className="py-10 text-center">
+      <p className="text-small font-medium" style={{ color: INK }}>
+        No housing records found
+      </p>
+      <p className="mt-1 text-caption" style={{ color: FAINT }}>
+        Try changing your search or selected housing view.
+      </p>
     </div>
   )
 }
@@ -130,6 +278,7 @@ function Segments<T extends string>({
  */
 export function SpeciesHousingTab({ speciesId, name }: { speciesId: string; name: string }) {
   const { drillTo } = useDrill()
+  const { open } = useSheet()
   const [view, setView] = useState<'site' | 'enclosure'>('site')
   const [query, setQuery] = useState('')
 
@@ -158,7 +307,7 @@ export function SpeciesHousingTab({ speciesId, name }: { speciesId: string; name
         undetermined: held.reduce((n, h) => n + h.undetermined, 0),
         total: held.reduce((n, h) => n + h.total, 0),
         enclosures: held.length,
-        bothSexes: held.filter((h) => h.male > 0 && h.female > 0).length,
+        bothSexesRows: held.filter((h) => h.male > 0 && h.female > 0),
       })
     }
 
@@ -190,13 +339,17 @@ export function SpeciesHousingTab({ speciesId, name }: { speciesId: string; name
     [enclosures, q],
   )
 
-  /* PAGED AT EIGHT BECAUSE THE SPREAD IS ENORMOUS. The median (site, species) occupies two
-     enclosures and the ninetieth percentile nine, but Auburn Caramel Peryton at Riverside
-     occupies 807 — so a fixed list of twenty is mostly empty space for the median species and
-     a silent truncation for the outlier. `MoreRows` states the real total either way. */
+  /* PAGED BECAUSE THE SPREAD IS ENORMOUS. The median (site, species) occupies two enclosures and
+     the ninetieth percentile nine, but Auburn Caramel Peryton at Riverside occupies 807 — so a
+     fixed list of several hundred is mostly empty space for the median species and a silent
+     truncation for the outlier. `MoreRows` states the real total either way.
+
+     TWELVE RATHER THAN THE EIGHT THIS CARRIED AS A LIST. The rows are table rows now, roughly
+     half the height of the `TapRow`s they replaced, so eight of them left the card ending well
+     above the fold it used to fill. */
   const page = usePaged<EnclosureHolding>(
     (offset, limit) => ({ rows: encRows.slice(offset, offset + limit), total: encRows.length }),
-    8,
+    12,
     [encRows],
   )
 
@@ -205,181 +358,158 @@ export function SpeciesHousingTab({ speciesId, name }: { speciesId: string; name
      they appear only in a mortality or accession record. */
   if (!sites.length) return null
 
-  const held = sites.reduce(
-    (a, s) => ({
-      male: a.male + s.male,
-      female: a.female + s.female,
-      undetermined: a.undetermined + s.undetermined,
-      total: a.total + s.total,
-      enclosures: a.enclosures + s.enclosures,
-      bothSexes: a.bothSexes + s.bothSexes,
-    }),
-    { male: 0, female: 0, undetermined: 0, total: 0, enclosures: 0, bothSexes: 0 },
-  )
-
   /* The site this page is otherwise about — the one in the id, not the one at the top of the
      list. It may legitimately be absent from the rows: a species page exists for every pair the
      data names, including the ones that hold nothing today. */
   const thisSiteKey = speciesOf(speciesId)?.siteKey
-  const thisSite = sites.find((s) => s.siteKey === thisSiteKey)
-  const thisSiteName = siteOf(thisSiteKey ?? '')?.name
 
-  const asOf = longDate(TODAY)
-  const searchable = view === 'site' ? sites.length : enclosures.length
   const visible = view === 'site' ? siteRows.length : encRows.length
 
+  /**
+   * SITE ROW → THE SAME TAB, ENCLOSURE-WISE, NARROWED TO THAT SITE.
+   *
+   * The drill the tab already owns rather than a new destination: the enclosure view and its
+   * search are both here, so "show me this site's enclosures" is a view switch and a filter,
+   * not a page. The site's NAME goes into the search box rather than into a hidden filter
+   * because the box is the one control that already explains itself — the reader sees what
+   * narrowed the list and `FindField`'s own clear button undoes it.
+   *
+   * Safe as an exact-name match: measured across all 50 sites in the extract, no site name is a
+   * substring of another, so the filter cannot pull in a neighbour.
+   */
+  const openSite = (s: SiteHolding) => {
+    setView('enclosure')
+    setQuery(s.siteName)
+  }
+
+  /**
+   * THE PAIRS COUNT OPENS THE ENCLOSURES IT COUNTED, which is the only honest destination.
+   *
+   * There is no pairing record in the extract to list, so the sheet shows the enclosures that
+   * put both sexes together — the thing the number actually counted — and each row leaves for
+   * that enclosure's own page. No new flow: this is `useSheet` and `TapRow`, the same pair the
+   * Pairing tab's own drill-down uses.
+   */
+  const openPairs = (s: SiteHolding) =>
+    open({
+      title: 'Enclosures holding both sexes',
+      eyebrow: `${name} · ${s.siteName}`,
+      body: (
+        <TapList>
+          {s.bothSexesRows.map((e) => (
+            <TapRow
+              key={e.enclosureId}
+              label={e.enclosureName}
+              sub={`${fmt(e.male)} M · ${fmt(e.female)} F · ${fmt(e.undetermined)} U`}
+              value={fmt(e.total)}
+              onOpen={() => drillTo({ kind: 'enclosure', id: e.enclosureId }, { module: 'species', label: name })}
+            />
+          ))}
+        </TapList>
+      ),
+    })
+
+  const siteColumns: HCol<SiteHolding>[] = [
+    { key: 'no', head: 'No', width: '52px', sticky: 0, muted: true, cell: (_r, i) => i + 1 },
+    { key: 'site', head: 'Site', sticky: 52, strong: true, cell: (s) => s.siteName },
+    { key: 'm', head: 'M', align: 'right', width: '64px', cell: (s) => fmt(s.male) },
+    { key: 'f', head: 'F', align: 'right', width: '64px', cell: (s) => fmt(s.female) },
+    { key: 'u', head: 'U', align: 'right', width: '64px', cell: (s) => fmt(s.undetermined) },
+    { key: 'total', head: 'Total', align: 'right', width: '84px', strong: true, cell: (s) => fmt(s.total) },
+    { key: 'enclosures', head: 'Enclosures', align: 'right', width: '110px', cell: (s) => fmt(s.enclosures) },
+    {
+      key: 'pairs',
+      head: 'Pairs',
+      align: 'right',
+      width: '84px',
+      /* The only cell on the row with its own handler, so the click has to be stopped from
+         reaching the row underneath it — otherwise opening the pairs sheet would also switch
+         the view out from under it. */
+      cell: (s) =>
+        s.bothSexesRows.length > 0 ? (
+          <button
+            type="button"
+            onClick={(ev) => {
+              ev.stopPropagation()
+              openPairs(s)
+            }}
+            className="card-press rounded-[6px] px-1 font-medium underline decoration-dotted underline-offset-4"
+            style={{ color: ACCENT_INK }}
+          >
+            {fmt(s.bothSexesRows.length)}
+          </button>
+        ) : (
+          fmt(0)
+        ),
+    },
+  ]
+
+  const encColumns: HCol<EnclosureHolding>[] = [
+    { key: 'no', head: 'No', width: '52px', sticky: 0, muted: true, cell: (_r, i) => i + 1 },
+    { key: 'enclosure', head: 'Enclosure', sticky: 52, strong: true, cell: (e) => e.enclosureName },
+    { key: 'site', head: 'Site', cell: (e) => siteOf(e.siteKey)?.name ?? e.siteKey },
+    { key: 'm', head: 'M', align: 'right', width: '64px', cell: (e) => fmt(e.male) },
+    { key: 'f', head: 'F', align: 'right', width: '64px', cell: (e) => fmt(e.female) },
+    { key: 'u', head: 'U', align: 'right', width: '64px', cell: (e) => fmt(e.undetermined) },
+    { key: 'total', head: 'Total', align: 'right', width: '84px', strong: true, cell: (e) => fmt(e.total) },
+  ]
+
   return (
-    <>
-      <Section icon={MapPin} label="Where they are held" aside={`as of ${asOf}`}>
-        {/* A LEAD LINE RATHER THAN A HERO NUMBER. The figure a reader wants here is not one
-            number, it is the relationship between three — how many, spread over how many
-            sites, in how many enclosures — and a 40pt headcount above two captions puts the
-            wrong one of the three in the largest type. */}
-        <p className="text-lead text-balance" style={{ color: '#1c1a16' }}>
-          <span className="font-semibold tabular-nums">{fmt(held.total)}</span> held across{' '}
-          <span className="font-semibold tabular-nums">{fmt(sites.length)}</span>{' '}
-          {sites.length === 1 ? 'site' : 'sites'}, in{' '}
-          <span className="font-semibold tabular-nums">{fmt(held.enclosures)}</span>{' '}
-          {held.enclosures === 1 ? 'enclosure' : 'enclosures'}.
-        </p>
-
-        {/* The same wording the Overview tab uses for the same walk, deliberately — two cards
-            counting the same register with two different phrasings read as two claims. */}
-        <Rule label="Sex · counted from the register" />
-        <Bars
-          items={[
-            { label: 'Male', value: held.male },
-            { label: 'Female', value: held.female },
-            { label: 'Undetermined', value: held.undetermined },
-          ]}
-          showShare
-          precise
-        />
-
-        <p className="mt-4 text-caption leading-relaxed" style={{ color: FAINT }}>
-          Counted where every animal is housed on {asOf}, the extract’s last day. This tab is a
-          position rather than a period, so it does not move with the date filter above it —
-          there is no enclosure-move history in the source to window it against.
-        </p>
-
-        {/* SAID ONLY WHEN IT IS TRUE, and it is worth saying: a reader who opened the
-            Stonehaven page and finds nine rows, none of them Stonehaven, is owed the reason. */}
-        {thisSiteName && !thisSite && (
-          <p className="mt-2 text-caption leading-relaxed" style={{ color: FAINT }}>
-            None are held at {thisSiteName}, the site this page belongs to. The rows below are
-            the other sites that hold the name.
-          </p>
-        )}
-      </Section>
-
-      <Section
-        icon={Boxes}
-        label={view === 'site' ? 'Site-wise' : 'Enclosure-wise'}
-        aside={
-          view === 'site'
-            ? `${fmt(sites.length)} ${sites.length === 1 ? 'site' : 'sites'}`
-            : `${fmt(enclosures.length)} ${enclosures.length === 1 ? 'enclosure' : 'enclosures'}`
-        }
-      >
+    <Section
+      wide
+      icon={view === 'site' ? MapPin : Boxes}
+      label={`${view === 'site' ? 'Sites' : 'Enclosures'} · ${fmt(view === 'site' ? sites.length : enclosures.length)}`}
+      aside={
         <Segments
           value={view}
           options={[
-            ['site', 'Site-wise'],
-            ['enclosure', 'Enclosure-wise'],
+            ['site', 'Site-Wise', MapPin],
+            ['enclosure', 'Enclosure-Wise', Boxes],
           ]}
           onChange={(v) => {
             setView(v)
-            /* CLEARED ON THE SWITCH, and this is a correctness fix rather than a courtesy. The
-               field is only rendered past twelve rows, which for the site view is never — so a
-               query typed against 800 enclosures would survive the switch, silently filter the
-               site list, and hide sites with no visible field to explain why. */
+            /* CLEARED ON THE SWITCH, and this is a correctness fix rather than a courtesy. A
+               query typed against 800 enclosures would otherwise survive into the site view and
+               silently filter it. The one path that deliberately carries a query across is
+               `openSite`, which sets the view and the query together. */
             setQuery('')
           }}
         />
+      }
+    >
+      <div className="mb-4">
+        <FindField
+          value={query}
+          onChange={setQuery}
+          placeholder={view === 'site' ? 'Search sites...' : 'Search enclosures...'}
+        />
+      </div>
 
-        {/* SEARCH ONLY WHERE THERE IS SOMETHING TO SEARCH. Site-wise tops out at eleven rows
-            for any name in the dump, so the field would be permanent furniture over a list
-            already short enough to read; enclosure-wise routinely is not. */}
-        {searchable > 12 && (
-          <div className="mb-4">
-            <FindField
-              value={query}
-              onChange={setQuery}
-              placeholder={view === 'site' ? 'Search sites' : 'Search enclosures'}
-            />
-          </div>
-        )}
-
-        {q && visible === 0 ? (
-          <p className="text-small" style={{ color: '#5c574f' }}>
-            No {view === 'site' ? 'site' : 'enclosure'} matches “{query.trim()}”.
-          </p>
-        ) : view === 'site' ? (
-          <TapList>
-            {siteRows.map((s) => (
-              <TapRow
-                key={s.siteKey}
-                label={s.siteName}
-                /* The sub carries the columns the reference design draws as columns — M, F, U,
-                   enclosures, both-sexes — because `TapRow` is the row every other list on this
-                   page uses and forking its geometry for one table would be the fourteenth
-                   slightly-different row in the product. Its sub WRAPS by design, which is what
-                   makes a five-part line survive a phone width. */
-                sub={[
-                  s.siteCode,
-                  `${fmt(s.male)} M · ${fmt(s.female)} F · ${fmt(s.undetermined)} U`,
-                  `${fmt(s.enclosures)} ${s.enclosures === 1 ? 'enclosure' : 'enclosures'}`,
-                  /* WHERE THE "PAIRS" COLUMN WAS. Named for what it counts, because it is not
-                     a pair count and no pair count exists — see the note at the top. */
-                  `${fmt(s.bothSexes)} with both sexes`,
-                  s.siteKey === thisSiteKey ? 'this page’s site' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                value={fmt(s.total)}
-                active={s.siteKey === thisSiteKey}
-                onOpen={() => drillTo({ kind: 'site', id: s.siteKey }, { module: 'species', label: name })}
-              />
-            ))}
-          </TapList>
-        ) : (
-          <>
-            <TapList>
-              {page.rows.map((e) => (
-                <TapRow
-                  key={e.enclosureId}
-                  label={e.enclosureName}
-                  /* THE SITE IS NAMED ON EVERY ROW, because an enclosure name on its own does
-                     not say where it is — `ENCLOSURES[ix].id === .name`, the housing column
-                     verbatim, with no site prefix in it. The composition leads the line rather
-                     than sitting as a chip on the right: it is the reading of the row, and the
-                     row's right-hand column is already spoken for by the count. */
-                  sub={`${compositionOf(e)} · ${siteOf(e.siteKey)?.name ?? e.siteKey} · ${fmt(e.male)} M · ${fmt(e.female)} F · ${fmt(e.undetermined)} U`}
-                  value={fmt(e.total)}
-                  onOpen={() =>
-                    drillTo({ kind: 'enclosure', id: e.enclosureId }, { module: 'species', label: name })
-                  }
-                />
-              ))}
-            </TapList>
-            {/* The noun changes under a search because the total does: a filtered list saying
-                "8 of 34 enclosures" would state a population of 34 for a species that has 807.
-                "Matching enclosures" is what the 34 actually is. */}
-            <MoreRows page={page} noun={q ? 'matching enclosures' : 'enclosures'} />
-          </>
-        )}
-
-        {/* THE THREE GAPS IN ONE PLACE, under the table they qualify rather than as three
-            asides nobody reads together. The third is the one most likely to be misread: a row
-            here counts THIS species in that enclosure, not the enclosure's occupancy. */}
-        <p className="mt-5 text-caption leading-relaxed" style={{ color: FAINT }}>
-          The source holds no pairing or mate record, so there is no pair count — only
-          enclosures in which both sexes are present. It holds no enclosure capacity either, so
-          there is no occupancy percentage. And 1,456 of 15,959 enclosures hold more than one
-          species, so these counts are of {name} in each enclosure, not of everything living
-          there.
-        </p>
-      </Section>
-    </>
+      {visible === 0 ? (
+        <NoRecords />
+      ) : view === 'site' ? (
+        <HousingTable
+          rows={siteRows}
+          columns={siteColumns}
+          keyOf={(s) => s.siteKey}
+          onOpen={openSite}
+          active={(s) => s.siteKey === thisSiteKey}
+        />
+      ) : (
+        <>
+          <HousingTable
+            rows={page.rows}
+            columns={encColumns}
+            keyOf={(e) => e.enclosureId}
+            onOpen={(e) => drillTo({ kind: 'enclosure', id: e.enclosureId }, { module: 'species', label: name })}
+          />
+          {/* The noun changes under a search because the total does: a filtered list saying
+              "8 of 34 enclosures" would state a population of 34 for a species that has 807.
+              "Matching enclosures" is what the 34 actually is. */}
+          <MoreRows page={page} noun={q ? 'matching enclosures' : 'enclosures'} />
+        </>
+      )}
+    </Section>
   )
 }
+

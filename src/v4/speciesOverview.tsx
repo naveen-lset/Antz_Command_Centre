@@ -31,22 +31,23 @@
  * its refusal up rather than re-inventing the claim at page level.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Activity,
-  ArrowLeftRight,
   Baby,
   Boxes,
   CalendarRange,
   Heart,
   Layers,
+  ListTree,
   MapPin,
+  PawPrint,
   Skull,
-  Sparkles,
+  type LucideIcon,
 } from 'lucide-react'
 
-import { TODAY, buckets, dateAt, resolveWindow, shortDate, type Win } from '../core/calendar'
-import { UNRESOLVED, data, flowOf } from '../core/store'
+import { TODAY, buckets, dateAt, longDate, resolveWindow, shortDate, type Win } from '../core/calendar'
+import { UNRESOLVED, flowOf } from '../core/store'
 import { SPECIES, siteOf, speciesOf } from '../core/world'
 import {
   animalsOfSpecies,
@@ -56,17 +57,13 @@ import {
   type Composition,
 } from '../core/animals'
 import type { SpeciesProfile } from '../core/profiles'
-import { EventTrend, FlowSplit, type Pt } from '../exec/marks'
-import { Columns, FAINT, Facts, HAIR, INK, RED_LIST, TONE, fmt, mix, step, useAccent } from '../exec/system'
-import { speciesLifecycle } from './modules/population'
+import { EventTrend, type Pt } from '../exec/marks'
+import { ACCENT_INK, Columns, DEEP, FAINT, HAIR, INK, RED_LIST, TONE, TONE_FILL, TRACK, VALUE, fmt } from '../exec/system'
 import { standingOf } from './modules/regulatory'
 import {
   Band,
-  CoverageMeter,
   DataTable,
-  DefinitionList,
   MetricStrip,
-  NotePanel,
   RankedBars,
   TabBody,
   type Column,
@@ -74,6 +71,10 @@ import {
 import { DashCard, FactRows, KpiStrip, RankRows, SliceKey, Slices, YearBars, foldTail } from './dashboard'
 import { speciesWideAt } from './speciesWide'
 import { useDrill } from './drillNav'
+import { FindField } from './filters'
+import { useSheet } from './sheet'
+import { HousingTable, type HCol } from './speciesHousing'
+import { ageLabel, bandsOf, survivalOf } from './speciesLife'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
 
@@ -142,17 +143,6 @@ const EMPTY_FLOW: SpeciesFlow = {
   years: [],
 }
 
-
-/** Ages counted into the extract's own shared bands, in band order, empty bands dropped. */
-function ageBandsOf(values: number[]): [string, number][] {
-  const edges = data().meta.ageBands
-  const counts = edges.map(() => 0)
-  for (const v of values) {
-    const ix = edges.findIndex(([, lo, hi]) => v >= lo && (hi === null || v < hi))
-    if (ix >= 0) counts[ix]++
-  }
-  return edges.map(([label], i) => [label, counts[i]] as [string, number]).filter(([, n]) => n > 0)
-}
 
 /* ── the Red List badge ──────────────────────────────────────────────────── */
 
@@ -223,27 +213,6 @@ function Caption({ children }: { children: React.ReactNode }) {
       {children}
     </p>
   )
-}
-
-/** The label above one half of a paired mark. Two marks, one band, one rule above them. */
-function MarkHead({ label, aside }: { label: string; aside?: string }) {
-  return (
-    <div className="mb-2 flex items-baseline justify-between gap-3">
-      <span className="text-small font-medium" style={{ color: INK }}>
-        {label}
-      </span>
-      {aside && (
-        <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
-          {aside}
-        </span>
-      )}
-    </div>
-  )
-}
-
-/** Two marks that answer the same question of two flows, side by side once there is room. */
-function Pairs({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-x-10 gap-y-8 @[720px]:grid-cols-2">{children}</div>
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -405,22 +374,6 @@ function walkSpeciesFlow(
  * the sorted values is a real animal's age, which is the only figure this distribution can
  * honestly report.
  */
-
-const quantile = (sorted: number[], q: number): number =>
-  sorted[Math.min(sorted.length - 1, Math.floor(q * (sorted.length - 1)))]
-
-/**
- * An age in days, said in the unit a reader of that age would use.
- *
- * Days below three months, months below two years, years above — because "1,461 d" and "4.0 y"
- * are the same fact and only one of them is legible, while "0.02 y" for a two-week-old chick is
- * neither legible nor true to what was recorded.
- */
-function ageWords(days: number): string {
-  if (days < 90) return `${fmt(days)} d`
-  if (days < 730) return `${Math.round(days / 30.44)} mo`
-  return `${(days / 365.25).toFixed(1)} y`
-}
 
 
 /* ── the Red List badge ──────────────────────────────────────────────────── */
@@ -722,370 +675,768 @@ export function SpeciesOverviewTab({
 /* ── the Circle of Life tab ──────────────────────────────────────────────── */
 
 /**
- * HOW THIS SPECIES' POPULATION MOVED, AND WHAT THE MOVEMENT WAS MADE OF.
+ * AN ANALYTICAL REPORT IN FIVE CHAPTERS AND A RECORDS WORKSPACE, in this order: births vs
+ * deaths over time, both by season, both by sex, the deaths in detail, lifespan, and the
+ * records themselves. Every figure on the tab reads the same two event arrays —
+ * `eventsOfSpecies('births' | 'mortality')` — so a chart and the table under it cannot sum to
+ * different totals.
  *
- * AN ARGUMENT, NOT A DASHBOARD, and that is why there is not one container on it. It opens with
- * the ledger — opening balance, the flows, closing balance, and the part the events do not
- * explain — and then takes the two flows apart in the same order every time: over time, over the
- * year, by sex, by age, by cause. A reader can start anywhere and still know which of the two
- * flows they are looking at, because births are always on the left.
+ * THE PERIOD SELECTOR IS LOCAL AND SAYS SO BY ITS PLACEMENT. 1Y / 2Y / 3Y / All scope this
+ * tab's report; the header's window pill scopes the rest of the page. Both charts in a pair
+ * read the same window and the same bucket boundaries, which is what "aligned months" means.
  *
- * THE BRIDGE AND ITS RECONCILIATION ARE UNCHANGED. `speciesLifecycle` reads the species' own
- * site, and the difference between the register's net movement and the recorded flows is stated
- * rather than reconciled away — the extract's events do not fully account for every change in
- * the register, and saying so is the honest form. That arithmetic is load-bearing and is carried
- * here exactly as it was written.
- *
- * EVERY DENOMINATOR ON THIS TAB IS THIS SPECIES' OWN. Age at death is drawn over the deaths that
- * carry a birth date — 67 of the warbler's 278, 146 of the langur's 430 — and never over the
- * collection's 8,114 of 38,386. A card that borrowed the collection's coverage would state a
- * completeness this species does not have.
+ * WHAT THE EXTRACT CANNOT FILL, dropped rather than dashed (the measurements are
+ * `speciesLife.ts`'s own):
+ *   MOTHER — `report_births` carries no parent column, so no birth row can name one.
+ *   ENCLOSURE per event — neither flow records where the animal was at the time.
+ *   ANIMAL NAME / PHOTO — the extract has ids; names exist only for currently-housed animals
+ *     and photos not at all, so the identity cell is the id.
+ *   ACCESSION-TO-DEATH — no accession date travels on a death record; the survival chart is
+ *     time from BIRTH to death, over the deaths that carry a birth date, and is labelled so.
  */
+
+type LifePeriod = '1y' | '2y' | '3y' | 'all'
+type RecordKind = 'births' | 'deaths' | 'lifespan'
+type RecordMode = 'animal' | 'site'
+
+/** The lifespan/neutral-teal treatment — the NotePanel's own hue, promoted to a mark colour. */
+const TEAL = '#1f515b'
+
+/**
+ * One record of one flow, with the sex and age its own row carries.
+ *
+ * READ STRAIGHT OFF THE COLUMNS, not through `eventAt`. An `Ev`'s id ends in `animal || i`, so
+ * the row index is unrecoverable from an event once the record names an animal — which is most
+ * of the mortality flow — and `facetAt`/`numberAt` keyed on a recovered index would silently
+ * read the wrong row. One walk here reads day, species, animal, detail, the sex facet and the
+ * age column in a single pass, so every figure and every table row on this tab is the same read.
+ */
+interface LifeEv {
+  key: string
+  day: number
+  siteKey: string
+  animalId: string
+  detail: string
+  sex?: string
+  /** Age at death in days, only where the record carries a usable birth date. */
+  age?: number
+}
+
+function lifeEvents(kind: string, name: string, siteKey: string | null, win: Win): LifeEv[] {
+  const f = flowOf(kind)
+  if (!f) return []
+  const from = Math.max(0, win.from)
+  const to = Math.min(TODAY, win.to)
+  const sex = f.facets.get('sex')
+  const age = f.numbers.get('age')
+  const out: LifeEv[] = []
+  for (const key of Object.keys(f.slices)) {
+    if (siteKey && key !== siteKey) continue
+    const slice: [number, number] = f.slices[key]
+    const start = slice[0]
+    const len = slice[1]
+    for (let r = start; r < start + len; r++) {
+      const d = f.day[r]
+      if (d < from || d > to) continue
+      const spx = f.species[r]
+      if (spx === UNRESOLVED || SPECIES[spx]?.name !== name) continue
+      const animal = f.animal[r]
+      const a = age ? age.col[r] : undefined
+      out.push({
+        key: `${key}-${d}-${r}`,
+        day: d,
+        siteKey: key,
+        animalId: animal ? String(animal) : '',
+        detail: f.details[f.detail[r]] ?? 'Not recorded',
+        sex: sex ? sex.values[sex.col[r]] : undefined,
+        /* The sentinel is the column's own "no value" marker — zero is a REAL age here. */
+        age: a === undefined || a === age?.sentinel ? undefined : a,
+      })
+    }
+  }
+  /* Newest first, so the records table is a slice rather than a sort per page. */
+  return out.sort((x, y) => y.day - x.day)
+}
+
+/** Counts per month of the YEAR, pooled across the window's years — a season, not a trend. */
+const seasonCounts = (rows: LifeEv[]): number[] => {
+  const counts = new Array<number>(12).fill(0)
+  for (const r of rows) counts[dateAt(r.day).getMonth()]++
+  return counts
+}
+
+/** Male / female / keeper-entered-unknown, with the sexed count as the honest denominator. */
+const sexSplit = (rows: LifeEv[]) => {
+  let male = 0
+  let female = 0
+  let unknown = 0
+  for (const r of rows) {
+    const v = (r.sex ?? '').toLowerCase()
+    if (v === 'male') male++
+    else if (v === 'female') female++
+    else unknown++
+  }
+  return { male, female, unknown, known: male + female, of: rows.length }
+}
+
+/**
+ * The uppercase chapter heading — title, qualifier, and the chapter's own controls.
+ *
+ * The style is `Rule`'s overline over the same hairline, kept as a separate row above the
+ * panels so a two-column chapter has one heading rather than two.
+ */
+function ChapterHead({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <span className="flex min-w-0 items-baseline gap-3">
+        <h3 className="text-overline font-semibold tracking-[0.04em] whitespace-nowrap uppercase" style={{ color: '#3d3a34' }}>
+          {title}
+        </h3>
+        {sub && (
+          <span className="min-w-0 truncate text-caption" style={{ color: FAINT }}>
+            {sub}
+          </span>
+        )}
+      </span>
+      {right}
+    </div>
+  )
+}
+
+/**
+ * The underline tab row — the period selector and the records navigation.
+ *
+ * Lightweight by specification: text, an optional count, and a 2px underline carrying the
+ * active state, against the same green ink every active control on the page uses. Not the
+ * pill `Segments` — that one is a view regrouping, this one is navigation.
+ */
+function LineTabs<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { key: T; label: string; count?: number; icon?: LucideIcon }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1" role="tablist">
+      {options.map((o) => {
+        const on = o.key === value
+        const Glyph = o.icon
+        return (
+          <button
+            key={o.key}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(o.key)}
+            className="flex items-center gap-1.5 border-b-2 pb-1 text-caption font-medium transition-colors"
+            style={{ borderColor: on ? ACCENT_INK : 'transparent', color: on ? ACCENT_INK : FAINT }}
+          >
+            {Glyph && <Glyph size={13} strokeWidth={2} aria-hidden />}
+            {o.label}
+            {o.count !== undefined && (
+              <span className="tabular-nums" style={{ color: on ? ACCENT_INK : '#a39d94' }}>
+                {fmt(o.count)}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Two panels of equal width and height, stacked below 860px of tab. */
+function Pair({ children }: { children: React.ReactNode }) {
+  return <div className="grid items-stretch gap-4 @[860px]:grid-cols-2">{children}</div>
+}
+
+/** The pill/segment control the records workspace shares with the Housing tab. */
+function ModeSegments({
+  value,
+  onChange,
+}: {
+  value: RecordMode
+  onChange: (v: RecordMode) => void
+}) {
+  return (
+    <span className="flex gap-1.5" role="group">
+      {(
+        [
+          ['animal', 'Animal-Wise', PawPrint],
+          ['site', 'Site-Wise', MapPin],
+        ] as [RecordMode, string, LucideIcon][]
+      ).map(([key, label, Glyph]) => {
+        const on = key === value
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(key)}
+            className="card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-caption font-medium"
+            style={on ? { backgroundColor: DEEP, color: '#ffffff' } : { backgroundColor: TRACK, color: '#44544a' }}
+          >
+            <Glyph size={13} strokeWidth={2} aria-hidden />
+            {label}
+          </button>
+        )
+      })}
+    </span>
+  )
+}
+
 export function SpeciesLifeTab({
-  speciesId,
   name,
-  profile,
 }: {
   speciesId: string
   name: string
   profile?: SpeciesProfile
 }) {
   const { scope } = useScope()
-  const accent = useAccent()
+  const { drillTo } = useDrill()
+  const { open } = useSheet()
   const siteKey = scope.site?.key ?? null
 
-  const life = useMemo(() => speciesLifecycle(speciesId, scope.win), [speciesId, scope.win])
-  const wide = useMemo(() => speciesWideAt(speciesId, scope.win, siteKey), [speciesId, scope.win, siteKey])
-  /* Which site's register the bridge above actually reads. Named on screen rather than left to be
-     inferred: `speciesLifecycle` is scoped to the population in the route while everything under
-     it is cross-site, and two "Deaths" figures differing by one is a bug to a reader who has not
-     been told they are answers to two different questions. */
-  const bridgeSite = siteOf(speciesOf(speciesId)?.siteKey ?? '')?.name
+  const [period, setPeriod] = useState<LifePeriod>('all')
+  const [record, setRecord] = useState<RecordKind>('births')
+  const [mode, setMode] = useState<RecordMode>('animal')
+  const [query, setQuery] = useState('')
 
-  const births = useMemo(
-    () =>
-      walkSpeciesFlow('births', name, siteKey, scope.win, {
-        max: 30,
-        facets: ['sex'],
-        months: true,
-        datedBy: { facet: 'dating', value: 'Birth date' },
-      }),
-    [name, siteKey, scope.win],
-  )
-  const deaths = useMemo(
-    () =>
-      walkSpeciesFlow('mortality', name, siteKey, scope.win, {
-        max: 30,
-        facets: ['sex'],
-        months: true,
-        number: 'age',
-      }),
-    [name, siteKey, scope.win],
-  )
+  /* The local report window. 'all' is the extract's own span; the year cuts share its `key`
+     because `WindowKey` has no 1Y/2Y/3Y members and the key is never read below — only the
+     day range and the printable label are. */
+  const win = useMemo<Win>(() => {
+    const all = resolveWindow('all')
+    if (period === 'all') return all
+    const days = { '1y': 365, '2y': 730, '3y': 1095 }[period]
+    const from = Math.max(all.from, TODAY - days + 1)
+    const label = `last ${period[0]} year${period === '1y' ? '' : 's'}`
+    return { ...all, from, to: TODAY, days: TODAY - from + 1, window: label, label }
+  }, [period])
 
-  const ages = useMemo(() => [...deaths.numbers].sort((a, b) => a - b), [deaths.numbers])
-  const bands = useMemo(() => ageBandsOf(ages), [ages])
-  const notes = data().meta.notes
+  /* THE TWO ARRAYS EVERYTHING READS. Site pill honoured by filtering the rows rather than the
+     walk, so one code path builds both the scoped and the unscoped report. */
+  const births = useMemo(() => lifeEvents('births', name, siteKey, win), [name, win, siteKey])
+  const deaths = useMemo(() => lifeEvents('mortality', name, siteKey, win), [name, win, siteKey])
 
-  /* The recorded flows and the two level readings are separate statements about the same window,
-     and they are allowed to disagree — the extract's events do not fully account for every change
-     in the register. Stating both, and naming the gap where there is one, is the honest form;
-     reconciling them silently would be the invented figure. */
-  const recorded = life ? life.additions - life.removals : 0
-  const unexplained = life ? life.net - recorded : 0
+  /* Ages travel ON the death rows, so the lifespan table and the lifespan charts are reads of
+     one array and cannot disagree. */
+  const aged = useMemo(() => deaths.filter((r): r is LifeEv & { age: number } => r.age !== undefined), [deaths])
+  const ageDays = useMemo(() => aged.map((r) => r.age), [aged])
 
-  /** One row per site that either holds this species or ever recorded a flow for it. */
-  interface LedgerRow {
+  /* The window divided into up to 24 equal spans — the same arithmetic for both charts, which
+     is what lets the pair claim "aligned months". */
+  const toPts = (rows: LifeEv[]): Pt[] => {
+    const from = Math.max(0, win.from)
+    const to = Math.min(TODAY, win.to)
+    const span = Math.max(1, to - from + 1)
+    const n = Math.max(1, Math.min(24, span))
+    const size = Math.ceil(span / n)
+    const pts: Pt[] = []
+    for (let b = 0; b < n; b++) {
+      const lo = from + b * size
+      const hi = Math.min(to, lo + size - 1)
+      if (lo > to) break
+      pts.push({
+        label: lo === hi ? shortDate(lo) : `${shortDate(lo)} – ${shortDate(hi)}`,
+        value: 0,
+        from: lo,
+        to: hi,
+      })
+    }
+    for (const r of rows) {
+      const b = Math.floor((r.day - from) / size)
+      if (b >= 0 && b < pts.length) pts[b].value++
+    }
+    return pts
+  }
+  const birthPts = useMemo(() => toPts(births), [births]) // eslint-disable-line react-hooks/exhaustive-deps
+  const deathPts = useMemo(() => toPts(deaths), [deaths]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const seasonB = useMemo(() => seasonCounts(births), [births])
+  const seasonD = useMemo(() => seasonCounts(deaths), [deaths])
+  const sexB = useMemo(() => sexSplit(births), [births])
+  const sexD = useMemo(() => sexSplit(deaths), [deaths])
+  const causes = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const r of deaths) counts.set(r.detail, (counts.get(r.detail) ?? 0) + 1)
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  }, [deaths])
+  const survival = useMemo(() => survivalOf(ageDays), [ageDays])
+  const distribution = useMemo(() => bandsOf(ageDays), [ageDays])
+
+  const meanAge = ageDays.length ? ageDays.reduce((n, d) => n + d, 0) / ageDays.length : undefined
+  const oldest = ageDays.length ? Math.max(...ageDays) : undefined
+  const youngest = ageDays.length ? Math.min(...ageDays) : undefined
+
+  /* ── the records workspace ─────────────────────────────────────────────── */
+
+  const q = query.trim().toLowerCase()
+
+  /** Site rows for whichever record kind is active — grouped off the same event arrays. */
+  interface SiteRow {
     siteKey: string
     siteName: string
-    births: number
-    deaths: number
-    held: number
+    count: number
+    male: number
+    female: number
+    unsexed: number
+    ages: number[]
   }
-  const ledger = useMemo<LedgerRow[]>(() => {
-    const rows = new Map<string, LedgerRow>()
-    const touch = (key: string, siteName: string) => {
-      let row = rows.get(key)
-      if (!row) rows.set(key, (row = { siteKey: key, siteName, births: 0, deaths: 0, held: 0 }))
-      return row
+  const siteRows = useMemo<SiteRow[]>(() => {
+    const rows = record === 'births' ? births : record === 'deaths' ? deaths : aged
+    const by = new Map<string, SiteRow>()
+    for (const r of rows) {
+      let at = by.get(r.siteKey)
+      if (!at) {
+        at = {
+          siteKey: r.siteKey,
+          siteName: siteOf(r.siteKey)?.name ?? r.siteKey,
+          count: 0,
+          male: 0,
+          female: 0,
+          unsexed: 0,
+          ages: [],
+        }
+        by.set(r.siteKey, at)
+      }
+      at.count++
+      const s = (r.sex ?? '').toLowerCase()
+      if (s === 'male') at.male++
+      else if (s === 'female') at.female++
+      else at.unsexed++
+      if (r.age !== undefined) at.ages.push(r.age)
     }
-    for (const s of births.sites) touch(s.siteKey, s.siteName).births = s.value
-    for (const s of deaths.sites) touch(s.siteKey, s.siteName).deaths = s.value
-    for (const s of wide?.sites ?? []) touch(s.siteKey, s.siteName).held = s.count
-    return [...rows.values()].sort((a, b) => b.births + b.deaths + b.held - (a.births + a.deaths + a.held))
-  }, [births.sites, deaths.sites, wide])
+    return [...by.values()]
+      .filter((s) => !q || s.siteName.toLowerCase().includes(q))
+      .sort((a, b) => b.count - a.count)
+  }, [record, births, deaths, aged, q])
 
-  const ledgerColumns: Column<LedgerRow>[] = [
-    { key: 'site', head: 'Site', priority: 3, cell: (r) => r.siteName },
-    { key: 'births', head: 'Births', align: 'right', priority: 2, cell: (r) => (r.births ? fmt(r.births) : '') },
-    { key: 'deaths', head: 'Deaths', align: 'right', priority: 2, cell: (r) => (r.deaths ? fmt(r.deaths) : '') },
-    { key: 'held', head: 'Held now', align: 'right', priority: 1, cell: (r) => (r.held ? fmt(r.held) : '') },
-  ]
+  const animalRows = useMemo(() => {
+    const rows = record === 'births' ? births : record === 'deaths' ? deaths : aged
+    return q ? rows.filter((r) => r.animalId.toLowerCase().includes(q)) : rows
+  }, [record, births, deaths, aged, q])
 
-  const sexSegments = (rows: { label: string; value: number }[]) =>
-    rows.map((r, i) => ({ label: r.label, value: r.value, fill: mix(accent, step(i)) }))
+  const page = usePaged(
+    (offset, limit) => ({ rows: animalRows.slice(offset, offset + limit), total: animalRows.length }),
+    12,
+    [animalRows],
+  )
+
+  /** The identity cell — the id is the only identity a record carries, stated as such. */
+  const idCell = (ev: LifeEv) => (
+    <span>
+      <span className="block">{ev.animalId ? `Animal ${ev.animalId}` : 'No animal id'}</span>
+      <span className="block text-caption font-normal" style={{ color: FAINT }}>
+        {ev.animalId ? `AID: ${ev.animalId}` : 'on this record'}
+      </span>
+    </span>
+  )
+  const sexCell = (ev: LifeEv) => ev.sex ?? ''
+
+  const animalColumns: HCol<LifeEv>[] =
+    record === 'births'
+      ? [
+          { key: 'no', head: 'No', width: '52px', sticky: 0, muted: true, cell: (_r, i) => i + 1 },
+          { key: 'animal', head: 'Animal Name & ID', sticky: 52, strong: true, cell: (r) => idCell(r) },
+          { key: 'dob', head: 'Date of Birth', cell: (r) => longDate(r.day) },
+          { key: 'sex', head: 'Gender', cell: (r) => sexCell(r) },
+          { key: 'site', head: 'Site', cell: (r) => siteOf(r.siteKey)?.name ?? r.siteKey },
+        ]
+      : record === 'deaths'
+        ? [
+            { key: 'no', head: 'No', width: '52px', sticky: 0, muted: true, cell: (_r, i) => i + 1 },
+            { key: 'animal', head: 'Animal Name & ID', sticky: 52, strong: true, cell: (r) => idCell(r) },
+            { key: 'dod', head: 'Date of Death', cell: (r) => longDate(r.day) },
+            { key: 'sex', head: 'Gender', cell: (r) => sexCell(r) },
+            { key: 'age', head: 'Age', align: 'right', cell: (r) => (r.age === undefined ? '' : ageLabel(r.age)) },
+            { key: 'site', head: 'Site', cell: (r) => siteOf(r.siteKey)?.name ?? r.siteKey },
+            { key: 'cause', head: 'Cause of Death', cell: (r) => r.detail },
+          ]
+        : [
+            { key: 'no', head: 'No', width: '52px', sticky: 0, muted: true, cell: (_r, i) => i + 1 },
+            { key: 'animal', head: 'Animal Name & ID', sticky: 52, strong: true, cell: (r) => idCell(r) },
+            /* Derived, and by simple arithmetic on two fields the record itself carries: the
+               death day minus the recorded age. Not a stored birth date. */
+            { key: 'dob', head: 'Date of Birth', cell: (r) => longDate(r.day - (r.age ?? 0)) },
+            { key: 'dod', head: 'Date of Death', cell: (r) => longDate(r.day) },
+            { key: 'age', head: 'Age', align: 'right', cell: (r) => (r.age === undefined ? '' : ageLabel(r.age)) },
+            { key: 'sex', head: 'Gender', cell: (r) => sexCell(r) },
+            { key: 'site', head: 'Site', cell: (r) => siteOf(r.siteKey)?.name ?? r.siteKey },
+            { key: 'cause', head: 'Cause of Death', cell: (r) => r.detail },
+          ]
+
+  const siteColumns: HCol<SiteRow>[] =
+    record === 'lifespan'
+      ? [
+          { key: 'no', head: 'No', width: '52px', sticky: 0, muted: true, cell: (_r, i) => i + 1 },
+          { key: 'site', head: 'Site', sticky: 52, strong: true, cell: (s) => s.siteName },
+          { key: 'records', head: 'Records', align: 'right', cell: (s) => fmt(s.ages.length) },
+          {
+            key: 'avg',
+            head: 'Average Age',
+            align: 'right',
+            cell: (s) => (s.ages.length ? ageLabel(s.ages.reduce((n, d) => n + d, 0) / s.ages.length) : ''),
+          },
+          { key: 'young', head: 'Youngest', align: 'right', cell: (s) => (s.ages.length ? ageLabel(Math.min(...s.ages)) : '') },
+          { key: 'old', head: 'Oldest', align: 'right', cell: (s) => (s.ages.length ? ageLabel(Math.max(...s.ages)) : '') },
+        ]
+      : [
+          { key: 'no', head: 'No', width: '52px', sticky: 0, muted: true, cell: (_r, i) => i + 1 },
+          { key: 'site', head: 'Site', sticky: 52, strong: true, cell: (s) => s.siteName },
+          {
+            key: 'count',
+            head: record === 'births' ? 'Births' : 'Deaths',
+            align: 'right',
+            strong: true,
+            cell: (s) => fmt(s.count),
+          },
+          { key: 'm', head: 'Male', align: 'right', cell: (s) => fmt(s.male) },
+          { key: 'f', head: 'Female', align: 'right', cell: (s) => fmt(s.female) },
+          { key: 'u', head: 'Unsexed', align: 'right', cell: (s) => fmt(s.unsexed) },
+        ]
+
+  const openCauses = () =>
+    open({
+      title: 'Cause of death',
+      eyebrow: `${name} · ${fmt(deaths.length)} deaths`,
+      body: (
+        <RankedBars
+          items={causes.map(([label, v]) => [label, v] as [string, number])}
+          unit="deaths"
+          max={causes.length}
+          total={deaths.length}
+        />
+      ),
+    })
+
+  const peakB = peakIndex(seasonB)
+  const peakD = peakIndex(seasonD)
+  const empty = !births.length && !deaths.length
 
   return (
     <TabBody>
-      <Sheet>
-      {life && (
-        <Band flat title="Circle of Life" aside={scope.win.window} icon={Sparkles} first>
-          <FlowSplit
-            inward={{ label: 'Entered', value: life.additions, icon: Baby }}
-            outward={{ label: 'Left', value: life.removals, icon: ArrowLeftRight }}
-            net={recorded}
-            routes={life.stages
-              .filter((s) => s.side !== 'stock')
-              .map((s) => ({
-                key: s.key,
-                label: s.label,
-                value: s.value,
-                direction: s.side === 'in' ? ('in' as const) : ('out' as const),
-              }))}
-            unit="animals"
-          />
-          {life.silent.length > 0 && (
-            <p className="mt-3 text-caption" style={{ color: FAINT }}>
-              No {life.silent.map((s) => s.toLowerCase()).join(', ')} recorded in {scope.win.window}.
-            </p>
-          )}
-          {bridgeSite && (wide?.sites.length ?? 0) > 1 && (
-            <Caption>
-              This ladder reads one site — {bridgeSite}. An opening and a closing balance belong
-              to a register and a register belongs to a site, so the bridge is the population this
-              page's route names. Every mark below it reads every site holding the name, which is
-              why a flow here and the same flow below can differ by whatever the other sites
-              recorded.
-            </Caption>
-          )}
-        </Band>
-      )}
-
-      {life && (
-        <Band flat title="Population change" aside={scope.win.window} icon={Activity}>
-          <Facts
-            items={[
-              { label: 'Opening', value: fmt(life.opening), sub: 'the day before the window' },
-              { label: 'Closing', value: fmt(life.closing), sub: 'as of the window’s last day' },
-              {
-                label: 'Change',
-                value: `${life.net > 0 ? '+' : ''}${fmt(life.net)}`,
-                tone: life.net === 0 ? 'neutral' : life.net > 0 ? 'good' : 'bad',
-              },
-              ...(unexplained !== 0
-                ? [
-                    {
-                      label: 'Not explained by events',
-                      value: `${unexplained > 0 ? '+' : ''}${fmt(unexplained)}`,
-                      sub: 'the register moved by more than the recorded flows',
-                    },
-                  ]
-                : []),
-              ...(life.fetal > 0
-                ? [
-                    {
-                      label: 'Fetal loss',
-                      value: fmt(life.fetal),
-                      sub: 'a breeding figure, not a headcount movement',
-                    },
-                  ]
-                : []),
+      {/* ── 1 · births vs deaths ─────────────────────────────────────────── */}
+      <ChapterHead
+        title="Births vs deaths"
+        sub="same period · aligned months"
+        right={
+          <LineTabs
+            value={period}
+            onChange={setPeriod}
+            options={[
+              { key: '1y', label: '1Y' },
+              { key: '2y', label: '2Y' },
+              { key: '3y', label: '3Y' },
+              { key: 'all', label: 'All' },
             ]}
           />
+        }
+      />
+      <Pair>
+        <Band title="Births Over Time" icon={Baby}>
+          <EventTrend points={birthPts} unit="births" empty={`No births recorded in ${win.window}.`} />
         </Band>
+        <Band title="Deaths Over Time" icon={Skull}>
+          <EventTrend points={deathPts} unit="deaths" tone="bad" empty={`No deaths recorded in ${win.window}.`} />
+        </Band>
+      </Pair>
+
+      {/* ── 2 · the seasons ──────────────────────────────────────────────── */}
+      {(births.length > 0 || deaths.length > 0) && (
+        <Pair>
+          {births.length > 0 && (
+            <Band title="Seasonal Breeding Pattern" aside="pooled over the period's years" icon={CalendarRange}>
+              <Columns values={seasonB} labels={MONTHS} highlight={peakB} showValues />
+              <p className="mt-3 text-caption" style={{ color: FAINT }}>
+                Peak:{' '}
+                <b className="font-semibold" style={{ color: ACCENT_INK }}>
+                  {MONTHS[peakB]}
+                </b>{' '}
+                · dated by the record, and part of the flow is dated by data entry rather than birth
+              </p>
+            </Band>
+          )}
+          {deaths.length > 0 && (
+            <Band title="Seasonal Mortality Pattern" aside="pooled over the period's years" icon={CalendarRange}>
+              <Columns values={seasonD} labels={MONTHS} highlight={peakD} showValues fill={TONE_FILL.bad} />
+              <p className="mt-3 text-caption" style={{ color: FAINT }}>
+                Peak:{' '}
+                <b className="font-semibold" style={{ color: TONE.bad }}>
+                  {MONTHS[peakD]}
+                </b>{' '}
+                · by the month the death was recorded in
+              </p>
+            </Band>
+          )}
+        </Pair>
       )}
 
-      <Band flat title="Over time" aside={scope.win.window} icon={Activity}>
-        <Pairs>
-          <div>
-            <MarkHead label="Births" aside={births.total ? fmt(births.total) : undefined} />
-            <EventTrend points={births.points} unit="births" empty={`No births recorded in ${scope.win.window}.`} />
-          </div>
-          <div>
-            <MarkHead label="Deaths" aside={deaths.total ? fmt(deaths.total) : undefined} />
-            <EventTrend
-              points={deaths.points}
-              unit="deaths"
-              tone="bad"
-              empty={`No deaths recorded in ${scope.win.window}.`}
-            />
-          </div>
-        </Pairs>
-      </Band>
+      {/* ── 3 · by sex, as the product's own ring ────────────────────────── */}
+      {(sexB.of > 0 || sexD.of > 0) && (
+        <Pair>
+          {sexB.of > 0 && (
+            <Band title="Births by Gender" aside={`${fmt(sexB.known)} of ${fmt(sexB.of)} sexed`} icon={Baby}>
+              <Slices
+                items={[
+                  { label: 'Male', value: sexB.male },
+                  { label: 'Female', value: sexB.female },
+                  { label: 'Undetermined', value: sexB.unknown },
+                ].filter((s) => s.value > 0)}
+                centre={['Births', fmt(sexB.of)]}
+              />
+              <SliceKey
+                items={[
+                  { label: 'Male', value: sexB.male },
+                  { label: 'Female', value: sexB.female },
+                  { label: 'Undetermined', value: sexB.unknown },
+                ].filter((s) => s.value > 0)}
+              />
+            </Band>
+          )}
+          {sexD.of > 0 && (
+            <Band title="Deaths by Gender" aside={`${fmt(sexD.known)} of ${fmt(sexD.of)} sexed`} icon={Skull}>
+              <Slices
+                items={[
+                  { label: 'Male', value: sexD.male },
+                  { label: 'Female', value: sexD.female },
+                  { label: 'Undetermined', value: sexD.unknown },
+                ].filter((s) => s.value > 0)}
+                centre={['Deaths', fmt(sexD.of)]}
+              />
+              <SliceKey
+                items={[
+                  { label: 'Male', value: sexD.male },
+                  { label: 'Female', value: sexD.female },
+                  { label: 'Undetermined', value: sexD.unknown },
+                ].filter((s) => s.value > 0)}
+              />
+            </Band>
+          )}
+        </Pair>
+      )}
 
-      {(births.dated > 0 || deaths.total > 0) && (
-        <Band flat title="Across the year" aside="pooled over the window's years" icon={CalendarRange}>
-          <Pairs>
-            {births.dated > 0 ? (
-              <div>
-                <MarkHead label="Breeding" aside={`${fmt(births.dated)} of ${fmt(births.total)} dated`} />
-                <Columns
-                  values={births.months}
-                  labels={MONTHS}
-                  highlight={peakIndex(births.months)}
-                  /* The excluded rows are named only where there are any: "the other 0 are
-                     dated by the day they were added" is a caveat about nothing, and a caveat
-                     about nothing teaches a reader to skip the ones that matter. */
-                  unit={
-                    births.total > births.dated
-                      ? `births whose record carries a real birth date — the other ${fmt(
-                          births.total - births.dated,
-                        )} are dated by the day the record was added and are left out of this chart`
-                      : 'births, by the month the record says they were born in'
-                  }
-                />
-              </div>
-            ) : (
-              births.total > 0 && (
-                <p className="text-small" style={{ color: FAINT }}>
-                  None of this species' {fmt(births.total)} recorded births carries a real birth
-                  date, so no breeding season can be read. The rest are dated by the day the record
-                  was created, which is a data-entry calendar.
+      {/* ── 4 · deaths in detail ─────────────────────────────────────────── */}
+      {deaths.length > 0 && (
+        <>
+          <ChapterHead title="Deaths — detail" sub={`${fmt(deaths.length)} deaths in ${win.window}`} />
+          <Pair>
+            <Band
+              title="Survival Analysis"
+              aside={`${fmt(ageDays.length)} of ${fmt(deaths.length)} aged`}
+              icon={Activity}
+              note="Time from birth to death — the source records no accession-to-death interval, and only the deaths carrying a birth date can be placed."
+            >
+              {ageDays.length > 0 ? (
+                <>
+                  <Columns
+                    values={survival.map((b) => b.value)}
+                    labels={survival.map((b) => b.label)}
+                    highlight={peakIndex(survival.map((b) => b.value))}
+                    showValues
+                    fill={TONE_FILL.bad}
+                  />
+                  {/* The share and the reading, in the same five columns the bars use. */}
+                  <div className="mt-1 flex gap-1.5">
+                    {survival.map((b) => (
+                      <span key={b.label} className="flex-1 text-center text-tick tabular-nums" style={{ color: FAINT }}>
+                        {ageDays.length ? Math.round((b.value / ageDays.length) * 100) : 0}%
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-1.5 flex gap-1.5">
+                    {survival.map((b) => (
+                      <span key={b.label} className="flex-1 text-center text-tick leading-tight" style={{ color: FAINT }}>
+                        {b.note}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-small" style={{ color: '#5c574f' }}>
+                  None of this species&rsquo; {fmt(deaths.length)} recorded deaths carries a usable
+                  birth date, so no survival time can be placed.
                 </p>
-              )
-            )}
-            {deaths.total > 0 && (
-              <div>
-                <MarkHead label="Mortality" aside={`${fmt(deaths.total)} deaths`} />
-                <Columns
-                  values={deaths.months}
-                  labels={MONTHS}
-                  highlight={peakIndex(deaths.months)}
-                  unit="deaths, by the month they were recorded in"
-                />
-              </div>
-            )}
-          </Pairs>
-        </Band>
+              )}
+            </Band>
+
+            <Band title="Age at Death" aside={`${fmt(ageDays.length)} records`} icon={Skull}>
+              <MetricStrip
+                dense
+                items={[
+                  { label: 'Average', value: meanAge === undefined ? '—' : ageLabel(meanAge) },
+                  { label: 'Youngest', value: youngest === undefined ? '—' : ageLabel(youngest) },
+                  { label: 'Oldest', value: oldest === undefined ? '—' : ageLabel(oldest) },
+                  { label: 'Records', value: fmt(ageDays.length), sub: `of ${fmt(deaths.length)} deaths` },
+                ]}
+              />
+
+              {causes.length > 0 && (
+                <>
+                  <div className="mt-6 mb-3 flex items-baseline justify-between gap-3">
+                    <h4 className="text-overline font-semibold tracking-[0.04em] uppercase" style={{ color: '#3d3a34' }}>
+                      Cause of Death
+                    </h4>
+                    {causes.length > 8 && (
+                      <button
+                        type="button"
+                        onClick={openCauses}
+                        className="card-press text-caption font-medium"
+                        style={{ color: ACCENT_INK }}
+                      >
+                        View more ({causes.length - 8})
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {causes.slice(0, 8).map(([label, v]) => (
+                      <span
+                        key={label}
+                        className="flex items-baseline gap-1.5 rounded-full px-2.5 py-1 text-caption"
+                        style={{ backgroundColor: '#f4f3ef', color: '#44544a' }}
+                      >
+                        {label}
+                        <b className="font-semibold tabular-nums" style={{ color: VALUE }}>
+                          {fmt(v)}
+                        </b>
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </Band>
+          </Pair>
+        </>
       )}
 
-      {(births.facet.sex?.length || deaths.facet.sex?.length) && (
-        <Band flat title="By sex" aside={scope.win.window} icon={Layers}>
-          <Pairs>
-            {births.facet.sex?.length > 0 && (
-              <div>
-                <MarkHead label="Sex at birth" aside={`${fmt(births.total)} births`} />
-                <CoverageMeter segments={sexSegments(births.facet.sex)} total={births.total} />
+      {/* ── 5 · lifespan ─────────────────────────────────────────────────── */}
+      {ageDays.length > 0 && (
+        <>
+          <ChapterHead title="Lifespan" sub="read from the deaths that carry a birth date" />
+          <Pair>
+            <Band title="Longevity" aside="recorded deaths" icon={Heart}>
+              <div className="flex flex-col gap-5">
+                {(
+                  [
+                    ['Avg lifespan · recorded', meanAge === undefined ? '—' : ageLabel(meanAge)],
+                    ['Longest lived', oldest === undefined ? '—' : ageLabel(oldest)],
+                    ['Records', `${fmt(ageDays.length)} of ${fmt(deaths.length)} deaths`],
+                  ] as [string, string][]
+                ).map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-overline font-medium uppercase" style={{ color: FAINT }}>
+                      {label}
+                    </p>
+                    <p className="mt-1 font-display text-[24px] leading-[1.15] font-semibold tabular-nums" style={{ color: TEAL }}>
+                      {value}
+                    </p>
+                  </div>
+                ))}
               </div>
-            )}
-            {deaths.facet.sex?.length > 0 && (
-              <div>
-                <MarkHead label="Sex at death" aside={`${fmt(deaths.total)} deaths`} />
-                <CoverageMeter segments={sexSegments(deaths.facet.sex)} total={deaths.total} />
-              </div>
-            )}
-          </Pairs>
-          <Caption>
-            Undetermined and indeterminate are values a keeper entered, not gaps in the file.
-            Collection-wide a birth is sexed male or female on 27,923 of 64,083 records and a
-            death on 13,009 of 38,386, so a male-to-female reading taken off either bar is a
-            reading of the sexed minority.
-          </Caption>
-        </Band>
+            </Band>
+            <Band
+              title="Age at Death Distribution"
+              aside={`${fmt(ageDays.length)} deaths`}
+              icon={Layers}
+              note="The bands are the extract's own, finer at the young end because the data is."
+            >
+              <Columns
+                values={distribution.map((b) => b.value)}
+                labels={distribution.map((b) => b.label)}
+                highlight={peakIndex(distribution.map((b) => b.value))}
+                showValues
+                fill={TEAL}
+              />
+            </Band>
+          </Pair>
+        </>
       )}
 
-      {ages.length > 0 && (
-        <Band
-          flat
-          title="Age at death"
-          aside={`${fmt(ages.length)} of ${fmt(deaths.total)} deaths carry an age`}
-          icon={Skull}
-        >
-          <MetricStrip
-            items={[
-              { label: 'Median', value: ageWords(quantile(ages, 0.5)), sub: 'half died younger' },
-              { label: '90th percentile', value: ageWords(quantile(ages, 0.9)) },
-              { label: 'Oldest', value: ageWords(ages[ages.length - 1]) },
-              {
-                label: 'With an age',
-                value: fmt(ages.length),
-                sub: `of ${fmt(deaths.total)} deaths`,
-              },
+      {/* ── 6 · the records ──────────────────────────────────────────────── */}
+      <ChapterHead
+        title="Records"
+        sub="the rows behind every figure above"
+        right={
+          <LineTabs
+            value={record}
+            onChange={(v) => {
+              setRecord(v)
+              setQuery('')
+            }}
+            options={[
+              { key: 'births', label: 'Births', count: births.length, icon: Baby },
+              { key: 'deaths', label: 'Deaths', count: deaths.length, icon: Skull },
+              { key: 'lifespan', label: 'Lifespan', count: ageDays.length, icon: Heart },
             ]}
           />
-          <div className="mt-6">
-            <MarkHead label="Distribution" aside={`${fmt(ages.length)} deaths`} />
-            <RankedBars items={bands} unit="deaths" max={7} total={ages.length} />
+        }
+      />
+      <Band
+        title={record === 'births' ? 'Birth records' : record === 'deaths' ? 'Death records' : 'Lifespan records'}
+        aside={
+          <ModeSegments
+            value={mode}
+            onChange={(v) => {
+              setMode(v)
+              setQuery('')
+            }}
+          />
+        }
+        icon={ListTree}
+      >
+        <div className="mb-4">
+          <FindField
+            value={query}
+            onChange={setQuery}
+            placeholder={mode === 'animal' ? 'Search animals...' : 'Search sites...'}
+          />
+        </div>
+
+        {empty || (mode === 'animal' ? animalRows.length === 0 : siteRows.length === 0) ? (
+          <div className="py-10 text-center">
+            <p className="text-small font-medium" style={{ color: INK }}>
+              No {record} records found
+            </p>
+            <p className="mt-1 text-caption" style={{ color: FAINT }}>
+              Try changing your search or selected view.
+            </p>
           </div>
-          <Caption>
-            The bands are the extract's own, finer at the young end because the data is: 6,460 of
-            the collection's 8,114 usable ages are under a year, and even bands would draw one bar
-            and call it a shape.
-          </Caption>
-        </Band>
-      )}
-
-      {deaths.detail.length > 0 && (
-        <Band flat title="Cause of death" aside={`${fmt(deaths.total)} deaths`} icon={Skull}>
-          <RankedBars
-            items={deaths.detail.map((d) => [d.label, d.value] as [string, number])}
-            unit="deaths"
-            total={deaths.total}
+        ) : mode === 'animal' ? (
+          <>
+            <HousingTable
+              rows={page.rows}
+              columns={animalColumns}
+              keyOf={(r) => r.key}
+              onOpen={(r) => {
+                if (r.animalId) drillTo({ kind: 'animal', id: r.animalId }, { module: 'animals', label: name })
+              }}
+            />
+            <MoreRows page={page} noun={q ? 'matching records' : 'records'} />
+          </>
+        ) : (
+          <HousingTable
+            rows={siteRows}
+            columns={siteColumns}
+            keyOf={(s) => s.siteKey}
+            onOpen={(s) => drillTo({ kind: 'site', id: s.siteKey }, { module: 'animals', label: name })}
           />
-        </Band>
-      )}
+        )}
 
-      {(profile?.lifespan_years || profile?.longevity) && (
-        <Band flat title="Longevity" aside="two different figures" icon={Heart}>
-          <DefinitionList
-            columns={2}
-            items={[
-              ...(profile.lifespan_years
-                ? [
-                    {
-                      label: 'Reference lifespan of the species',
-                      value: `${profile.lifespan_years} years`,
-                    },
-                  ]
-                : []),
-              ...(profile.longevity
-                ? [
-                    { label: 'Median age of the animals we hold', value: ageWords(profile.longevity.medianDays) },
-                    { label: '90th percentile age held', value: ageWords(profile.longevity.p90Days) },
-                    { label: 'Oldest animal held', value: ageWords(profile.longevity.maxDays) },
-                    {
-                      label: 'Held animals carrying a birth date',
-                      value: `${fmt(profile.longevity.dated[0])} of ${fmt(profile.longevity.dated[1])}`,
-                    },
-                  ]
-                : []),
-            ]}
-          />
-          <Caption>
-            A species that can live twenty years is not a species we have held one for twenty
-            years. The reference figure is the animal's biology; the rest is an observation of our
-            own register as at 20 May 2026, over the minority of animals whose record carries a
-            birth date.
-          </Caption>
-        </Band>
-      )}
-
-      {ledger.length > 0 && (
-        <Band
-          flat
-          title="Recorded by site"
-          aside={scope.win.window}
-          icon={MapPin}
-          note="Births and deaths are the window's events; held is the register today. A site can appear with flows and no holding, or a holding and no flows, and both are true."
-        >
-          <DataTable rows={ledger} columns={ledgerColumns} keyOf={(r) => r.siteKey} />
-          {profile?.lifespan_years && (
-            <Caption>
-              Reference lifespan · {profile.lifespan_years} years — a property of the species, so it
-              is stated once rather than repeated down every row.
-            </Caption>
-          )}
-        </Band>
-      )}
-
-      <NotePanel title="What this tab cannot say">
-        <p>{notes.ageAtDeath}</p>
-        <p className="mt-2">{notes.birthDating}</p>
-      </NotePanel>
-      </Sheet>
+        {/* The two columns the specification asks for that no record can fill, named once. */}
+        {mode === 'animal' && record === 'births' && animalRows.length > 0 && (
+          <p className="mt-3 text-caption" style={{ color: FAINT }}>
+            The birth record carries a date, a site, the animal&rsquo;s id and its sex. It carries
+            no mother and no enclosure, so neither is a column.
+          </p>
+        )}
+      </Band>
     </TabBody>
   )
 }
+
 
 /* ── the Animals tab ─────────────────────────────────────────────────────── */
 

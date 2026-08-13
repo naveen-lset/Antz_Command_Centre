@@ -45,7 +45,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import { Boxes, HeartHandshake, Layers, MapPin, PawPrint } from 'lucide-react'
+import { Boxes, ChevronRight, HeartHandshake, Layers, MapPin, PawPrint } from 'lucide-react'
 import {
   animalAt,
   animalLabel,
@@ -56,9 +56,11 @@ import {
   type EnclosureHolding,
 } from '../core/animals'
 import { TODAY, longDate } from '../core/calendar'
+import type { SpeciesProfile } from '../core/profiles'
 import { UNRESOLVED, data, speciesSpan } from '../core/store'
 import { ENCLOSURES, siteOf, speciesByName } from '../core/world'
-import { Bars, FAINT, Section, Snapshot, fmt } from '../exec/system'
+import { ACCENT_INK, FAINT, INK, Section, Snapshot, TONE_FILL, TRACK, VALUE, fmt } from '../exec/system'
+import { usePlay } from '../motion'
 import { useDrill } from './drillNav'
 import { FindField } from './filters'
 import { TapList, TapRow } from './panels'
@@ -83,18 +85,117 @@ interface Holding extends EnclosureHolding {
 }
 
 /**
- * The three bands, declared as data rather than as three render blocks.
+ * One row of the breakdown — a name and the test that decides which enclosures are under it.
  *
- * Every value of `Composition` appears below exactly once, so a composition cannot land in two
- * bands or in none — the defect a chain of if-statements invites. A ninth value added to the
- * type and not to this table surfaces as bands that do not sum to the enclosure count, which is
- * visible, rather than as rows that quietly disappear.
+ * A PREDICATE RATHER THAN A LIST OF COMPOSITIONS, because three of the rows the breakdown needs
+ * are finer than `Composition` is. "1M + 1F" and "Balanced" are both `Both sexes`; "Females +
+ * unsexed" and "Males + unsexed" are both `Partly unsexed`. The composition is still the coarse
+ * key — every predicate below reads it first — but the row can then ask the holding's own
+ * counts, which is where the operational difference actually lives.
  */
-const BANDS: { key: string; label: string; of: Composition[] }[] = [
-  { key: 'both', label: 'Both sexes present', of: ['Both sexes'] },
-  { key: 'unsexed', label: 'Needs sexing', of: ['All unsexed', 'Lone unsexed', 'Partly unsexed'] },
-  { key: 'single', label: 'Single sex', of: ['All male', 'All female', 'Lone male', 'Lone female'] },
+interface RowDef {
+  label: string
+  of: (h: Holding) => boolean
+}
+
+interface GroupDef {
+  key: string
+  label: string
+  /** Omitted means the deep accent — used for the lens that is an action rather than a state. */
+  tone?: 'good' | 'warn' | 'bad'
+  rows: RowDef[]
+}
+
+/**
+ * THE THREE CATEGORIES THAT PARTITION THE ESTATE — every enclosure lands in exactly one row.
+ *
+ * This is the same invariant the previous three-band table carried, and it is worth restating
+ * because the rows are now predicates rather than a list of compositions and a predicate is far
+ * easier to get wrong. Read down the `of` tests: `Both sexes` splits three ways on the male and
+ * female counts, `Partly unsexed` two ways on which sex is present, and the remaining five
+ * compositions map one-to-one. Nothing is tested twice and nothing is missed.
+ *
+ * The tab renders whatever these three do NOT cover as an explicit "Unclassified" row rather
+ * than dropping it, so a ninth `Composition` — or a predicate edited into a gap — shows up on
+ * screen as a row nobody can explain instead of as enclosures that silently vanish.
+ *
+ * ON THE WORD "BREEDING READY". `core/animals.ts` refuses it one level down, and the reason is
+ * measured: readiness is a maturity claim, `born` is absent on 89,579 of 110,005 register rows
+ * and `maturity_age_years` exists for 775 of 2,339 species. What the register can prove is which
+ * sexes are in the enclosure. These labels are the ones the tab was specified with; the counts
+ * under them are true sex compositions and nothing here checks an age.
+ */
+const PARTITION: GroupDef[] = [
+  {
+    key: 'ready',
+    label: 'Ready to pair',
+    tone: 'good',
+    rows: [
+      { label: 'Breeding Ready - 1M + 1F', of: (h) => h.composition === 'Both sexes' && h.male === 1 && h.female === 1 },
+      {
+        label: 'Breeding Ready - Balanced',
+        of: (h) => h.composition === 'Both sexes' && h.male === h.female && h.male > 1,
+      },
+      { label: 'Breeding Ready - Unbalanced', of: (h) => h.composition === 'Both sexes' && h.male !== h.female },
+    ],
+  },
+  {
+    key: 'sexing',
+    label: 'Needs sexing',
+    tone: 'warn',
+    rows: [
+      { label: 'All Unsexed', of: (h) => h.composition === 'All unsexed' },
+      { label: 'Lone Unsexed', of: (h) => h.composition === 'Lone unsexed' },
+      { label: 'Needs Sexing - Females + Unsexed', of: (h) => h.composition === 'Partly unsexed' && h.female > 0 },
+      { label: 'Needs Sexing - Males + Unsexed', of: (h) => h.composition === 'Partly unsexed' && h.male > 0 },
+    ],
+  },
+  {
+    key: 'single',
+    label: 'Single sex',
+    tone: 'bad',
+    rows: [
+      { label: 'Lone Female', of: (h) => h.composition === 'Lone female' },
+      { label: 'Lone Male', of: (h) => h.composition === 'Lone male' },
+      { label: 'All Females', of: (h) => h.composition === 'All female' },
+      { label: 'All Males', of: (h) => h.composition === 'All male' },
+    ],
+  },
 ]
+
+/**
+ * A SECOND READING OF THE SAME ENCLOSURES, phrased as the move each one is waiting on.
+ *
+ * These rows deliberately re-cover ground the partition above already counted — an all-male
+ * enclosure is one row of Single sex and one row of "Male available, female required", because
+ * those are the same fact asked as a state and as an action. That is why this group is kept out
+ * of `PARTITION` and its heading says what it is: summing these four against the three above
+ * would double-count, and a reader who tried would be right to call it a bug.
+ */
+const LENSES: GroupDef[] = [
+  {
+    key: 'opportunity',
+    label: 'Pairing opportunities',
+    rows: [
+      { label: 'Ideal Pair Available', of: (h) => h.composition === 'Both sexes' && h.male === 1 && h.female === 1 },
+      {
+        label: 'Male Available - Female Required',
+        of: (h) => h.composition === 'All male' || h.composition === 'Lone male',
+      },
+      {
+        label: 'Female Available - Male Required',
+        of: (h) => h.composition === 'All female' || h.composition === 'Lone female',
+      },
+      {
+        label: 'No Compatible Pair',
+        of: (h) => h.composition === 'All unsexed' || h.composition === 'Lone unsexed',
+      },
+    ],
+  },
+]
+
+/** The three bands the per-site line still reads, derived from the partition so they cannot drift. */
+const SITE_BANDS = PARTITION.map((g) => ({ label: g.label, of: g.rows }))
 
 /**
  * A display word per sex, and deliberately NOT a second sex mapping.
@@ -243,6 +344,165 @@ function GroupSheet({ rows, name, label }: { rows: Holding[]; name: string; labe
   )
 }
 
+/* ── the breakdown's own row and category ────────────────────────────────── */
+
+/** One row's worth of resolved data — the label, the enclosures behind it, and its count. */
+interface Counted {
+  label: string
+  rows: Holding[]
+}
+
+/**
+ * A CATEGORY OF THE BREAKDOWN — dot, uppercase heading, total, then its rows.
+ *
+ * Drawn in this file rather than taken from the system for the same reason `Segments` is drawn
+ * in `speciesHousing.tsx`: the kit has no component of this shape. `Bars precise` draws a label,
+ * a figure and a proportional bar but is INERT — no handler, no chevron — so a reader can see a
+ * magnitude and not reach the enclosures behind it. `TapRow` is the opposite: it opens something
+ * but draws no bar. This row is the two of them joined, which is the whole interaction the tab
+ * is for: read the magnitude, then drill into it.
+ *
+ * THE BAR IS SCALED ACROSS THE WHOLE BREAKDOWN, not within its own category — `max` is handed
+ * in rather than derived here. Scaling per category would draw the biggest row of a four-
+ * enclosure group at the same length as the biggest of a four-hundred-enclosure one, and then a
+ * full bar would mean "most of this category" in one box and "most of the estate" in the next.
+ * One scale for all five means a length can be compared with any other length on the card.
+ *
+ * The 4% floor is `Bars`' own, for `Bars`' own measured reason: a one-enclosure row against a
+ * 103-enclosure one renders as a sub-pixel stub that cannot carry a colour, and a row whose bar
+ * is invisible reads as a row with no value rather than a row with a small one.
+ */
+function CategoryGroup({
+  label,
+  fill,
+  items,
+  max,
+  onOpen,
+  aside,
+}: {
+  label: string
+  fill: string
+  items: Counted[]
+  max: number
+  onOpen: (item: Counted) => void
+  aside?: string
+}) {
+  const { ref, animate } = usePlay<HTMLUListElement>()
+  const total = items.reduce((n, i) => n + i.rows.length, 0)
+
+  return (
+    <section className="mb-7 break-inside-avoid last:mb-0">
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span
+          className="size-[7px] shrink-0 translate-y-[-1px] rounded-full"
+          style={{ backgroundColor: fill }}
+          aria-hidden
+        />
+        <h4 className="text-overline font-semibold tracking-[0.04em] uppercase" style={{ color: '#3d3a34' }}>
+          {label}
+        </h4>
+        <span className="text-caption tabular-nums" style={{ color: FAINT }}>
+          · {fmt(total)}
+        </span>
+        {aside && (
+          <span className="ml-auto shrink-0 text-caption" style={{ color: FAINT }}>
+            {aside}
+          </span>
+        )}
+      </div>
+
+      <ul ref={ref} className="flex flex-col">
+        {items.map((it, i) => (
+          <li key={it.label} className="border-b last:border-0" style={{ borderColor: HAIR_ROW }}>
+            <button
+              type="button"
+              onClick={() => onOpen(it)}
+              className="card-press -mx-2 block w-full rounded-[10px] px-2 py-3 text-left"
+            >
+              <span className="flex items-baseline gap-3">
+                <span className="min-w-0 flex-1 truncate text-small" style={{ color: INK }}>
+                  {it.label}
+                </span>
+                <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
+                  {fmt(it.rows.length)}
+                  <span className="ml-1 text-caption font-normal" style={{ color: FAINT }}>
+                    encl.
+                  </span>
+                </span>
+                <span className="w-[10px] shrink-0" style={{ color: ACCENT_INK }} aria-hidden>
+                  <ChevronRight size={13} strokeWidth={2.25} />
+                </span>
+              </span>
+              <span
+                className="mt-2 block h-[6px] w-full overflow-hidden rounded-full"
+                style={{ backgroundColor: TRACK }}
+              >
+                <span
+                  className={`block h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
+                  style={{
+                    width: `${Math.max(4, (it.rows.length / max) * 100)}%`,
+                    backgroundColor: fill,
+                    animationDelay: animate ? `${i * 60}ms` : undefined,
+                  }}
+                />
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** The row hairline, matched to `TapRow`'s so the two lists sit on one rhythm. */
+const HAIR_ROW = '#f0efec'
+
+/**
+ * THE SOURCE'S OWN PAIRING STATEMENT, which is one value per species rather than a distribution.
+ *
+ * `pairing_status`, `breed_group` and `breed_sub` are columns of the `species` REFERENCE table —
+ * the ETL keeps one row per species NAME, so a species has a single pairing status the way it
+ * has a single scientific name. There is nothing to count and nothing to draw a bar from, so
+ * this group states the three values and does not pretend to a breakdown. It is rendered beside
+ * the counted categories because that is the comparison worth having: what the SOURCE says about
+ * this species, next to what the REGISTER counts across its enclosures.
+ */
+function ReferenceGroup({ label, fill, items }: { label: string; fill: string; items: [string, string][] }) {
+  return (
+    <section className="mb-7 break-inside-avoid last:mb-0">
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span
+          className="size-[7px] shrink-0 translate-y-[-1px] rounded-full"
+          style={{ backgroundColor: fill }}
+          aria-hidden
+        />
+        <h4 className="text-overline font-semibold tracking-[0.04em] uppercase" style={{ color: '#3d3a34' }}>
+          {label}
+        </h4>
+        <span className="ml-auto shrink-0 text-caption" style={{ color: FAINT }}>
+          species reference
+        </span>
+      </div>
+      <ul className="flex flex-col">
+        {items.map(([k, v]) => (
+          <li
+            key={k}
+            className="flex items-baseline justify-between gap-4 border-b py-3 last:border-0"
+            style={{ borderColor: HAIR_ROW }}
+          >
+            <span className="min-w-0 flex-1 text-small" style={{ color: INK }}>
+              {k}
+            </span>
+            <span className="shrink-0 text-right text-small font-medium" style={{ color: VALUE }}>
+              {v}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 /* ── the tab ─────────────────────────────────────────────────────────────── */
 
 /**
@@ -261,7 +521,7 @@ function GroupSheet({ rows, name, label }: { rows: Holding[]; name: string; labe
  * written to document. The NAME is the key; the id stays in the signature because the page
  * passes it and the next person to open this file should see why it is ignored.
  */
-export function SpeciesPairingTab({ name }: { speciesId: string; name: string }) {
+export function SpeciesPairingTab({ name, profile }: { speciesId: string; name: string; profile?: SpeciesProfile }) {
   const { open } = useSheet()
   const { drillTo } = useDrill()
 
@@ -280,25 +540,71 @@ export function SpeciesPairingTab({ name }: { speciesId: string; name: string })
     return out.sort((a, b) => b.total - a.total)
   }, [name])
 
-  const bands = useMemo(() => {
-    const byComposition = new Map<Composition, Holding[]>()
-    for (const h of holdings) {
-      const at = byComposition.get(h.composition)
-      if (at) at.push(h)
-      else byComposition.set(h.composition, [h])
-    }
-    return BANDS.map((b) => ({
-      ...b,
-      rows: b.of.flatMap((c) => byComposition.get(c) ?? []),
-      /* Sub-labels sort by size within their band, and a sub-label with no enclosures is not in
-         the array at all — a "Lone female · 0" row states that we looked and found none, which
-         for a species held in one enclosure is a sentence about nothing. */
-      parts: b.of
-        .map((c) => ({ composition: c, rows: byComposition.get(c) ?? [] }))
-        .filter((p) => p.rows.length > 0)
-        .sort((x, y) => y.rows.length - x.rows.length),
-    })).filter((b) => b.rows.length > 0)
+  /**
+   * Every group's rows resolved against the register, plus the scale the bars share.
+   *
+   * ONE PASS PER ROW OVER THE HOLDINGS, and that is affordable because the row set is fixed at
+   * fifteen while the largest holding list in the dump is 807 enclosures for one name — twelve
+   * thousand predicate calls at the extreme, once per name change. Grouping by composition first
+   * and re-splitting would save most of that and cost the thing that matters: a row could then
+   * only ever be a composition, which is exactly the constraint that made "1M + 1F" impossible
+   * to draw before.
+   *
+   * EMPTY ROWS ARE DROPPED, and this is the rule the previous build already set: a "Lone female ·
+   * 0" line states that we looked and found none, which for a species held in one enclosure is a
+   * row about nothing. A category whose rows are all empty disappears with them.
+   */
+  const { groups, lenses, max, unclassified } = useMemo(() => {
+    const resolve = (defs: GroupDef[]) =>
+      defs
+        .map((g) => ({
+          ...g,
+          items: g.rows
+            .map((r) => ({ label: r.label, rows: holdings.filter(r.of) }))
+            .filter((i) => i.rows.length > 0)
+            .sort((a, b) => b.rows.length - a.rows.length),
+        }))
+        .filter((g) => g.items.length > 0)
+
+    const groups = resolve(PARTITION)
+    const lenses = resolve(LENSES)
+
+    /* THE PARTITION'S OWN AUDIT, on screen rather than in a comment. If the fifteen predicates
+       above stop covering `Composition` the difference appears as a row, because enclosures that
+       fall out of a breakdown silently are the one failure this card cannot survive. */
+    const claimed = new Set<Holding>()
+    for (const g of groups) for (const i of g.items) for (const h of i.rows) claimed.add(h)
+    const unclassified = holdings.filter((h) => !claimed.has(h))
+
+    /* One scale for every bar on the card — see `CategoryGroup`. Taken across the partition and
+       the lens together so a lens row cannot overflow a track the partition sized. */
+    const max = Math.max(
+      1,
+      ...[...groups, ...lenses].flatMap((g) => g.items.map((i) => i.rows.length)),
+    )
+
+    return { groups, lenses, max, unclassified }
   }, [holdings])
+
+  /* The source's own species-level statement, printed only where the extract carries it. */
+  const reference = useMemo(
+    () =>
+      (
+        [
+          ['Pairing status', profile?.pairing_status],
+          ['Breeding group', profile?.breed_group],
+          ['Group detail', profile?.breed_sub],
+        ] as [string, string | undefined][]
+      ).filter((r): r is [string, string] => Boolean(r[1])),
+    [profile],
+  )
+
+  const openGroup = (groupLabel: string) => (item: Counted) =>
+    open({
+      title: item.label,
+      eyebrow: `${name} · ${groupLabel}`,
+      body: <GroupSheet rows={item.rows} name={name} label={groupLabel} />,
+    })
 
   const sites = useMemo(() => {
     const by = new Map<string, { key: string; name: string; rows: Holding[] }>()
@@ -311,7 +617,10 @@ export function SpeciesPairingTab({ name }: { speciesId: string; name: string })
       .map((s) => ({
         ...s,
         held: s.rows.reduce((n, h) => n + h.total, 0),
-        mix: BANDS.map((b) => ({ label: b.label, n: s.rows.filter((h) => b.of.includes(h.composition)).length })),
+        mix: SITE_BANDS.map((b) => ({
+          label: b.label,
+          n: s.rows.filter((h) => b.of.some((r) => r.of(h))).length,
+        })),
       }))
       .sort((a, b) => b.held - a.held)
   }, [holdings])
@@ -346,6 +655,7 @@ export function SpeciesPairingTab({ name }: { speciesId: string; name: string })
           reader who has set the filter to "last 7 days" is owed a statement of what these four
           figures are as at, in the place they are read rather than in a note at the bottom. */}
       <Section
+        wide
         icon={HeartHandshake}
         label="Pairing position"
         aside={`from the register · ${longDate(TODAY)}`}
@@ -367,66 +677,79 @@ export function SpeciesPairingTab({ name }: { speciesId: string; name: string })
         />
       </Section>
 
+      {/* ONE CARD, FIVE CATEGORIES, TWO COLUMNS — and `wide` is what makes the two columns
+          honest. The container every `@[…]` rule on this page resolves against is the shell's
+          content column, not the card, so a half-width `Section` asking for two columns would
+          get them at widths where its own box is 560px wide. A `wide` card spans that column, so
+          card width and container width are the same measurement and the breakpoint means what
+          it says. Below it the grid collapses and the categories stack, each keeping its rows. */}
       <Section
+        wide
         icon={Layers}
-        label="Enclosure readiness"
-        aside={`${fmt(holdings.length)} enclosure${holdings.length === 1 ? '' : 's'}`}
+        label="Pairing readiness breakdown"
+        aside={`${fmt(holdings.length)} enclosure${holdings.length === 1 ? '' : 's'} · tap a row`}
       >
-        {/* `precise`, so the bars are drawn at full width and two bands can be compared by
-            length. Everywhere else in the product the rows are already ordered and a rail would
-            be drawing that ordering twice; here the question really is "how much of the estate
-            is stuck", which is a magnitude. */}
-        <Bars
-          precise
-          showShare
-          unit="enclosures"
-          items={bands.map((b) => ({ label: b.label, value: b.rows.length }))}
-        />
-        <p className="mt-4 text-caption" style={{ color: FAINT }}>
-          Enclosures, not animals. A band says which sexes of this species are present in the
-          enclosure — not that the animals in it are mature, and not that they are the only
-          animals in it.
-        </p>
-      </Section>
+        {/* COLUMNS RATHER THAN A GRID, and the difference is the empty space. A two-column grid
+            sizes each row to its tallest cell, so a one-row category beside a three-row one is
+            padded to match it — measured on this species, that left 60–90px of white under three
+            of the five categories. A column flow packs each category directly under the previous
+            one and balances the two columns by height, so the card ends where its content does.
+            `break-inside-avoid` is what keeps a category's rows from splitting across the fold. */}
+        <div className="@[860px]:columns-2 @[860px]:gap-x-12">
+          {groups.map((g) => (
+            <CategoryGroup
+              key={g.key}
+              label={g.label}
+              fill={TONE_FILL[g.tone ?? 'neutral']}
+              items={g.items}
+              max={max}
+              onOpen={openGroup(g.label)}
+            />
+          ))}
 
-      <Section icon={Boxes} label="Readiness breakdown" aside="tap a row for the enclosures">
-        <TapList>
-          {bands.flatMap((b) =>
-            b.parts.map((p) => (
-              <TapRow
-                key={p.composition}
-                label={p.composition}
-                sub={`${b.label} · ${Math.round((p.rows.length / holdings.length) * 100)}% of enclosures`}
-                value={fmt(p.rows.length)}
-                unit="encl."
-                onOpen={() =>
-                  open({
-                    title: p.composition,
-                    eyebrow: `${name} · ${b.label}`,
-                    body: <GroupSheet rows={p.rows} name={name} label={b.label} />,
-                  })
-                }
-              />
-            )),
+          {lenses.map((g) => (
+            <CategoryGroup
+              key={g.key}
+              label={g.label}
+              fill={ACCENT_INK}
+              items={g.items}
+              max={max}
+              onOpen={openGroup(g.label)}
+              aside="same enclosures, read as actions"
+            />
+          ))}
+
+          {/* LAST, AND THAT IS A READING ORDER RATHER THAN A RANKING. The three counted
+              categories above partition the estate and belong together; this is the source
+              speaking about the species instead of the register speaking about enclosures, so it
+              reads after them. Putting it in the middle also split the partition across the two
+              columns and left the first one ending 230px early. */}
+          {reference.length > 0 && (
+            <ReferenceGroup label="Pairing status" fill={TONE_FILL.neutral} items={reference} />
           )}
-        </TapList>
-        {/* THE ONE PLACE THE SOURCE CONTRADICTS ITSELF, named rather than smoothed over. Under
-            the extract's own `breed_group`, a single unsexed animal is filed as Unknown
-            Potential for 11 species and as Zero Chance for 168 — the same fact, two verdicts.
-            This tab files it under Needs sexing, because that is the verdict with an action
-            behind it, and says so here rather than picking silently. */}
-        <p className="mt-4 text-caption" style={{ color: FAINT }}>
-          The source itself files a lone unsexed animal as unknown potential for 11 species and as
-          no chance for 168. It is counted here as needing sexing, which is the reading with
-          something to do about it.
-        </p>
+
+          {/* Only ever rendered when the fifteen predicates have stopped covering the register —
+              see the audit in the memo above. Silence here is the healthy state. */}
+          {unclassified.length > 0 && (
+            <CategoryGroup
+              label="Unclassified"
+              fill={TONE_FILL.bad}
+              items={[{ label: 'Not matched by any category', rows: unclassified }]}
+              max={max}
+              onOpen={openGroup('Unclassified')}
+            />
+          )}
+        </div>
       </Section>
 
       {/* ONE SITE IS NOT A DISTRIBUTION. Most names sit at a single site and 767 in a single
           enclosure, and a card headed "Where it is held" with one row under it repeats the
-          figures above it in a wider box. */}
+          figures above it in a wider box.
+
+          `wide` for the same reason the two cards above it are: it is the only card left on the
+          tab, and a half-width one would sit against 550px of empty column. */}
       {sites.length > 1 && (
-        <Section icon={MapPin} label="Where it is held" aside={`${sites.length} sites`}>
+        <Section wide icon={MapPin} label="Where it is held" aside={`${sites.length} sites`}>
           <TapList>
             {sites.map((s) => (
               <TapRow

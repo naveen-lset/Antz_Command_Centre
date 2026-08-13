@@ -61,7 +61,7 @@ export function Band({
   children,
 }: {
   title?: string
-  aside?: string
+  aside?: ReactNode
   note?: string
   icon?: LucideIcon
   /** Drop the card and separate by a hairline instead. The default is a white surface. */
