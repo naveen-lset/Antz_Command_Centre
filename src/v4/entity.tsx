@@ -60,6 +60,8 @@ import { SpeciesProfileTab } from './speciesProfile'
 import { speciesWide } from './speciesWide'
 import { SpeciesHousingTab } from './speciesHousing'
 import { SpeciesPairingTab } from './speciesPairing'
+import { SpeciesAssessmentsTab, SpeciesBreedsTab, SpeciesIdentificationTab } from './speciesRegister'
+import { SpeciesEggsTab } from './speciesEggs'
 import { animalById, animalsOfSpecies, sexSplit, stockOfSpecies, type Animal } from '../core/animals'
 import { byDimension, delta as deltaOf, figure as figureOf, population } from '../core/query'
 import { entityHref, siteKeyOf, withinScope } from '../core/scope'
@@ -915,6 +917,10 @@ const SPECIES_TABS = [
   { key: 'pairing', label: 'Pairing', icon: HeartPulse },
   { key: 'housing', label: 'Housing', icon: Boxes },
   { key: 'life', label: 'Circle of Life', icon: Sparkles },
+  { key: 'eggs', label: 'Eggs', icon: Egg },
+  { key: 'assessments', label: 'Assessments', icon: Activity },
+  { key: 'identification', label: 'Identification', icon: FileText },
+  { key: 'breeds', label: 'Breeds', icon: Layers },
   { key: 'animals', label: 'Animals', icon: Heart },
 ] as const
 
@@ -1123,6 +1129,11 @@ function SpeciesPage({ entity }: { entity: Entity }) {
         {tab === 'pairing' && <SpeciesPairingTab speciesId={entity.id} name={entity.name} />}
 
         {tab === 'housing' && <SpeciesHousingTab speciesId={entity.id} name={entity.name} />}
+
+        {tab === 'eggs' && <SpeciesEggsTab speciesId={entity.id} name={entity.name} profile={profile} />}
+        {tab === 'assessments' && <SpeciesAssessmentsTab profile={profile} />}
+        {tab === 'identification' && <SpeciesIdentificationTab profile={profile} />}
+        {tab === 'breeds' && <SpeciesBreedsTab profile={profile} />}
 
         {tab === 'life' && life && (
           <>

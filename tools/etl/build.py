@@ -86,7 +86,7 @@ TABLES = {
     "report_births", "report_accessions", "report_deaths", "report_transfers",
     "vaccination", "deworming",
     "medical_records", "medical_record_animals", "complaints", "diagnosis",
-    "prescriptions",
+    "prescriptions", "animal_assessments",
 }
 
 print("reading dump …", file=sys.stderr)
@@ -146,10 +146,17 @@ def getter(table, *names):
     return get
 
 
+# THE FIVE IDENTIFICATION COLUMNS ARE APPENDED, NEVER INSERTED, and the reason is the same one
+# the `profile` getter below is kept separate for: this tuple is positionally unpacked in three
+# places (the site walk, the pair walk and the register loop) and putting a column in the middle
+# would silently reindex all of them into plausible-looking nonsense. Two of those three unpacks
+# end in `*_`, so appending costs nothing and inserting would cost a day.
 G = {
     "housing": getter("housing", "antz_animal_id", "common_name", "class", "gender",
                       "site_facilty", "enclosure_name", "section_name", "accession_date",
-                      "birth_date", "accession_type", "identifier_value", "weight"),
+                      "birth_date", "accession_type", "identifier_value", "weight",
+                      "micro_chip", "ring_number", "identifier_type", "breed_name",
+                      "morph_name"),
     "species": getter("species", "common_name", "scientific_name", "taxonomic_class",
                       "iucn_status", "cites_appendix", "breeding_category", "conservation_priority",
                       "incubation_days", "clutch_litter_size", "gestation_days", "lifespan_years",
@@ -183,9 +190,17 @@ G = {
     "complaints": getter("complaints", "medical_record_id", "animal_id", "complaint_name",
                          "severity", "recorded_date_time"),
     "diagnosis": getter("diagnosis", "medical_record_id", "animal_id", "diagnosis_name",
-                        "severity", "recorded_date_time", "prognosis"),
+                        "severity", "recorded_date_time", "prognosis", "chronic"),
     "prescriptions": getter("prescriptions", "medical_record_id", "generic_name",
                             "prescription_name", "created_at", "end_date", "delivery_route"),
+    # Read for the species page's ASSESSMENTS tab and for nothing else yet. `assessment_value`
+    # is free text carrying everything from "3.135" to a paragraph about a morning walk, so it
+    # is read as text and interpreted downstream against `response_type` rather than coerced
+    # here — a float() at read time would silently turn 47,937 faecal descriptions into nothing.
+    "animal_assessments": getter("animal_assessments", "antz_animal_id", "common_name", "site",
+                                 "assessment_date", "assessment_category", "assessment_type",
+                                 "assessment_value", "uom", "response_type", "life_stage",
+                                 "contraception_type", "enclosure", "gender"),
 }
 
 raw = defaultdict(list)
@@ -492,6 +507,19 @@ FLOWS.append(build("admissions",
                    unit="consultations", grain="event", detail_label="Presenting sign",
                    facets=[("severity", "Severity", lambda m: mr_severity.get(m))]))
 
+# `chronic` is the ONLY chronic-versus-acute signal anywhere in the schema, and it is a tinyint
+# rather than a vocabulary: measured across all 6,808 diagnosis rows it is 1 on 271 and 0 on
+# 6,537, with nothing null. The zero bucket is labelled "Not chronic" rather than "Acute"
+# because the column records a flag that was set, not a clinical judgement that was made — a
+# diagnosis nobody ticked is not thereby an acute one, and naming it so would put a finding in
+# the reader's mouth that no clinician wrote down.
+def chronic(v):
+    if v in ("1", 1):
+        return "Chronic"
+    if v in ("0", 0):
+        return "Not chronic"
+    return None
+
 FLOWS.append(build("disease",
                    ((mr_site.get(r[0]), mr_species.get(r[0]), r[4], r[2], r[1], r)
                     for r in raw["diagnosis"]),
@@ -499,6 +527,7 @@ FLOWS.append(build("disease",
                    facets=[
                        ("severity", "Severity", lambda r: r[3]),
                        ("prognosis", "Prognosis", lambda r: title_fold(r[5])),
+                       ("chronic", "Course", lambda r: chronic(r[6])),
                    ]))
 
 FLOWS.append(build("supplement",
@@ -506,10 +535,29 @@ FLOWS.append(build("supplement",
                     for m in mr_meta if mr_meta[m][2] == "Supplements"),
                    unit="administrations", grain="event", detail_label="Type"))
 
+# `delivery_route` needs the same spelling fold `carcass_disposal_method` got, and for the same
+# reason: the anonymiser left one act spelled several ways. Measured over the prescriptions
+# table — Orally 1,089 · Oraly 497 · orally 5. Unfolded, the commonest route in the collection
+# would render as three routes and the leading one would understate itself by a third.
+ROUTE = {"orally": "Orally", "oraly": "Orally", "oral": "Orally",
+         "topical": "Topical", "topically": "Topical",
+         "subcutaneous": "Subcutaneous", "subcutaneous route": "Subcutaneous",
+         "intravenous": "Intravenous", "intra venous": "Intravenous",
+         "intramuscular": "Intramuscular", "opthalmic": "Ophthalmic"}
+
+# Named `delivery` rather than `route` because two later loops over `raw["prescriptions"]`
+# already bind a local called `route`, and a module-level function of that name would be
+# shadowed by whichever ran last.
+def delivery(v):
+    if not v or not v.strip():
+        return None
+    return ROUTE.get(v.strip().lower(), title_fold(v))
+
 FLOWS.append(build("pharmacy",
-                   ((mr_site.get(r[0]), mr_species.get(r[0]), r[3], r[1], mr_animal.get(r[0]))
+                   ((mr_site.get(r[0]), mr_species.get(r[0]), r[3], r[1], mr_animal.get(r[0]), r)
                     for r in raw["prescriptions"]),
-                   unit="prescriptions", grain="event", detail_label="Medicine"))
+                   unit="prescriptions", grain="event", detail_label="Medicine",
+                   facets=[("route", "Delivery route", lambda r: delivery(r[5]))]))
 
 FLOWS = [f for f in FLOWS if f["rows"]]
 
@@ -635,7 +683,7 @@ for mrid, generic, brand, created, end, route in raw["prescriptions"]:
     e = day_index(end)
     if a and (e is None or e >= TODAY_INDEX):
         under_care.add(a)
-for mrid, aid, dname, sev, when, prog in raw["diagnosis"]:
+for mrid, aid, dname, sev, when, prog, *_ in raw["diagnosis"]:
     a = aid or mr_animal.get(mrid)
     d = day_index(when)
     if a and d is not None and d >= TODAY_INDEX - 90:
@@ -643,8 +691,42 @@ for mrid, aid, dname, sev, when, prog in raw["diagnosis"]:
 
 FLAG_VACCINATED, FLAG_DEWORMED, FLAG_CARE = 1, 2, 4
 
+# ── how an animal is told apart, and what stock it is ────────────────────────
+#
+# WHICH CHIP AND RING NUMBERS ARE NOT UNIQUE. A microchip that two animals share cannot
+# identify either of them, and that is the single most useful thing this tab can say — but it
+# is a fact about the WHOLE collection, not about one species, so the duplicate values have to
+# be found in a pass over every housing row before any per-species walk can ask "is this one
+# of them". Measured: 36,530 rows carry a chip across 36,103 distinct values, of which 362 are
+# held by more than one animal id; 9,706 rows carry a ring across 9,570 values, 127 shared.
+_chip_seen, _ring_seen = Counter(), Counter()
+for r in raw["housing"]:
+    if r[12]:
+        _chip_seen[r[12]] += 1
+    if r[13]:
+        _ring_seen[r[13]] += 1
+CHIP_DUP = {v for v, n in _chip_seen.items() if n > 1}
+RING_DUP = {v for v, n in _ring_seen.items() if n > 1}
+
+# A chip column that is filled but holds a recorded refusal rather than a number. THE LIST IS
+# DELIBERATELY NARROW — only tokens that are literally a zero or a negation, matching 21 rows
+# ('0' 18 · 'No chip' 2 · 'No' 1). A wider heuristic (anything without four consecutive digits)
+# catches 56 rows but sweeps in 'TR 00-97BD4E46' and '4C9A064F3C', which are chip numbers in a
+# vendor's own format and not refusals at all. This is reported BESIDE the filled count and
+# never subtracted from it: the column being filled and the column being usable are two facts,
+# and reconciling them here would hide the one the reader needs.
+CHIP_VOID = {"0", "00", "000", "no", "none", "no chip", "nochip", "nil", "na", "n/a", "-", "--",
+             "not applicable", "not available"}
+
+ident_of = defaultdict(Counter)      # species slug → tallies, keyed by what was counted
+ident_types = defaultdict(Counter)   # species slug → identifier_type → animals
+breed_of = defaultdict(Counter)      # species slug → breed_name → animals
+morph_of = defaultdict(Counter)      # species slug → morph_name → animals
+reg_ids = defaultdict(set)           # species slug → the animal ids the register holds
+
 register = []
-for aid, name, cls, gender, site, enc, section, acc_date, birth, acc_type, ident, weight in raw["housing"]:
+for (aid, name, cls, gender, site, enc, section, acc_date, birth, acc_type, ident, weight,
+     chip, ring, id_type, breed, morph) in raw["housing"]:
     if not site or site not in SITE_IX:
         discarded["housing:site"] += 1
         continue
@@ -652,6 +734,40 @@ for aid, name, cls, gender, site, enc, section, acc_date, birth, acc_type, ident
     if spx is None:
         discarded["housing:species"] += 1
         continue
+
+    # Tallied HERE rather than in a second walk over housing, so that every denominator the
+    # IDENTIFICATION and BREEDS tabs print is the same number `animals.bin` holds for that
+    # species. A separate pass would count the 15 rows this loop discards and put a headcount
+    # on the page that the animal list beneath it cannot reproduce.
+    sl = slug(name)
+    t = ident_of[sl]
+    t["of"] += 1
+    if aid:
+        reg_ids[sl].add(aid)
+    if chip:
+        t["chip"] += 1
+        if chip in CHIP_DUP:
+            t["chipShared"] += 1
+        if chip.strip().lower() in CHIP_VOID:
+            t["chipVoid"] += 1
+    if ring:
+        t["ring"] += 1
+        if ring in RING_DUP:
+            t["ringShared"] += 1
+    if id_type:
+        t["identType"] += 1
+        ident_types[sl][id_type] += 1
+    if ident:
+        t["identValue"] += 1
+    if not (chip or ring or id_type):
+        t["none"] += 1
+    if breed:
+        t["breed"] += 1
+        breed_of[sl][breed] += 1
+    if morph:
+        t["morph"] += 1
+        morph_of[sl][morph] += 1
+
     b = day_index(birth)
     a = day_index(acc_date)
     flags = 0
@@ -673,6 +789,219 @@ for aid, name, cls, gender, site, enc, section, acc_date, birth, acc_type, ident
         ORIGIN_IX.get(acc_type, 255),
     ))
 register.sort(key=lambda r: (r[0], r[1]))
+
+# ── what the species page can now say about identification and stock ─────────
+#
+# PER SPECIES NAME ACROSS EVERY SITE, AND THE SHAPE FOLLOWS FROM THE PAGE. A species page is
+# cross-site by construction — `core/profiles.ts` drops the site half of the species id and
+# says why: "the same warbler at eleven sites has one biology, and holding eleven copies of it
+# is how two of them come to disagree." Identification coverage is not biology, but it is asked
+# the same way: a keeper opening Ochre Warbler wants to know how much of the collection's
+# warbler holding can be told apart, not how much of it at one site.
+#
+# THESE GO IN `profiles.json`, NOT `dims.json`, and that is a measured decision rather than a
+# filing preference. dims.json is fetched at boot by every page in the product and is 2.89 MB;
+# profiles.json is fetched when the first species page opens and by nothing else. A coverage
+# rollup that only a species page can render has no business on the home screen's load path.
+#
+# EVERY RATIO TRAVELS AS `[value, outOf]`. `Score` in core/profiles.ts already argues this for
+# the welfare scores — "the denominator travels with the numerator, from the ETL, and no
+# renderer may assume one" — and it matters more here, because the denominator is a different
+# number for every species and a bar drawn against a fixed 100 would be nonsense on all of them.
+#
+# ZERO IS ABSENT, NOT PRESENT. A species with no ringed animals has no `ring` key at all, so
+# the page renders no row for rings rather than a row reading "0 of 314", which reads as a
+# finding when it is only a silence. This is the same rule PROFILES already applies to the
+# reference columns.
+
+def _ranked(counter):
+    """A vocabulary as [[label, count], …], commonest first, ties broken alphabetically."""
+    return [[k, n] for k, n in sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
+def _profile(sl):
+    """
+    The profile object for a slug, CREATED IF THE REFERENCE TABLE HAS NO ROW FOR IT.
+
+    108 names the collection actually holds have no `species` row at all, so `profileOf` has
+    been returning undefined for them and every tab on those pages has had nothing to render.
+    A holding fact is not reference biology and does not need one to be true — the register
+    knows how many of them carry a chip whether or not anybody wrote down their gestation.
+    """
+    return PROFILES.setdefault(sl, {})
+
+
+for sl, t in ident_of.items():
+    of = t["of"]
+    if not of:
+        continue
+    out = {"of": of}
+    for k in ("chip", "ring", "identType", "identValue", "none"):
+        if t[k]:
+            out[k] = [t[k], of]
+    for k in ("chipShared", "chipVoid", "ringShared"):
+        if t[k]:
+            out[k] = t[k]
+    if ident_types[sl]:
+        out["types"] = _ranked(ident_types[sl])
+    _profile(sl)["identification"] = out
+
+    stock = {"of": of}
+    if t["breed"]:
+        stock["withBreed"] = [t["breed"], of]
+        stock["byBreed"] = _ranked(breed_of[sl])
+    if t["morph"]:
+        stock["withMorph"] = [t["morph"], of]
+        stock["byMorph"] = _ranked(morph_of[sl])
+    # A BREEDS BLOCK WITH NOTHING BUT A DENOMINATOR IS NOT A BLOCK. Breed is filled on 4,224 of
+    # 110,020 housing rows and morph on 7,810, so the overwhelming majority of species have
+    # neither — emitting `{of: 314}` for them would make the tab render a card that says
+    # nothing, which the brief forbids more plainly than anything else in it.
+    if len(stock) > 1:
+        _profile(sl)["breeds"] = stock
+
+# The two identification sources the extract does not reconcile, measured rather than assumed,
+# so the page can cite the gap instead of picking a winner.
+_chip_col = sum(1 for r in raw["housing"] if r[12])
+_type_chip = sum(1 for r in raw["housing"] if r[14] == "Micro chip")
+_both = sum(1 for r in raw["housing"] if r[14] == "Micro chip" and r[12])
+_dup_ids = len(raw["housing"]) - len({r[0] for r in raw["housing"] if r[0]})
+
+# ── assessments, rolled up per species name ──────────────────────────────────
+#
+# WHY A ROLLUP AND NOT AN EVENT BLOCK. Every other feed in this build compiles into
+# `events.bin` because a metric is asked under a scope — a site, a window — and the block
+# format carries five integer columns per row so that `tally` can walk them. Assessments do
+# not fit it, and the reason is `assessment_value`: it is free text holding "3.135", "544",
+# "Bored/Inactive" and a paragraph about a morning walk, and the block format has no column
+# that can carry it. A flow block would therefore produce a tab that lists WHAT WAS ASSESSED
+# and can never show WHAT WAS FOUND — 79,424 weights and 10,409 body condition scores would
+# travel as bare counts. Summarised here against `response_type` and `uom`, the readings
+# survive at the grain the species page actually asks them at.
+#
+# THE NUMERIC READINGS ARE SPLIT BY UNIT, NEVER POOLED. Weight is recorded in kilogram on
+# 49,502 rows and gram on 34,584, in the same column, for the same assessment type. A mean
+# over both is a number with no meaning — it would put a 940 g animal and a 3.1 kg animal in
+# one average and report roughly 470. So a reading is keyed by (type, uom) and a species that
+# was weighed in both units gets two rows saying so.
+
+ASSESS_HELD = {slug(n) for n in HELD}
+
+# The top of each scale, measured — because there is no declared one anywhere in the schema and
+# the scales are NOT the same. Across the dump: Body Condition Score runs 1–5 (in half steps,
+# 2,743 of them), Lively / Playful / Content / Sociable run to 10, Aggression and the musth
+# observations to 3, Mahouts Command to 2. A renderer that assumed a common track would draw
+# every one of them wrong, which is exactly the defect `Score` was introduced to prevent.
+#
+# WHAT `outOf` MEANS HERE, STATED SO NOBODY OVERREADS IT: the highest value recorded anywhere
+# in the dump for that assessment type. It is a floor on the true scale, not the scale itself —
+# 'Tense' was only ever recorded as 6 and its real ceiling is unknowable from this extract.
+scale_top = defaultdict(float)
+for r in raw["animal_assessments"]:
+    if r[8] != "numeric_scale":
+        continue
+    try:
+        scale_top[r[5]] = max(scale_top[r[5]], float(r[6]))
+    except (TypeError, ValueError):
+        pass
+
+a_n = Counter()
+a_cat, a_type, a_resp, a_stage, a_contra = (defaultdict(Counter) for _ in range(5))
+a_month = defaultdict(Counter)
+a_first, a_last = {}, {}
+a_ids = defaultdict(set)
+a_read = defaultdict(lambda: defaultdict(list))   # slug → (type, uom) → values
+
+for (aid, name, site, when, cat, atype, val, uom, resp, stage, contra, enc, gender) in raw["animal_assessments"]:
+    sl = slug(name) if name else None
+    if not sl or sl not in ASSESS_HELD:
+        discarded["assessments:species"] += 1
+        continue
+    d = day_index(when)
+    if d is None:
+        discarded["assessments:date"] += 1
+        continue
+    a_n[sl] += 1
+    a_month[sl][when.strip()[:7]] += 1
+    a_first[sl] = d if sl not in a_first else min(a_first[sl], d)
+    a_last[sl] = d if sl not in a_last else max(a_last[sl], d)
+    if aid:
+        a_ids[sl].add(aid)
+    if cat:
+        a_cat[sl][cat] += 1
+    if atype:
+        a_type[sl][atype] += 1
+    if resp:
+        a_resp[sl][resp] += 1
+    if stage:
+        a_stage[sl][stage] += 1
+    if contra:
+        a_contra[sl][contra] += 1
+    if atype and resp in ("numeric_value", "numeric_scale"):
+        # PARSED BEFORE THE BUCKET IS TOUCHED, deliberately. `a_read[sl][key]` on a defaultdict
+        # creates the list as a side effect of being read, so parsing inside the subscript
+        # leaves an empty bucket behind for every unparseable value — and a (type, unit) pair
+        # with no readings in it then reaches the summariser and asks it for min() of nothing.
+        try:
+            reading = float(val)
+        except (TypeError, ValueError):
+            reading = None
+        if reading is not None:
+            a_read[sl][(atype, uom or "", resp)].append(reading)
+
+for sl, n in a_n.items():
+    out = {"n": n, "first": a_first[sl], "last": a_last[sl]}
+
+    # Assessed animals against the register's own count for this species. Both halves are
+    # counted over the SAME set — ids that this species' register span holds — so the ratio
+    # can never exceed one. Measured across the dump, all 25,752 assessed ids do appear in
+    # housing, but they are not all filed under the name the assessment names them by, and a
+    # coverage bar that read 112% because of that would destroy the page's credibility.
+    of = ident_of[sl]["of"]
+    if of:
+        hit = len(a_ids[sl] & reg_ids[sl])
+        if hit:
+            out["assessed"] = [hit, of]
+        # Assessed animals this species' register does NOT hold — the same animal id filed
+        # under another common name, or an animal since departed. Stated rather than folded in.
+        stray = len(a_ids[sl]) - hit
+        if stray:
+            out["strayIds"] = stray
+    elif a_ids[sl]:
+        out["animals"] = len(a_ids[sl])
+
+    for key, counter in (("categories", a_cat), ("types", a_type), ("responses", a_resp),
+                         ("stages", a_stage), ("contraception", a_contra)):
+        if counter[sl]:
+            out[key] = _ranked(counter[sl])
+
+    # The volume series, sparse and by calendar month. Sparse because most species were
+    # assessed in a handful of months and a dense 77-month array per species would be 89,000
+    # zeroes across the file to carry 23,000 readings. By month rather than by day because the
+    # tab draws a trend, and a per-day series for 1,153 species is the whole of events.bin
+    # again in JSON.
+    out["months"] = dict(sorted(a_month[sl].items()))
+
+    readings = []
+    for (atype, uom, resp), vals in sorted(a_read[sl].items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        r = {"type": atype, "n": len(vals), "lo": round(min(vals), 3), "hi": round(max(vals), 3)}
+        mean = round(sum(vals) / len(vals), 3)
+        if resp == "numeric_scale" and scale_top.get(atype):
+            # A SCORE, SO THE SCALE TRAVELS WITH IT. See the note on `scale_top` above for what
+            # the denominator is and, more importantly, what it is not.
+            r["mean"] = [mean, round(scale_top[atype], 3)]
+        else:
+            r["mean"] = mean
+        if uom:
+            r["uom"] = uom
+        readings.append(r)
+    if readings:
+        out["readings"] = readings
+
+    _profile(sl)["assessments"] = out
+
+print(f"  identification {len(ident_of)} species · breeds {sum(1 for p in PROFILES.values() if 'breeds' in p)}"
+      f" · assessments {len(a_n)} species over {sum(a_n.values()):,} readings", file=sys.stderr)
 
 roles = Counter(r[3] for r in raw["users"] if r[3])
 DEPARTMENTS = [{"id": slug(r), "name": r, "weight": n} for r, n in roles.most_common()]
@@ -803,6 +1132,22 @@ dims = {
             "births": "birth_date where present, else added_on_antz (59% of birth_date is null)",
             "coverage": "distinct animals dosed / animals housed — no protocol table exists to define an eligible herd",
             "health": "animals with a live prescription — the only under-care proxy in the schema",
+            # THE PAGE MUST BE ABLE TO CITE THIS GAP RATHER THAN ASSERT ONE NUMBER. Two columns
+            # in `housing` both claim to say whether an animal is chipped and they do not agree,
+            # so the note carries both counts and their overlap and reconciles nothing.
+            "identification": (
+                f"micro_chip is filled on {_chip_col:,} housing rows and identifier_type='Micro chip' "
+                f"on {_type_chip:,}, overlapping on {_both:,}; both are reported and neither is "
+                f"reconciled. {_dup_ids:,} rows repeat an antz_animal_id already used, so a count of "
+                "rows and a count of animals are not the same number."
+            ),
+            "assessments": (
+                "per species name across all sites, in profiles.json — assessment_value is free "
+                "text and cannot travel in an event block, so numeric readings are summarised by "
+                "(assessment type, unit) and never pooled across units. A reading's outOf is the "
+                "highest value recorded anywhere in the dump for that assessment type; the schema "
+                "declares no scale, so it is a floor on the real one rather than the real one."
+            ),
         },
     },
     "sites": SITES,
@@ -840,6 +1185,7 @@ print(f"  dims.json    {os.path.getsize(os.path.join(OUT,'dims.json'))/1e6:.2f} 
 print(f"  events.bin   {os.path.getsize(os.path.join(OUT,'events.bin'))/1e6:.2f} MB", file=sys.stderr)
 print(f"  levels.bin   {os.path.getsize(os.path.join(OUT,'levels.bin'))/1e6:.2f} MB", file=sys.stderr)
 print(f"  animals.bin  {os.path.getsize(os.path.join(OUT,'animals.bin'))/1e6:.2f} MB", file=sys.stderr)
+print(f"  profiles.json {os.path.getsize(os.path.join(OUT,'profiles.json'))/1e6:.2f} MB", file=sys.stderr)
 print(f"\n  register     {len(register):,} housed animals", file=sys.stderr)
 print(f"\n  clock        {EPOCH} → {TODAY}  ({HISTORY_DAYS} days)", file=sys.stderr)
 print(f"  sites        {len(SITES)}", file=sys.stderr)
