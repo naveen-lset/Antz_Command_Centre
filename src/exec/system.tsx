@@ -1361,7 +1361,21 @@ export function Columns({
 }
 
 /** Causes + cumulative share — the 80/20 read. */
-export function Pareto({ items }: { items: { label: string; value: number }[] }) {
+export function Pareto({
+  items,
+  legend = true,
+}: {
+  items: { label: string; value: number }[]
+  /**
+   * Whether the mark prints its own row-per-item legend.
+   *
+   * Off when the caller already lists the same items underneath — a Pareto of seventeen causes
+   * above a tappable list of the same seventeen is one question in two shapes, and the legend is
+   * the copy that carries no handler. The bars and the cumulative line still hold every item, so
+   * turning this off caps the reading, not the data.
+   */
+  legend?: boolean
+}) {
   const accent = useAccent()
   const { ref, animate } = usePlay()
   const total = items.reduce((s, i) => s + i.value, 0) || 1
@@ -1412,22 +1426,24 @@ export function Pareto({ items }: { items: { label: string; value: number }[] })
           ))}
         </svg>
       </div>
-      <ul className="mt-3 divide-y divide-[#f0efec]">
-        {items.map((it, i) => (
-          <li key={it.label} className="flex items-baseline gap-3 py-2">
-            <span
-              className="size-[7px] shrink-0 rounded-full"
-              style={{ backgroundColor: mix(accent, step(i)) }}
-              aria-hidden
-            />
-            <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{it.label}</span>
-            <span className="shrink-0 text-caption tabular-nums text-[#9b958b]">{cum[i].toFixed(0)}%</span>
-            <span className="w-[30px] shrink-0 text-right text-small font-medium tabular-nums text-[#1c1a16]">
-              {it.value}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {legend && (
+        <ul className="mt-3 divide-y divide-[#f0efec]">
+          {items.map((it, i) => (
+            <li key={it.label} className="flex items-baseline gap-3 py-2">
+              <span
+                className="size-[7px] shrink-0 rounded-full"
+                style={{ backgroundColor: mix(accent, step(i)) }}
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{it.label}</span>
+              <span className="shrink-0 text-caption tabular-nums text-[#9b958b]">{cum[i].toFixed(0)}%</span>
+              <span className="w-[30px] shrink-0 text-right text-small font-medium tabular-nums text-[#1c1a16]">
+                {it.value}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

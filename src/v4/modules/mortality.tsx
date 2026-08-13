@@ -693,10 +693,22 @@ function SiteWise({ rows, prev }: { rows: Death[]; prev: Death[] }) {
     },
   ]
 
+  /* The one list on this page that never got the pair the two SPECIES lists already had. Fifty
+     sites was 3,410px — a third of the page — and the estate is read from the top of a sort, not
+     by scrolling to Zone 50. Sorting runs over all fifty and THEN pages: `lines` is sorted whole
+     and `page.rows` is a slice of it, so "which site is worst" opens on the estate's real
+     maximum rather than the worst of the printed eight. Dep is `lines`, not `lines.length` — a
+     scope change recuts all fifty values without changing how many there are. */
+  const page = usePaged<SiteLine>(
+    (offset, limit) => ({ rows: lines.slice(offset, offset + limit), total: lines.length }),
+    8,
+    [lines],
+  )
+
   return (
     <Section icon={MapPin} label="Site-wise mortality" aside={`${lines.length} site${lines.length === 1 ? '' : 's'}`}>
       <RankTable
-        rows={lines}
+        rows={page.rows}
         columns={cols}
         head="Site"
         name={(r) => r.name}
@@ -712,6 +724,7 @@ function SiteWise({ rows, prev }: { rows: Death[]; prev: Death[] }) {
         }
         empty={<NoDeaths window={scope.win.window} />}
       />
+      <MoreRows page={page} noun="sites" />
       {/* Sorting by "lowest" is a real question — which site is doing well — and it is one tap
           rather than a second table. */}
       <div className="mt-3 flex gap-1.5">
@@ -784,7 +797,9 @@ function SpeciesWise({ rows }: { rows: Death[] }) {
   const page = usePaged<SpeciesLine>(
     (offset, limit) => ({ rows: lines.slice(offset, offset + limit), total: lines.length }),
     8,
-    [lines.length, sortKey, query],
+    /* `lines`, not `lines.length` — `lines` is already recomputed for scope, sort and query, and
+       a length dep serves the previous scope's rows whenever the new one has the same count. */
+    [lines, sortKey, query],
   )
 
   return (
@@ -897,14 +912,45 @@ function CauseOfDeath({ rows }: { rows: Death[] }) {
   const { open } = useSheet()
   const causes = useMemo(() => byCause(rows), [rows])
 
+  /* The Pareto's whole payload, said once. It used to be a row-per-cause legend directly above a
+     row-per-cause drill list — seventeen causes enumerated twice, 1,732px of a 1,988px card, and
+     only the lower list could be tapped. The bars and the cumulative line still carry every
+     cause, so the shape is intact; what is gone is the second reading of it. */
+  const lead = useMemo(() => {
+    const total = causes.reduce((n, c) => n + c.value, 0)
+    if (!total) return undefined
+    let run = 0
+    /* How many causes it takes to clear half the deaths — the number the curve is drawn to
+       answer, and the one a reader would otherwise count off the legend by hand. */
+    const n = causes.findIndex((c) => (run += c.value) / total > 0.5) + 1
+    if (n < 1) return undefined
+    return { n, share: Math.round((run / total) * 100) }
+  }, [causes])
+
+  /* Paged, not capped: a cause of death is a thing you investigate, so every one stays reachable
+     and `MoreRows` states the real total. Dep is `causes`, not `causes.length` — a scope change
+     recuts the values without changing how many there are. */
+  const page = usePaged<(typeof causes)[number]>(
+    (offset, limit) => ({ rows: causes.slice(offset, offset + limit), total: causes.length }),
+    8,
+    [causes],
+  )
+
   return (
     <Section icon={Activity} label="Cause of death" aside={`${causes.length} cause${causes.length === 1 ? '' : 's'}`}>
       {causes.length > 0 ? (
         <>
-          <Pareto items={causes.map((c) => ({ label: c.label, value: c.value }))} />
+          <Pareto items={causes.map((c) => ({ label: c.label, value: c.value }))} legend={false} />
+          {lead && (
+            <p className="mt-3 text-caption" style={{ color: FAINT }}>
+              <span className="tabular-nums">{lead.n}</span> of{' '}
+              <span className="tabular-nums">{causes.length}</span> causes account{lead.n === 1 ? 's' : ''} for{' '}
+              <span className="tabular-nums">{lead.share}%</span> of deaths
+            </p>
+          )}
           <Rule label="Tap to investigate" />
           <DrillList>
-            {causes.map((c) => (
+            {page.rows.map((c) => (
               <DrillRow
                 key={c.id}
                 label={c.label}
@@ -916,6 +962,7 @@ function CauseOfDeath({ rows }: { rows: Death[] }) {
               />
             ))}
           </DrillList>
+          <MoreRows page={page} noun="causes" />
         </>
       ) : (
         <NoDeaths window="this window" />
@@ -1159,7 +1206,7 @@ function NecropsySpeciesWise({ rows }: { rows: Death[] }) {
   const page = usePaged<SpeciesLine>(
     (offset, limit) => ({ rows: lines.slice(offset, offset + limit), total: lines.length }),
     8,
-    [lines.length, sortKey],
+    [lines, sortKey],
   )
 
   return (
