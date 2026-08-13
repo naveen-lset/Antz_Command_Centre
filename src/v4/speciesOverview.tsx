@@ -39,15 +39,13 @@ import {
   Boxes,
   CalendarRange,
   Heart,
-  HeartPulse,
   Layers,
   MapPin,
-  ShieldCheck,
   Skull,
   Sparkles,
 } from 'lucide-react'
 
-import { TODAY, buckets, dateAt, shortDate, type Win } from '../core/calendar'
+import { TODAY, buckets, dateAt, resolveWindow, shortDate, type Win } from '../core/calendar'
 import { UNRESOLVED, data, flowOf } from '../core/store'
 import { SPECIES, siteOf, speciesOf } from '../core/world'
 import {
@@ -59,7 +57,7 @@ import {
 } from '../core/animals'
 import type { SpeciesProfile } from '../core/profiles'
 import { EventTrend, FlowSplit, type Pt } from '../exec/marks'
-import { Columns, FAINT, Facts, HAIR, INK, RED_LIST, Ring, TONE, TRACK, VALUE, fmt, mix, step, useAccent } from '../exec/system'
+import { Columns, FAINT, Facts, HAIR, INK, RED_LIST, TONE, fmt, mix, step, useAccent } from '../exec/system'
 import { speciesLifecycle } from './modules/population'
 import { standingOf } from './modules/regulatory'
 import {
@@ -70,10 +68,10 @@ import {
   MetricStrip,
   NotePanel,
   RankedBars,
-  SplitLayout,
   TabBody,
   type Column,
 } from './speciesLayout'
+import { DashCard, FactRows, KpiStrip, RankRows, SliceKey, Slices, YearBars, foldTail } from './dashboard'
 import { speciesWideAt } from './speciesWide'
 import { useDrill } from './drillNav'
 import { MoreRows, usePaged } from './perf'
@@ -97,6 +95,19 @@ interface SpeciesFlow {
   dated: number
   /** Values of a measured column, sentinel already dropped. Never padded to `total`. */
   numbers: number[]
+  /**
+   * One tally per CALENDAR YEAR the window covers, oldest first.
+   *
+   * Separate from `points` rather than a coarser setting of it. `points` divides the window into
+   * `max` EQUAL spans, which is right for a curve and wrong for a year axis — under a 5½-year
+   * window thirty equal buckets are ten-week blocks that straddle new year, so no column is a
+   * year and the axis cannot be labelled with one. This counts the year off each row's own date.
+   *
+   * Only years that actually carry a row appear. A species first held in 2023 has no 2019 column
+   * to print a zero into, and inventing the gap years would draw a flat run the register does not
+   * have.
+   */
+  years: [number, number][]
 }
 
 interface WalkOpts {
@@ -128,6 +139,7 @@ const EMPTY_FLOW: SpeciesFlow = {
   months: new Array<number>(12).fill(0),
   dated: 0,
   numbers: [],
+  years: [],
 }
 
 
@@ -300,6 +312,7 @@ function walkSpeciesFlow(
     facets.map((n) => [n, new Map<string, number>()] as [string, Map<string, number>]),
   )
   const bySite = new Map<string, number>()
+  const byYear = new Map<number, number>()
   const months = new Array<number>(12).fill(0)
   const numbers: number[] = []
   const numberSpec = opts.number ? f.numbers.get(opts.number) : undefined
@@ -321,6 +334,9 @@ function walkSpeciesFlow(
 
       total++
       bySite.set(key, (bySite.get(key) ?? 0) + 1)
+
+      const yr = dateAt(d).getFullYear()
+      byYear.set(yr, (byYear.get(yr) ?? 0) + 1)
 
       const label = f.details[f.detail[r]] ?? 'Not recorded'
       byDetail.set(label, (byDetail.get(label) ?? 0) + 1)
@@ -375,6 +391,7 @@ function walkSpeciesFlow(
     months,
     dated,
     numbers,
+    years: [...byYear.entries()].sort((a, b) => a[0] - b[0]),
   }
 }
 
@@ -456,190 +473,6 @@ const READINESS: { key: string; label: string; of: Composition[] }[] = [
 ]
 
 
-/* ── the Overview's own compositions ─────────────────────────────────────── */
-
-/**
- * An independent analytical container — a headline count, where it happened, a mark, a caption.
- *
- * BIRTHS AND DEATHS GET ONE EACH, AND THAT IS THE POINT. They were two halves of a single
- * "Recorded flows" card, which put one border around two opposite facts and made the reader
- * work out which caption belonged to which chart. They are separate events, separately dated,
- * with different caveats — the births date is a fallback on 61% of rows and the deaths date is
- * not — so they are separate containers with the same weight, side by side where there is room.
- */
-function FlowPanel({
-  label,
-  value,
-  where,
-  tone,
-  children,
-  caption,
-}: {
-  label: string
-  value: number
-  /** Absent where nothing was recorded — `sitesWord` returns nothing for zero rather than
-   *  "0 sites", which would read as a place that recorded none. */
-  where?: string
-  tone?: 'bad'
-  children: React.ReactNode
-  caption: React.ReactNode
-}) {
-  return (
-    <section
-      className="flex flex-col rounded-[var(--radius-card)] border bg-white p-[var(--pad-card)]"
-      style={{ borderColor: HAIR }}
-    >
-      <p className="text-small font-semibold" style={{ color: INK }}>
-        {label}
-      </p>
-      {/* THE ONLY LARGE NUMBER IN THE CONTAINER. Everything under it is a breakdown of this
-          figure, so nothing else in the panel competes with it for the first read. */}
-      <p
-        className="mt-1 font-display text-[34px] leading-none font-semibold tabular-nums"
-        style={{ color: tone === 'bad' ? TONE.bad : VALUE }}
-      >
-        {fmt(value)}
-      </p>
-      {where && (
-        <p className="mt-1 text-caption" style={{ color: FAINT }}>
-          {where}
-        </p>
-      )}
-      <div className="mt-5 flex-1">{children}</div>
-      <Caption>{caption}</Caption>
-    </section>
-  )
-}
-
-/**
- * Four figures side by side, aligned so they can be compared rather than read one at a time.
- *
- * NOT A 2x2 OF CARDS. These are four cuts of ONE set of enclosures and they sum to it, so a
- * border between them would say they were four separate findings. Each block carries its own
- * share bar against the same denominator, which is what makes "which of these dominates"
- * answerable at a glance.
- */
-function Compare({ items, total }: { items: { label: string; value: number; note?: string }[]; total: number }) {
-  const accent = useAccent()
-  const present = items.filter((i) => i.value > 0)
-  if (!present.length || total <= 0) return null
-  return (
-    <div className="grid gap-x-8 gap-y-6 @[560px]:grid-cols-2 @[900px]:grid-cols-4">
-      {present.map((i) => (
-        <div key={i.label} className="min-w-0">
-          <p className="truncate text-caption" style={{ color: FAINT }} title={i.label}>
-            {i.label}
-          </p>
-          <p className="mt-1 flex items-baseline gap-2">
-            <span className="font-display text-[26px] leading-none font-semibold tabular-nums" style={{ color: VALUE }}>
-              {fmt(i.value)}
-            </span>
-            <span className="text-caption tabular-nums" style={{ color: FAINT }}>
-              {Math.round((i.value / total) * 100)}%
-            </span>
-          </p>
-          <span className="mt-2.5 block h-[5px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-            <span
-              className="block h-full rounded-full"
-              style={{ width: `${(i.value / total) * 100}%`, backgroundColor: accent }}
-            />
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/**
- * A proportional ranking — name, bar, count, share — rather than a table.
- *
- * A TABLE ANSWERS "WHAT IS THE FIGURE FOR X"; THIS ANSWERS "HOW IS IT DISTRIBUTED". The site
- * list is read for the shape of the distribution — one site holding 84% is the finding — and a
- * column of right-aligned numbers makes that shape something the reader has to reconstruct. The
- * bar is scaled to the LARGEST SITE rather than to the total, so the second site is read
- * against the first, which is the comparison actually being made.
- */
-function Ranking<T>({
-  rows,
-  labelOf,
-  valueOf,
-  keyOf,
-  total,
-  onOpen,
-}: {
-  rows: T[]
-  labelOf: (r: T) => string
-  valueOf: (r: T) => number
-  keyOf: (r: T) => string
-  total: number
-  onOpen?: (r: T) => void
-}) {
-  const accent = useAccent()
-  if (!rows.length) return null
-  const top = Math.max(...rows.map(valueOf), 1)
-  return (
-    <ul className="flex flex-col">
-      {rows.map((r) => {
-        const v = valueOf(r)
-        const body = (
-          <>
-            <span className="flex items-baseline justify-between gap-3">
-              <span className="min-w-0 truncate text-small" style={{ color: INK }}>
-                {labelOf(r)}
-              </span>
-              <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
-                {fmt(v)}
-                <span className="ml-2 text-caption font-normal" style={{ color: FAINT }}>
-                  {total > 0 ? `${Math.round((v / total) * 100)}%` : ''}
-                </span>
-              </span>
-            </span>
-            <span className="mt-1.5 block h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-              <span className="block h-full rounded-full" style={{ width: `${(v / top) * 100}%`, backgroundColor: accent }} />
-            </span>
-          </>
-        )
-        return (
-          <li key={keyOf(r)} className="py-2.5">
-            {onOpen ? (
-              <button type="button" onClick={() => onOpen(r)} className="card-press -mx-2 block w-full rounded-[10px] px-2 text-left">
-                {body}
-              </button>
-            ) : (
-              body
-            )}
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
-/**
- * Published standing as one metadata strip rather than five rows in a card.
- *
- * These are five short labels a reader scans rather than reads, and stacking them as full-width
- * label/value rows gave each one the height of a finding. Across, separated by space, they read
- * as what they are: the animal's paperwork.
- */
-function MetaStrip({ items }: { items: { label: string; value: string; lead?: React.ReactNode }[] }) {
-  return (
-    <div className="flex flex-wrap gap-x-10 gap-y-5">
-      {items.map((i) => (
-        <div key={i.label} className="min-w-0">
-          <p className="text-caption" style={{ color: FAINT }}>
-            {i.label}
-          </p>
-          <p className="mt-1 flex items-center gap-2 text-small font-medium" style={{ color: INK }}>
-            {i.lead}
-            <span className="truncate">{i.value}</span>
-          </p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 /* ── the Overview tab ────────────────────────────────────────────────────── */
 
 /**
@@ -659,14 +492,16 @@ function MetaStrip({ items }: { items: { label: string; value: string; lead?: Re
 export function SpeciesOverviewTab({
   speciesId,
   name,
+  onTab,
 }: {
   speciesId: string
   name: string
   profile?: SpeciesProfile
+  /** Switch the page's tab — what the cards' "View …" actions do. */
+  onTab?: (key: string) => void
 }) {
   const { scope } = useScope()
   const { drillTo } = useDrill()
-  const accent = useAccent()
   const siteKey = scope.site?.key ?? null
 
   const sp = speciesOf(speciesId)
@@ -680,6 +515,28 @@ export function SpeciesOverviewTab({
   const deaths = useMemo(
     () => walkSpeciesFlow('mortality', name, siteKey, scope.win, { max: 30 }),
     [name, siteKey, scope.win],
+  )
+
+  /**
+   * THE YEAR CHARTS READ ALL TIME, AND DELIBERATELY IGNORE THE DATE PILL.
+   *
+   * A year axis under a one-month window is a single column, which is not a chart — it is the
+   * headline figure drawn twice, and it is what this tab showed on its first build: "This month"
+   * is the default scope, so every species opened on one green bar labelled 2026.
+   *
+   * The pill still governs everything it can honestly govern — the two KPI figures beside these
+   * charts are the scoped counts, and the card titles say which is which. What a year axis
+   * answers is "how has this species done over its record", and that question has no scoped
+   * form. The site half of the scope IS still applied: narrowing to a site recuts the years.
+   */
+  const allTime = useMemo(() => resolveWindow('all'), [])
+  const birthYears = useMemo(
+    () => walkSpeciesFlow('births', name, siteKey, allTime, {}).years,
+    [name, siteKey, allTime],
+  )
+  const deathYears = useMemo(
+    () => walkSpeciesFlow('mortality', name, siteKey, allTime, {}).years,
+    [name, siteKey, allTime],
   )
 
   /**
@@ -708,166 +565,156 @@ export function SpeciesOverviewTab({
     return { rows, enclosures }
   }, [wide])
 
+  /* ── what the dashboard is fed ──────────────────────────────────────────
+     Every figure below is one of these five reads. Grouped here rather than computed inside
+     the JSX so a card cannot quietly re-derive a number a neighbouring card already states. */
+  const causesFlow = useMemo(
+    () => walkSpeciesFlow('mortality', name, siteKey, allTime, {}),
+    [name, siteKey, allTime],
+  )
+  const causes = foldTail(causesFlow.detail.filter((d) => d.value > 0))
   /* The share of the death vocabulary that is a non-answer. Measured on the warbler this is 131
      of 278 — so a card that ranked causes without saying so would name "Undetermined" as the
      species' leading cause of death. Counted from the same rows the ranking draws. */
-  const unknownCause = deaths.detail
+  const unknownCause = causes
     .filter((d) => d.label === 'Undetermined' || d.label === 'Indeterminate' || d.label === 'Not recorded')
     .reduce((n, d) => n + d.value, 0)
-
+  const readyRows = readiness.rows.map(([label, value]) => ({ label, value }))
+  const sexRows = wide
+    ? [
+        { label: 'Male', value: wide.male },
+        { label: 'Female', value: wide.female },
+        { label: 'Unsexed', value: wide.undetermined },
+      ].filter((s) => s.value > 0)
+    : []
 
   return (
     <TabBody>
-      <Sheet>
-      {/* TWO CONTAINERS, NOT ONE CARD WITH TWO HALVES. Births and deaths are opposite facts
-          with different provenance — the births date falls back to the day the record was added
-          on 61% of rows and the deaths date does not — so one border around both put the reader
-          in charge of working out which caveat belonged to which chart. Equal weight, side by
-          side where there is room, stacked where there is not. */}
-      <div className="grid gap-[var(--gap)] @[720px]:grid-cols-2">
-        <FlowPanel
-          label="Births recorded"
-          value={births.total}
-          where={sitesWord(births.sites.length)}
-          caption={
-            <>
-              Dated by the record's own birth date where it has one and by the day it was added
-              otherwise — 39,170 of 64,083 compiled births take the fallback, so this is when young
-              were <em>recorded</em> rather than when they were born.
-            </>
-          }
-        >
-          <EventTrend headless points={births.points} unit="births" empty={`No births recorded in ${scope.win.window}.`} />
-        </FlowPanel>
+      {/* A GRID OF CARDS, NOT ONE SHEET OF BANDS.
+          This tab was seven hairline bands stacked inside a single surface, each closing with two
+          or three lines of provenance prose. Everything it stated is still stated; what changed is
+          that the reader is no longer asked to read the page to use it. The caveats are not
+          deleted — they moved onto the `title` of the figure they qualify, one hover away, which
+          is where a qualification belongs on a screen that is scanned rather than read. */}
+      <div className="flex flex-col gap-[var(--space-4)]">
 
-        <FlowPanel
-          label="Deaths recorded"
-          value={deaths.total}
-          where={sitesWord(deaths.sites.length)}
-          tone="bad"
-          caption={<>Deaths carry a real event date on 38,680 of 38,684 source rows and need no such caveat.</>}
-        >
-          <EventTrend
-            headless
-            points={deaths.points}
-            unit="deaths"
-            tone="bad"
-            empty={`No deaths recorded in ${scope.win.window}.`}
-          />
-        </FlowPanel>
-      </div>
-
-      {wide && wide.total > 0 && (
-        <Band flat title="Sex" aside="counted from the register" icon={Layers}>
-          <SplitLayout
-            visual={
-              <Ring
-                percent={wide.sexedPct}
-                label="Sexed"
-                value={fmt(wide.male + wide.female)}
-                of={fmt(wide.total)}
-              />
-            }
-          >
-            <CoverageMeter
-              segments={[
-                { label: 'Undetermined', value: wide.undetermined, fill: mix(accent, step(0)) },
-                { label: 'Male', value: wide.male, fill: mix(accent, step(1)) },
-                { label: 'Female', value: wide.female, fill: mix(accent, step(2)) },
-              ]}
-              total={wide.total}
-            />
-            <Caption>
-              Undetermined is an answer a keeper recorded in <code>housing.gender</code>, not a gap
-              in the file, so it is shown as its own share rather than folded away — for many
-              species it is the large majority of the holding. On a past window the split is the
-              register's present ratio apportioned to the reconstructed headcount:{' '}
-              <code>animals.bin</code> is a snapshot and carries no sex history.
-            </Caption>
-          </SplitLayout>
-        </Band>
-      )}
-
-      {readiness.enclosures > 0 && (
-        <Band
-          flat
-          title="Breeding readiness"
-          aside={`${fmt(readiness.enclosures)} enclosures`}
-          icon={HeartPulse}
-        >
-          <Compare items={readiness.rows.map(([label, value]) => ({ label, value }))} total={readiness.enclosures} />
-          <Caption>
-            Counted per enclosure from the register as at the extract's last day, so it does not
-            move with the date filter. No bucket says "can breed": that is a claim about maturity,
-            and a birth date is absent on 81% of the register while a maturity age exists for 775
-            of 2,447 species. The Pairing tab bands the same enclosures into three by folding
-            "Mixed" into "Needs sexing" — the same enclosures, a different cut, and the totals
-            agree.
-          </Caption>
-        </Band>
-      )}
-
-      {deaths.total > 0 && (
-        <Band
-          flat
-          title="Causes of death"
-          aside={`${fmt(deaths.total)} deaths · ${scope.win.window}`}
-          icon={Skull}
-          note={
-            unknownCause > 0
-              ? `${fmt(unknownCause)} of ${fmt(deaths.total)} are recorded as undetermined or indeterminate, so the ranking below describes the deaths that carry a manner.`
-              : undefined
-          }
-        >
-          <RankedBars
-            items={deaths.detail.map((d) => [d.label, d.value] as [string, number])}
-            unit="deaths"
-            total={deaths.total}
-          />
-          <Caption>
-            The vocabulary is the source's verbatim, including its own spelling and one row whose
-            manner arrived as an escaped HTML fragment. It is rendered as read rather than
-            normalised into a tidier set that no record actually says.
-          </Caption>
-        </Band>
-      )}
-
-      {wide && wide.sites.length > 0 && (
-        <Band
-          flat
-          title="Population by site"
-          aside={`${fmt(wide.total)} held`}
-          icon={MapPin}
-          note="Where this species is now. A site that recorded births or deaths but holds none today does not appear here — that history is in the flows above."
-        >
-          <Ranking
-            rows={wide.sites}
-            keyOf={(r) => r.siteKey}
-            labelOf={(r) => r.siteName}
-            valueOf={(r) => r.count}
-            total={wide.total}
-            onOpen={(r) => drillTo({ kind: 'site', id: r.siteKey })}
-          />
-        </Band>
-      )}
-
-      <Band flat title="Standing" aside="published" icon={ShieldCheck}>
-        <MetaStrip
+        <KpiStrip
           items={[
-            { label: 'Class', value: sp?.cls ?? '—' },
-            { label: 'Site', value: siteOf(sp?.siteKey ?? '')?.name ?? '—' },
-            /* THE BADGE IS THE CATEGORY. The Red List publishes LC, NT, EN and the rest as a
-               coloured scale, and rendering the code as plain text throws away the one part of
-               it a reader recognises without reading. */
-            { label: 'IUCN Red List', value: standing?.iucn ?? '—', lead: iucnBadge(standing?.iucn) ?? undefined },
-            { label: 'CITES', value: standing?.cites ? `Appendix ${standing.cites}` : 'Not listed' },
-            /* The schema carries no Wildlife Protection Act column, so this says so rather than
-               printing a zero or an unearned "Not scheduled". */
-            { label: 'WPA schedule', value: standing?.schedule ? `Schedule ${standing.schedule}` : 'Not recorded' },
+            { label: 'Animals held', value: fmt(wide?.total ?? 0), note: sitesWord(wide?.sites.length ?? 0) },
+            { label: 'Enclosures', value: fmt(readiness.enclosures) },
+            {
+              label: 'Sexed',
+              value: wide ? `${Math.round(wide.sexedPct)}%` : '—',
+              note: wide ? `${fmt(wide.male + wide.female)} of ${fmt(wide.total)}` : undefined,
+            },
+            { label: 'Births', value: fmt(births.total), note: scope.win.window, tone: 'good' },
+            { label: 'Deaths', value: fmt(deaths.total), note: scope.win.window, tone: 'bad' },
           ]}
         />
-      </Band>
-      </Sheet>
+
+        {/* Births and deaths keep their own containers. They are opposite facts with different
+            provenance — the births date falls back to the day the record was added on 61% of
+            rows and the deaths date does not — so one border around both would put the reader in
+            charge of working out which caveat belonged to which chart. */}
+        <div className="grid gap-[var(--space-4)] @[720px]:grid-cols-2">
+          <DashCard
+            title="Births"
+            action="View Circle of Life"
+            onAction={() => onTab?.('life')}
+          >
+            <span
+              title="Dated by the record's own birth date where it has one and by the day it was added otherwise — 39,170 of 64,083 compiled births take the fallback, so this is when young were recorded rather than when they were born."
+            >
+              <YearBars years={birthYears} noun="births" />
+            </span>
+          </DashCard>
+
+          <DashCard
+            title="Deaths"
+            action="View Circle of Life"
+            onAction={() => onTab?.('life')}
+          >
+            <span title="Deaths carry a real event date on 38,680 of 38,684 source rows.">
+              <YearBars years={deathYears} tone="bad" noun="deaths" />
+            </span>
+          </DashCard>
+        </div>
+
+        {/* THE THREE COMPOSITIONS, ONE ROW. Each is a part-to-whole of a different denominator —
+            animals, enclosures, deaths — so they are three cards rather than three sections of
+            one, and each carries its own total in the legend beneath it. */}
+        <div className="grid gap-[var(--space-4)] @[720px]:grid-cols-2 @[1060px]:grid-cols-3">
+          {sexRows.length > 0 && wide && (
+            <DashCard title="Sex Composition">
+              <span title="Unsexed is an answer a keeper recorded in housing.gender, not a gap in the file, so it holds its own share rather than being folded away. On a past window the split is the register's present ratio apportioned to the reconstructed headcount — animals.bin is a snapshot and carries no sex history.">
+                <Slices items={sexRows} centre={['Sexed', `${Math.round(wide.sexedPct)}%`]} />
+                <SliceKey items={sexRows} />
+              </span>
+            </DashCard>
+          )}
+
+          {readyRows.length > 0 && (
+            <DashCard title="Breeding Readiness" action="View Pairing" onAction={() => onTab?.('pairing')}>
+              <span title="Counted per enclosure from the register as at the extract's last day, so it does not move with the date filter. No bucket says 'can breed' — that is a claim about maturity, and a birth date is absent on 81% of the register.">
+                <Slices items={readyRows} inner={0.58} />
+                <SliceKey items={readyRows} />
+              </span>
+              <p className="mt-2.5 text-center text-caption tabular-nums" style={{ color: '#8a938d' }}>
+                {fmt(readiness.enclosures)} enclosures
+              </p>
+            </DashCard>
+          )}
+
+          {causes.length > 0 && (
+            <DashCard title="Causes of Death" action="View Circle of Life" onAction={() => onTab?.('life')}>
+              <span title="The vocabulary is the source's verbatim. Undetermined and Indeterminate are non-answers and take the grey rather than a category colour.">
+                <Slices items={causes} inner={0} />
+                <SliceKey items={causes} />
+              </span>
+              {/* STATED AS A FIGURE, NOT A WARNING. On the warbler 131 of 278 deaths carry no
+                  manner, so a ranking that did not say so would name "Undetermined" as the
+                  species' leading cause of death. The grey slice says it in the chart; this
+                  says it in numbers, which is the same sub-line the enclosure card carries. */}
+              {unknownCause > 0 && (
+                <p className="mt-2.5 text-center text-caption tabular-nums" style={{ color: '#8a938d' }}>
+                  {fmt(unknownCause)} of {fmt(causesFlow.total)} without a recorded manner
+                </p>
+              )}
+            </DashCard>
+          )}
+        </div>
+
+        <div className="grid items-start gap-[var(--space-4)] @[900px]:grid-cols-2">
+          {wide && wide.sites.length > 0 && (
+            <DashCard title="Population by Site" action="View Housing" onAction={() => onTab?.('housing')}>
+              <span title="Where this species is now. A site that recorded births or deaths but holds none today does not appear here — that history is in the flows above.">
+                <RankRows
+                  rows={wide.sites.map((s) => ({ key: s.siteKey, label: s.siteName, value: s.count }))}
+                  total={wide.total}
+                  onOpen={(key) => drillTo({ kind: 'site', id: key })}
+                />
+              </span>
+            </DashCard>
+          )}
+
+          <DashCard title="Standing" action="View Identification" onAction={() => onTab?.('identification')}>
+            <FactRows
+              rows={[
+                { label: 'Class', value: sp?.cls ?? '—' },
+                { label: 'Site', value: siteOf(sp?.siteKey ?? '')?.name ?? '—' },
+                {
+                  label: 'IUCN Red List',
+                  value: iucnBadge(standing?.iucn) ?? standing?.iucn ?? '—',
+                },
+                { label: 'CITES', value: standing?.cites ? `Appendix ${standing.cites}` : 'Not listed' },
+                /* The schema carries no Wildlife Protection Act column, so this says so rather
+                   than printing a zero or an unearned "Not scheduled". */
+                { label: 'WPA schedule', value: standing?.schedule ? `Schedule ${standing.schedule}` : 'Not recorded' },
+              ]}
+            />
+          </DashCard>
+        </div>
+      </div>
     </TabBody>
   )
 }

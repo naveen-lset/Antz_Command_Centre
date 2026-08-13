@@ -1234,7 +1234,7 @@ function SpeciesPage({ entity }: { entity: Entity }) {
             the three with no tables, no trends and no seasonal marks. `speciesOverview.tsx`
             gives each the shape its content is: a dashboard, an analytical story, and a data
             workspace. Every figure they draw comes from the same calls these blocks made. */}
-        {tab === 'overview' && <SpeciesOverviewTab speciesId={entity.id} name={entity.name} profile={profile} />}
+        {tab === 'overview' && <SpeciesOverviewTab speciesId={entity.id} name={entity.name} profile={profile} onTab={setTab} />}
         {tab === 'life' && <SpeciesLifeTab speciesId={entity.id} name={entity.name} profile={profile} />}
         {tab === 'animals' && <SpeciesAnimalsTab speciesId={entity.id} name={entity.name} profile={profile} />}
 
