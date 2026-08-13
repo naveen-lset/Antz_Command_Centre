@@ -26,9 +26,10 @@
  */
 
 import { useMemo } from 'react'
-import { Activity, Heart, Home, MapPin, Moon, Ruler, ScrollText, Sparkles, Sprout, Wheat } from 'lucide-react'
+import { Activity, Heart, Home, MapPin, Moon, Ruler, ScrollText, Sparkles, Wheat } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { FAINT, Facts, Figure, HERO_INK, INK, Rule, Section, TRACK, VALUE, useAccent } from '../exec/system'
+import { FAINT, INK, TRACK, VALUE, useAccent } from '../exec/system'
+import { Band, DefinitionList, MetricStrip, TabBody } from './speciesLayout'
 import type { Score, SpeciesProfile } from '../core/profiles'
 
 /* ── the two primitives ──────────────────────────────────────────────────── */
@@ -43,22 +44,6 @@ interface Row {
 /** A row only if the extract has one. `undefined` in, nothing out. */
 const row = (label: string, value: string | undefined, sub?: string): Row[] =>
   value ? [{ label, value, sub }] : []
-
-/**
- * A card that vanishes rather than printing an empty shell.
- *
- * The alternative — a "Reproductive Biology" heading over four em dashes — states that we
- * looked and found nothing, which for 83% of species on gestation is not what happened. The
- * extract simply does not carry it.
- */
-function Card({ icon, label, rows, aside }: { icon: LucideIcon; label: string; rows: Row[]; aside?: string }) {
-  if (!rows.length) return null
-  return (
-    <Section icon={icon} label={label} aside={aside}>
-      <Facts items={rows.map((r) => ({ label: r.label, value: r.value, sub: r.sub }))} />
-    </Section>
-  )
-}
 
 /**
  * One score against its OWN denominator, which arrives with it.
@@ -90,26 +75,21 @@ function Meter({ label, score }: { label: string; score: Score }) {
 }
 
 function Scores({
-  icon,
-  label,
-  aside,
+  heading,
   items,
 }: {
-  icon: LucideIcon
-  label: string
-  aside?: string
+  heading: string
   items: { label: string; score?: Score }[]
 }) {
   const present = items.filter((i): i is { label: string; score: Score } => !!i.score)
   if (!present.length) return null
   return (
-    <Section icon={icon} label={label} aside={aside}>
-      <ul className="flex flex-col divide-y" style={{ borderColor: '#f0efec' }}>
-        {present.map((i) => (
-          <Meter key={i.label} label={i.label} score={i.score} />
-        ))}
-      </ul>
-    </Section>
+    <div>
+      <p className="mb-1 text-caption font-semibold" style={{ color: FAINT }}>
+        {heading}
+      </p>
+      <ul className="flex flex-col">{present.map((i) => <Meter key={i.label} label={i.label} score={i.score} />)}</ul>
+    </div>
   )
 }
 
@@ -159,11 +139,13 @@ export function SpeciesProfileTab({ p }: { p: SpeciesProfile | undefined }) {
 
   if (!p) {
     return (
-      <Section icon={Sparkles} label="Profile">
-        <p className="text-small" style={{ color: '#6d6860' }}>
-          No reference biology is recorded for this species in the extract.
-        </p>
-      </Section>
+      <TabBody>
+        <Band title="Profile" icon={Sparkles} first>
+          <p className="text-small" style={{ color: '#6d6860' }}>
+            No reference biology is recorded for this species in the extract.
+          </p>
+        </Band>
+      </TabBody>
     )
   }
 
@@ -179,213 +161,195 @@ export function SpeciesProfileTab({ p }: { p: SpeciesProfile | undefined }) {
     ...row('Maturity', years(p.maturity_age_years), 'avg'),
   ].slice(0, 4)
 
+  /* THE DOCUMENT, NOT A DASHBOARD.
+     This tab is forty-odd facts about an animal, and it used to be eight white cards in a 2×2
+     grid — the same shape the Housing tab, the Pairing tab and every other tab wore. A reader
+     had to re-orient inside each box, and the layout said nothing about what kind of thing they
+     were reading. Reference information is a DOCUMENT: bands under sub-headings, aligned
+     label/value rows, a rule between groups, and an eye that can run straight down it.
+
+     THE TWO GROUPS ARE THE READER'S TWO QUESTIONS. "What is this animal" and "what does it
+     need from us" are asked at different moments by different people — a curator planning an
+     enclosure is not the person reading a dimorphism note — so characteristics and care are
+     separated by a group heading rather than interleaved as eight equal boxes. */
   return (
-    <>
-      {vitals.length > 0 && (
-        <Section icon={Sparkles} label="Vital signs" aside="species reference">
-          {/* FLEX-AUTO, NOT A GRID, AND NOT A CONTAINER QUERY. Measured: a four-column grid in
-              this half-width card gave each figure 96.5px in a 506px card, so "18.8 yrs"
-              wrapped and "avg · healthy neonate" truncated. `@[680px]` did not fix it — the
-              container query resolved against an ancestor that IS wider than 680px, so it
-              matched at every width and the card never got its two-column fallback.
+    <TabBody>
+      <p className="text-caption font-semibold tracking-[0.06em] uppercase" style={{ color: FAINT }}>
+        Species characteristics
+      </p>
 
-              `flex-auto` sized each figure to its own content correctly, but four items in a
-              506px card fit three on the first row and left the fourth alone and stretched
-              across the second — right at every width, tidy at none.
+      <Band title="Vital signs" aside="species reference" icon={Sparkles} first>
+        <MetricStrip items={vitals.map((v) => ({ label: v.label, value: v.value, sub: v.sub }))} />
+      </Band>
 
-              So: two columns, fixed. Four vitals read as a 2×2 block in a half-width card and
-              on a phone alike, there is no breakpoint to be wrong about, and no measurement of
-              the wrong box can break it. The figures have ~230px each, which is more than the
-              widest of them needs. */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-            {vitals.map((v) => (
-              <div key={v.label} className="min-w-0">
-                <Figure value={v.value} size={26} color={HERO_INK} />
-                <p className="mt-1 text-small font-medium" style={{ color: INK }}>
-                  {v.label}
-                </p>
-                {v.sub && (
-                  <p className="mt-0.5 text-caption" style={{ color: FAINT }}>
-                    {v.sub}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      <Card
-        icon={Ruler}
-        label="Physical & identification"
-        rows={[
-          ...row('Sexual dimorphism', p.sexual_dimorphism),
-          ...row('Sex ID method', p.sex_id_method),
-          ...row('Recommended ID', p.recommended_id_method),
-        ]}
-      />
-
-      <Card
-        icon={Moon}
-        label="Behaviour"
-        rows={[
-          ...row('Activity pattern', p.activity_pattern),
-          ...row('Social structure', p.social_structure),
-          ...row('Habitat zone', p.habitat_zone),
-          ...row('Communication', p.communication_type),
-          ...row('Migration', p.migration_pattern),
-          ...row('Danger level', p.danger_level),
-          ...row('Handling', p.can_be_handled),
-          ...row('Venom / poison', p.venomous_poisonous),
-        ]}
-      />
-
-      <Card
-        icon={Heart}
-        label="Reproductive biology"
-        rows={[
-          ...row('Reproduction', p.reproduction_type),
-          ...row('Mating system', p.mating_system),
-          ...row('Parental care', p.parental_care),
-          ...row('Gestation', days(p.gestation_days)),
-          ...row('Incubation', days(p.incubation_days)),
-          ...row('Independence', days(p.independence_days)),
-          ...row('Weaning', days(p.weaning_age_days)),
-          ...row('Litters per year', decimal(p.litters_per_year)),
-        ]}
-      />
-
-      <Card
-        icon={Wheat}
-        label="Dietary requirements"
-        rows={[
-          ...row('Diet', p.diet_category),
-          ...row('Feeding frequency', p.feeding_frequency),
-          ...row('Daily energy', p.daily_kcal_estimate ? `${p.daily_kcal_estimate} kcal` : undefined),
-          ...row('Protein', p.protein_pct_range),
-          ...row('Fat', p.fat_pct_range),
-          ...row('Fibre', p.fiber_pct_range),
-          ...row('Ca : P ratio', p.ca_p_ratio),
-          ...row('Foraging mode', p.foraging_mode),
-        ]}
-      />
-
-      <Card
-        icon={Home}
-        label="Habitat & enclosure"
-        rows={[
-          ...row('Enclosure type', p.enclosure_type_required),
-          ...row('Substrate', p.substrate_type),
-          ...row('UV light', p.uv_light_required),
-          ...row('Water feature', p.water_feature_required),
-          ...row('Habitat type', p.habitat_type),
-        ]}
-      />
-
-      {/* TWO CARDS, NOT ONE, AND THEY DO NOT SHARE A SCALE. Welfare needs describe the
-          animal's requirement; captive-care scores describe our position on meeting it. They
-          are printed apart because a reader comparing "stress risk 4" against "budget 9"
-          across one axis would be comparing a 1–5 against a 0–20. */}
-      <Scores
-        icon={Activity}
-        label="Welfare needs"
-        aside="species requirement"
-        items={[
-          { label: 'Intelligence', score: p.intelligence_score },
-          { label: 'Activity', score: p.activity_needs_score },
-          { label: 'Social', score: p.social_needs_score },
-          { label: 'Space', score: p.space_needs_score },
-          { label: 'Stress risk', score: p.stress_risk_score },
-        ]}
-      />
-
-      <Scores
-        icon={Sprout}
-        label="Captive-care scores"
-        aside="collection position"
-        items={[
-          { label: 'Size', score: p.size_score },
-          { label: 'Need', score: p.need_score },
-          { label: 'Conservation priority', score: p.conservation_priority },
-          { label: 'Visitor appeal', score: p.visitor_appeal },
-          { label: 'Budget', score: p.budget_score },
-        ]}
-      />
-
-      {(p.breeding_category || p.breeding_feasibility) && (
-        <Card
-          icon={Sparkles}
-          label="Breeding standing"
-          rows={[
-            ...row('Category', p.breeding_category),
-            ...row('Feasibility', p.breeding_feasibility),
+      <Band title="Physical &amp; identification" icon={Ruler}>
+        <DefinitionList
+          items={[
+            ...row('Sexual dimorphism', p.sexual_dimorphism),
+            ...row('Sex ID method', p.sex_id_method),
+            ...row('Recommended ID', p.recommended_id_method),
           ]}
         />
+      </Band>
+
+      <Band title="Behaviour" icon={Moon}>
+        <DefinitionList
+          items={[
+            ...row('Activity pattern', p.activity_pattern),
+            ...row('Social structure', p.social_structure),
+            ...row('Habitat zone', p.habitat_zone),
+            ...row('Communication', p.communication_type),
+            ...row('Migration', p.migration_pattern),
+            ...row('Danger level', p.danger_level),
+            ...row('Handling', p.can_be_handled),
+            ...row('Venom / poison', p.venomous_poisonous),
+          ]}
+        />
+      </Band>
+
+      <Band title="Reproductive biology" icon={Heart}>
+        <DefinitionList
+          items={[
+            ...row('Reproduction', p.reproduction_type),
+            ...row('Mating system', p.mating_system),
+            ...row('Parental care', p.parental_care),
+            ...row('Gestation', days(p.gestation_days)),
+            ...row('Incubation', days(p.incubation_days)),
+            ...row('Independence', days(p.independence_days)),
+            ...row('Weaning', days(p.weaning_age_days)),
+            ...row('Litters per year', decimal(p.litters_per_year)),
+          ]}
+        />
+      </Band>
+
+      {(p.breeding_category || p.breeding_feasibility || p.pairing_status || p.breed_group) && (
+        <Band title="Breeding standing" icon={Sparkles} note="as the source classifies it, not as the register counts it">
+          <DefinitionList
+            items={[
+              ...row('Category', p.breeding_category),
+              ...row('Feasibility', p.breeding_feasibility),
+              ...row('Pairing status', p.pairing_status),
+              ...row('Breeding group', p.breed_group),
+              ...row('Group detail', p.breed_sub),
+            ]}
+          />
+        </Band>
       )}
 
+      <p className="mt-2 text-caption font-semibold tracking-[0.06em] uppercase" style={{ color: FAINT }}>
+        Care requirements
+      </p>
+
+      <Band title="Dietary requirements" icon={Wheat} first>
+        <DefinitionList
+          items={[
+            ...row('Diet', p.diet_category),
+            ...row('Feeding frequency', p.feeding_frequency),
+            ...row('Daily energy', p.daily_kcal_estimate ? `${p.daily_kcal_estimate} kcal` : undefined),
+            ...row('Protein', p.protein_pct_range),
+            ...row('Fat', p.fat_pct_range),
+            ...row('Fibre', p.fiber_pct_range),
+            ...row('Ca : P ratio', p.ca_p_ratio),
+            ...row('Foraging mode', p.foraging_mode),
+          ]}
+        />
+      </Band>
+
+      <Band title="Habitat &amp; enclosure" icon={Home}>
+        <DefinitionList
+          items={[
+            ...row('Enclosure type', p.enclosure_type_required),
+            ...row('Substrate', p.substrate_type),
+            ...row('UV light', p.uv_light_required),
+            ...row('Water feature', p.water_feature_required),
+            ...row('Habitat type', p.habitat_type),
+          ]}
+        />
+      </Band>
+
+      {/* TWO SCORE GROUPS SIDE BY SIDE AND THEY DO NOT SHARE A SCALE. Welfare needs describe the
+          animal's requirement; captive-care scores describe our position on meeting it. They sit
+          in one band under one heading because they are read together, and each meter divides by
+          its OWN denominator — the welfare scores are 1–5 and budget is 0–20, so a common track
+          would draw every welfare bar at half height and print "Budget 11/20" as if it were the
+          same measurement. */}
+      <Band title="Scores" icon={Activity} note="each against its own scale — welfare is out of 5, budget out of 20">
+        <div className="grid gap-x-10 gap-y-6 @[560px]:grid-cols-2">
+          <Scores
+            heading="Welfare needs"
+            items={[
+              { label: 'Intelligence', score: p.intelligence_score },
+              { label: 'Activity', score: p.activity_needs_score },
+              { label: 'Social', score: p.social_needs_score },
+              { label: 'Space', score: p.space_needs_score },
+              { label: 'Stress risk', score: p.stress_risk_score },
+            ]}
+          />
+          <Scores
+            heading="Captive-care"
+            items={[
+              { label: 'Size', score: p.size_score },
+              { label: 'Need', score: p.need_score },
+              { label: 'Conservation priority', score: p.conservation_priority },
+              { label: 'Visitor appeal', score: p.visitor_appeal },
+              { label: 'Budget', score: p.budget_score },
+            ]}
+          />
+        </div>
+      </Band>
+
       {range.length > 0 && (
-        <Section icon={MapPin} label="Native range" aside={`${range.length}`}>
+        <Band title="Native range" aside={`${range.length}`} icon={MapPin}>
           <div className="flex flex-wrap gap-1.5">
             {range.map((c) => (
-              <span
-                key={c}
-                className="rounded-full px-2.5 py-1 text-caption"
-                style={{ backgroundColor: TRACK, color: '#3d3a34' }}
-              >
+              <span key={c} className="rounded-full px-2.5 py-1 text-caption" style={{ backgroundColor: TRACK, color: '#3d3a34' }}>
                 {c}
               </span>
             ))}
           </div>
-        </Section>
+        </Band>
       )}
 
-      {/* THE WRITTEN FIELDS LAST, and only where they exist. They are the one part of this
-          source that is prose rather than a measurement, so they read as a note under the
-          record rather than as another set of facts. */}
       {(p.species_description || p.fun_fact || p.iconic_trait || p.uniqueness) && (
-        <Section icon={ScrollText} label="About this species">
+        <Band title="About this species" icon={ScrollText}>
           {p.species_description && (
             <p className="text-small leading-relaxed" style={{ color: '#3d3a34' }}>
               {p.species_description}
             </p>
           )}
           {(p.group_name || p.baby_name || p.sound_description) && (
-            <>
-              <Rule label="Names & voice" />
-              <Facts
+            <div className="mt-4">
+              <DefinitionList
                 items={[
                   ...row('A group is called', p.group_name),
                   ...row('A young one is', p.baby_name),
                   ...row('Sound', p.sound_description),
-                ].map((r) => ({ label: r.label, value: r.value }))}
+                ]}
               />
-            </>
+            </div>
           )}
           {(p.iconic_trait || p.fun_fact || p.uniqueness || p.cultural_significance || p.visitor_tip) && (
-            <>
-              <Rule label="Notes" />
-              <div className="flex flex-col gap-3">
-                {[
-                  ['Iconic trait', p.iconic_trait],
-                  ['Fun fact', p.fun_fact],
-                  ['Uniqueness', p.uniqueness],
-                  ['Cultural significance', p.cultural_significance],
-                  ['Visitor tip', p.visitor_tip],
-                ]
-                  .filter((x): x is [string, string] => !!x[1])
-                  .map(([label, text]) => (
-                    <p key={label} className="text-small leading-relaxed" style={{ color: '#3d3a34' }}>
-                      <span className="font-medium" style={{ color: INK }}>
-                        {label}.{' '}
-                      </span>
-                      {text}
-                    </p>
-                  ))}
-              </div>
-            </>
+            <div className="mt-4 flex flex-col gap-3">
+              {[
+                ['Iconic trait', p.iconic_trait],
+                ['Fun fact', p.fun_fact],
+                ['Uniqueness', p.uniqueness],
+                ['Cultural significance', p.cultural_significance],
+                ['Visitor tip', p.visitor_tip],
+              ]
+                .filter((x): x is [string, string] => typeof x[1] === 'string')
+                .map(([label, text]) => (
+                  <p key={label} className="text-small leading-relaxed" style={{ color: '#3d3a34' }}>
+                    <span className="font-medium" style={{ color: INK }}>
+                      {label}.{' '}
+                    </span>
+                    {text}
+                  </p>
+                ))}
+            </div>
           )}
-        </Section>
+        </Band>
       )}
-    </>
+    </TabBody>
   )
 }
