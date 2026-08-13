@@ -19,98 +19,20 @@
  */
 
 import { Fingerprint, Layers, Ruler, Sparkles } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { longDate } from '../core/calendar'
-import type { Of, Reading, SpeciesProfile, Tally } from '../core/profiles'
-import { FAINT, INK, Section, TRACK, VALUE, fmt, useAccent } from '../exec/system'
+import type { Of, Reading, SpeciesProfile } from '../core/profiles'
+import { FAINT, fmt } from '../exec/system'
+import { Band, CoverageMeter, DataTable, DefinitionList, MetricStrip, NotePanel, RankedBars, TabBody } from './speciesLayout'
 
-/* ── primitives ──────────────────────────────────────────────────────────── */
-
-/**
- * "97 of 1,045 · 9%" — the numerator, its own denominator, and the share of the two.
- *
- * The percentage is computed from the pair on the same line, which is the whole point: a
- * reader can check it, and no third number can contradict it.
- */
-function Coverage({ label, of, sub }: { label: string; of: Of; sub?: string }) {
-  const accent = useAccent()
-  const [value, outOf] = of
-  const pct = outOf > 0 ? (value / outOf) * 100 : 0
-  return (
-    <li className="py-2.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate text-small" style={{ color: INK }}>
-          {label}
-        </span>
-        <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
-          {fmt(value)}
-          <span className="text-caption" style={{ color: FAINT }}>
-            {' of '}
-            {fmt(outOf)} · {pct < 1 && pct > 0 ? pct.toFixed(1) : Math.round(pct)}%
-          </span>
-        </span>
-      </div>
-      <span className="mt-2 block h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-        <span className="block h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: accent }} />
-      </span>
-      {sub && (
-        <p className="mt-1.5 text-caption" style={{ color: FAINT }}>
-          {sub}
-        </p>
-      )}
-    </li>
-  )
-}
-
-/** A vocabulary, commonest first, with its tail counted rather than dropped. */
-function TallyList({ items, unit, max = 8 }: { items: Tally; unit: string; max?: number }) {
-  const shown = items.slice(0, max)
-  const rest = items.slice(max)
-  const restValue = rest.reduce((n, [, v]) => n + v, 0)
-  const top = Math.max(...items.map(([, v]) => v), 1)
-  const accent = useAccent()
-  return (
-    <>
-      <ul className="flex flex-col">
-        {shown.map(([label, v]) => (
-          <li key={label} className="py-2">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="min-w-0 truncate text-small" style={{ color: INK }}>
-                {label}
-              </span>
-              <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
-                {fmt(v)}
-              </span>
-            </div>
-            <span className="mt-1.5 block h-[5px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
-              <span className="block h-full rounded-full" style={{ width: `${(v / top) * 100}%`, backgroundColor: accent }} />
-            </span>
-          </li>
-        ))}
-      </ul>
-      {rest.length > 0 && (
-        <p className="mt-2 text-caption" style={{ color: FAINT }}>
-          <span className="tabular-nums">{rest.length}</span> more · <span className="tabular-nums">{fmt(restValue)}</span> {unit}
-        </p>
-      )}
-    </>
-  )
-}
-
-/** A card that does not render when it has nothing to put in it. */
-function Card({ icon, label, aside, children, when }: { icon: LucideIcon; label: string; aside?: string; children: React.ReactNode; when: boolean }) {
-  if (!when) return null
-  return (
-    <Section icon={icon} label={label} aside={aside}>
-      {children}
-    </Section>
-  )
-}
-
-/* ── identification ──────────────────────────────────────────────────────── */
+/* ── identification · coverage → type → records ──────────────────────────── */
 
 /**
  * How much of this species' holding can be told apart from the rest of it.
+ *
+ * THE SHAPE IS THE STORY: coverage, then type, then what is left over. One wide meter answers
+ * "how much of this population is identifiable at all" in a glance, which two stacked cards of
+ * numbers never did — a reader had to divide 97 by 1,045 themselves to learn that the answer
+ * was "almost none of it".
  *
  * TWO COUNTS OF THE SAME THING ARE BOTH REPORTED AND NEITHER IS ADJUSTED. `micro_chip` is
  * filled on 36,530 housing rows while `identifier_type` says 'Micro chip' on 31,084 — a strict
@@ -121,133 +43,147 @@ export function SpeciesIdentificationTab({ profile }: { profile?: SpeciesProfile
   const id = profile?.identification
   if (!id) {
     return (
-      <Section icon={Fingerprint} label="Identification">
-        <p className="text-small text-[#6d6860]">No identification is recorded against this species in the register.</p>
-      </Section>
+      <TabBody>
+        <Band title="Identification" icon={Fingerprint} first>
+          <p className="text-small" style={{ color: '#6d6860' }}>
+            No identification is recorded against this species in the register.
+          </p>
+        </Band>
+      </TabBody>
     )
   }
 
-  return (
-    <>
-      <Section icon={Fingerprint} label="Coverage" aside={`${fmt(id.of)} animals`}>
-        <ul className="flex flex-col divide-y" style={{ borderColor: '#f0efec' }}>
-          {id.chip && <Coverage label="Microchipped" of={id.chip} />}
-          {id.ring && <Coverage label="Ringed" of={id.ring} />}
-          {id.identType && <Coverage label="Carries an identifier type" of={id.identType} />}
-          {id.none && (
-            <Coverage
-              label="Nothing to tell them apart by"
-              of={id.none}
-              sub="no chip, no ring and no identifier type"
-            />
-          )}
-        </ul>
-        {/* THE CAVEATS ARE FIGURES, NOT PROSE, because each of them changes what the bar above
-            means. A chip two animals share identifies neither, and a chip column holding "No"
-            is a recorded refusal rather than a number — both are stated beside the coverage and
-            neither is subtracted from it, because filled and usable are two different facts. */}
-        {(id.chipShared || id.chipVoid || id.ringShared) && (
-          <p className="mt-3 text-caption" style={{ color: FAINT }}>
-            {[
-              id.chipShared ? `${fmt(id.chipShared)} share a chip number with another animal` : null,
-              id.chipVoid ? `${fmt(id.chipVoid)} carry a recorded refusal rather than a number` : null,
-              id.ringShared ? `${fmt(id.ringShared)} share a ring number with another animal` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-            . Counted, not subtracted — filled and usable are two facts.
-          </p>
-        )}
-      </Section>
+  /* THE THREE SEGMENTS ARE DISJOINT, WHICH IS WHY THEY CAN SHARE ONE TRACK. `none` is the
+     register's own count of animals with no chip, no ring and no identifier type, so the
+     identified remainder is the total less that — computed from the pair the ETL supplied
+     rather than by adding chip and ring, which would double-count an animal carrying both. */
+  const none = id.none?.[0] ?? 0
+  const identified = Math.max(0, id.of - none)
 
-      <Card icon={Layers} label="By identifier type" aside={String(id.types?.length ?? 0)} when={!!id.types?.length}>
-        <TallyList items={id.types ?? []} unit="animals" />
-      </Card>
-    </>
+  return (
+    <TabBody>
+      <Band title="Coverage" aside={`${fmt(id.of)} animals`} icon={Fingerprint} first>
+        <CoverageMeter
+          total={id.of}
+          segments={[
+            { label: 'Carries an identifier', value: identified, fill: '#37bd69' },
+            { label: 'Nothing to tell them apart by', value: none, fill: '#cfd8d2' },
+          ]}
+        />
+        <div className="mt-6">
+          <DefinitionList
+            columns={2}
+            items={[
+              ...(id.chip ? [{ label: 'Microchipped', value: `${fmt(id.chip[0])} of ${fmt(id.chip[1])}` }] : []),
+              ...(id.ring ? [{ label: 'Ringed', value: `${fmt(id.ring[0])} of ${fmt(id.ring[1])}` }] : []),
+              ...(id.identType
+                ? [{ label: 'Carries an identifier type', value: `${fmt(id.identType[0])} of ${fmt(id.identType[1])}` }]
+                : []),
+            ]}
+          />
+        </div>
+        {(id.chipShared || id.chipVoid || id.ringShared) && (
+          <div className="mt-5">
+            {/* THE CAVEATS ARE FIGURES, NOT PROSE, because each changes what the meter above
+                means. A chip two animals share identifies neither, and a chip column holding
+                "No" is a recorded refusal rather than a number — both are stated beside the
+                coverage and neither is subtracted from it, because filled and usable are two
+                different facts. */}
+            <NotePanel title="Counted, not subtracted">
+              {[
+                id.chipShared ? `${fmt(id.chipShared)} share a chip number with another animal` : null,
+                id.chipVoid ? `${fmt(id.chipVoid)} carry a recorded refusal rather than a number` : null,
+                id.ringShared ? `${fmt(id.ringShared)} share a ring number with another animal` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+              . Filled and usable are two facts, so neither is taken off the coverage above.
+            </NotePanel>
+          </div>
+        )}
+      </Band>
+
+      {!!id.types?.length && (
+        <Band title="By identifier type" aside={String(id.types.length)} icon={Layers}>
+          <RankedBars items={id.types} unit="animals" total={id.of} />
+        </Band>
+      )}
+    </TabBody>
   )
 }
 
-/* ── breeds ──────────────────────────────────────────────────────────────── */
+/* ── breeds · a classification list ──────────────────────────────────────── */
 
 /** What stock and colour form this species is held as, where the register records one. */
 export function SpeciesBreedsTab({ profile }: { profile?: SpeciesProfile }) {
   const b = profile?.breeds
   if (!b || (!b.withBreed && !b.withMorph)) {
     return (
-      <Section icon={Sparkles} label="Breeds & morphs">
-        <p className="text-small text-[#6d6860]">
-          No breed or morph is recorded for this species. The register carries one for 225 of its
-          2,411 held species — it is the exception rather than the rule.
-        </p>
-      </Section>
+      <TabBody>
+        <Band title="Breeds &amp; morphs" icon={Sparkles} first>
+          <p className="text-small" style={{ color: '#6d6860' }}>
+            No breed or morph is recorded for this species. The register carries one for 225 of
+            its 2,411 held species — it is the exception rather than the rule.
+          </p>
+        </Band>
+      </TabBody>
     )
   }
+
   return (
-    <>
-      <Section icon={Sparkles} label="Recorded" aside={`${fmt(b.of)} animals`}>
-        <ul className="flex flex-col divide-y" style={{ borderColor: '#f0efec' }}>
-          {b.withBreed && <Coverage label="Carries a breed" of={b.withBreed} />}
-          {b.withMorph && <Coverage label="Carries a morph" of={b.withMorph} />}
-        </ul>
-      </Section>
-      <Card icon={Layers} label="By breed" aside={String(b.byBreed?.length ?? 0)} when={!!b.byBreed?.length}>
-        <TallyList items={b.byBreed ?? []} unit="animals" />
-      </Card>
-      <Card icon={Layers} label="By morph" aside={String(b.byMorph?.length ?? 0)} when={!!b.byMorph?.length}>
-        <TallyList items={b.byMorph ?? []} unit="animals" />
-      </Card>
-    </>
+    <TabBody>
+      <Band title="Recorded" aside={`${fmt(b.of)} animals`} icon={Sparkles} first>
+        <MetricStrip
+          items={[
+            ...(b.withBreed ? [{ label: 'Carries a breed', value: fmt(b.withBreed[0]), sub: `of ${fmt(b.withBreed[1])}` }] : []),
+            ...(b.withMorph ? [{ label: 'Carries a morph', value: fmt(b.withMorph[0]), sub: `of ${fmt(b.withMorph[1])}` }] : []),
+            ...(b.byBreed?.length ? [{ label: 'Distinct breeds', value: String(b.byBreed.length) }] : []),
+            ...(b.byMorph?.length ? [{ label: 'Distinct morphs', value: String(b.byMorph.length) }] : []),
+          ]}
+        />
+      </Band>
+
+      {!!b.byBreed?.length && (
+        <Band title="By breed" aside={String(b.byBreed.length)} icon={Layers}>
+          <RankedBars items={b.byBreed} unit="animals" total={b.withBreed?.[0]} />
+        </Band>
+      )}
+      {!!b.byMorph?.length && (
+        <Band title="By morph" aside={String(b.byMorph.length)} icon={Layers}>
+          <RankedBars items={b.byMorph} unit="animals" total={b.withMorph?.[0]} />
+        </Band>
+      )}
+    </TabBody>
   )
 }
 
-/* ── assessments ─────────────────────────────────────────────────────────── */
+/* ── assessments · an analytics page ─────────────────────────────────────── */
 
 /**
  * One measured reading — its range, its mean, and the unit it was taken in.
  *
  * NEVER POOLED ACROSS UNITS. Weight is recorded in kilograms on 49,502 assessment rows and in
  * grams on 34,584, in one column. A mean over both averages a 940 g animal with a 3.1 kg one
- * and reports about 470, which is a number with no referent — so a species weighed in both
- * gets a row per unit and the unit is on the row.
+ * and reports about 470, which is a number with no referent — so a species weighed in both gets
+ * a row per unit and the unit is on the row.
  *
  * A SCALE IS QUOTED AS A FLOOR, NOT AS A SCALE. The schema declares no maximum for Body
  * Condition Score or any other graded observation, so `outOf` is the highest value seen
  * ANYWHERE in the dump for that type. That makes it a lower bound on the true scale, which is
  * why this says "recorded up to" and never "out of".
  */
-function ReadingRow({ r }: { r: Reading }) {
+function readingRow(r: Reading) {
   const scaled = Array.isArray(r.mean)
   const mean = scaled ? (r.mean as Of)[0] : (r.mean as number)
   const outOf = scaled ? (r.mean as Of)[1] : undefined
   const unit = r.uom ? ` ${r.uom}` : ''
-  return (
-    <li className="py-2.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate text-small" style={{ color: INK }}>
-          {r.type}
-          {r.uom && (
-            <span className="ml-1.5 text-caption" style={{ color: FAINT }}>
-              {r.uom}
-            </span>
-          )}
-        </span>
-        <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
-          {mean % 1 === 0 ? mean : mean.toFixed(1)}
-          {outOf !== undefined && (
-            <span className="text-caption" style={{ color: FAINT }}>
-              {' '}
-              recorded up to {outOf}
-            </span>
-          )}
-        </span>
-      </div>
-      <p className="mt-1 text-caption" style={{ color: FAINT }}>
-        {fmt(r.n)} reading{r.n === 1 ? '' : 's'} · {r.lo % 1 === 0 ? r.lo : r.lo.toFixed(1)} to{' '}
-        {r.hi % 1 === 0 ? r.hi : r.hi.toFixed(1)}
-        {unit}
-      </p>
-    </li>
-  )
+  const n = (v: number) => (v % 1 === 0 ? String(v) : v.toFixed(1))
+  return {
+    type: r.type + (r.uom ? ` · ${r.uom}` : ''),
+    mean: outOf === undefined ? n(mean) : `${n(mean)} (recorded up to ${outOf})`,
+    range: `${n(r.lo)} to ${n(r.hi)}${unit}`,
+    n: fmt(r.n),
+  }
 }
 
 /** What has actually been measured of this species, and when. */
@@ -255,53 +191,103 @@ export function SpeciesAssessmentsTab({ profile }: { profile?: SpeciesProfile })
   const a = profile?.assessments
   if (!a || !a.n) {
     return (
-      <Section icon={Ruler} label="Assessments">
-        <p className="text-small text-[#6d6860]">No assessment has been recorded against this species.</p>
-      </Section>
+      <TabBody>
+        <Band title="Assessments" icon={Ruler} first>
+          <p className="text-small" style={{ color: '#6d6860' }}>
+            No assessment has been recorded against this species.
+          </p>
+        </Band>
+      </TabBody>
     )
   }
 
+  const months = Object.entries(a.months ?? {}).sort(([x], [y]) => x.localeCompare(y))
+  const peak = Math.max(...months.map(([, v]) => v), 1)
+  const readings = (a.readings ?? []).map(readingRow)
+
   return (
-    <>
-      <Section icon={Ruler} label="Recorded" aside={`${fmt(a.n)} assessment${a.n === 1 ? '' : 's'}`}>
-        <ul className="flex flex-col divide-y" style={{ borderColor: '#f0efec' }}>
-          {a.assessed && (
-            <Coverage
-              label="Animals assessed at least once"
-              of={a.assessed}
-              /* Counted over the same set as its own denominator, so it cannot exceed one —
-                 the property the reference design's chipped figure did not have. */
-              sub={`first ${longDate(a.first)} · last ${longDate(a.last)}`}
-            />
-          )}
-        </ul>
-      </Section>
+    <TabBody>
+      <Band title="Recorded" aside={`${fmt(a.n)} assessment${a.n === 1 ? '' : 's'}`} icon={Ruler} first>
+        <MetricStrip
+          items={[
+            { label: 'Assessments', value: fmt(a.n) },
+            ...(a.assessed
+              ? [
+                  {
+                    label: 'Animals assessed',
+                    value: fmt(a.assessed[0]),
+                    /* Counted over the same set as its own denominator, so it cannot exceed
+                       one — the property the reference design's chipped figure did not have. */
+                    sub: `of ${fmt(a.assessed[1])}`,
+                  },
+                ]
+              : []),
+            ...(a.types?.length ? [{ label: 'Types', value: String(a.types.length) }] : []),
+            { label: 'First recorded', value: longDate(a.first) },
+            { label: 'Last recorded', value: longDate(a.last) },
+          ]}
+        />
+      </Band>
 
-      <Card icon={Ruler} label="What was found" aside={String(a.readings?.length ?? 0)} when={!!a.readings?.length}>
-        <ul className="flex flex-col divide-y" style={{ borderColor: '#f0efec' }}>
-          {(a.readings ?? []).map((r) => (
-            <ReadingRow key={`${r.type}-${r.uom ?? ''}`} r={r} />
-          ))}
-        </ul>
-      </Card>
+      {months.length > 1 && (
+        <Band title="When they were taken" aside={`${months.length} months`} icon={Layers}>
+          {/* A BAR PER MONTH THE SOURCE RECORDED, and no bar for a month it did not. Filling the
+              gaps with zeros would draw a flat line through periods nobody assessed in and read
+              as "we checked and found nothing", which is a different claim from "nobody
+              checked". */}
+          <div className="flex items-end gap-1.5" style={{ height: 96 }}>
+            {months.map(([m, v]) => (
+              <div key={m} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
+                <span className="text-caption tabular-nums" style={{ color: FAINT }}>
+                  {v}
+                </span>
+                <span
+                  className="w-full rounded-t-[3px]"
+                  style={{ height: `${Math.max(3, (v / peak) * 64)}px`, backgroundColor: '#37bd69' }}
+                  title={`${m} · ${v}`}
+                />
+                <span className="truncate text-[10px]" style={{ color: FAINT }}>
+                  {m.slice(2).replace('-', '/')}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Band>
+      )}
 
-      <Card icon={Layers} label="By type" aside={String(a.types?.length ?? 0)} when={!!a.types?.length}>
-        <TallyList items={a.types ?? []} unit="assessments" />
-      </Card>
+      {readings.length > 0 && (
+        <Band title="What was found" aside={String(readings.length)} icon={Ruler}>
+          <DataTable
+            rows={readings}
+            keyOf={(r) => r.type}
+            columns={[
+              { key: 'type', head: 'Assessment', cell: (r) => r.type, priority: 3 },
+              { key: 'mean', head: 'Mean', cell: (r) => r.mean, align: 'right', priority: 2 },
+              { key: 'range', head: 'Range', cell: (r) => r.range, align: 'right', priority: 1 },
+              { key: 'n', head: 'Readings', cell: (r) => r.n, align: 'right', priority: 2 },
+            ]}
+          />
+        </Band>
+      )}
 
-      <Card icon={Layers} label="By category" aside={String(a.categories?.length ?? 0)} when={!!a.categories?.length}>
-        <TallyList items={a.categories ?? []} unit="assessments" />
-      </Card>
-
-      {/* Life stage is stated last and with its own caveat, because it is the one tally here
-          that does NOT sum to the total: `life_stage` is null on 47,183 rows dump-wide and the
-          ETL drops nulls rather than bucketing them into a category nobody recorded. */}
-      <Card icon={Layers} label="By life stage" aside={String(a.stages?.length ?? 0)} when={!!a.stages?.length}>
-        <TallyList items={a.stages ?? []} unit="assessments" />
-        <p className="mt-2 text-caption" style={{ color: FAINT }}>
-          Life stage is unrecorded on most rows, so these do not sum to {fmt(a.n)}.
-        </p>
-      </Card>
-    </>
+      {!!a.types?.length && (
+        <Band title="By type" aside={String(a.types.length)} icon={Layers}>
+          <RankedBars items={a.types} unit="assessments" total={a.n} />
+        </Band>
+      )}
+      {!!a.categories?.length && (
+        <Band title="By category" aside={String(a.categories.length)} icon={Layers}>
+          <RankedBars items={a.categories} unit="assessments" total={a.n} />
+        </Band>
+      )}
+      {!!a.stages?.length && (
+        <Band title="By life stage" aside={String(a.stages.length)} icon={Layers}>
+          <RankedBars items={a.stages} unit="assessments" />
+          <p className="mt-2 text-caption" style={{ color: FAINT }}>
+            Life stage is unrecorded on most rows, so these do not sum to {fmt(a.n)}.
+          </p>
+        </Band>
+      )}
+    </TabBody>
   )
 }
