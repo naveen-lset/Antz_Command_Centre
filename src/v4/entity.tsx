@@ -61,8 +61,8 @@ import { speciesWide } from './speciesWide'
 import { SpeciesHousingTab } from './speciesHousing'
 import { SpeciesPairingTab } from './speciesPairing'
 import { SpeciesAssessmentsTab, SpeciesBreedsTab, SpeciesIdentificationTab } from './speciesRegister'
-import { SpeciesEggsTab } from './speciesEggs'
-import { animalById, animalsOfSpecies, sexSplit, stockOfSpecies, type Animal } from '../core/animals'
+import { SpeciesEggsTab, laysEggs } from './speciesEggs'
+import { animalById, animalsOfSpecies, holdingsByEnclosure, sexSplit, stockOfSpecies, type Animal } from '../core/animals'
 import { byDimension, delta as deltaOf, figure as figureOf, population } from '../core/query'
 import { entityHref, siteKeyOf, withinScope } from '../core/scope'
 import {
@@ -85,6 +85,7 @@ import {
 import {
   ACCENT,
   ACCENT_INK,
+  DEEP,
   FAINT,
   Facts,
   Figure,
@@ -153,49 +154,160 @@ function Hero({
 }
 
 /**
- * The collection's sex composition as ONE bar rather than three figures.
+ * THE SPECIES HEADER — identity, standing and position in one card.
  *
- * Male, female and undetermined are parts of one headcount, so they are drawn as one track
- * whose segments hold their own share — the same argument `SexBar` makes on the Animal
- * Population page, and the reason this is a rail and not a ring here: it sits under a hero
- * that has already stated the total, so the shape wanted is the split, not the sum again.
+ * ONE CARD, NOT THREE. The hero, the standing pills and the figure strip were three stacked
+ * white boxes saying one thing: which animal this is and how much of it we hold. Three card
+ * edges to carry one subject is three times the vertical cost and none of the meaning, and the
+ * reader has to reassemble the sentence themselves. Merged, the name and the numbers that
+ * qualify it sit inside one boundary, with a rule between the two halves doing the work the
+ * two card edges used to.
  *
- * SEGMENTS WITH NOTHING IN THEM ARE NOT DRAWN. A zero-width span still paints its rounded cap
- * against its neighbour, which reads as a hairline of a colour that has no animals behind it.
+ * THE GRADIENT IS THE HOUSE'S OWN GREEN, NOT A NEW COLOUR. `--env-canopy` and `--env-ground`
+ * are the ramp every page already sits on; running them at 135° across this card makes it read
+ * as the ground gathering into a header rather than as a panel imported from somewhere else.
+ * A dark fill would have been the obvious way to make it prominent and the wrong one — this
+ * product's heroes are dark type on light ground everywhere else, and one inverted card would
+ * make the species page look like a different application.
+ *
+ * EVERY FIGURE IN THE STRIP IS FILTERED, NOT LISTED. A slot appears only when it has something
+ * true in it: the sex ratio is dropped where either side is zero, because "1 : 1.2" against no
+ * males is a division by zero wearing the clothes of a finding, and the standing pills are
+ * dropped where the species carries no published listing rather than printing "Not listed" as
+ * though absence were an assessment.
  */
-function SexRail({ male, female, undetermined }: { male: number; female: number; undetermined: number }) {
-  const total = male + female + undetermined
-  if (total <= 0) return null
-  const parts = [
-    { key: 'm', label: 'Male', value: male, fill: '#37bd69' },
-    { key: 'u', label: 'Unsexed', value: undetermined, fill: '#cfd8d2' },
-    { key: 'f', label: 'Female', value: female, fill: '#8fd9ae' },
-  ].filter((p) => p.value > 0)
+function SpeciesHeader({
+  name,
+  wide,
+  enclosures,
+  standing,
+  window: windowLabel,
+  filtered,
+}: {
+  name: string
+  wide: NonNullable<ReturnType<typeof speciesWide>>
+  enclosures: number
+  standing?: { iucn?: string | null; cites?: string | null }
+  window: string
+  filtered: boolean
+}) {
+  const stats = [
+    { icon: PawPrint, label: 'Animals', value: fmt(wide.total) },
+    ...(wide.ratio !== undefined
+      ? [{ icon: Layers, label: 'Sex ratio', value: `1 : ${wide.ratio.toFixed(1)}` }]
+      : []),
+    { icon: MapPin, label: filtered ? 'Site' : 'Sites', value: String(wide.sites.length) },
+    ...(enclosures > 0 ? [{ icon: Boxes, label: 'Enclosures', value: fmt(enclosures) }] : []),
+    {
+      icon: ShieldCheck,
+      label: 'Sexed',
+      value: `${Math.round(wide.sexedPct)}%`,
+      sub: `${fmt(wide.male + wide.female)} of ${fmt(wide.total)}`,
+    },
+  ]
 
   return (
-    <>
-      <div className="flex h-[10px] w-full overflow-hidden rounded-full">
-        {parts.map((p) => (
-          <span
-            key={p.key}
-            className="h-full first:rounded-l-full last:rounded-r-full"
-            style={{ width: `${(p.value / total) * 100}%`, backgroundColor: p.fill }}
-            title={`${p.label} · ${fmt(p.value)}`}
-          />
-        ))}
-      </div>
-      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
-        {parts.map((p) => (
-          <li key={p.key} className="flex items-center gap-2">
-            <span className="size-[8px] shrink-0 rounded-full" style={{ backgroundColor: p.fill }} aria-hidden />
-            <span className="text-small font-medium tabular-nums text-[#1c1a16]">{fmt(p.value)}</span>
-            <span className="text-caption" style={{ color: FAINT }}>
-              {p.label}
+    <div className="w-full px-[var(--gutter)] pb-3">
+      <section
+        className="animate-hero-in overflow-hidden rounded-[var(--radius-card)] p-[var(--pad-card)]"
+        /* DEEPER THAN THE GROUND, DELIBERATELY. The first attempt ran #e9f4ee → #c4dccf, which
+           is the page's own sage almost exactly — measured against `--env-ground` (#e7f0ea) it
+           had nowhere near the separation a header needs, and the card read as a faint
+           rectangle rather than as the thing the page opens with. This ramp starts near-white
+           and lands on a green with real body, so the card is unmistakably a card while the
+           ink on it stays the near-black every other hero uses. The shadow is the same soft
+           lift the sheet host uses, at a third the strength. */
+        style={{
+          background: 'linear-gradient(135deg, #f2f9f5 0%, #c8e3d5 46%, #a3cfb9 100%)',
+          border: '1px solid rgba(31,81,91,0.16)',
+          boxShadow: '0 2px 14px rgba(15,42,30,0.07)',
+        }}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="flex min-w-0 items-start gap-3.5">
+            <span
+              className="grid size-12 shrink-0 place-items-center rounded-[14px]"
+              style={{ backgroundColor: 'rgba(255,255,255,0.72)' }}
+              aria-hidden
+            >
+              <PawPrint size={22} strokeWidth={1.75} style={{ color: DEEP }} />
             </span>
-          </li>
-        ))}
-      </ul>
-    </>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 className="truncate text-h2 font-semibold" style={{ color: HERO_INK }}>
+                  {name}
+                </h2>
+                <span
+                  className="shrink-0 rounded-full px-2.5 py-0.5 text-caption font-semibold"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.78)', color: DEEP }}
+                >
+                  {wide.cls}
+                </span>
+              </div>
+              <p className="mt-1 text-small" style={{ color: '#44544a' }}>
+                {fmt(wide.total)} held · {wide.sites.length} site{wide.sites.length === 1 ? '' : 's'} ·{' '}
+                {windowLabel}
+              </p>
+            </div>
+          </div>
+
+          {/* The published listings, where there are any. Kept as pills on the right because
+              they are a status the animal carries rather than a figure we counted. */}
+          {(standing?.iucn || standing?.cites) && (
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {standing.iucn && (
+                <span
+                  className="rounded-full px-3 py-1 text-caption font-medium"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.72)', color: '#44544a' }}
+                >
+                  IUCN · {standing.iucn}
+                </span>
+              )}
+              {standing.cites && (
+                <span
+                  className="rounded-full px-3 py-1 text-caption font-medium"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.72)', color: '#44544a' }}
+                >
+                  CITES · Appendix {standing.cites}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="my-4 h-px w-full" style={{ backgroundColor: 'rgba(31,81,91,0.14)' }} />
+
+        {/* `flex-auto`, so each stat starts at its OWN content width and only the surplus is
+            shared — the fix the hero stats needed on Animal Population, for the same reason:
+            an equal-thirds grid gives "1 : 1.2" the same column as "7" and clips one of them. */}
+        <div className="flex flex-wrap gap-x-8 gap-y-4">
+          {stats.map((s) => (
+            <div key={s.label} className="flex min-w-0 flex-auto items-center gap-3">
+              <span
+                className="grid size-9 shrink-0 place-items-center rounded-[11px]"
+                style={{ backgroundColor: 'rgba(255,255,255,0.72)' }}
+                aria-hidden
+              >
+                <s.icon size={16} strokeWidth={1.75} style={{ color: DEEP }} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-caption" style={{ color: '#5c6b61' }}>
+                  {s.label}
+                </span>
+                <span className="block text-body font-semibold tabular-nums" style={{ color: HERO_INK }}>
+                  {s.value}
+                  {'sub' in s && s.sub && (
+                    <span className="ml-1.5 text-caption font-normal" style={{ color: '#5c6b61' }}>
+                      {s.sub}
+                    </span>
+                  )}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   )
 }
 
@@ -977,6 +1089,20 @@ function SpeciesPage({ entity }: { entity: Entity }) {
     () => (wide ? { male: wide.male, female: wide.female, undetermined: wide.undetermined } : undefined),
     [wide],
   )
+
+  /* Enclosures holding this species, for the header strip only.
+     COUNTED, NOT ESTIMATED, and bounded: one span walk per population of the name, which for
+     the largest name in the dump (Umber Langur, 4,010 animals across two sites) is a few
+     thousand integer reads. Narrowed to the site pill so the strip cannot report the estate's
+     enclosures under a header that says one site. */
+  const headerEnclosures = useMemo(() => {
+    if (!wide) return 0
+    const keys = new Set(wide.sites.map((x) => x.siteKey))
+    return wide.sites.reduce(
+      (n, x) => n + holdingsByEnclosure(x.species.id).filter((h) => keys.has(h.siteKey)).length,
+      0,
+    )
+  }, [wide])
   const life = useMemo(() => speciesLifecycle(entity.id, scope.win), [entity.id, scope.win])
   const standing = useMemo(() => (sp ? standingOf(sp.name) : undefined), [sp])
 
@@ -1007,65 +1133,42 @@ function SpeciesPage({ entity }: { entity: Entity }) {
   return (
     <>
       <ScopeConflict entity={entity} />
-      {/* THE HERO IS THE WHOLE SPECIES, NOT THE ROW THAT WAS CLICKED — unless a site filter
-          says otherwise. A page titled "Ochre Warbler" reading 537 while the collection holds
-          544 across eleven sites has answered a question nobody asked; the route stays
-          site-scoped so every existing link keeps working, and the reading goes wide. With the
-          site pill set, wide IS that site, because a header stating a filter over a figure
-          that ignores it is the contradiction this product spends its effort avoiding. */}
-      <Hero
-        value={fmt(wide ? wide.total : total)}
-        label={`${entity.name} held`}
-        sub={
-          wide
-            ? `${wide.cls} · ${scope.site ? wide.sites[0]?.siteName ?? scope.site.name : `${wide.sites.length} site${wide.sites.length === 1 ? '' : 's'}`} · ${scope.win.window}`
-            : `${sp?.cls} · ${siteOf(sp?.siteKey ?? '')?.name} · ${scope.win.window}`
-        }
-        icon={PawPrint}
-      />
-
-      {/* THE FOUR FIGURES A KEEPER ASKS FIRST, and only the ones that are true.
-          The reference design puts six here — animals, sex ratio, sites, enclosures, % sexed,
-          % chipped — and two of them are why this strip is built by filtering rather than by
-          listing. `% chipped` reads 110 in that design, which is a coverage figure taken from
-          a different pair than the one beside it; ours is derived from the same two numbers it
-          is printed next to, so it cannot exceed 100. The sex ratio is dropped entirely where
-          either side is zero, because "1 : 1.2" off no males is a division by zero wearing the
-          clothes of a finding. A species with nothing to say in a slot gets no slot. */}
-      {wide && wide.total > 0 && (
-        <div className="w-full px-[var(--gutter)] pb-3">
-          <section className="rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
-            <SexRail male={wide.male} female={wide.female} undetermined={wide.undetermined} />
-            <div className="mt-4 flex flex-wrap gap-x-8 gap-y-4">
-              {[
-                ...(wide.ratio !== undefined
-                  ? [{ label: 'Sex ratio', value: `1 : ${wide.ratio.toFixed(1)}`, sub: 'male to female' }]
-                  : []),
-                {
-                  label: wide.sites.length === 1 ? 'Site' : 'Sites',
-                  value: String(wide.sites.length),
-                  sub: scope.site ? 'filtered' : 'holding one',
-                },
-                {
-                  label: 'Sexed',
-                  value: `${Math.round(wide.sexedPct)}%`,
-                  sub: `${fmt(wide.male + wide.female)} of ${fmt(wide.total)}`,
-                },
-              ].map((s) => (
-                <div key={s.label} className="min-w-0">
-                  <Figure value={s.value} size={24} color={HERO_INK} />
-                  <p className="mt-1 text-small font-medium text-[#1c1a16]">{s.label}</p>
-                  <p className="mt-0.5 text-caption" style={{ color: FAINT }}>
-                    {s.sub}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
+      {/* ONE HEADER CARD, IN THE HOUSE GREEN. The hero, the standing pills and the figure
+          strip were three stacked white boxes stating one subject; `SpeciesHeader` is that
+          subject inside one boundary. The reading is the whole species rather than the row
+          that was clicked — a page titled "Ochre Warbler" reading 537 while the collection
+          holds 1,045 across seven sites has answered a question nobody asked — and it narrows
+          to the site pill when one is set, because a header stating a filter over a figure
+          that ignores it is the contradiction this product exists to avoid. */}
+      {wide && wide.total > 0 ? (
+        <SpeciesHeader
+          name={entity.name}
+          wide={wide}
+          enclosures={headerEnclosures}
+          standing={standing}
+          window={scope.win.window}
+          filtered={!!scope.site}
+        />
+      ) : (
+        <Hero
+          value={fmt(total)}
+          label={`${entity.name} held`}
+          sub={`${sp?.cls} · ${siteOf(sp?.siteKey ?? '')?.name} · ${scope.win.window}`}
+          icon={PawPrint}
+        />
       )}
 
-      <EntityTabs tabs={SPECIES_TABS} tab={tab} onPick={setTab} label="Species record" />
+      {/* THE PRESENCE OF A TAB IS ITSELF A CLAIM. A placental mammal offered an "Eggs" tab has
+          been told it lays, so the tab is gated on the species' own `reproduction_type` — 473 of
+          2,339 species are viviparous and must never see it. Gated on the PROFILE rather than on
+          the tab's own content: `reproduction_type` only exists once `profiles.json` resolves, so
+          hiding it while that is in flight keeps the tab from appearing and then being withdrawn. */}
+      <EntityTabs
+        tabs={SPECIES_TABS.filter((t) => t.key !== 'eggs' || laysEggs(profile))}
+        tab={tab}
+        onPick={setTab}
+        label="Species record"
+      />
 
       <Stack>
         {tab === 'overview' && (
