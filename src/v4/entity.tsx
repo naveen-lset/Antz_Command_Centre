@@ -58,6 +58,7 @@ import { METRICS } from '../core/metrics'
 import { loadProfiles, profileOf, profilesNow } from '../core/profiles'
 import { SpeciesProfileTab } from './speciesProfile'
 import { speciesWide } from './speciesWide'
+import { SpeciesHousingTab } from './speciesHousing'
 import { animalById, animalsOfSpecies, sexSplit, stockOfSpecies, type Animal } from '../core/animals'
 import { byDimension, delta as deltaOf, figure as figureOf, population } from '../core/query'
 import { entityHref, siteKeyOf, withinScope } from '../core/scope'
@@ -910,6 +911,7 @@ function EntityTabs({
 const SPECIES_TABS = [
   { key: 'overview', label: 'Overview', icon: Layers },
   { key: 'profile', label: 'Profile', icon: BookOpen },
+  { key: 'housing', label: 'Housing', icon: Boxes },
   { key: 'life', label: 'Circle of Life', icon: Sparkles },
   { key: 'animals', label: 'Animals', icon: Heart },
 ] as const
@@ -1115,6 +1117,8 @@ function SpeciesPage({ entity }: { entity: Entity }) {
               <p className="text-small text-[#6d6860]">Loading the species reference…</p>
             </Section>
           ))}
+
+        {tab === 'housing' && <SpeciesHousingTab speciesId={entity.id} name={entity.name} />}
 
         {tab === 'life' && life && (
           <>

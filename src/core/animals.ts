@@ -117,6 +117,97 @@ export function sexSplit(rows: { species: Species; count: number }[]): SexSplit 
   return { male, female, undetermined }
 }
 
+/* ── where one species actually lives ────────────────────────────────────── */
+
+export interface EnclosureHolding {
+  enclosureId: string
+  enclosureName: string
+  siteKey: string
+  male: number
+  female: number
+  undetermined: number
+  total: number
+}
+
+/**
+ * Every enclosure holding one species, counted from the register rather than modelled.
+ *
+ * READ THE REGISTER, NOT `population.ts`. `speciesRows()` there derives male/female/unknown
+ * from an authored unsexed-rate table, and the two disagree on real data: Umber Langur at
+ * Pinecrest is 2,000 male / 1,991 female / 0 undetermined in `animals.bin`, where the rate
+ * table would invent an unsexed share of about 4%. `core/animals.ts` already owns this exact
+ * span walk for `sexSplit`, so the count belongs here beside it and not in a view.
+ *
+ * UNSCALED, AND THAT IS THE DIFFERENCE FROM `sexSplit`. That function apportions its parts to
+ * a windowed headcount so they sum to a reconstructed earlier day. There is no such thing to
+ * apportion to here: `animals.bin` is a snapshot of who is housed where TODAY and carries no
+ * enclosure-move history, so a per-enclosure figure can only ever be current. The caller says
+ * so on screen rather than this pretending otherwise.
+ */
+export function holdingsByEnclosure(speciesId: string): EnclosureHolding[] {
+  const a = data().animals
+  const span = speciesSpan(speciesId)
+  if (!span) return []
+  const [start, held] = span
+
+  const by = new Map<number, { m: number; f: number; u: number }>()
+  for (let i = start; i < start + held; i++) {
+    const ix = a.enclosure[i]
+    if (ix === UNRESOLVED) continue
+    let cell = by.get(ix)
+    if (!cell) by.set(ix, (cell = { m: 0, f: 0, u: 0 }))
+    const code = SEX_CODE[a.sex[i]] ?? 'U'
+    if (code === 'M') cell.m++
+    else if (code === 'F') cell.f++
+    else cell.u++
+  }
+
+  const out: EnclosureHolding[] = []
+  for (const [ix, c] of by) {
+    const enc = ENCLOSURES[ix]
+    if (!enc) continue
+    out.push({
+      enclosureId: enc.id,
+      enclosureName: enc.name,
+      siteKey: enc.siteKey,
+      male: c.m,
+      female: c.f,
+      undetermined: c.u,
+      total: c.m + c.f + c.u,
+    })
+  }
+  return out.sort((x, y) => y.total - x.total)
+}
+
+/**
+ * What one enclosure's composition permits, said in the only terms the dump supports.
+ *
+ * NOT "BREEDING READY". The reference design badges an enclosure holding one male and one
+ * female as ready to breed, which claims a maturity nothing here can carry: `born` is absent
+ * on 89,579 of 110,005 animals — 81% — and `maturity_age_years` exists for 775 of 2,339
+ * species. What the register can actually say is which sexes are present, so that is what the
+ * badge says. A curator reading "both sexes present" knows what it does and does not mean;
+ * one reading "breeding ready" has been told something the data never established.
+ */
+export type Composition =
+  | 'Both sexes'
+  | 'All male'
+  | 'All female'
+  | 'Lone male'
+  | 'Lone female'
+  | 'All unsexed'
+  | 'Lone unsexed'
+  | 'Partly unsexed'
+
+export function compositionOf(h: { male: number; female: number; undetermined: number; total: number }): Composition {
+  const sexed = h.male + h.female
+  if (sexed === 0) return h.total === 1 ? 'Lone unsexed' : 'All unsexed'
+  if (h.male > 0 && h.female > 0) return 'Both sexes'
+  if (h.undetermined > 0) return 'Partly unsexed'
+  if (h.male > 0) return h.male === 1 ? 'Lone male' : 'All male'
+  return h.female === 1 ? 'Lone female' : 'All female'
+}
+
 /** The whole collection's split, or one site's. */
 export function sexSplitFor(siteKey: string | null, win: Win): SexSplit {
   const keys = siteKey ? [siteKey] : SITES.map((s) => s.key)
