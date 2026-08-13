@@ -1,16 +1,14 @@
 /**
  * WHAT THE ANIMAL POPULATION PAGE OPENS.
  *
- * The brief's rule is that contextual exploration never navigates: a site, a species, a CITES
- * appendix, a Red List category, a month's births — each is a LOOK at something, so each is a
- * sheet. `v4/sheet.tsx` already provides exactly one sheet with swapping content and a
- * breadcrumb eyebrow, so going Overall → CITES I → Aviary Complex → Sarus Crane → an animal is
- * four content swaps in one panel rather than four stacked overlays.
+ * A popup here is a SELECTOR. Clicking an aggregate — a site's headcount, a CITES appendix, a
+ * class, one column of the births chart — opens a centered popup that says what was clicked and
+ * lists what can be chosen from it. Choosing a named thing LEAVES: the popup's history is wound
+ * off and the reader lands on that entity's own page. See `drillNav.tsx` for why in that order.
  *
- * FOUR PANELS, NOT TWELVE. The brief names ten drill targets and they collapse to four shapes:
+ * THREE PANELS, NOT TWELVE. The brief names ten drill targets and they collapse to three shapes:
  *
  *   SitePanel     one place, and everything in it
- *   SpeciesPanel  one species, its sexes, its standing, its animals
  *   GroupPanel    a set of species — a CITES appendix, a schedule, a Red List category, a
  *                 taxonomic class, the regulated half of the collection
  *   FlowPanel     a set of events — births, deaths, transfers, escapes, fetal losses
@@ -18,14 +16,21 @@
  * Writing five near-identical event sheets is how "Deaths by site" and "Births by site" end up
  * grouping differently; one parameterised panel cannot.
  *
- * Nothing is drawn here. Every mark is `exec/system.tsx`, every row is `panels.tsx`'s `TapRow`,
- * and the animal record at the bottom is the same `AnimalPanel` the rest of the product opens.
+ * `SpeciesPanel` WAS THE FOURTH, AND IS GONE. It held one species' sexes, standing, sites and
+ * animals — which is what `#/e/species/<id>` holds, in more depth and at a URL that can be
+ * linked. Keeping both meant a species read one way from a popup and another way from a page,
+ * the same "two models of one thing" drift `drill.ts` documents at length. Species rows now go
+ * to the page. Nothing that was reachable stopped being reachable.
+ *
+ * Nothing is drawn here. Every mark is `exec/system.tsx` and every row is `panels.tsx`'s
+ * `TapRow`.
  */
 
 import { useMemo, useState } from 'react'
 import {
   Activity,
   ArrowLeftRight,
+  ArrowRight,
   Baby,
   Dna,
   Footprints,
@@ -33,14 +38,12 @@ import {
   ListOrdered,
   MapPin,
   PawPrint,
-  ScrollText,
   ShieldAlert,
   Sparkles,
-  Venus,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { shortDate, type Win } from '../../core/calendar'
-import { animalsInScope, animalsOfSpecies, type Animal } from '../../core/animals'
+import { animalsInScope, type Animal } from '../../core/animals'
 import { page as eventPage, tally, type Ev } from '../../core/events'
 import { SITES, siteOf, speciesByName } from '../../core/world'
 import {
@@ -59,11 +62,12 @@ import {
   fmt,
   type RedListCode,
 } from '../../exec/system'
-import { AnimalPanel, TapList, TapRow } from '../panels'
+import { TapList, TapRow } from '../panels'
 import { useSheet } from '../sheet'
+import { useDrill } from '../drillNav'
+import { FindField } from '../filters'
 import { useScope } from '../scope'
 import { MoreRows, usePaged } from '../perf'
-import { animalFromId } from '../drill'
 import {
   citesSpecies,
   classBands,
@@ -87,7 +91,6 @@ import {
   flowCount,
   movement,
   speciesRows,
-  type SpeciesRow,
 } from './population'
 
 const SEX_WORD = { M: 'Male', F: 'Female', U: 'Undetermined' } as const
@@ -102,6 +105,7 @@ function SheetHero({
   status,
   tone,
   badge,
+  action,
 }: {
   value: string
   unit?: string
@@ -111,6 +115,17 @@ function SheetHero({
   tone?: 'good' | 'warn' | 'bad' | 'neutral'
   /** The published Red List badge, where the sheet is about one. */
   badge?: (typeof RED_LIST)[number]
+  /**
+   * THE WAY OUT OF THE POPUP AND INTO THE PAGE.
+   *
+   * A popup about ONE named thing — a site, a species — is a selector whose selection
+   * has already been made, so it owes the reader the page underneath it. Every popup
+   * that has one offers it in the same place and the same words, which is what stops
+   * "where is the full record" from being a different gesture per card. Popups about a
+   * CATEGORY (a date's births, an appendix) have no single entity to offer and pass
+   * nothing — the rows below them are the selection.
+   */
+  action?: { label: string; onOpen: () => void }
 }) {
   return (
     <div className="w-full px-[var(--gutter)] pb-3">
@@ -145,6 +160,16 @@ function SheetHero({
             {note}
           </p>
         )}
+        {action && (
+          <button
+            type="button"
+            onClick={action.onOpen}
+            className="card-press mt-4 flex w-full items-center justify-between gap-3 rounded-[12px] bg-[#f4f3ef] px-3 py-2.5 text-left"
+          >
+            <span className="text-small font-semibold text-[#3d3a34]">{action.label}</span>
+            <ArrowRight size={15} strokeWidth={2.25} className="shrink-0 text-[#6d6860]" aria-hidden />
+          </button>
+        )}
       </section>
     </div>
   )
@@ -170,7 +195,7 @@ function Animals({
   deps: unknown[]
   eyebrow: string
 }) {
-  const { open } = useSheet()
+  const { drillTo } = useDrill()
   const paged = usePaged(fetch, 20, deps)
 
   return (
@@ -183,7 +208,9 @@ function Animals({
             sub={`${a.id} · ${a.speciesName} · ${a.enclosureId} · ${SEX_WORD[a.sex]} · ${a.age}`}
             value={a.status}
             tone={a.status === 'Healthy' ? 'good' : a.status === 'Critical' ? 'bad' : 'warn'}
-            onOpen={() => open({ title: a.callName ?? a.id, eyebrow, body: <AnimalPanel record={animalFromId(a.id)} /> })}
+            /* An animal is always the end of a drill — there is nothing under it to
+               select. Straight to its page, and the popup closes behind it. */
+            onOpen={() => drillTo({ kind: 'animal', id: a.id }, { module: 'animals', label: eyebrow })}
           />
         ))}
       </TapList>
@@ -200,7 +227,7 @@ function Animals({
  * moved, what species make it up, then the animals themselves.
  */
 export function SitePanel({ siteKey, win }: { siteKey: string; win: Win }) {
-  const { open } = useSheet()
+  const { drillTo } = useDrill()
   const site = siteOf(siteKey)
   const rows = useMemo(() => holdings(siteKey, win), [siteKey, win])
   const species = useMemo(() => speciesRows(siteKey, win), [siteKey, win])
@@ -219,6 +246,10 @@ export function SitePanel({ siteKey, win }: { siteKey: string; win: Win }) {
         status={`${signed(delta.net)} · ${win.window}`}
         tone={netTone(delta.net)}
         note={`${site.code} · ${species.length} species · ${site.enclosures} enclosures`}
+        action={{
+          label: 'Open site details',
+          onOpen: () => drillTo({ kind: 'site', id: siteKey }, { module: 'animals', label: 'Site population' }),
+        }}
       />
       <Stack>
         <Section icon={MapPin} label="Site population" aside={site.code}>
@@ -267,7 +298,7 @@ export function SitePanel({ siteKey, win }: { siteKey: string; win: Win }) {
                 label={s.name}
                 sub={`${s.cls} · ${standingLabel(s.standing)}`}
                 value={fmt(s.animals)}
-                onOpen={() => open({ title: s.name, eyebrow: site.name, body: <SpeciesPanel row={s} win={win} /> })}
+                onOpen={() => drillTo({ kind: 'species', id: s.id }, { module: 'animals', label: site.name })}
               />
             ))}
           </TapList>
@@ -317,7 +348,8 @@ export function FlowBucketPanel({
   siteKey: string | null
   tone?: 'good' | 'warn' | 'bad' | 'neutral'
 }) {
-  const { go } = useScope()
+  const { scope } = useScope()
+  const { drillTo } = useDrill()
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => tally(slug, siteKey, win, 'species'), [slug, siteKey, win])
@@ -329,23 +361,30 @@ export function FlowBucketPanel({
   }, [rows, query])
 
   const where = siteKey ? (siteOf(siteKey)?.name ?? siteKey) : 'All sites'
+  /* THE TWO PERIODS ARE NOT THE SAME PERIOD, and the popup says so when they differ.
+     The page is filtered to a window; the reader then clicked ONE column inside it. Both
+     facts are live and only one of them is the popup's subject, so printing the bucket
+     alone invites "42 births" to be read as the window's total. Identical spans print
+     once — a bucket that IS the window has nothing to distinguish. */
+  const localised = win.window !== scope.win.window
 
   /**
-   * NAVIGATE, AND DO NOT CALL `close()`.
+   * NAVIGATE THROUGH `drillTo`, WHICH UNWINDS THE POPUP'S HISTORY FIRST.
    *
-   * `SheetProvider` already listens for `hashchange` and empties the stack, so the route change
-   * IS the close — and it takes the host's exit animation with it, which is the coordinated
-   * transition rather than a sheet yanked off screen.
+   * This used to call `go()` directly, with a note warning against also calling
+   * `close()` — `close()` is `history.go(-depth)`, which is ASYNCHRONOUS, so it landed
+   * after the hash had been set and navigated straight back to this page. The sheet
+   * closed, the species page never opened, and nothing errored.
    *
-   * Calling `close()` here as well was a real bug, not a redundancy: `close()` is
-   * `history.go(-depth)`, which is ASYNCHRONOUS, so it landed after the hash had been set and
-   * navigated straight back to this page. The sheet closed, the species page never opened, and
-   * nothing errored — the worst shape a navigation bug can take.
+   * `drillTo` is that fix done properly rather than avoided: it winds the popup's
+   * entries off and navigates on the `popstate`, so the two are ordered instead of
+   * racing, and Back out of the species page lands on Animal Population rather than on
+   * the dead entry this popup left behind. See `drillNav.tsx`.
    */
   const openSpecies = (name: string) => {
     const sp = speciesByName(name).sort((a, b) => b.weight - a.weight)[0]
     if (!sp) return
-    go(`e/species/${encodeURIComponent(sp.id)}`)
+    drillTo({ kind: 'species', id: sp.id }, { module: 'animals', label: `${title}` })
   }
 
   return (
@@ -353,7 +392,11 @@ export function FlowBucketPanel({
       <SheetHero
         value={fmt(total)}
         label={title}
-        note={`${bucketLabel} · ${where}`}
+        note={
+          localised
+            ? `Selected ${bucketLabel} · ${where}   ·   Global period ${scope.win.window}`
+            : `${bucketLabel} · ${where}`
+        }
         tone={tone}
       />
       <Stack>
@@ -397,93 +440,6 @@ export function FlowBucketPanel({
   )
 }
 
-/* ── one species ─────────────────────────────────────────────────────────── */
-
-export function SpeciesPanel({ row, win }: { row: SpeciesRow; win: Win }) {
-  const badge = RED_LIST.find((c) => c.code === row.standing.iucn)
-  const populations = speciesByName(row.name)
-
-  return (
-    <>
-      <SheetHero
-        value={fmt(row.animals)}
-        label={row.name}
-        status={`${signed(row.net)} · ${win.window}`}
-        tone={netTone(row.net)}
-        note={`${row.cls} · ${row.siteName} · ${row.percent.toFixed(2)}% of population`}
-      />
-      <Stack>
-        <Section icon={Venus} label="Sex distribution" aside={fmt(row.animals)}>
-          <Snapshot
-            cols={3}
-            items={[
-              { label: 'Male', value: fmt(row.male) },
-              { label: 'Female', value: fmt(row.female) },
-              { label: 'Unknown', value: fmt(row.unknown) },
-            ]}
-          />
-          {row.unknown < row.animals && (
-            <>
-              <Rule label="Share" />
-              <Composition
-                items={[
-                  { label: 'Unknown', value: row.unknown },
-                  { label: 'Male', value: row.male },
-                  { label: 'Female', value: row.female },
-                ]}
-                unit="animals"
-              />
-            </>
-          )}
-        </Section>
-        <Section icon={ScrollText} label="Regulatory status" aside={standingLabel(row.standing)}>
-          <Facts
-            items={[
-              { label: 'CITES', value: row.standing.cites ? `Appendix ${row.standing.cites}` : 'Not listed' },
-              { label: 'Wildlife Protection Act', value: row.standing.schedule ? `Schedule ${row.standing.schedule}` : 'Not scheduled' },
-              { label: 'Regulatory', value: isRegulated(row.standing) ? 'Yes' : 'No' },
-            ]}
-          />
-          {badge && (
-            <>
-              <Rule label="IUCN Red List" />
-              <div className="flex items-center gap-3">
-                <span
-                  className="grid size-9 shrink-0 place-items-center rounded-full rounded-tr-[6px] font-display text-small font-bold"
-                  style={{
-                    backgroundColor: badge.fill,
-                    color: badge.ink,
-                    boxShadow: 'outline' in badge && badge.outline ? `inset 0 0 0 1.5px ${badge.outline}` : undefined,
-                  }}
-                  aria-hidden
-                >
-                  {badge.code}
-                </span>
-                <span className="text-small text-[#1c1a16]">{badge.name}</span>
-              </div>
-            </>
-          )}
-        </Section>
-        <Section icon={MapPin} label="Site distribution" aside={`${populations.length} holding`}>
-          <Facts
-            items={populations.map((p) => ({
-              label: siteOf(p.siteKey)?.name ?? p.siteKey,
-              sub: siteOf(p.siteKey)?.code,
-              value: p.siteKey === row.siteKey ? fmt(row.animals) : '—',
-            }))}
-          />
-        </Section>
-
-        <Animals
-          fetch={(offset, limit) => animalsOfSpecies(row.id, win, offset, limit)}
-          deps={[row.id, win.to]}
-          eyebrow={row.name}
-        />
-      </Stack>
-    </>
-  )
-}
-
 /* ── a set of species — CITES, schedule, Red List, class, regulatory ─────── */
 
 /**
@@ -513,7 +469,8 @@ export function GroupPanel({
   /** Re-open this same group under a site. Absent once already inside one. */
   reopen?: (siteKey: string) => void
 }) {
-  const { open } = useSheet()
+  const { drillTo } = useDrill()
+  const [query, setQuery] = useState('')
   const total = totalOf(rows)
   const classes = classBands(rows)
 
@@ -533,6 +490,18 @@ export function GroupPanel({
       return hit ? [hit] : []
     })
   }, [rows, siteKey, win])
+
+  /* SEARCH ONLY WHERE THERE IS SOMETHING TO SEARCH — the rule `FlowBucketPanel` already
+     states. CITES Appendix II holds 1,780 species and a reader looking for one of them
+     should not be scrolling; Schedule III under one site can hold four, and a field over
+     four rows is furniture. Twelve is where a list stops being readable at a glance.
+     Matches the class too, so "Aves" narrows an appendix to its birds. */
+  const searchable = detailed.length > 12
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return detailed
+    return detailed.filter((s) => s.name.toLowerCase().includes(q) || s.cls.toLowerCase().includes(q))
+  }, [detailed, query])
 
   return (
     <>
@@ -570,18 +539,30 @@ export function GroupPanel({
                 showShare
               />
             </Section>
-            <Section icon={Dna} label="Species" aside={`${detailed.length}`}>
-              <TapList>
-                {detailed.map((s) => (
-                  <TapRow
-                    key={s.id}
-                    label={s.name}
-                    sub={`${s.cls} · ${s.siteName}`}
-                    value={fmt(s.animals)}
-                    onOpen={() => open({ title: s.name, eyebrow: title, body: <SpeciesPanel row={s} win={win} /> })}
-                  />
-                ))}
-              </TapList>
+            <Section
+              icon={Dna}
+              label="Species"
+              aside={query.trim() ? `${shown.length} of ${detailed.length}` : `${detailed.length}`}
+            >
+              {searchable && <FindField value={query} onChange={setQuery} placeholder="Search species" />}
+              <div className={searchable ? 'mt-3' : undefined}>
+                <TapList>
+                  {shown.map((s) => (
+                    <TapRow
+                      key={s.id}
+                      label={s.name}
+                      sub={`${s.cls} · ${s.siteName}`}
+                      value={fmt(s.animals)}
+                      /* The selection. Closes the popup and opens the species' own page
+                         rather than stacking a second panel on the one above it. */
+                      onOpen={() => drillTo({ kind: 'species', id: s.id }, { module: 'animals', label: title })}
+                    />
+                  ))}
+                </TapList>
+                {shown.length === 0 && (
+                  <p className="text-small text-[#6d6860]">No species here match “{query.trim()}”.</p>
+                )}
+              </div>
             </Section>
           </>
         )}
@@ -786,6 +767,7 @@ export interface FlowSpec {
  */
 export function FlowPanel({ spec, siteKey, win }: { spec: FlowSpec; siteKey: string | null; win: Win }) {
   const { open } = useSheet()
+  const { drillTo } = useDrill()
   const keep = spec.only ? new Set(spec.only) : undefined
 
   const causes = useMemo(
@@ -873,12 +855,10 @@ export function FlowPanel({ spec, siteKey, win }: { spec: FlowSpec; siteKey: str
                 sub={`${shortDate(ev.day)} · ${siteOf(ev.siteKey)?.name ?? ev.siteKey} · ${ev.animalId}`}
                 value={ev.detail}
                 tone={ev.tone}
+                /* The animal named in an event row is the end of the drill, the same as
+                   every other animal row in this file. */
                 onOpen={() =>
-                  open({
-                    title: ev.animalId,
-                    eyebrow: `${spec.title} · ${shortDate(ev.day)}`,
-                    body: <AnimalPanel record={animalFromId(ev.animalId, ev.speciesName)} />,
-                  })
+                  drillTo({ kind: 'animal', id: ev.animalId }, { module: 'animals', label: spec.title })
                 }
               />
             ))}

@@ -36,6 +36,7 @@ import { HomeView } from './v4/Home'
 import { AppShell, ModulePane, PhoneFrame } from './v4/Shell'
 import { Boundary } from './v4/Boundary'
 import { SheetProvider } from './v4/sheet'
+import { DrillProvider, useDrill } from './v4/drillNav'
 import { ScopeHeader } from './v4/ScopeHeader'
 import { ScopeProvider, useScope } from './v4/scope'
 import { EntityBrowser, EntityIndex, EntityPage } from './v4/entity'
@@ -103,6 +104,7 @@ interface Framed {
 
 function useFramed(route: Route, phone: boolean, home: () => void): Framed {
   const { go } = useScope()
+  const { origin } = useDrill()
 
   return useMemo(() => {
     switch (route.kind) {
@@ -154,9 +156,16 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
 
       case 'entity': {
         const entity = resolve(route.ref.kind, route.ref.id)
+        /* WHERE THE READER CAME FROM, when they came from a drill and are still on the
+           page that drill led to. `forPath` is what keeps it honest: navigate on to a
+           second entity and the trail is the new page's own lineage again rather than a
+           crumb inherited from a popup two pages back. The brief's §17 — subtle, and
+           only where there is something true to say. */
+        const from = origin && origin.forPath === `e/${route.ref.kind}/${encodeURIComponent(route.ref.id)}` ? origin : null
         return {
           title: entity?.name ?? route.ref.id,
           eyebrow: KIND_ONE[route.ref.kind],
+          moduleTitle: from ? [titleOf(from.module), from.label].filter(Boolean).join(' › ') : undefined,
           /* One step up the lineage, which is the entity's own parent rather than wherever the
              reader happened to arrive from — so the back button is the same from a search hit,
              a module row and a pasted link. */
@@ -194,7 +203,7 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
           body: <Missing path={route.kind === 'missing' ? route.path : ''} />,
         }
     }
-  }, [route, phone, home, go])
+  }, [route, phone, home, go, origin])
 }
 
 function Missing({ path }: { path: string }) {
@@ -217,9 +226,17 @@ function Missing({ path }: { path: string }) {
 export default function App() {
   return (
     <ScopeProvider>
-      <SheetProvider>
-        <Router />
-      </SheetProvider>
+      {/* OUTSIDE the sheet, and that is load-bearing. `SheetProvider` renders its host as a
+          SIBLING of `children`, so a provider nested inside it does not enclose the popup —
+          every panel rendered in the popup would read the default context and its drill
+          would be a silent no-op. Out here, the host is within scope. `drillNav` therefore
+          reads the popup's depth from history state rather than from `useSheet`, which is
+          what lets it sit above the sheet instead of inside it. */}
+      <DrillProvider>
+        <SheetProvider>
+          <Router />
+        </SheetProvider>
+      </DrillProvider>
     </ScopeProvider>
   )
 }

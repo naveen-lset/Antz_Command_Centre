@@ -116,13 +116,12 @@ import {
 import { compareOf, pointsOf, tail } from '../plot'
 import type { Pt } from '../../exec/marks'
 import type { LucideIcon } from 'lucide-react'
-import { AnimalPanel } from '../panels'
 import { useSheet } from '../sheet'
 import { CardWindowNote, useCardWindow } from '../cardWindow'
 import { useScope } from '../scope'
 import { DateSheet } from '../filters'
 import { MoreRows, usePaged } from '../perf'
-import { animalFromId } from '../drill'
+import { useDrill } from '../drillNav'
 import {
   citesBands,
   classBands,
@@ -161,7 +160,6 @@ import {
   RegulatoryGroup,
   ScheduleGroup,
   SitePanel,
-  SpeciesPanel,
 } from './populationSheets'
 
 /* ── the contextual lens ─────────────────────────────────────────────────── */
@@ -248,6 +246,7 @@ function useLens(siteKey: string | null, win: Win, facets: Facets) {
 export default function Animals() {
   const { scope } = useScope()
   const { open } = useSheet()
+  const { drillTo } = useDrill()
   const win = scope.win
   const siteKey = scope.site?.key ?? null
 
@@ -271,11 +270,16 @@ export default function Animals() {
   const enclosures = siteKey ? (siteOf(siteKey)?.enclosures ?? 0) : SITES.reduce((n, s) => n + s.enclosures, 0)
   const scopeName = scope.site ? scope.site.name : 'Overall'
 
+  /* A SITE ROW OPENS THE SITE POPUP, not the site page. What the reader clicked is an
+     aggregate — "14,445 animals at Crimson Frosted" — and the question behind it is
+     almost always "of what?". The popup answers that and offers the page underneath it;
+     going straight to the page would skip the selection layer the brief is built on.
+     Named entities INSIDE the popup are the terminus. */
   const openSite = (key: string) =>
     open({ title: siteOf(key)?.name ?? key, eyebrow: 'Animal Population', body: <SitePanel siteKey={key} win={win} /> })
-  /* "View all" is the same contextual sheet every other drill uses, holding the complete
-     listing the card only shows the head of. Each row opens that site's own panel, so the
-     sheet is a way IN rather than a terminus. */
+  /* "View all" is the same contextual popup every other drill uses, holding the complete
+     listing the card only shows the head of. Each row selects that site, so the popup is
+     a way IN rather than a terminus. */
   /* The complete listing keeps `SpeciesCard` — it already carries search, four sorts and
      paging over 4,745 rows, and rebuilding that inside the sheet would be a second
      implementation of a control that works. */
@@ -313,11 +317,15 @@ export default function Animals() {
       ),
     })
 
-  const openSpecies = (row: SpeciesRow) =>
-    open({ title: row.name, eyebrow: row.siteName, body: <SpeciesPanel row={row} win={win} /> })
+  const openSpecies = (row: SpeciesRow, label?: string) =>
+    drillTo({ kind: 'species', id: row.id }, { module: 'animals', label })
 
-  /* THE SAME FOUR SHEETS THE ROWS ALWAYS OPENED, named rather than inlined five times over.
-     What changed on this page is which mark carries the tap, never where the tap goes. */
+  /* The group popups, named rather than inlined five times over.
+     WHERE THE TAP GOES DID CHANGE, and this comment used to say it never had. A row that
+     names an AGGREGATE — an appendix, a schedule, a site's headcount — still opens a
+     popup. A row that names an ENTITY now leaves for that entity's page. The two are
+     `open` and `drillTo` respectively, and which one a mark gets is the whole of the
+     drill-down model. */
   /* `openClass` opened the class sheet. Selecting a class in the explorer recuts the panel
      beside it instead, which is the whole point of the two-panel layout. */
 
@@ -378,9 +386,10 @@ export default function Animals() {
             facets={facets}
             holdings={allHoldings}
             onApply={applyFacets}
-            onOpenAnimal={(id, name) =>
-              open({ title: id, eyebrow: name, body: <AnimalPanel record={animalFromId(id, name)} /> })
-            }
+            /* A search hit IS the selection — the reader typed the animal's own id or
+               name to get here, so there is nothing to choose between. Straight to the
+               animal's page. */
+            onOpenAnimal={(id) => drillTo({ kind: 'animal', id }, { module: 'animals', label: 'Search' })}
             win={win}
           />
         }
@@ -932,14 +941,16 @@ function FlowTrendCard({
 
 function LeadersCard({ siteKey, facets, bare }: { siteKey: string | null; facets: Facets; bare?: boolean }) {
   const { win, pill, overridden } = useCardWindow()
-  const { open } = useSheet()
+  const { drillTo } = useDrill()
   const { species } = useLens(siteKey, win, facets)
   const sites = useMemo(() => siteRows(win), [win])
 
-  const openSite = (key: string) =>
-    open({ title: siteOf(key)?.name ?? key, eyebrow: 'Animal Population', body: <SitePanel siteKey={key} win={win} /> })
-  const openSpecies = (row: SpeciesRow) =>
-    open({ title: row.name, eyebrow: row.siteName, body: <SpeciesPanel row={row} win={win} /> })
+  /* The leaders NAME the thing — "largest species: Sable Kestrel". There is nothing left
+     to select between, so these are the one place on the page that goes straight to the
+     entity: a popup here would hold a list of one. */
+  const openSite = (key: string) => drillTo({ kind: 'site', id: key }, { module: 'animals', label: 'Population leaders' })
+  const openSpecies = (row: SpeciesRow, label = 'Population leaders') =>
+    drillTo({ kind: 'species', id: row.id }, { module: 'animals', label })
 
   /* THE FIVE ARE NOT FIVE OF A KIND, and the old 3-column grid said they were. Largest species,
      largest site and fastest growing are the card's finding; highest increase and lowest

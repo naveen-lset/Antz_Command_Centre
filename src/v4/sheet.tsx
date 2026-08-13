@@ -1,8 +1,17 @@
 /**
  * The sheet — one component, two geometries, any depth.
  *
- * The brief asks for a bottom sheet on the phone and a side sheet on tablet and
- * desktop, and for both to nest. This is that, with three decisions worth stating.
+ * A bottom sheet on the phone and a CENTERED POPUP on tablet and desktop, and both
+ * nest. This is that, with three decisions worth stating.
+ *
+ * IT USED TO BE A SIDE PANEL ON THE WIDE TIER. The drill-down brief replaced that with
+ * a centered modal across the product: a panel pinned to the right edge reads as a
+ * companion to the page — a place the page pushed something to — while a drill-down is
+ * a focused answer to "what exactly did I just click". Centring it puts the answer
+ * where the eye already is instead of at the edge of the screen, and it is the geometry
+ * the reader already knows from every other confirm-and-choose surface. The change is
+ * here rather than at the call sites, so all ten modules that open sheets moved at
+ * once and none of them needed editing.
  *
  * ONE SHEET, NOT A STACK OF THEM. Going four levels deep — alert → animal, or
  * Overall → Site → Species → Animal — does not slide four panels over each other.
@@ -241,9 +250,13 @@ function SheetHost({
   onBack: () => void
   onClose: () => void
 }) {
-  /* The same threshold the shell uses, so the sheet becomes a side panel exactly
+  /* The same threshold the shell uses, so the sheet becomes a centered popup exactly
      when the sidebar appears — one tier boundary in the product, not two. */
   const side = useMediaQuery('(min-width: 768px)')
+  /* The second boundary is the popup's own: a tablet gives it most of the width because
+     it has little to spare, a desktop caps it so the popup annotates the page rather
+     than replacing it. Below 1024 and at or above 768 is the tablet case. */
+  const desktop = useMediaQuery('(min-width: 1024px)')
   const top = stack[stack.length - 1]
   const deep = stack.length > 1
 
@@ -410,6 +423,13 @@ function SheetHost({
      waiting to get back to the page. Both curves are the house's. */
   const travel = `transform ${away ? 'var(--dur-emphasis-out) var(--ease-in)' : 'var(--dur-emphasis) var(--ease-out)'}`
   const veilFade = `opacity ${away ? 'var(--dur-emphasis-out)' : 'var(--dur-emphasis)'} var(--ease-out)`
+  /* The centered popup is quicker than the phone sheet in both directions, and the same
+     in both. A sheet travels the height of the screen and needs the time; a popup moves
+     4% of its own size, and a 320ms fade over that distance reads as hesitation rather
+     than as grace. `--dur-standard` is 220ms — the middle of the range the drill-down
+     brief asks for — and it is the house's existing token rather than a fourth duration
+     invented for one component. */
+  const popTravel = `transform var(--dur-standard) ${away ? 'var(--ease-in)' : 'var(--ease-out)'}, opacity var(--dur-standard) ${away ? 'var(--ease-in)' : 'var(--ease-out)'}`
 
   const applyY = (y: number) => {
     const box = panel.current
@@ -423,6 +443,13 @@ function SheetHost({
   }
 
   const settle = () => {
+    /* PHONE ONLY, and that is load-bearing rather than an optimisation. This writes a
+       `translateY` straight onto the element to hand a dragged sheet back to React, and
+       it runs in a layout effect on EVERY render — so on the wide tier it would land
+       after React's own style and overwrite the popup's `scale()` with a translate,
+       killing the arrival animation on every open. There is no drag to reconcile on a
+       tier that has no drag. */
+    if (side) return
     const box = panel.current
     if (box) {
       box.style.transition = travel
@@ -611,7 +638,7 @@ function SheetHost({
   if (side) {
     return (
       <div
-        className="fixed inset-0 z-40 font-sans"
+        className="fixed inset-0 z-40 grid place-items-center p-4 font-sans sm:p-6"
         style={{ pointerEvents: leaving ? 'none' : undefined }}
         role="dialog"
         aria-modal="true"
@@ -627,11 +654,30 @@ function SheetHost({
         />
         <section
           ref={panel}
-          /* Width is clamped rather than a percentage: below ~380px the two-column
-             blocks inside stop fitting, and past ~520px the sheet starts competing
-             with the page it is explaining rather than annotating it. */
-          className="absolute inset-y-0 right-0 flex w-[clamp(380px,34vw,520px)] max-w-full flex-col overflow-hidden bg-white shadow-[-8px_0_40px_rgba(15,18,16,0.14)]"
-          style={{ transform: away ? 'translateX(100%)' : 'translateX(0)', transition: travel }}
+          /* HEIGHT IS A MAXIMUM, NOT A HEIGHT. The popup is as tall as what it holds and
+             stops growing at the cap, so four lines about one enclosure is a small box
+             rather than a tall one with white under it — the same judgement the phone
+             sheet's resting offset makes, expressed in the way a centered box allows.
+             The scroller inside carries `min-h-0`, which is what lets it — and not the
+             page behind — take the overflow. */
+          className="relative flex w-full flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_24px_70px_rgba(15,18,16,0.22)]"
+          style={{
+            /* Desktop is clamped: under ~640px the two-column blocks inside stop
+               fitting, and past ~760px the popup competes with the page it explains.
+               A tablet has no width to spare, so it takes most of what there is. */
+            width: desktop ? 'clamp(640px, 52vw, 760px)' : '88vw',
+            maxWidth: '100%',
+            /* A tablet gets the extra 4vh for the same reason it gets the extra width:
+               less screen to spare, and the popup is a bigger share of the task there. */
+            maxHeight: desktop ? '80vh' : '84vh',
+            /* 96 → 100 arriving, 100 → 98 leaving. Two different resting scales because
+               a thing that grows into place and then shrinks out of it reads as one
+               object moving toward you and away again; the same value both ways reads
+               as a slide. */
+            transform: `scale(${leaving ? 0.98 : entered ? 1 : 0.96})`,
+            opacity: away ? 0 : 1,
+            transition: popTravel,
+          }}
         >
           {header}
           {scrollerEl}
