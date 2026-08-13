@@ -44,7 +44,7 @@
  */
 
 import { useMemo } from 'react'
-import { Baby, CalendarDays, Egg, Feather, Heart, ListTree, MapPin } from 'lucide-react'
+import { Baby, CalendarDays, Egg, Feather, Heart, ListTree, MapPin, ScrollText } from 'lucide-react'
 import { TODAY, buckets, longDate, shortDate, type Win } from '../core/calendar'
 import { count, eventAt, type Ev } from '../core/events'
 import { METRICS, UNSOURCED } from '../core/metrics'
@@ -357,11 +357,11 @@ export function SpeciesEggsTab({
           value: fmt(rec.total),
           sub: `in the birth register · ${place}`,
         },
-        {
-          label: 'Sites recording one',
-          value: fmt(rec.sites.length),
-          sub: rec.sites.length === 1 ? 'site' : 'sites',
-        },
+        /* NO DENOMINATOR ON THIS ONE, and the reason is that the two site counts on this page are
+           not the same set. The warbler is HELD at 7 sites and RECORDED young at 8 — Foxglen
+           Biopark carries 59 births and holds none today — so "8 of 7" would be a ratio of two
+           different questions. The table below names the eight. */
+        { label: 'Sites recording one', value: fmt(rec.sites.length) },
         ...(allBirths > 0
           ? [
               {
@@ -484,8 +484,8 @@ export function SpeciesEggsTab({
       ) : (
         <Band title="Young recorded" aside={win.window} icon={Baby}>
           <p className="text-small" style={{ color: '#5c574f' }}>
-            No young of this species were recorded across {place} in {win.window}. That is what the
-            register holds for this window — not a statement that none were born.
+            No young of this species were recorded across {place} in this window. That is what the
+            register holds — not a statement that none were born.
           </p>
         </Band>
       )}
@@ -614,11 +614,11 @@ export function SpeciesEggsTab({
 
       {/* ── 6 · one panel for everything the source does not carry ────────── */}
 
-      <Band title="What is not recorded" aside="checked against the extract" icon={Feather}>
+      <Band title="What is not recorded" aside="checked against the extract" icon={ScrollText}>
         <NotePanel title="No egg record exists in this source">
           <p>
             {eggShaped
-              ? 'There is no egg, clutch, candling or incubation-run row anywhere in the extract. So a hatch count, a fertility rate, a females-laid figure and a died-developing count have no numerator and no denominator — which is why the strip at the top of this tab carries the three figures that were counted rather than four that would have to be invented. For the same reason there is no discard breakdown to draw, and the per-female table — clutches, eggs, hatch rate and a comparison against last season, under tabs for females that laid nothing, one clutch or more — has no key to be built on, because the birth register carries no mother, father, sire or dam column.'
+              ? 'There is no egg, clutch, candling or incubation-run row anywhere in the extract. So a hatch count, a fertility rate, a females-laid figure and a died-developing count have no numerator and no denominator, and no tile stands in for them at the top of this tab — a slot with nothing behind it is dropped rather than zeroed, because a figure printed as 0 reads as a measurement. For the same reason there is no discard breakdown to draw, and the per-female table — clutches, eggs, hatch rate and a comparison against last season, under tabs for females that laid nothing, one clutch or more — has no key to be built on, because the birth register carries no mother, father, sire or dam column.'
               : 'The birth register carries no mother, father, sire or dam column, so the female behind any young animal in the collection is unrecoverable, and there is no pairing outcome, no pregnancy and no fetal-loss record anywhere in the extract to set against these births.'}
           </p>
           {/* THE REASONS ARE READ FROM THE REGISTRY, NOT WRITTEN HERE. `UNSOURCED` is the same
