@@ -92,6 +92,49 @@ TABLES = {
 print("reading dump …", file=sys.stderr)
 COLS = dump.columns(DUMP)
 
+# ── the species page's reference biology ─────────────────────────────────────
+#
+# One row per species NAME, not per site × name pair. The rest of this build is keyed by the
+# pair because a metric is always asked under a scope; this is not a metric. Sexual
+# dimorphism does not change because the animal is at a different site, and holding one copy
+# per pair would be 5,717 copies of 2,352 facts and an invitation for two of them to disagree.
+#
+# EVERY COLUMN HERE IS READ, NOT DERIVED. Where the dump has nothing the field is absent and
+# the page renders no row for it — `lifespan_years` is filled for 55% of species, `gestation`
+# for 17%, `incubation` for 41%, and that is the honest shape of the source: a bird has an
+# incubation period and a mammal has a gestation, so a species carrying neither is a gap in
+# the extract rather than a zero.
+#
+# THE SCORES ARE 1–5, NOT 0–10. Measured across all 2,352 rows: intelligence, activity,
+# social, space, stress, size, need, conservation priority and visitor appeal are all 1–5.
+# `budget_score` is the exception at 0–20, with 393 species above 10. A page that draws these
+# on a common 0–10 track prints "Budget 11/10" and halves every welfare bar — so the scale
+# travels with the value in `SCORE_SCALE` below rather than being assumed by the renderer.
+PROFILE_COLS = [
+    "common_name", "scientific_name", "taxonomic_class", "taxonomic_order", "taxonomic_family",
+    "taxonomic_genus", "iucn_status", "iucn_trend", "cites_appendix", "native_countries",
+    "avg_weight_g", "sexual_dimorphism", "sex_id_method", "habitat_zone", "habitat_type",
+    "activity_pattern", "social_structure", "migration_pattern", "diet_category",
+    "communication_type", "reproduction_type", "mating_system", "parental_care", "danger_level",
+    "can_be_handled", "venomous_poisonous", "enclosure_type_required", "substrate_type",
+    "uv_light_required", "water_feature_required", "recommended_id_method", "lifespan_years",
+    "maturity_age_years", "gestation_days", "incubation_days", "clutch_litter_size",
+    "independence_days", "birth_egg_weight_g", "weaning_age_days", "litters_per_year",
+    "daily_kcal_estimate", "protein_pct_range", "fat_pct_range", "fiber_pct_range", "ca_p_ratio",
+    "feeding_frequency", "foraging_mode", "intelligence_score", "activity_needs_score",
+    "social_needs_score", "space_needs_score", "stress_risk_score", "size_score", "need_score",
+    "conservation_priority", "visitor_appeal", "budget_score", "breeding_category",
+    "breeding_feasibility", "species_description", "fun_fact", "iconic_trait", "group_name",
+    "baby_name", "sound_description", "visitor_tip", "cultural_significance", "uniqueness",
+]
+
+# Which of those are numeric scores, and the top of each one's OWN scale.
+SCORE_SCALE = {
+    "intelligence_score": 5, "activity_needs_score": 5, "social_needs_score": 5,
+    "space_needs_score": 5, "stress_risk_score": 5, "size_score": 5, "need_score": 5,
+    "conservation_priority": 5, "visitor_appeal": 5, "budget_score": 20,
+}
+
 
 def getter(table, *names):
     """Index accessors for named columns, resolved once per table."""
@@ -111,6 +154,10 @@ G = {
                       "iucn_status", "cites_appendix", "breeding_category", "conservation_priority",
                       "incubation_days", "clutch_litter_size", "gestation_days", "lifespan_years",
                       "diet_category", "danger_level", "is_endemic"),
+    # The species page's reference biology, read straight across. Kept as its own getter
+    # rather than widened above because the tuple above is positionally unpacked in four
+    # places and adding to it would silently reindex all of them.
+    "profile": getter("species", *PROFILE_COLS),
     "users": getter("users", "antz_user_id", "first_name", "last_name", "role",
                     "account_status", "site_access", "last_activity_date",
                     "observations_created", "medical_records_created", "assessments_recorded"),
@@ -146,6 +193,11 @@ counts = Counter()
 for table, row in dump.rows(DUMP, TABLES):
     counts[table] += 1
     raw[table].append(G[table](row))
+    # `raw` is keyed by TABLE and applies one getter per table, so a second view of a table
+    # has to be taken here rather than by naming a getter after it. The profile is the only
+    # one, and it reads the same `species` row through a much wider set of columns.
+    if table == "species":
+        raw["profile"].append(G["profile"](row))
 print("  rows read:", sum(counts.values()), file=sys.stderr)
 
 # ── sites ────────────────────────────────────────────────────────────────────
@@ -249,6 +301,36 @@ for (site, name) in sorted(pair_class, key=lambda k: (-pair_count[k], k[1], k[0]
     })
 
 CLASSES = [c for c, _ in Counter(s["cls"] for s in SPECIES).most_common()]
+
+# ── the profiles, one per species name that the collection actually holds ────
+#
+# Filtered to names that appear in `SPECIES`, because a profile for a species nobody holds is
+# 2,352 rows of payload for a page that can never be reached. Empty fields are DROPPED rather
+# than emitted as null: the page renders what it is given, so an absent key and a present
+# `null` would otherwise have to mean the same thing in two places.
+HELD = {s["name"] for s in SPECIES}
+PROFILES = {}
+_p_ix = {c: i for i, c in enumerate(PROFILE_COLS)}
+for row in raw["profile"]:
+    name = row[0]
+    if not name or name not in HELD or slug(name) in PROFILES:
+        continue
+    out = {}
+    for col, val in zip(PROFILE_COLS, row):
+        if val is None or val == "" or val == "NULL":
+            continue
+        if col in SCORE_SCALE:
+            try:
+                out[col] = [int(float(val)), SCORE_SCALE[col]]   # [value, top of its scale]
+            except ValueError:
+                pass
+        else:
+            out[col] = val
+    PROFILES[slug(name)] = out
+
+_score_cov = sum(1 for p in PROFILES.values() if "intelligence_score" in p)
+print(f"  profiles {len(PROFILES)} of {len(HELD)} held names · {_score_cov} scored",
+      file=sys.stderr)
 
 print(f"  sites {len(SITES)} · species pairs {len(SPECIES)} · classes {len(CLASSES)}",
       file=sys.stderr)
@@ -738,6 +820,20 @@ dims = {
 
 with open(os.path.join(OUT, "dims.json"), "w") as fh:
     json.dump(dims, fh, separators=(",", ":"))
+
+# ── profiles, in their own file ──────────────────────────────────────────────
+#
+# NOT IN `dims.json`, and the reason is a measurement rather than tidiness: folded in, dims
+# went 2.89 MB → 8.67 MB, and dims is read at boot by every page in the product. Six extra
+# megabytes on the home screen to carry reference biology that only a species page can show
+# is the whole cost with none of the benefit.
+#
+# It can be a separate fetch precisely BECAUSE it is not a metric. `core/query.ts` is
+# synchronous so that two figures on one screen can never be from two different scopes for a
+# frame; a species' incubation period is not scoped and cannot disagree with anything, so
+# fetching it when a species page opens breaks no invariant that layer holds.
+with open(os.path.join(OUT, "profiles.json"), "w") as fh:
+    json.dump(PROFILES, fh, separators=(",", ":"))
 
 print(f"\nwrote {OUT}", file=sys.stderr)
 print(f"  dims.json    {os.path.getsize(os.path.join(OUT,'dims.json'))/1e6:.2f} MB", file=sys.stderr)

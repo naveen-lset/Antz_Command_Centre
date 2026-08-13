@@ -23,11 +23,12 @@
  * `pageWhere` — a ward is not a dimension the daily series is keyed by.
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   ArrowLeftRight,
   Baby,
+  BookOpen,
   Boxes,
   Building2,
   ChevronRight,
@@ -54,6 +55,8 @@ import { ago, longDate, shortDate } from '../core/calendar'
 import { KIND_ONE, children, listOf, resolve, type Entity, type EntityKind, type Ref } from '../core/entities'
 import { countOf, eventsForAnimal, page as eventPage, pageWhere, type Dimension, type Ev } from '../core/events'
 import { METRICS } from '../core/metrics'
+import { loadProfiles, profileOf, profilesNow } from '../core/profiles'
+import { SpeciesProfileTab } from './speciesProfile'
 import { animalById, animalsOfSpecies, sexSplit, stockOfSpecies, type Animal } from '../core/animals'
 import { byDimension, delta as deltaOf, figure as figureOf, population } from '../core/query'
 import { entityHref, siteKeyOf, withinScope } from '../core/scope'
@@ -858,6 +861,7 @@ function EntityTabs({
  */
 const SPECIES_TABS = [
   { key: 'overview', label: 'Overview', icon: Layers },
+  { key: 'profile', label: 'Profile', icon: BookOpen },
   { key: 'life', label: 'Circle of Life', icon: Sparkles },
   { key: 'animals', label: 'Animals', icon: Heart },
 ] as const
@@ -867,6 +871,28 @@ function SpeciesPage({ entity }: { entity: Entity }) {
   const sp = speciesOf(entity.id)
   const [tab, setTab] = useState<string>('overview')
   const total = stockOfSpecies(entity.id, scope.win)
+
+  /**
+   * The reference biology, fetched on demand.
+   *
+   * NOT AT BOOT, and not through `core/query.ts`. It is 5.3 MB that only this tab can show,
+   * and it is unscoped — see the note at the top of `core/profiles.ts` for why that is what
+   * makes an await safe here when it is forbidden for every figure beside it.
+   */
+  const [profiles, setProfiles] = useState(profilesNow)
+  const [profileFailed, setProfileFailed] = useState(false)
+  useEffect(() => {
+    if (profiles) return
+    let live = true
+    loadProfiles().then(
+      (p) => live && setProfiles(p),
+      () => live && setProfileFailed(true),
+    )
+    return () => {
+      live = false
+    }
+  }, [profiles])
+  const profile = useMemo(() => profileOf(entity.id, profiles), [entity.id, profiles])
 
   const split = useMemo(() => (sp ? sexSplit([{ species: sp, count: total }]) : undefined), [sp, total])
   const life = useMemo(() => speciesLifecycle(entity.id, scope.win), [entity.id, scope.win])
@@ -946,6 +972,26 @@ function SpeciesPage({ entity }: { entity: Entity }) {
             </Section>
           </>
         )}
+
+        {/* NO WINDOW PILL AND NO SCOPE NOTE ON THIS TAB. Everything on it is a property of the
+            species rather than a reading of our collection, so it does not move when the date
+            filter or the site does — and a card that ignores the filter sitting under a header
+            that states one is the contradiction this product exists to avoid. */}
+        {tab === 'profile' &&
+          (profileFailed ? (
+            <Section icon={BookOpen} label="Profile">
+              <p className="text-small text-[#6d6860]">
+                The species reference could not be loaded. Every other tab on this page is
+                unaffected — they read the collection, not the reference.
+              </p>
+            </Section>
+          ) : profiles ? (
+            <SpeciesProfileTab p={profile} />
+          ) : (
+            <Section icon={BookOpen} label="Profile">
+              <p className="text-small text-[#6d6860]">Loading the species reference…</p>
+            </Section>
+          ))}
 
         {tab === 'life' && life && (
           <>
