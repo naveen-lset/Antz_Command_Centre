@@ -57,6 +57,7 @@ import { countOf, eventsForAnimal, page as eventPage, pageWhere, type Dimension,
 import { METRICS } from '../core/metrics'
 import { loadProfiles, profileOf, profilesNow } from '../core/profiles'
 import { SpeciesProfileTab } from './speciesProfile'
+import { speciesWide } from './speciesWide'
 import { animalById, animalsOfSpecies, sexSplit, stockOfSpecies, type Animal } from '../core/animals'
 import { byDimension, delta as deltaOf, figure as figureOf, population } from '../core/query'
 import { entityHref, siteKeyOf, withinScope } from '../core/scope'
@@ -894,7 +895,31 @@ function SpeciesPage({ entity }: { entity: Entity }) {
   }, [profiles])
   const profile = useMemo(() => profileOf(entity.id, profiles), [entity.id, profiles])
 
-  const split = useMemo(() => (sp ? sexSplit([{ species: sp, count: total }]) : undefined), [sp, total])
+  /* Every population of this name, summed. Narrowed to the site pill when one is set, so the
+     figure and the header it sits under can never state two different scopes. */
+  const wide = useMemo(() => {
+    const all = speciesWide(entity.id, scope.win)
+    if (!all || !scope.site) return all
+    const sites = all.sites.filter((s) => s.siteKey === scope.site!.key)
+    const t = sites.reduce((n, s) => n + s.count, 0)
+    const sx = sexSplit(sites.map((s) => ({ species: s.species, count: s.count })))
+    const sexed = sx.male + sx.female
+    return {
+      ...all,
+      sites,
+      total: t,
+      male: sx.male,
+      female: sx.female,
+      undetermined: sx.undetermined,
+      ratio: sx.male > 0 && sx.female > 0 ? sx.female / sx.male : undefined,
+      sexedPct: t > 0 ? (sexed / t) * 100 : 0,
+    }
+  }, [entity.id, scope.win, scope.site])
+
+  const split = useMemo(
+    () => (wide ? { male: wide.male, female: wide.female, undetermined: wide.undetermined } : undefined),
+    [wide],
+  )
   const life = useMemo(() => speciesLifecycle(entity.id, scope.win), [entity.id, scope.win])
   const standing = useMemo(() => (sp ? standingOf(sp.name) : undefined), [sp])
 
@@ -925,10 +950,20 @@ function SpeciesPage({ entity }: { entity: Entity }) {
   return (
     <>
       <ScopeConflict entity={entity} />
+      {/* THE HERO IS THE WHOLE SPECIES, NOT THE ROW THAT WAS CLICKED — unless a site filter
+          says otherwise. A page titled "Ochre Warbler" reading 537 while the collection holds
+          544 across eleven sites has answered a question nobody asked; the route stays
+          site-scoped so every existing link keeps working, and the reading goes wide. With the
+          site pill set, wide IS that site, because a header stating a filter over a figure
+          that ignores it is the contradiction this product spends its effort avoiding. */}
       <Hero
-        value={fmt(total)}
+        value={fmt(wide ? wide.total : total)}
         label={`${entity.name} held`}
-        sub={`${sp?.cls} · ${siteOf(sp?.siteKey ?? '')?.name} · ${scope.win.window}`}
+        sub={
+          wide
+            ? `${wide.cls} · ${scope.site ? wide.sites[0]?.siteName ?? scope.site.name : `${wide.sites.length} site${wide.sites.length === 1 ? '' : 's'}`} · ${scope.win.window}`
+            : `${sp?.cls} · ${siteOf(sp?.siteKey ?? '')?.name} · ${scope.win.window}`
+        }
         icon={PawPrint}
       />
 
