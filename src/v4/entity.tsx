@@ -27,7 +27,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   ArrowLeftRight,
-  Baby,
   BookOpen,
   Boxes,
   Building2,
@@ -57,12 +56,13 @@ import { countOf, eventsForAnimal, page as eventPage, pageWhere, type Dimension,
 import { METRICS } from '../core/metrics'
 import { loadProfiles, profileOf, profilesNow } from '../core/profiles'
 import { SpeciesProfileTab } from './speciesProfile'
-import { speciesWide } from './speciesWide'
+import { SpeciesAnimalsTab, SpeciesLifeTab, SpeciesOverviewTab } from './speciesOverview'
+import { speciesWideAt } from './speciesWide'
 import { SpeciesHousingTab } from './speciesHousing'
 import { SpeciesPairingTab } from './speciesPairing'
 import { SpeciesAssessmentsTab, SpeciesBreedsTab, SpeciesIdentificationTab } from './speciesRegister'
 import { SpeciesEggsTab, laysEggs } from './speciesEggs'
-import { animalById, animalsOfSpecies, holdingsByEnclosure, sexSplit, stockOfEnclosure, stockOfSpecies, type Animal } from '../core/animals'
+import { animalById, animalsOfSpecies, holdingsByEnclosure, stockOfEnclosure, stockOfSpecies, type Animal } from '../core/animals'
 import { byDimension, delta as deltaOf, figure as figureOf, population } from '../core/query'
 import { entityHref, siteKeyOf, withinScope } from '../core/scope'
 import {
@@ -91,7 +91,6 @@ import {
   Figure,
   HERO_INK,
   MUTED,
-  RED_LIST,
   Section,
   Stack,
   TONE,
@@ -99,8 +98,7 @@ import {
   fmt,
   mix,
 } from '../exec/system'
-import { FlowSplit, RankList, SplitRing } from '../exec/marks'
-import { speciesLifecycle } from './modules/population'
+import { RankList, SplitRing } from '../exec/marks'
 import { standingOf } from './modules/regulatory'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
@@ -156,40 +154,6 @@ function Hero({
 }
 
 /**
- * The published Red List badge for a status string, or nothing.
- *
- * `standingOf` returns the verbatim published label — "Least Concern (Low Risk)" — so the code is
- * matched by prefix rather than by equality. A species the list has not assessed gets NO badge,
- * because a neutral chip beside "Not Evaluated" reads as a category that was assigned.
- */
-function iucnBadge(status?: string | null) {
-  if (!status) return null
-  /* MATCHED ON THE CODE FIRST, THEN THE NAME, because two callers hand this two different strings
-     for the same fact: `standingOf` returns the bare code ("LC") while `profiles.json` carries
-     the published label ("Least Concern (Low Risk)"). Matching only the name drew no badge at all
-     on the Overview tab — the defect this was added to fix, still present. */
-  const key = status.trim().toLowerCase()
-  const hit =
-    RED_LIST.find((c) => c.code.toLowerCase() === key) ??
-    RED_LIST.find((c) => key.startsWith(c.name.toLowerCase()))
-  if (!hit) return null
-  return (
-    <span
-      className="grid size-6 place-items-center rounded-full rounded-tr-[4px] font-display text-[10px] font-bold"
-      style={{
-        backgroundColor: hit.fill,
-        color: hit.ink,
-        boxShadow: 'outline' in hit && hit.outline ? `inset 0 0 0 1.25px ${hit.outline}` : undefined,
-      }}
-      title={hit.name}
-      aria-hidden
-    >
-      {hit.code}
-    </span>
-  )
-}
-
-/**
  * THE SPECIES HEADER — identity, standing and position in one card.
  *
  * ONE CARD, NOT THREE. The hero, the standing pills and the figure strip were three stacked
@@ -227,7 +191,7 @@ function SpeciesHeader({
      header, and the name belongs in the surface that describes it. */
   name: string
   onBack?: () => void
-  wide: NonNullable<ReturnType<typeof speciesWide>>
+  wide: NonNullable<ReturnType<typeof speciesWideAt>>
   enclosures: number
   standing?: { iucn?: string | null; cites?: string | null }
   window: string
@@ -1190,30 +1154,14 @@ function SpeciesPage({ entity }: { entity: Entity }) {
   }, [profiles])
   const profile = useMemo(() => profileOf(entity.id, profiles), [entity.id, profiles])
 
-  /* Every population of this name, summed. Narrowed to the site pill when one is set, so the
-     figure and the header it sits under can never state two different scopes. */
-  const wide = useMemo(() => {
-    const all = speciesWide(entity.id, scope.win)
-    if (!all || !scope.site) return all
-    const sites = all.sites.filter((s) => s.siteKey === scope.site!.key)
-    const t = sites.reduce((n, s) => n + s.count, 0)
-    const sx = sexSplit(sites.map((s) => ({ species: s.species, count: s.count })))
-    const sexed = sx.male + sx.female
-    return {
-      ...all,
-      sites,
-      total: t,
-      male: sx.male,
-      female: sx.female,
-      undetermined: sx.undetermined,
-      ratio: sx.male > 0 && sx.female > 0 ? sx.female / sx.male : undefined,
-      sexedPct: t > 0 ? (sexed / t) * 100 : 0,
-    }
-  }, [entity.id, scope.win, scope.site])
-
-  const split = useMemo(
-    () => (wide ? { male: wide.male, female: wide.female, undetermined: wide.undetermined } : undefined),
-    [wide],
+  /* Every population of this name, summed, and narrowed to the site pill when one is set — so
+     the figure and the header it sits under can never state two different scopes.
+     THE NARROWING MOVED INTO `speciesWide.ts` and is not repeated here, because the Overview
+     tab now states the same holding: two copies of one derivation is two chances for the header
+     to read 537 over a tab reading 1,045. */
+  const wide = useMemo(
+    () => speciesWideAt(entity.id, scope.win, scope.site?.key ?? null),
+    [entity.id, scope.win, scope.site],
   )
 
   /* Enclosures holding this species, for the header strip only.
@@ -1221,6 +1169,11 @@ function SpeciesPage({ entity }: { entity: Entity }) {
      the largest name in the dump (Umber Langur, 4,010 animals across two sites) is a few
      thousand integer reads. Narrowed to the site pill so the strip cannot report the estate's
      enclosures under a header that says one site. */
+  /* The published listings, for the header pills. Kept on the page rather than inside
+     `SpeciesHeader` because the Overview tab reads the same standing for its own card, and two
+     lookups of one fact is how two parts of a page come to disagree about it. */
+  const standing = useMemo(() => (sp ? standingOf(sp.name) : undefined), [sp])
+
   const headerEnclosures = useMemo(() => {
     if (!wide) return 0
     const keys = new Set(wide.sites.map((x) => x.siteKey))
@@ -1229,33 +1182,10 @@ function SpeciesPage({ entity }: { entity: Entity }) {
       0,
     )
   }, [wide])
-  const life = useMemo(() => speciesLifecycle(entity.id, scope.win), [entity.id, scope.win])
-  const standing = useMemo(() => (sp ? standingOf(sp.name) : undefined), [sp])
-
-  const paged = usePaged<Animal>(
-    (offset, limit) => {
-      const p = animalsOfSpecies(entity.id, scope.win, offset, limit)
-      return { rows: p.rows, total: p.total }
-    },
-    20,
-    [entity.id, scope.win.to],
-  )
-
-  const events = useMemo(
-    () =>
-      sp
-        ? pageWhere('mortality', sp.siteKey, scope.win, (ev) => ev.speciesId === entity.id, 0, 8)
-        : undefined,
-    [sp, entity.id, scope.win],
-  )
-
   /* The recorded flows and the two level readings are separate statements about the same
      window, and they are allowed to disagree — the extract's events do not fully account for
      every change in the register. Stating both, and naming the gap where there is one, is the
      honest form; reconciling them silently would be the invented figure. */
-  const recorded = life ? life.additions - life.removals : 0
-  const unexplained = life ? life.net - recorded : 0
-
   return (
     <>
       <ScopeConflict entity={entity} />
@@ -1298,59 +1228,24 @@ function SpeciesPage({ entity }: { entity: Entity }) {
       />
 
       <Stack>
-        {tab === 'overview' && (
-          <>
-            {split && (
-              <Section icon={Layers} label="Sex" aside="counted from the register">
-                <SplitRing
-                  label="Animals"
-                  unit="animals"
-                  items={[
-                    { key: 'u', label: 'Undetermined', value: split.undetermined },
-                    { key: 'm', label: 'Male', value: split.male },
-                    { key: 'f', label: 'Female', value: split.female },
-                  ]}
-                />
-              </Section>
-            )}
+        {/* THE THREE TABS THAT WERE STILL INLINE HERE ARE NOW THEIR OWN FILE. They were the
+            only three never reworked, because this file carries fourteen entity kinds and
+            editing the species tabs meant editing all of them — which is exactly why they were
+            the three with no tables, no trends and no seasonal marks. `speciesOverview.tsx`
+            gives each the shape its content is: a dashboard, an analytical story, and a data
+            workspace. Every figure they draw comes from the same calls these blocks made. */}
+        {tab === 'overview' && <SpeciesOverviewTab speciesId={entity.id} name={entity.name} profile={profile} />}
+        {tab === 'life' && <SpeciesLifeTab speciesId={entity.id} name={entity.name} profile={profile} />}
+        {tab === 'animals' && <SpeciesAnimalsTab speciesId={entity.id} name={entity.name} profile={profile} />}
 
-            <Section icon={ShieldCheck} label="Standing" aside="published">
-              <Facts
-                items={[
-                  { label: 'Class', value: sp?.cls ?? '—' },
-                  { label: 'Site', value: siteOf(sp?.siteKey ?? '')?.name ?? '—' },
-                  {
-                    label: 'IUCN Red List',
-                    value: standing?.iucn ?? '—',
-                    /* THE BADGE IS THE CATEGORY. The Red List publishes LC, NT, EN and the rest
-                       as a coloured scale, and rendering the code as plain text throws away the
-                       one part of it a reader recognises without reading. */
-                    lead: iucnBadge(standing?.iucn),
-                  },
-                  {
-                    label: 'CITES',
-                    value: standing?.cites ? `Appendix ${standing.cites}` : 'Not listed',
-                  },
-                  /* The schema carries no Wildlife Protection Act column, so this says so
-                     rather than printing a zero or an unearned "Not scheduled". */
-                  {
-                    label: 'WPA schedule',
-                    value: standing?.schedule ? `Schedule ${standing.schedule}` : 'Not recorded',
-                  },
-                ]}
-              />
-            </Section>
-          </>
-        )}
-
-        {/* NO WINDOW PILL AND NO SCOPE NOTE ON THIS TAB. Everything on it is a property of the
+        {/* NO WINDOW PILL AND NO SCOPE NOTE ON PROFILE. Everything on it is a property of the
             species rather than a reading of our collection, so it does not move when the date
-            filter or the site does — and a card that ignores the filter sitting under a header
-            that states one is the contradiction this product exists to avoid. */}
+            filter or the site does — and a card that ignores the filter under a header stating
+            one is the contradiction this product exists to avoid. */}
         {tab === 'profile' &&
           (profileFailed ? (
             <Section icon={BookOpen} label="Profile">
-              <p className="text-small text-[#5c574f]">
+              <p className="text-small text-[#6d6860]">
                 The species reference could not be loaded. Every other tab on this page is
                 unaffected — they read the collection, not the reference.
               </p>
@@ -1359,108 +1254,16 @@ function SpeciesPage({ entity }: { entity: Entity }) {
             <SpeciesProfileTab p={profile} />
           ) : (
             <Section icon={BookOpen} label="Profile">
-              <p className="text-small text-[#5c574f]">Loading the species reference…</p>
+              <p className="text-small text-[#6d6860]">Loading the species reference…</p>
             </Section>
           ))}
 
         {tab === 'pairing' && <SpeciesPairingTab speciesId={entity.id} name={entity.name} />}
-
         {tab === 'housing' && <SpeciesHousingTab speciesId={entity.id} name={entity.name} />}
-
         {tab === 'eggs' && <SpeciesEggsTab speciesId={entity.id} name={entity.name} profile={profile} />}
         {tab === 'assessments' && <SpeciesAssessmentsTab profile={profile} />}
         {tab === 'identification' && <SpeciesIdentificationTab profile={profile} />}
         {tab === 'breeds' && <SpeciesBreedsTab profile={profile} />}
-
-        {tab === 'life' && life && (
-          <>
-            {/* §14's requirement, as the direction mark rather than six unrelated cards: what
-                entered, what left, and the net between them, with each flow named below. */}
-            <Section icon={Sparkles} label="Circle of Life" aside={scope.win.window}>
-              <FlowSplit
-                inward={{ label: 'Entered', value: life.additions, icon: Baby }}
-                outward={{ label: 'Left', value: life.removals, icon: ArrowLeftRight }}
-                net={recorded}
-                routes={life.stages
-                  .filter((s) => s.side !== 'stock')
-                  .map((s) => ({
-                    key: s.key,
-                    label: s.label,
-                    value: s.value,
-                    direction: s.side === 'in' ? ('in' as const) : ('out' as const),
-                  }))}
-                unit="animals"
-              />
-              {life.silent.length > 0 && (
-                <p className="mt-3 text-caption" style={{ color: FAINT }}>
-                  No {life.silent.map((s) => s.toLowerCase()).join(', ')} recorded in {scope.win.window}.
-                </p>
-              )}
-            </Section>
-
-            <Section icon={Activity} label="Population change" aside={scope.win.window}>
-              <Facts
-                items={[
-                  { label: 'Opening', value: fmt(life.opening), sub: 'the day before the window' },
-                  { label: 'Closing', value: fmt(life.closing), sub: 'as of the window’s last day' },
-                  {
-                    label: 'Change',
-                    value: `${life.net > 0 ? '+' : ''}${fmt(life.net)}`,
-                    tone: life.net === 0 ? 'neutral' : life.net > 0 ? 'good' : 'bad',
-                  },
-                  ...(unexplained !== 0
-                    ? [
-                        {
-                          label: 'Not explained by events',
-                          value: `${unexplained > 0 ? '+' : ''}${fmt(unexplained)}`,
-                          sub: 'the register moved by more than the recorded flows',
-                        },
-                      ]
-                    : []),
-                  ...(life.fetal > 0
-                    ? [
-                        {
-                          label: 'Fetal loss',
-                          value: fmt(life.fetal),
-                          sub: 'a breeding figure, not a headcount movement',
-                        },
-                      ]
-                    : []),
-                ]}
-              />
-            </Section>
-
-            <Section icon={Skull} label="Deaths" aside={scope.win.window}>
-              {events && events.total > 0 ? (
-                <ul className="flex flex-col">
-                  {events.rows.map((ev) => (
-                    <li key={ev.id} className="flex items-center gap-3 border-b border-[#f0efec] py-3 last:border-0">
-                      <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{ev.detail}</span>
-                      <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
-                        {shortDate(ev.day)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="py-2 text-caption" style={{ color: FAINT }}>
-                  No deaths recorded in {scope.win.window}.
-                </p>
-              )}
-            </Section>
-          </>
-        )}
-
-        {tab === 'animals' && (
-          <Section icon={Heart} label="Animals" aside={fmt(paged.total)}>
-            <ul className="flex flex-col">
-              {paged.rows.map((a) => (
-                <AnimalRow key={a.id} animal={a} />
-              ))}
-            </ul>
-            <MoreRows page={paged} noun="animals" />
-          </Section>
-        )}
       </Stack>
     </>
   )

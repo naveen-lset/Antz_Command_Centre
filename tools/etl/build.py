@@ -66,6 +66,82 @@ def day_index(raw):
     return (v - EPOCH).days
 
 
+def calendar_date(raw):
+    """
+    A dump date string as a REAL calendar date, unbounded by the ledger.
+
+    WHY THIS EXISTS BESIDE `day_index` AND MUST NOT BE FOLDED INTO IT. `day_index` answers "which
+    column of the daily series does this event belong in", so it correctly refuses anything
+    outside 2020-01-01 → 2026-05-20: there is no column for 1998. An AGE is not a position in
+    the series, it is a subtraction between two dates, and computing it from ledger indices
+    would silently drop every animal born before the epoch — which is exactly the set of animals
+    an age-at-death or a longevity chart exists to show. Measured on `report_deaths`: 8,117 rows
+    carry a birth date and 222 of them are pre-2020, so an index subtraction would discard the
+    oldest 2.7% of the only age evidence in the extract and understate longevity everywhere.
+    """
+    if not raw:
+        return None
+    m = _DATE.match(raw.strip())
+    if not m:
+        return None
+    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if not (1 <= mo <= 12 and 1 <= d <= 31):
+        return None
+    try:
+        return date(y, mo, d)
+    except ValueError:
+        return None
+
+
+# The bounds an age has to clear to be emitted at all, and what each one is protecting against.
+#
+# `AGE_FLOOR_YEAR` throws out the two `report_deaths` rows whose birth year is 928 and 222 — a
+# 1,097-year-old animal is a corrupt cell, not a longevity record, and clamping it to the column
+# ceiling would print "179 years" as though somebody had observed it. A negative age (one row) is
+# thrown out for the same reason: it is a data-entry inversion, and a page cannot report it as
+# zero because a zero-day age is a real and common fact here — 6,460 deaths are same-year young.
+# `AGE_CAP` is the Uint16 ceiling less the sentinel; measured maxima are 23,904 days at death and
+# 46,160 days held, so nothing legitimate is anywhere near it.
+AGE_FLOOR_YEAR = 1900
+AGE_CAP = 65534
+NO_AGE = 0xFFFF
+
+
+def age_days(born, ended):
+    """Age in days between two calendar dates, or None where the pair cannot support one."""
+    if born is None or ended is None:
+        return None
+    if born.year < AGE_FLOOR_YEAR:
+        return None
+    n = (ended - born).days
+    if n < 0 or n > AGE_CAP:
+        return None
+    return n
+
+
+# The bands every age histogram in the product uses, emitted into `dims.meta` so the register's
+# rollup in profiles.json and a runtime walk over the mortality flow's age column cannot band the
+# same evidence two different ways. FINER AT THE YOUNG END BECAUSE THE DATA IS: 6,460 of 8,114
+# usable ages at death are under one year, so even bands would draw one bar and call it a
+# distribution. The last band is open-ended and carries `null` rather than a made-up ceiling.
+AGE_BANDS = [
+    ("Under 30 days", 0, 30),
+    ("30–90 days", 30, 90),
+    ("3–12 months", 90, 365),
+    ("1–2 years", 365, 730),
+    ("2–5 years", 730, 1826),
+    ("5–10 years", 1826, 3652),
+    ("10 years and over", 3652, None),
+]
+
+
+def band_of(n):
+    for label, lo, hi in AGE_BANDS:
+        if n >= lo and (hi is None or n < hi):
+            return label
+    return None
+
+
 def slug(s):
     s = (s or "").lower().replace("’", "").replace("'", "")
     s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
@@ -182,9 +258,18 @@ G = {
                             "birth_date", "added_on_antz", "gender", "class"),
     "report_accessions": getter("report_accessions", "antz_animal_id", "common_name",
                                 "site_facility", "accession_date", "accession_type", "class"),
+    # `gender` and `birth_date` are APPENDED at 9 and 10, obeying the standing note above: the
+    # mortality tuple is unpacked positionally by the site walk, the pair walk and three flow
+    # generators, and inserting either column in the middle would reindex `manner_of_death` into
+    # `necropsy_status` on every death in the collection while still rendering plausibly.
+    # `gender` is filled on 38,680 of 38,684 rows and `birth_date` on 8,117 — the first is the
+    # sex-of-death dimension the Circle of Life tab asks for, the second is the only age signal
+    # anywhere in the extract that survives a join, since `animalRow` finds only 0.08% of dead
+    # animals in the register.
     "report_deaths": getter("report_deaths", "antz_animal_id", "common_name", "site_facility",
                             "mortality_recorded_on", "manner_of_death", "necropsy_status",
-                            "carcass_condition", "carcass_disposal_method", "class"),
+                            "carcass_condition", "carcass_disposal_method", "class",
+                            "gender", "birth_date"),
     "report_transfers": getter("report_transfers", "antz_animal_id", "common_name",
                                "site_facility", "transferred_on", "transferred_to", "class"),
     "vaccination": getter("vaccination", "animal_id", "common_name", "site", "administered_on",
@@ -390,7 +475,7 @@ def to_int(v):
         return 0
 
 
-def build(metric, source, *, unit, grain, detail_label, facets=()):
+def build(metric, source, *, unit, grain, detail_label, facets=(), numbers=()):
     """
     Collect (day, siteIx, speciesIx, detailIx, animalId) for one metric, plus any facets.
 
@@ -404,10 +489,20 @@ def build(metric, source, *, unit, grain, detail_label, facets=()):
     Each facet is `(name, label, extractor)` where the extractor is passed the source tuple's
     trailing payload. Vocabularies are built the same way `detail` is, so a facet groups and
     sums exactly like the primary dimension.
+
+    A NUMBER IS A MEASUREMENT, NOT A CLASSIFICATION, AND THAT IS WHY IT CANNOT BE A FACET. A
+    facet's column is an index into a vocabulary of strings, so age at death could only travel as
+    a facet by being banded in the ETL — and then a page could never state a median, a maximum or
+    a different set of bands without re-deriving them from a source it no longer has. So
+    `numbers` are `(name, label, unit, extractor)` and travel as their own Uint16 column, with
+    `0xFFFF` meaning the row supports no value. THE SENTINEL IS NOT A ZERO AND MUST NEVER BE
+    RENDERED AS ONE: a zero-day age is a real and frequent fact in this collection, and a chart
+    that averaged 30,570 unknowns in as zeroes would report a median age at death of nought.
     """
     vocab, vix = [], {}
     fvocab = {name: [] for name, _, _ in facets}
     fix = {name: {} for name, _, _ in facets}
+    nfill = {name: 0 for name, _, _, _ in numbers}
     rows = []
 
     for row in source:
@@ -435,12 +530,22 @@ def build(metric, source, *, unit, grain, detail_label, facets=()):
                 fvocab[fname].append(v)
             codes.append(fix[fname][v])
 
-        rows.append((SITE_IX[site], d, spx, vix[label], to_int(animal), codes))
+        values = []
+        for nname, _, _, extract in numbers:
+            v = extract(payload)
+            if v is None:
+                values.append(NO_AGE)
+            else:
+                nfill[nname] += 1
+                values.append(int(v))
+
+        rows.append((SITE_IX[site], d, spx, vix[label], to_int(animal), codes, values))
 
     rows.sort(key=lambda r: (r[0], r[1]))
     return {"metric": metric, "unit": unit, "grain": grain, "detailLabel": detail_label,
             "details": vocab, "rows": rows,
-            "facets": [(n, l, fvocab[n]) for n, l, _ in facets]}
+            "facets": [(n, l, fvocab[n]) for n, l, _ in facets],
+            "numbers": [(n, l, u, nfill[n]) for n, l, u, _ in numbers]}
 
 
 def src_report(table, ci, si, di, dei, ai=0, when_fallback=None):
@@ -453,9 +558,32 @@ FLOWS = []
 
 # Births. `birth_date` is null on 59% of rows, so the record's own creation date stands in
 # where it is missing — stated here rather than silently.
+#
+# TWO FACETS ADDED, AND `details` LEFT EXACTLY AS IT WAS. The detail vocabulary is the single
+# constant 'Natality', which is useless as a dimension but is read today by `detailsFor`,
+# `detailLabelOf` and every `tally(..., 'detail')` call in the product; replacing it with sex
+# would change what those existing calls mean. Facets are additive — a flow that carried none
+# now carries two, and nothing that reads `details` sees a different number.
+#
+# `sex` IS THE RECORDED ANSWER, INCLUDING 'Undetermined'. Measured over 66,303 source rows:
+# undetermined 37,343 · male 14,860 · female 14,044 · indeterminate 52 · null 4. So a male/female
+# split is 28,904 of 66,303 (43.6%) and a donut drawn on the two sexed slices alone would omit
+# the majority answer. Undetermined is what the keeper wrote down, not a gap in the file.
+#
+# `dating` IS THE CAVEAT MADE COUNTABLE. The date expression `r[3] or r[4]` above is unchanged,
+# so no birth moves and no total changes; the facet only records WHICH of the two dates each row
+# was filed under. It exists because the two populations have opposite month profiles — true
+# birth dates peak in April, creation dates peak in May and August — so a seasonality chart
+# pooled over both draws the data-entry calendar and calls it a breeding season. With the facet,
+# a page can narrow to the rows dated by a real birth date and print its own denominator.
 FLOWS.append(build("births",
-                   ((r[2], r[1], r[3] or r[4], "Natality", r[0]) for r in raw["report_births"]),
-                   unit="births", grain="event", detail_label="Type"))
+                   ((r[2], r[1], r[3] or r[4], "Natality", r[0], r) for r in raw["report_births"]),
+                   unit="births", grain="event", detail_label="Type",
+                   facets=[
+                       ("sex", "Sex", lambda r: title_fold(r[5])),
+                       ("dating", "Date source",
+                        lambda r: "Birth date" if day_index(r[3]) is not None else "Record created"),
+                   ]))
 
 FLOWS.append(build("accession",
                    ((r[2], r[1], r[3], r[4], r[0]) for r in raw["report_accessions"]),
@@ -472,6 +600,29 @@ def disposal(v):
         return None
     return DISPOSAL.get(v.strip().lower(), title_fold(v))
 
+# WHY THE REFUSALS ARE COUNTED RATHER THAN DESCRIBED. `dims.meta.notes.ageAtDeath` tells a page
+# how much of the mortality flow carries an age, and a note that said "three rows were refused"
+# in prose would go on saying it after the next extract. Each rejected row is tallied by the
+# reason it was rejected, and the note is written from the tally.
+age_refused = Counter()
+
+
+def death_age(r):
+    born, ended = calendar_date(r[10]), calendar_date(r[3])
+    if born is None or ended is None:
+        return None
+    n = age_days(born, ended)
+    if n is None:
+        if born.year < AGE_FLOOR_YEAR:
+            why = f"a birth year before {AGE_FLOOR_YEAR}"
+        elif (ended - born).days < 0:
+            why = "a death before its birth"
+        else:
+            why = "an age beyond the column's ceiling"
+        age_refused[why] += 1
+    return n
+
+
 FLOWS.append(build("mortality",
                    ((r[2], r[1], r[3], r[4], r[0], r) for r in raw["report_deaths"]),
                    unit="deaths", grain="event", detail_label="Manner of death",
@@ -479,6 +630,25 @@ FLOWS.append(build("mortality",
                        ("necropsy", "Necropsy", lambda r: r[5] if r[5] in ("Pending", "Completed") else None),
                        ("condition", "Carcass condition", lambda r: title_fold(r[6])),
                        ("disposal", "Disposal", lambda r: disposal(r[7])),
+                       # APPENDED AFTER THE THREE THAT EXIST, never inserted among them. Facets
+                       # are addressed by name at runtime, but their columns are written in this
+                       # order and `speciesClinical` walks them positionally by index, so a new
+                       # facet goes last. Fill measured over 38,684 rows: undetermined 25,569 ·
+                       # male 6,534 · female 6,475 · indeterminate 102 · null 4 — a sexed death
+                       # is 13,009 of 38,684 (33.6%), which the card must state beside any split.
+                       ("sex", "Sex", lambda r: title_fold(r[9])),
+                   ],
+                   numbers=[
+                       # AGE AT DEATH, IN DAYS, COMPUTED FROM THE RAW DATE STRINGS. Both dates
+                       # are on the same row, so this needs no join — which matters, because a
+                       # join is impossible: only 29 of 38,608 dead animal ids appear in
+                       # `housing`, so the register cannot supply a birth date for the dead.
+                       # Usable on 8,114 of 38,684 rows (21.0%); the remaining 30,570 carry no
+                       # birth date and get the sentinel, never a zero. This is an age-at-death
+                       # distribution and NOT a survival function: the extract has no exposure
+                       # denominator and no censoring date, and the 8,114 rows self-select on
+                       # having been given a birth date at all.
+                       ("age", "Age at death", "days", death_age),
                    ]))
 
 FLOWS.append(build("transfers",
@@ -733,6 +903,7 @@ ident_types = defaultdict(Counter)   # species slug → identifier_type → anim
 breed_of = defaultdict(Counter)      # species slug → breed_name → animals
 morph_of = defaultdict(Counter)      # species slug → morph_name → animals
 reg_ids = defaultdict(set)           # species slug → the animal ids the register holds
+age_held = defaultdict(list)         # species slug → age in days of each dated living animal
 
 register = []
 for (aid, name, cls, gender, site, enc, section, acc_date, birth, acc_type, ident, weight,
@@ -777,6 +948,18 @@ for (aid, name, cls, gender, site, enc, section, acc_date, birth, acc_type, iden
     if morph:
         t["morph"] += 1
         morph_of[sl][morph] += 1
+
+    # THE AGE OF A LIVING ANIMAL, AND WHY IT IS TAKEN HERE RATHER THAN FROM `animals.bin`. The
+    # register's `born` column is a ledger index, so `day_index` returns None for every animal
+    # born before 2020 and the column stores NO_DAY — 88,236 of 110,020 rows carry no usable
+    # birth date at all, and among the 21,769 that do, the oldest is 46,160 days (126 years, a
+    # tortoise-shaped outlier that the floor year lets through and a ledger index would erase).
+    # Observed longevity is exactly the question those animals answer, so it is computed from
+    # the raw string and rolled up per species name below rather than re-derived from a column
+    # that cannot express it.
+    held = age_days(calendar_date(birth), TODAY)
+    if held is not None:
+        age_held[sl].append(held)
 
     b = day_index(birth)
     a = day_index(acc_date)
@@ -829,6 +1012,33 @@ def _ranked(counter):
     return [[k, n] for k, n in sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))]
 
 
+def _spread(values):
+    """
+    The shape of a set of ages: how many, the middle, the tail and the extreme, plus the bands.
+
+    A MEDIAN RATHER THAN A MEAN, and the reason is in the measured distribution: 6,460 of 8,114
+    ages at death are under a year while the oldest is 65 years, so a mean is dragged upward by a
+    handful of rows and describes no animal in the collection. `p90` is carried beside it because
+    the median alone hides exactly the long tail a longevity reader came for.
+    """
+    vals = sorted(values)
+    n = len(vals)
+    bands = Counter()
+    for v in vals:
+        b = band_of(v)
+        if b:
+            bands[b] += 1
+    return {
+        # No `n` here: every caller carries the count as half of a `[value, outOf]` coverage
+        # tuple, and a bare `n` beside it is the same number twice waiting to disagree.
+        "medianDays": vals[n // 2],
+        "p90Days": vals[min(n - 1, int(n * 0.9))],
+        "maxDays": vals[-1],
+        # In AGE_BANDS order, not by size — a distribution read out of sequence is not one.
+        "bands": [[label, bands[label]] for label, _, _ in AGE_BANDS if bands[label]],
+    }
+
+
 def _profile(sl):
     """
     The profile object for a slug, CREATED IF THE REFERENCE TABLE HAS NO ROW FOR IT.
@@ -869,6 +1079,19 @@ for sl, t in ident_of.items():
     # nothing, which the brief forbids more plainly than anything else in it.
     if len(stock) > 1:
         _profile(sl)["breeds"] = stock
+
+    # OBSERVED LONGEVITY OF THE LIVING HOLDING, per species name across every site, and kept out
+    # of dims.json for the reason stated at the head of this section: dims is on every page's
+    # boot path at 2.89 MB and this is a species-page rollup.
+    #
+    # IT IS THE OTHER HALF OF A PAIR AND MUST BE LABELLED AS SUCH. `profileOf(id).lifespan_years`
+    # is the species' reference biology, filled on 1,300 of 2,447 profiles; this is what our own
+    # collection has actually held, and the two will disagree. The coverage tuple is not
+    # decoration — birth_date is recorded on only 21,769 of 110,020 register rows, so for most
+    # species this describes a minority of the animals and the page has to say so. Absent
+    # entirely where no animal of the species carries a date, rather than present and empty.
+    if age_held[sl]:
+        _profile(sl)["longevity"] = dict(_spread(age_held[sl]), dated=[len(age_held[sl]), of])
 
 # The two identification sources the extract does not reconcile, measured rather than assumed,
 # so the page can cite the gap instead of picking a winner.
@@ -1069,6 +1292,17 @@ for f in FLOWS:
             events.append(0)
         entry["facets"][fname] = {"label": flabel, "values": fvals, "offset": len(events)}
         events += struct.pack(f"<{n}H", *(r[5][fi] for r in rows))
+    # THE SENTINEL AND THE COVERAGE TRAVEL WITH THE COLUMN, not in a comment beside the reader.
+    # A measurement column is only honest if the page can tell "no value" from a value and can
+    # name its own denominator; both are properties of this build, so both are written here
+    # rather than left for a renderer to assume.
+    entry["numbers"] = {}
+    for ni, (nname, nlabel, nunit, nfill) in enumerate(f.get("numbers", [])):
+        while len(events) % 2:
+            events.append(0)
+        entry["numbers"][nname] = {"label": nlabel, "unit": nunit, "sentinel": NO_AGE,
+                                   "filled": nfill, "of": n, "offset": len(events)}
+        events += struct.pack(f"<{n}H", *(r[6][ni] for r in rows))
     # Where each site's slice starts, so a scoped read never scans another site's events.
     slices = {}
     at = 0
@@ -1128,6 +1362,36 @@ animal_layout["spans"] = spans
 with open(os.path.join(OUT, "animals.bin"), "wb") as fh:
     fh.write(animals_buf)
 
+# ── what the new dimensions cover, measured off the compiled rows ────────────
+#
+# COUNTED OVER THE COMPILED FLOW, NOT THE SOURCE TABLE, and the difference is the point. 2,220
+# birth rows and 298 death rows never reach `events.bin` — an unusable date, an unknown site —
+# so a coverage percentage quoted from the dump would not match what a page can actually walk.
+# These strings are what the Circle of Life cards cite, so they have to describe the same rows.
+def _flow_share(metric, facet, keep):
+    f = by_metric.get(metric)
+    if not f:
+        return 0, 0
+    ix = {name: i for i, (name, _, _) in enumerate(f["facets"])}
+    if facet not in ix:
+        return 0, 0
+    vals = f["facets"][ix[facet]][2]
+    at = ix[facet]
+    hit = sum(1 for r in f["rows"] if vals[r[5][at]] in keep)
+    return hit, len(f["rows"])
+
+_bsex, _bsex_of = _flow_share("births", "sex", ("Male", "Female"))
+_dsex, _dsex_of = _flow_share("mortality", "sex", ("Male", "Female"))
+_bdate, _bdate_of = _flow_share("births", "dating", ("Birth date",))
+_age_spec = layout.get("mortality", {}).get("numbers", {}).get("age", {})
+_age_n, _age_of = _age_spec.get("filled", 0), _age_spec.get("of", 0)
+_held_n = sum(len(v) for v in age_held.values())
+_age_refused_note = (
+    f"{sum(age_refused.values()):,} rows carried both dates but were refused rather than clamped "
+    f"({'; '.join(f'{n:,} with {why}' for why, n in age_refused.most_common())})."
+    if age_refused else "Every row carrying both dates produced a usable age."
+)
+
 dims = {
     "meta": {
         "database": "species_mgmt_anon",
@@ -1137,9 +1401,53 @@ dims = {
         "historyDays": HISTORY_DAYS,
         "sourceRows": dict(counts),
         "discarded": dict(discarded),
+        # The band edges every age chart shares. Emitted rather than authored twice so the
+        # register's rollup in profiles.json and a runtime walk over the mortality flow's `age`
+        # column cannot band the same evidence differently and print two distributions of one
+        # fact. `[label, fromDays, toDaysExclusive]`, last band open-ended with `null`.
+        "ageBands": [[label, lo, hi] for label, lo, hi in AGE_BANDS],
         "notes": {
             "population": "housing is the living collection; earlier days reconstructed from recorded movements",
             "births": "birth_date where present, else added_on_antz (59% of birth_date is null)",
+            # THE SEX NOTES NAME THE MAJORITY ANSWER BEFORE THE SPLIT, because on both flows the
+            # commonest recorded sex is 'Undetermined' and a card that draws two slices over a
+            # third of its rows would misstate the collection rather than describe it.
+            "sexOfBirth": (
+                f"report_births.gender, as a facet on the births flow. Male or female on "
+                f"{_bsex:,} of {_bsex_of:,} compiled births ({100 * _bsex / max(1, _bsex_of):.1f}%); "
+                "the rest are recorded as undetermined or indeterminate, which is an answer the "
+                "keeper gave and not a gap in the file."
+            ),
+            "sexOfDeath": (
+                f"report_deaths.gender, as a facet on the mortality flow. Male or female on "
+                f"{_dsex:,} of {_dsex_of:,} compiled deaths ({100 * _dsex / max(1, _dsex_of):.1f}%). "
+                "Same caveat as sex at birth: undetermined is the majority recorded value."
+            ),
+            "birthDating": (
+                f"Which date each birth was filed under. A real birth_date on {_bdate:,} of "
+                f"{_bdate_of:,} compiled births ({100 * _bdate / max(1, _bdate_of):.1f}%); the rest "
+                "are dated by added_on_antz. The two have opposite month profiles, so a month-of-"
+                "year chart pooled over both draws the data-entry calendar rather than a breeding "
+                "season — narrow to 'Birth date' and state that denominator."
+            ),
+            "ageAtDeath": (
+                f"mortality_recorded_on minus report_deaths.birth_date, in days, as the `age` "
+                f"column on the mortality flow. Usable on {_age_n:,} of {_age_of:,} compiled deaths "
+                f"({100 * _age_n / max(1, _age_of):.1f}%) — the sentinel 65535 means the row carries "
+                "no birth date and must never be read as an age of zero, since a zero-day age is a "
+                f"real and frequent value here. {_age_refused_note} This is a distribution "
+                "over the deaths that happen to carry a birth date, NOT a survival function: the "
+                "extract has no exposure denominator and no censoring date, and only 29 of 38,608 "
+                "dead animal ids appear in housing, so the living cannot contribute exposure."
+            ),
+            "longevity": (
+                f"Two different figures, labelled apart. species.lifespan_years in profiles.json is "
+                f"reference biology for the species; profiles[slug].longevity is what this "
+                f"collection has held, computed from housing.birth_date on {_held_n:,} of "
+                f"{len(register):,} register rows and aged to {TODAY.isoformat()}. It is taken from "
+                "the raw date string rather than animals.bin's `born` column, which stores NO_DAY "
+                "for anything born before the 2020 epoch — exactly the oldest animals."
+            ),
             "coverage": "distinct animals dosed / animals housed — no protocol table exists to define an eligible herd",
             "health": "animals with a live prescription — the only under-care proxy in the schema",
             # THE PAGE MUST BE ABLE TO CITE THIS GAP RATHER THAN ASSERT ONE NUMBER. Two columns
@@ -1206,6 +1514,12 @@ print("\n  metrics:", file=sys.stderr)
 for f in FLOWS:
     print(f"    {f['metric']:14} {len(f['rows']):>8,} events   {len(f['details']):>4} × {f['detailLabel']}",
           file=sys.stderr)
+    for name, label, vals in f["facets"]:
+        print(f"      · facet  {name:9} {len(vals):>3} × {label}", file=sys.stderr)
+    for name, label, unit, fill in f["numbers"]:
+        pct = 100 * fill / max(1, len(f["rows"]))
+        print(f"      · number {name:9} {fill:>7,} of {len(f['rows']):,} ({pct:.1f}%) — {label} in {unit}",
+              file=sys.stderr)
 for k, v in RATES.items():
     tot = sum(x["now"] for x in v["levels"])
     of = sum(x["of"] for x in v["levels"])

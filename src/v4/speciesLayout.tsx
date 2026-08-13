@@ -30,18 +30,33 @@ import { FAINT, HAIR, INK, TRACK, VALUE, fmt, useAccent } from '../exec/system'
 /* ── 1 · the band, which is not a card ───────────────────────────────────── */
 
 /**
- * A full-width section of the page.
+ * A full-width section of the page — a white card, like every other section in the product.
  *
- * Level 2 in the container strategy: separation by TYPOGRAPHY AND A HAIRLINE, not by a box.
- * `surface` opts into the white bordered box for the rare block that genuinely needs lifting
- * off the page — a callout, or a group whose edges the reader has to see to parse it.
+ * IT USED TO DEFAULT TO NO CONTAINER, and the reasoning was sound in isolation: separation by
+ * typography and a hairline rather than by a box, with `surface` as the opt-in for a block that
+ * genuinely needed lifting off the page. Two things were wrong with it in practice.
+ *
+ * NOBODY EVER OPTED IN. Twenty-five call sites across the species tabs, not one of them passing
+ * `surface` — so the escape hatch was the whole API and the default was the exception nobody
+ * wanted. A prop that is never used is not a choice being made, it is a choice that was never
+ * offered where it mattered.
+ *
+ * AND THE PAGE UNDERNEATH IS NOT BLANK. `Shell` paints `<Landscape variant="page" />` behind
+ * every non-home route. A card sits opaquely over it; a bare band does not — so the Profile and
+ * Register tabs were setting husbandry data directly on top of foliage, with trees and bird
+ * tracks reading through the values. A flat treatment needs a flat ground, and this product does
+ * not have one. The other seven species tabs use `Section` and have always drawn cards, so the
+ * two that used `Band` were the odd ones out rather than a deliberate second rhythm.
+ *
+ * `flat` KEEPS THE OLD BEHAVIOUR AVAILABLE for a block that really is better as a hairline —
+ * the doctrine survives as an option instead of as a default nobody chose.
  */
 export function Band({
   title,
   aside,
   note,
   icon: Glyph,
-  surface,
+  flat,
   first,
   children,
 }: {
@@ -49,9 +64,9 @@ export function Band({
   aside?: string
   note?: string
   icon?: LucideIcon
-  /** Ask for a white bordered surface. The default is no container at all. */
-  surface?: boolean
-  /** Suppresses the top rule — for the first band under a header that already ends in one. */
+  /** Drop the card and separate by a hairline instead. The default is a white surface. */
+  flat?: boolean
+  /** `flat` only — suppresses the top rule under a header that already ends in one. */
   first?: boolean
   children: ReactNode
 }) {
@@ -83,15 +98,15 @@ export function Band({
     </>
   )
 
-  if (surface) {
+  if (flat) {
     return (
-      <section className="rounded-[var(--radius-card)] border bg-white p-[var(--pad-card)]" style={{ borderColor: HAIR }}>
+      <section className={first ? '' : 'border-t pt-6'} style={first ? undefined : { borderColor: HAIR }}>
         {body}
       </section>
     )
   }
   return (
-    <section className={first ? '' : 'border-t pt-6'} style={first ? undefined : { borderColor: HAIR }}>
+    <section className="rounded-[var(--radius-card)] border bg-white p-[var(--pad-card)]" style={{ borderColor: HAIR }}>
       {body}
     </section>
   )

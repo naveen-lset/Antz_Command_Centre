@@ -44,7 +44,7 @@ export function SpeciesIdentificationTab({ profile }: { profile?: SpeciesProfile
   if (!id) {
     return (
       <TabBody>
-        <Band title="Identification" icon={Fingerprint} first>
+        <Band title="Identification" icon={Fingerprint}>
           <p className="text-small" style={{ color: '#5c574f' }}>
             No identification is recorded against this species in the register.
           </p>
@@ -62,7 +62,7 @@ export function SpeciesIdentificationTab({ profile }: { profile?: SpeciesProfile
 
   return (
     <TabBody>
-      <Band title="Coverage" aside={`${fmt(id.of)} animals`} icon={Fingerprint} first>
+      <Band title="Coverage" aside={`${fmt(id.of)} animals`} icon={Fingerprint}>
         <CoverageMeter
           total={id.of}
           segments={[
@@ -120,7 +120,7 @@ export function SpeciesBreedsTab({ profile }: { profile?: SpeciesProfile }) {
   if (!b || (!b.withBreed && !b.withMorph)) {
     return (
       <TabBody>
-        <Band title="Breeds &amp; morphs" icon={Sparkles} first>
+        <Band title="Breeds &amp; morphs" icon={Sparkles}>
           <p className="text-small" style={{ color: '#5c574f' }}>
             No breed or morph is recorded for this species. The register carries one for 225 of
             its 2,411 held species — it is the exception rather than the rule.
@@ -132,7 +132,7 @@ export function SpeciesBreedsTab({ profile }: { profile?: SpeciesProfile }) {
 
   return (
     <TabBody>
-      <Band title="Recorded" aside={`${fmt(b.of)} animals`} icon={Sparkles} first>
+      <Band title="Recorded" aside={`${fmt(b.of)} animals`} icon={Sparkles}>
         <MetricStrip
           items={[
             ...(b.withBreed ? [{ label: 'Carries a breed', value: fmt(b.withBreed[0]), sub: `of ${fmt(b.withBreed[1])}` }] : []),
@@ -192,7 +192,7 @@ export function SpeciesAssessmentsTab({ profile }: { profile?: SpeciesProfile })
   if (!a || !a.n) {
     return (
       <TabBody>
-        <Band title="Assessments" icon={Ruler} first>
+        <Band title="Assessments" icon={Ruler}>
           <p className="text-small" style={{ color: '#5c574f' }}>
             No assessment has been recorded against this species.
           </p>
@@ -207,7 +207,7 @@ export function SpeciesAssessmentsTab({ profile }: { profile?: SpeciesProfile })
 
   return (
     <TabBody>
-      <Band title="Recorded" aside={`${fmt(a.n)} assessment${a.n === 1 ? '' : 's'}`} icon={Ruler} first>
+      <Band title="Recorded" aside={`${fmt(a.n)} assessment${a.n === 1 ? '' : 's'}`} icon={Ruler}>
         <MetricStrip
           items={[
             { label: 'Assessments', value: fmt(a.n) },

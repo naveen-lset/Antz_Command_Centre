@@ -178,9 +178,40 @@ export interface Assessments {
   readings?: Reading[]
 }
 
+/**
+ * HOW LONG THIS COLLECTION'S LIVING ANIMALS OF THIS SPECIES HAVE ACTUALLY BEEN HELD.
+ *
+ * NOT `lifespan_years`, AND THE PAGE MUST NAME THEM APART. `lifespan_years` below is the
+ * reference table's figure for the species' biology; this is an observation of our own register
+ * as at `meta.today`, and the two will disagree — a species that can live 22 years is not a
+ * species we have held one for 22 years. Showing them in one row labelled "lifespan" would let a
+ * reader take our holding history for the animal's biology.
+ *
+ * WHY IT IS HERE RATHER THAN A COLUMN ON `animals.bin`. `born` is a ledger index, so every
+ * animal born before the 2020 epoch stores `NO_DAY` — which is exactly the set of old animals a
+ * longevity figure is about. The ages are taken from the raw `housing.birth_date` string in the
+ * ETL and rolled up per species name across every site, the way the whole of this file is keyed.
+ *
+ * `dated` IS THE HEADLINE'S DENOMINATOR, NOT A FOOTNOTE. birth_date is filled on 21,769 of
+ * 110,005 register rows, so for most species this describes a minority of the animals held and
+ * a maximum quoted without it would read as "the oldest we hold" when it is only "the oldest of
+ * the few we dated". Absent entirely where no animal of the species carries a usable date.
+ */
+export interface Longevity {
+  /** Animals of this species with a usable birth date, against all of them held. */
+  dated: Of
+  /** A median rather than a mean: the distribution is heavily young-weighted and a mean
+   *  describes no animal in it. Days, as at `meta.today`. */
+  medianDays: number
+  p90Days: number
+  maxDays: number
+  /** Counts against `meta.ageBands`, in band order, bands with nobody in them omitted. */
+  bands: Tally
+}
+
 export interface SpeciesProfile {
   /**
-   * WHAT THE COLLECTION HOLDS, as opposed to what the species is — three blocks appended to the
+   * WHAT THE COLLECTION HOLDS, as opposed to what the species is — four blocks appended to the
    * reference biology rather than filed separately, because they are asked on the same page,
    * keyed the same way, and fetched by the same request.
    *
@@ -194,6 +225,7 @@ export interface SpeciesProfile {
   identification?: Identification
   breeds?: Breeds
   assessments?: Assessments
+  longevity?: Longevity
 
   common_name?: string
   scientific_name?: string

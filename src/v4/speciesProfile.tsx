@@ -140,7 +140,7 @@ export function SpeciesProfileTab({ p }: { p: SpeciesProfile | undefined }) {
   if (!p) {
     return (
       <TabBody>
-        <Band title="Profile" icon={Sparkles} first>
+        <Band title="Profile" icon={Sparkles}>
           <p className="text-small" style={{ color: '#5c574f' }}>
             No reference biology is recorded for this species in the extract.
           </p>
@@ -178,7 +178,7 @@ export function SpeciesProfileTab({ p }: { p: SpeciesProfile | undefined }) {
         Species characteristics
       </p>
 
-      <Band title="Vital signs" aside="species reference" icon={Sparkles} first>
+      <Band title="Vital signs" aside="species reference" icon={Sparkles}>
         <MetricStrip items={vitals.map((v) => ({ label: v.label, value: v.value, sub: v.sub }))} />
       </Band>
 
@@ -240,7 +240,7 @@ export function SpeciesProfileTab({ p }: { p: SpeciesProfile | undefined }) {
         Care requirements
       </p>
 
-      <Band title="Dietary requirements" icon={Wheat} first>
+      <Band title="Dietary requirements" icon={Wheat}>
         <DefinitionList
           items={[
             ...row('Diet', p.diet_category),

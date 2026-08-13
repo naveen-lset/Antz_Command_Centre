@@ -190,6 +190,55 @@ export function facetAt(kind: string, siteKey: string, day: number, i: number, f
   return r < 0 ? undefined : spec.values[spec.col[r]]
 }
 
+/* ── measured columns ────────────────────────────────────────────────────── */
+
+/**
+ * The measurements a metric carries per event, beyond its dimensions.
+ *
+ * `filled` and `of` come from the ETL and are the column's real coverage over the whole flow, so
+ * a card can say "8,114 of 38,386 deaths carry an age" without counting anything. A narrower
+ * scope — one species, one window — has its own denominator and must count its own rows.
+ */
+export const numbersOf = (
+  kind: string,
+): { name: string; label: string; unit: string; filled: number; of: number }[] => {
+  const f = flowOf(kind)
+  return f
+    ? [...f.numbers.entries()].map(([name, spec]) => ({
+        name,
+        label: spec.label,
+        unit: spec.unit,
+        filled: spec.filled,
+        of: spec.of,
+      }))
+    : []
+}
+
+/**
+ * One event's value for one measured column — `undefined` where the source could not support one.
+ *
+ * THE SENTINEL NEVER LEAVES THIS FUNCTION, and that is the whole reason it exists. The column
+ * stores 65535 for a death whose record carries no birth date, and a caller that read the array
+ * directly could average that in and report a median age of 65,535 days — or, worse, coerce it
+ * to zero and report a collection that dies at birth. `undefined` is the only reading a caller
+ * can accidentally do nothing with.
+ */
+export function numberAt(
+  kind: string,
+  siteKey: string,
+  day: number,
+  i: number,
+  name: string,
+): number | undefined {
+  const f = flowOf(kind)
+  const spec = f?.numbers.get(name)
+  if (!f || !spec) return undefined
+  const r = rowIndex(kind, siteKey, day, i)
+  if (r < 0) return undefined
+  const v = spec.col[r]
+  return v === spec.sentinel ? undefined : v
+}
+
 /**
  * Group a window's events by a facet, biggest first.
  *

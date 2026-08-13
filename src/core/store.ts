@@ -85,6 +85,11 @@ export interface FlowDescriptor {
   slices: Record<string, [number, number]>
   /** Extra classifying columns — see `EventColumns.facets`. */
   facets: Record<string, { label: string; values: string[]; offset: number }>
+  /** Measured columns — see `EventColumns.numbers`. */
+  numbers: Record<
+    string,
+    { label: string; unit: string; sentinel: number; filled: number; of: number; offset: number }
+  >
 }
 
 export interface LevelDescriptor {
@@ -119,6 +124,17 @@ export interface Meta {
   historyDays: number
   sourceRows: Record<string, number>
   discarded: Record<string, number>
+  /**
+   * The age bands every age chart in the product shares — `[label, fromDays, toDaysExclusive]`,
+   * the last one open-ended with `null`.
+   *
+   * EMITTED RATHER THAN AUTHORED TWICE. The register's rollup in `profiles.json` is banded by the
+   * ETL and a runtime walk over the mortality flow's `age` column is banded by the page; reading
+   * the edges from one place is what stops those two drawing one fact as two distributions. They
+   * are finer at the young end because the data is — 6,460 of 8,114 usable ages at death are
+   * under a year, so even bands would draw one bar and call it a shape.
+   */
+  ageBands: [label: string, fromDays: number, toDays: number | null][]
   notes: Record<string, string>
 }
 
@@ -165,6 +181,25 @@ export interface EventColumns {
    * same rows, so grouping by one sums to the metric's own total exactly as `detail` does.
    */
   facets: Map<string, { label: string; values: string[]; col: Uint16Array }>
+  /**
+   * MEASURED COLUMNS, per event — a quantity the record carries rather than a class it falls in.
+   *
+   * WHY THIS IS NOT A FACET. A facet's column indexes a vocabulary of strings, so a measurement
+   * could only travel as one by being banded in the ETL — and then no page could state a median,
+   * a maximum or a different set of bands without re-deriving them from a source it no longer
+   * has. Age at death is the first: `mortality_recorded_on` minus `report_deaths.birth_date`, in
+   * days, on the mortality flow.
+   *
+   * `sentinel` IS NOT A VALUE AND MUST NEVER BE AVERAGED IN. It marks a row the source cannot
+   * support a number for — 30,272 of 38,386 deaths carry no birth date — and reading it as a
+   * zero would report a median age at death of nought, because a zero-day age is itself real and
+   * frequent here. `filled` and `of` travel beside the column so a card can print its own
+   * denominator rather than the flow's total.
+   */
+  numbers: Map<
+    string,
+    { label: string; unit: string; sentinel: number; filled: number; of: number; col: Uint16Array }
+  >
   /**
    * Per-site daily counts, built lazily.
    *
@@ -286,6 +321,19 @@ export async function loadWorld(): Promise<void> {
         Object.entries(f.facets ?? {}).map(([name, spec]) => [
           name,
           { label: spec.label, values: spec.values, col: new Uint16Array(eventsBuf, spec.offset, f.count) },
+        ]),
+      ),
+      numbers: new Map(
+        Object.entries(f.numbers ?? {}).map(([name, spec]) => [
+          name,
+          {
+            label: spec.label,
+            unit: spec.unit,
+            sentinel: spec.sentinel,
+            filled: spec.filled,
+            of: spec.of,
+            col: new Uint16Array(eventsBuf, spec.offset, f.count),
+          },
         ]),
       ),
     })

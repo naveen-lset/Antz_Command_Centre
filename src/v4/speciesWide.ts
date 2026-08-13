@@ -91,3 +91,38 @@ export function speciesWide(speciesId: string, win: Win): SpeciesWide | undefine
     sexedPct: total > 0 ? (sexed / total) * 100 : 0,
   }
 }
+
+/**
+ * The same reading, narrowed to the site pill when the reader has set one.
+ *
+ * WHY THE NARROWING LIVES HERE RATHER THAN IN EACH CALLER. The species header and the Overview
+ * tab both state this species' holding, and until this existed each re-derived the filtered
+ * total, the filtered sex split and the coverage percentage from the unfiltered reading. Two
+ * copies of one derivation is two chances for a header to read 537 over a tab reading 1,045 —
+ * exactly the contradiction the top of this file exists to prevent — so there is one copy and
+ * both callers take it.
+ *
+ * THE PARTS ARE RECOUNTED, NOT RESCALED. Dropping sites and keeping the collection's sex split
+ * would print one site's headcount beside every site's males. `sexSplit` is asked again with
+ * only the surviving populations, so the total and its parts are the same walk.
+ */
+export function speciesWideAt(speciesId: string, win: Win, siteKey: string | null): SpeciesWide | undefined {
+  const all = speciesWide(speciesId, win)
+  if (!all || !siteKey) return all
+
+  const sites = all.sites.filter((s) => s.siteKey === siteKey)
+  const total = sites.reduce((n, s) => n + s.count, 0)
+  const split = sexSplit(sites.map((s) => ({ species: s.species, count: s.count })))
+  const sexed = split.male + split.female
+
+  return {
+    ...all,
+    sites,
+    total,
+    male: split.male,
+    female: split.female,
+    undetermined: split.undetermined,
+    ratio: split.male > 0 && split.female > 0 ? split.female / split.male : undefined,
+    sexedPct: total > 0 ? (sexed / total) * 100 : 0,
+  }
+}
