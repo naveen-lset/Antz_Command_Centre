@@ -172,10 +172,20 @@ export interface Definition {
  * down. Two columns on wide screens because the values are short and a single 900px column of
  * them wastes the width the desktop was asked to use.
  */
-export function DefinitionList({ items, columns = 2 }: { items: Definition[]; columns?: 1 | 2 }) {
+export function DefinitionList({ items, columns = 'auto' }: { items: Definition[]; columns?: 1 | 2 | 'auto' }) {
   if (!items.length) return null
+  /* THREE COLUMNS ONCE THERE IS ROOM FOR THREE, and this is the fix for the complaint that the
+     page looked empty on a wide screen. The emptiness was never the page margin — at 2240 the
+     tier is the shell's 1440px cap, centred, which is deliberate. It was INSIDE each row: a
+     label/value pair in a 668px column puts "Sexual dimorphism" hard left and "Moderate" hard
+     right with four hundred pixels of nothing between them, and the eye loses the pairing.
+     Splitting into thirds at 1040px gives each pair about 440px — wide enough to read, tight
+     enough that the label and its value stay one object — and spends the width on information
+     rather than on gap. */
+  const cols =
+    columns === 1 ? '' : columns === 2 ? '@[560px]:grid-cols-2' : '@[560px]:grid-cols-2 @[1040px]:grid-cols-3'
   return (
-    <dl className={`grid gap-x-10 ${columns === 2 ? '@[560px]:grid-cols-2' : ''}`}>
+    <dl className={`grid gap-x-10 ${cols}`}>
       {items.map((d) => (
         <div
           key={d.label}
@@ -353,7 +363,11 @@ export function RankedBars({
 
   return (
     <>
-      <ul className="flex flex-col">
+      {/* TWO COLUMNS ON A WIDE COLUMN, for the same reason the definition list takes three: a
+          ranked row is a label, a figure and a bar, and stretched across 1,440px the bar becomes
+          a rule with a word at each end. Paired, each row keeps a readable bar length and the
+          list stops being a column of near-empty lines. */}
+      <ul className="grid @[1040px]:grid-cols-2 @[1040px]:gap-x-10">
         {shown.map(([label, v]) => {
           const body = (
             <>
