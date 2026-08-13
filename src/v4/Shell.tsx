@@ -100,10 +100,11 @@ export function AppShell({
             to be a corner between — which is the intent: the column is a measuring stick and
             a clip, not a panel. */}
         <div className="content-box relative isolate min-w-0 flex-1 overflow-hidden rounded-[22px]">
-          {/* The home opens on the illustration, so its environment starts under the
-              illustration's own fade rather than at the top of the column — see the two
-              `.env-*` profiles in `index.css`. Every other page starts at the top. */}
-          <Landscape variant={route === '#/' ? 'home' : 'page'} />
+          {/* THE HOME ONLY. The scenery layer used to run behind every page as well, at
+              5–10%, and it read as noise through the cards — trees and bird tracks showing
+              in the gaps between sections. Content pages now sit on the plain ground; the
+              illustration belongs to the home, where it is the opening image. */}
+          {route === '#/' && <Landscape variant="home" />}
           <div className="tier">{children}</div>
         </div>
       </div>
@@ -238,7 +239,8 @@ export function PhoneFrame({ home, children }: { home?: boolean; children: React
       {/* Same split as the shell above: on the home the ground and the environment are both
           shaped around the foot of the illustration, everywhere else they start at the top. */}
       <Ground home={home} />
-      <Landscape variant={home ? 'home' : 'page'} />
+      {/* Home only, same as the shell: content pages carry the plain ground, no scenery. */}
+      {home && <Landscape variant="home" />}
       <div className="tier pb-[max(48px,env(safe-area-inset-bottom))]">{children}</div>
     </div>
   )

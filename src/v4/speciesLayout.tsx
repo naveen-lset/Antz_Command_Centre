@@ -41,12 +41,12 @@ import { FAINT, HAIR, INK, TRACK, VALUE, fmt, useAccent } from '../exec/system'
  * wanted. A prop that is never used is not a choice being made, it is a choice that was never
  * offered where it mattered.
  *
- * AND THE PAGE UNDERNEATH IS NOT BLANK. `Shell` paints `<Landscape variant="page" />` behind
- * every non-home route. A card sits opaquely over it; a bare band does not — so the Profile and
- * Register tabs were setting husbandry data directly on top of foliage, with trees and bird
- * tracks reading through the values. A flat treatment needs a flat ground, and this product does
- * not have one. The other seven species tabs use `Section` and have always drawn cards, so the
- * two that used `Band` were the odd ones out rather than a deliberate second rhythm.
+ * AND CARDS ARE THE PRODUCT'S ONE RHYTHM. (When this default flipped, `Shell` still painted
+ * `<Landscape variant="page" />` behind every non-home route, and bare bands set husbandry data
+ * directly on top of foliage — that scenery has since been removed from content pages, but the
+ * stronger reason stands.) The other seven species tabs use `Section` and have always drawn
+ * cards, so the two that used `Band` were the odd ones out rather than a deliberate second
+ * rhythm.
  *
  * `flat` KEEPS THE OLD BEHAVIOUR AVAILABLE for a block that really is better as a hairline —
  * the doctrine survives as an option instead of as a default nobody chose.
@@ -202,11 +202,7 @@ export function DefinitionList({ items, columns = 'auto' }: { items: Definition[
   return (
     <dl className={`grid gap-x-10 ${cols}`}>
       {items.map((d) => (
-        <div
-          key={d.label}
-          className="flex items-baseline justify-between gap-4 border-b py-2.5 last:border-b-0"
-          style={{ borderColor: HAIR }}
-        >
+        <div key={d.label} className="flex items-baseline justify-between gap-4 py-2">
           <dt className="shrink-0 text-small" style={{ color: FAINT }}>
             {d.label}
           </dt>
@@ -593,5 +589,5 @@ export function TabBody({ children }: { children: ReactNode }) {
      product resolves against it. A second container root would leave two sets of breakpoints
      measuring two different boxes — the drift the species header already hit once, with an
      `@[680px]` that matched at every width because it was asking an ancestor, not the card. */
-  return <div className="content-box col-span-full flex flex-col gap-6 pb-4">{children}</div>
+  return <div className="content-box col-span-full flex flex-col gap-4 pb-4">{children}</div>
 }
