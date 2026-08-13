@@ -34,7 +34,7 @@
  */
 
 import { useMemo } from 'react'
-import { Baby, CalendarDays, Egg, Feather, ListTree, MapPin, ScrollText } from 'lucide-react'
+import { Baby, CalendarDays, Egg, Feather, Heart, ListTree, MapPin, ScrollText } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { TODAY, buckets, longDate, shortDate, type Win } from '../core/calendar'
 import { count, eventAt, type Ev } from '../core/events'
@@ -307,6 +307,9 @@ export function SpeciesEggsTab({
   const { scope } = useScope()
   const { drillTo } = useDrill()
   const shape = shapeOf(profile)
+  /* An egg exists for this species only where the source says one does. A live-bearer and a
+     species with no recorded reproduction are both "no egg here", for different reasons. */
+  const eggShaped = shape === 'egg' || shape === 'retained'
 
   /* THE SITE PILL IS HONOURED, THE SITE IN THE ID IS NOT — and those are different things. The
      id is `<siteKey>:<name-slug>` because a metric is always asked under a scope, and reading
@@ -451,8 +454,10 @@ export function SpeciesEggsTab({
         </Section>
       )}
 
+      {/* THE GLYPH IS PART OF THE CLAIM. An egg over "Gestation biology" says the animal lays,
+          and a reader takes an icon before they take a heading. */}
       <Card
-        icon={Egg}
+        icon={eggShaped ? Egg : Heart}
         label={biologyLabel}
         aside="species reference"
         rows={biology}
@@ -598,15 +603,19 @@ export function SpeciesEggsTab({
             gap it describes. Only the reader-facing names are local — `noSource.tsx` keeps its
             own `LABELS` file-private, and this pass creates one file rather than editing two. */}
         <Facts
-          items={(shape === 'live'
+          items={(eggShaped
             ? [
-                ['Fetal loss', UNSOURCED.fetal],
-                ['Breeding success', UNSOURCED.breeding],
-              ]
-            : [
                 ['Eggs set down', UNSOURCED.eggs],
                 ['Hatched', UNSOURCED.hatched],
                 ['Eggs discarded', UNSOURCED.discarded],
+                ['Breeding success', UNSOURCED.breeding],
+              ]
+            : /* NO EGG ROWS WHERE NOTHING IS LAID. The schema statement is true either way, but
+                 "Eggs set down · not recorded" against a placental mammal — or against a species
+                 whose reproduction the source never recorded — reads as a gap in OUR keeping
+                 rather than as an animal that does not lay. */
+              [
+                ['Fetal loss', UNSOURCED.fetal],
                 ['Breeding success', UNSOURCED.breeding],
               ]
           )
@@ -616,17 +625,27 @@ export function SpeciesEggsTab({
             .map(([label, why]) => ({ label, value: 'Not recorded', sub: why }))}
         />
         <p className="mt-4 text-small leading-relaxed" style={{ color: '#3d3a34' }}>
-          There is no egg, clutch, candling or incubation-run row anywhere in the source. So a
-          fertility rate, a hatch rate, a died-in-shell count, a reason an egg was discarded, a
-          per-clutch record and an egg weight-loss curve have no numerator and no denominator here
-          — and `report_births` carries no mother or father column, so the female behind any young
-          animal in the collection is unrecoverable as well.
+          {eggShaped ? (
+            <>
+              There is no egg, clutch, candling or incubation-run row anywhere in the source. So a
+              fertility rate, a hatch rate, a died-in-shell count, a reason an egg was discarded, a
+              per-clutch record and an egg weight-loss curve have no numerator and no denominator
+              here — and the birth register carries no mother or father column, so the female behind
+              any young animal in the collection is unrecoverable as well.
+            </>
+          ) : (
+            <>
+              The birth register carries no mother or father column, so the female behind any young
+              animal in the collection is unrecoverable, and there is no pairing outcome, no
+              pregnancy and no fetal-loss record anywhere in the source to set against these births.
+            </>
+          )}
         </p>
         <p className="mt-3 text-caption" style={{ color: FAINT }}>
           {/* The two halves are named once more at the end, because this is the card a sceptical
               reader arrives at, and it is where the distinction has to survive being tested. */}
-          The incubation and clutch figures above are the species’ published biology. The young are
-          our own records. Nothing on this tab multiplies one by the other.
+          The biology above is the species’ published reference. The young below it are our own
+          records. Nothing on this tab multiplies one by the other.
         </p>
       </Section>
     </>
