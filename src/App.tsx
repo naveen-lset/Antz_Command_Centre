@@ -164,7 +164,13 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
         const from = origin && origin.forPath === `e/${route.ref.kind}/${encodeURIComponent(route.ref.id)}` ? origin : null
         return {
           title: entity?.name ?? route.ref.id,
-          eyebrow: KIND_ONE[route.ref.kind],
+          /* NO EYEBROW ON A SPECIES PAGE. "SPECIES" over "Ochre Warbler" classifies the page
+             rather than telling anyone anything: the breadcrumb above already ends on the
+             lineage, the snapshot beneath states the class, and the reader who opened a species
+             knows they opened one. It is the same argument the module and record pages made
+             when they dropped theirs. Every other kind keeps it, because a ward or a lab
+             department named alone genuinely is ambiguous about what it is. */
+          eyebrow: route.ref.kind === 'species' ? undefined : KIND_ONE[route.ref.kind],
           moduleTitle: from ? [titleOf(from.module), from.label].filter(Boolean).join(' › ') : undefined,
           /* One step up the lineage, which is the entity's own parent rather than wherever the
              reader happened to arrive from — so the back button is the same from a search hit,

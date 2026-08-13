@@ -177,14 +177,14 @@ function Hero({
  * though absence were an assessment.
  */
 function SpeciesHeader({
-  name,
   wide,
   enclosures,
   standing,
   window: windowLabel,
   filtered,
 }: {
-  name: string
+  /* No `name` prop. The card deliberately does not know the species' name, because the moment
+     it does somebody will print it and the page will have two titles again. */
   wide: NonNullable<ReturnType<typeof speciesWide>>
   enclosures: number
   standing?: { iucn?: string | null; cites?: string | null }
@@ -232,19 +232,16 @@ function SpeciesHeader({
             >
               <PawPrint size={22} strokeWidth={1.75} style={{ color: DEEP }} />
             </span>
+            {/* THE NAME IS NOT REPEATED HERE. The page title above already carries it at full
+                weight; printing it again inside the card gives the reader two titles of
+                different sizes for one subject and makes the card compete with the heading it
+                sits under. What this card is for is the CLASS and the position — the identity
+                is established, and this qualifies it. */}
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h2 className="truncate text-h2 font-semibold" style={{ color: HERO_INK }}>
-                  {name}
-                </h2>
-                <span
-                  className="shrink-0 rounded-full px-2.5 py-0.5 text-caption font-semibold"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.78)', color: DEEP }}
-                >
-                  {wide.cls}
-                </span>
-              </div>
-              <p className="mt-1 text-small" style={{ color: '#44544a' }}>
+              <p className="text-body font-semibold" style={{ color: HERO_INK }}>
+                {wide.cls}
+              </p>
+              <p className="mt-0.5 text-small" style={{ color: '#44544a' }}>
                 {fmt(wide.total)} held · {wide.sites.length} site{wide.sites.length === 1 ? '' : 's'} ·{' '}
                 {windowLabel}
               </p>
@@ -1142,7 +1139,6 @@ function SpeciesPage({ entity }: { entity: Entity }) {
           that ignores it is the contradiction this product exists to avoid. */}
       {wide && wide.total > 0 ? (
         <SpeciesHeader
-          name={entity.name}
           wide={wide}
           enclosures={headerEnclosures}
           standing={standing}
