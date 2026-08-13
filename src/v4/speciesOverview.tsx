@@ -18,8 +18,8 @@
  *
  * THREE SHAPES, NOT ONE. Overview is a dashboard — trend, composition, ranking, table, in that
  * order of altitude. Circle of Life is an analytical story that runs top to bottom with no
- * container anywhere in it. Animals is a data workspace: one table and nothing else. None of
- * the three renders a bordered box, which is the whole point of `Band` defaulting to no card.
+ * container anywhere in it. Animals is a data workspace: one table and nothing else. Each is a
+ * SINGLE bordered surface — see `Sheet` — rather than a stack of one card per figure.
  *
  * WHAT IS NAMED AS ABSENT RATHER THAN DRAWN. There is no survival function on this page and
  * there cannot be one: the extract carries no exposure denominator and no censoring date, and
@@ -59,7 +59,7 @@ import {
 } from '../core/animals'
 import type { SpeciesProfile } from '../core/profiles'
 import { EventTrend, FlowSplit, type Pt } from '../exec/marks'
-import { Columns, FAINT, Facts, INK, RED_LIST, Ring, TONE, fmt, mix, step, useAccent } from '../exec/system'
+import { Columns, FAINT, Facts, HAIR, INK, RED_LIST, Ring, TONE, TRACK, VALUE, fmt, mix, step, useAccent } from '../exec/system'
 import { speciesLifecycle } from './modules/population'
 import { standingOf } from './modules/regulatory'
 import {
@@ -74,7 +74,7 @@ import {
   TabBody,
   type Column,
 } from './speciesLayout'
-import { speciesWideAt, type SpeciesSite } from './speciesWide'
+import { speciesWideAt } from './speciesWide'
 import { useDrill } from './drillNav'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
@@ -130,6 +130,113 @@ const EMPTY_FLOW: SpeciesFlow = {
   numbers: [],
 }
 
+
+/** Ages counted into the extract's own shared bands, in band order, empty bands dropped. */
+function ageBandsOf(values: number[]): [string, number][] {
+  const edges = data().meta.ageBands
+  const counts = edges.map(() => 0)
+  for (const v of values) {
+    const ix = edges.findIndex(([, lo, hi]) => v >= lo && (hi === null || v < hi))
+    if (ix >= 0) counts[ix]++
+  }
+  return edges.map(([label], i) => [label, counts[i]] as [string, number]).filter(([, n]) => n > 0)
+}
+
+/* ── the Red List badge ──────────────────────────────────────────────────── */
+
+/**
+ * The published Red List badge for a status string, or nothing.
+ *
+ * MOVED HERE FROM `entity.tsx` WITH THE OVERVIEW TAB IT BELONGS TO, unchanged. `standingOf`
+ * returns the verbatim published label — "Least Concern (Low Risk)" — while `profiles.json`
+ * carries the bare code, so the code is matched first and the name second; matching only the
+ * name drew no badge at all on this tab, which is the defect the two-step lookup fixed. A
+ * species the list has not assessed gets NO badge, because a neutral chip beside "Not Evaluated"
+ * reads as a category that was assigned.
+ */
+function iucnBadge(status?: string | null) {
+  if (!status) return null
+  const key = status.trim().toLowerCase()
+  const hit =
+    RED_LIST.find((c) => c.code.toLowerCase() === key) ??
+    RED_LIST.find((c) => key.startsWith(c.name.toLowerCase()))
+  if (!hit) return null
+  return (
+    <span
+      className="grid size-6 place-items-center rounded-full rounded-tr-[4px] font-display text-[10px] font-bold"
+      style={{
+        backgroundColor: hit.fill,
+        color: hit.ink,
+        boxShadow: 'outline' in hit && hit.outline ? `inset 0 0 0 1.25px ${hit.outline}` : undefined,
+      }}
+      title={hit.name}
+      aria-hidden
+    >
+      {hit.code}
+    </span>
+  )
+}
+
+/* ── shared furniture ────────────────────────────────────────────────────── */
+
+/**
+ * ONE SURFACE PER TAB, with the sections separated inside it by their own hairline.
+ *
+ * THIS IS THE RECONCILIATION OF TWO TRUE THINGS. `Band` now defaults to a white card, and the
+ * reason it was changed is real and visible: `Shell` paints a landscape behind every route, so a
+ * section with no surface sets husbandry data on top of foliage. But a tab of eight cards is the
+ * defect this whole rework exists to remove — eight boxes stacked down a page say the reader is
+ * looking at eight unrelated findings, when Circle of Life is one argument read top to bottom.
+ *
+ * So the ground is opaque exactly once and the rhythm inside it is typographic: one border on
+ * the page, and each `Band` passed `flat` so it separates by a rule rather than by an edge.
+ * Measured: this takes the Overview tab from seven bordered containers to one and Circle of Life
+ * from ten to one, with no text landing on the landscape.
+ */
+function Sheet({ children }: { children: React.ReactNode }) {
+  return (
+    <section
+      className="rounded-[var(--radius-card)] border bg-white p-[var(--pad-card)]"
+      style={{ borderColor: HAIR }}
+    >
+      <div className="flex flex-col gap-6">{children}</div>
+    </section>
+  )
+}
+
+/** A caption under a mark — the sentence a figure needs and a card border cannot say. */
+function Caption({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-3 text-caption leading-relaxed" style={{ color: FAINT }}>
+      {children}
+    </p>
+  )
+}
+
+/** The label above one half of a paired mark. Two marks, one band, one rule above them. */
+function MarkHead({ label, aside }: { label: string; aside?: string }) {
+  return (
+    <div className="mb-2 flex items-baseline justify-between gap-3">
+      <span className="text-small font-medium" style={{ color: INK }}>
+        {label}
+      </span>
+      {aside && (
+        <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
+          {aside}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** Two marks that answer the same question of two flows, side by side once there is room. */
+function Pairs({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-x-10 gap-y-8 @[720px]:grid-cols-2">{children}</div>
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "1 site", "8 sites", or nothing at all — a flow with no rows has no site count to state. */
 /**
  * Every row of one flow belonging to one species name, walked once.
  *
@@ -281,6 +388,7 @@ function walkSpeciesFlow(
  * the sorted values is a real animal's age, which is the only figure this distribution can
  * honestly report.
  */
+
 const quantile = (sorted: number[], q: number): number =>
   sorted[Math.min(sorted.length - 1, Math.floor(q * (sorted.length - 1)))]
 
@@ -297,16 +405,6 @@ function ageWords(days: number): string {
   return `${(days / 365.25).toFixed(1)} y`
 }
 
-/** Ages counted into the extract's own shared bands, in band order, empty bands dropped. */
-function ageBandsOf(values: number[]): [string, number][] {
-  const edges = data().meta.ageBands
-  const counts = edges.map(() => 0)
-  for (const v of values) {
-    const ix = edges.findIndex(([, lo, hi]) => v >= lo && (hi === null || v < hi))
-    if (ix >= 0) counts[ix]++
-  }
-  return edges.map(([label], i) => [label, counts[i]] as [string, number]).filter(([, n]) => n > 0)
-}
 
 /* ── the Red List badge ──────────────────────────────────────────────────── */
 
@@ -320,62 +418,7 @@ function ageBandsOf(values: number[]): [string, number][] {
  * species the list has not assessed gets NO badge, because a neutral chip beside "Not Evaluated"
  * reads as a category that was assigned.
  */
-function iucnBadge(status?: string | null) {
-  if (!status) return null
-  const key = status.trim().toLowerCase()
-  const hit =
-    RED_LIST.find((c) => c.code.toLowerCase() === key) ??
-    RED_LIST.find((c) => key.startsWith(c.name.toLowerCase()))
-  if (!hit) return null
-  return (
-    <span
-      className="grid size-6 place-items-center rounded-full rounded-tr-[4px] font-display text-[10px] font-bold"
-      style={{
-        backgroundColor: hit.fill,
-        color: hit.ink,
-        boxShadow: 'outline' in hit && hit.outline ? `inset 0 0 0 1.25px ${hit.outline}` : undefined,
-      }}
-      title={hit.name}
-      aria-hidden
-    >
-      {hit.code}
-    </span>
-  )
-}
-
-/* ── shared furniture ────────────────────────────────────────────────────── */
-
-/** A caption under a mark — the sentence a figure needs and a card border cannot say. */
-function Caption({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-3 text-caption leading-relaxed" style={{ color: FAINT }}>
-      {children}
-    </p>
-  )
-}
-
-/** The label above one half of a paired mark. Two marks, one band, one rule above them. */
-function MarkHead({ label, aside }: { label: string; aside?: string }) {
-  return (
-    <div className="mb-2 flex items-baseline justify-between gap-3">
-      <span className="text-small font-medium" style={{ color: INK }}>
-        {label}
-      </span>
-      {aside && (
-        <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
-          {aside}
-        </span>
-      )}
-    </div>
-  )
-}
-
-/** Two marks that answer the same question of two flows, side by side once there is room. */
-function Pairs({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-x-10 gap-y-8 @[720px]:grid-cols-2">{children}</div>
-}
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const sitesWord = (n: number): string | undefined => (n === 0 ? undefined : n === 1 ? '1 site' : `${n} sites`)
 
 /** The index of the tallest column, so a pooled month chart names its own peak. */
 const peakIndex = (values: number[]): number =>
@@ -411,6 +454,191 @@ const READINESS: { key: string; label: string; of: Composition[] }[] = [
   { key: 'sexing', label: 'Needs sexing', of: ['All unsexed', 'Lone unsexed'] },
   { key: 'single', label: 'Single sex', of: ['All male', 'All female', 'Lone male', 'Lone female'] },
 ]
+
+
+/* ── the Overview's own compositions ─────────────────────────────────────── */
+
+/**
+ * An independent analytical container — a headline count, where it happened, a mark, a caption.
+ *
+ * BIRTHS AND DEATHS GET ONE EACH, AND THAT IS THE POINT. They were two halves of a single
+ * "Recorded flows" card, which put one border around two opposite facts and made the reader
+ * work out which caption belonged to which chart. They are separate events, separately dated,
+ * with different caveats — the births date is a fallback on 61% of rows and the deaths date is
+ * not — so they are separate containers with the same weight, side by side where there is room.
+ */
+function FlowPanel({
+  label,
+  value,
+  where,
+  tone,
+  children,
+  caption,
+}: {
+  label: string
+  value: number
+  /** Absent where nothing was recorded — `sitesWord` returns nothing for zero rather than
+   *  "0 sites", which would read as a place that recorded none. */
+  where?: string
+  tone?: 'bad'
+  children: React.ReactNode
+  caption: React.ReactNode
+}) {
+  return (
+    <section
+      className="flex flex-col rounded-[var(--radius-card)] border bg-white p-[var(--pad-card)]"
+      style={{ borderColor: HAIR }}
+    >
+      <p className="text-small font-semibold" style={{ color: INK }}>
+        {label}
+      </p>
+      {/* THE ONLY LARGE NUMBER IN THE CONTAINER. Everything under it is a breakdown of this
+          figure, so nothing else in the panel competes with it for the first read. */}
+      <p
+        className="mt-1 font-display text-[34px] leading-none font-semibold tabular-nums"
+        style={{ color: tone === 'bad' ? TONE.bad : VALUE }}
+      >
+        {fmt(value)}
+      </p>
+      {where && (
+        <p className="mt-1 text-caption" style={{ color: FAINT }}>
+          {where}
+        </p>
+      )}
+      <div className="mt-5 flex-1">{children}</div>
+      <Caption>{caption}</Caption>
+    </section>
+  )
+}
+
+/**
+ * Four figures side by side, aligned so they can be compared rather than read one at a time.
+ *
+ * NOT A 2x2 OF CARDS. These are four cuts of ONE set of enclosures and they sum to it, so a
+ * border between them would say they were four separate findings. Each block carries its own
+ * share bar against the same denominator, which is what makes "which of these dominates"
+ * answerable at a glance.
+ */
+function Compare({ items, total }: { items: { label: string; value: number; note?: string }[]; total: number }) {
+  const accent = useAccent()
+  const present = items.filter((i) => i.value > 0)
+  if (!present.length || total <= 0) return null
+  return (
+    <div className="grid gap-x-8 gap-y-6 @[560px]:grid-cols-2 @[900px]:grid-cols-4">
+      {present.map((i) => (
+        <div key={i.label} className="min-w-0">
+          <p className="truncate text-caption" style={{ color: FAINT }} title={i.label}>
+            {i.label}
+          </p>
+          <p className="mt-1 flex items-baseline gap-2">
+            <span className="font-display text-[26px] leading-none font-semibold tabular-nums" style={{ color: VALUE }}>
+              {fmt(i.value)}
+            </span>
+            <span className="text-caption tabular-nums" style={{ color: FAINT }}>
+              {Math.round((i.value / total) * 100)}%
+            </span>
+          </p>
+          <span className="mt-2.5 block h-[5px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+            <span
+              className="block h-full rounded-full"
+              style={{ width: `${(i.value / total) * 100}%`, backgroundColor: accent }}
+            />
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * A proportional ranking — name, bar, count, share — rather than a table.
+ *
+ * A TABLE ANSWERS "WHAT IS THE FIGURE FOR X"; THIS ANSWERS "HOW IS IT DISTRIBUTED". The site
+ * list is read for the shape of the distribution — one site holding 84% is the finding — and a
+ * column of right-aligned numbers makes that shape something the reader has to reconstruct. The
+ * bar is scaled to the LARGEST SITE rather than to the total, so the second site is read
+ * against the first, which is the comparison actually being made.
+ */
+function Ranking<T>({
+  rows,
+  labelOf,
+  valueOf,
+  keyOf,
+  total,
+  onOpen,
+}: {
+  rows: T[]
+  labelOf: (r: T) => string
+  valueOf: (r: T) => number
+  keyOf: (r: T) => string
+  total: number
+  onOpen?: (r: T) => void
+}) {
+  const accent = useAccent()
+  if (!rows.length) return null
+  const top = Math.max(...rows.map(valueOf), 1)
+  return (
+    <ul className="flex flex-col">
+      {rows.map((r) => {
+        const v = valueOf(r)
+        const body = (
+          <>
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate text-small" style={{ color: INK }}>
+                {labelOf(r)}
+              </span>
+              <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
+                {fmt(v)}
+                <span className="ml-2 text-caption font-normal" style={{ color: FAINT }}>
+                  {total > 0 ? `${Math.round((v / total) * 100)}%` : ''}
+                </span>
+              </span>
+            </span>
+            <span className="mt-1.5 block h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
+              <span className="block h-full rounded-full" style={{ width: `${(v / top) * 100}%`, backgroundColor: accent }} />
+            </span>
+          </>
+        )
+        return (
+          <li key={keyOf(r)} className="py-2.5">
+            {onOpen ? (
+              <button type="button" onClick={() => onOpen(r)} className="card-press -mx-2 block w-full rounded-[10px] px-2 text-left">
+                {body}
+              </button>
+            ) : (
+              body
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/**
+ * Published standing as one metadata strip rather than five rows in a card.
+ *
+ * These are five short labels a reader scans rather than reads, and stacking them as full-width
+ * label/value rows gave each one the height of a finding. Across, separated by space, they read
+ * as what they are: the animal's paperwork.
+ */
+function MetaStrip({ items }: { items: { label: string; value: string; lead?: React.ReactNode }[] }) {
+  return (
+    <div className="flex flex-wrap gap-x-10 gap-y-5">
+      {items.map((i) => (
+        <div key={i.label} className="min-w-0">
+          <p className="text-caption" style={{ color: FAINT }}>
+            {i.label}
+          </p>
+          <p className="mt-1 flex items-center gap-2 text-small font-medium" style={{ color: INK }}>
+            {i.lead}
+            <span className="truncate">{i.value}</span>
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 /* ── the Overview tab ────────────────────────────────────────────────────── */
 
@@ -487,54 +715,50 @@ export function SpeciesOverviewTab({
     .filter((d) => d.label === 'Undetermined' || d.label === 'Indeterminate' || d.label === 'Not recorded')
     .reduce((n, d) => n + d.value, 0)
 
-  const siteColumns: Column<SpeciesSite>[] = [
-    { key: 'site', head: 'Site', priority: 3, cell: (r) => r.siteName },
-    {
-      key: 'held',
-      head: 'Animals held',
-      align: 'right',
-      priority: 2,
-      cell: (r) => fmt(r.count),
-    },
-    {
-      key: 'share',
-      head: 'Share of the name',
-      align: 'right',
-      priority: 1,
-      /* Derived from the two figures printed on the same row and in the same band, so the
-         column and its total cannot state different collections. */
-      cell: (r) => (wide && wide.total > 0 ? `${Math.round((r.count / wide.total) * 100)}%` : ''),
-    },
-  ]
 
   return (
     <TabBody>
-      <Band title="Recorded flows" aside={scope.win.window} icon={Activity} first>
-        <Pairs>
-          <div>
-            <MarkHead label="Births recorded" aside={births.total ? `${fmt(births.total)} in ${births.sites.length} sites` : undefined} />
-            <EventTrend points={births.points} unit="births" empty={`No births recorded in ${scope.win.window}.`} />
-          </div>
-          <div>
-            <MarkHead label="Deaths recorded" aside={deaths.total ? `${fmt(deaths.total)} in ${deaths.sites.length} sites` : undefined} />
-            <EventTrend
-              points={deaths.points}
-              unit="deaths"
-              tone="bad"
-              empty={`No deaths recorded in ${scope.win.window}.`}
-            />
-          </div>
-        </Pairs>
-        <Caption>
-          Births are dated by the record's own birth date where it has one and by the day it was
-          added otherwise — 39,170 of 64,083 compiled births take the fallback, so this is when
-          young were <em>recorded</em> rather than when they were born. Deaths carry a real event
-          date on 38,680 of 38,684 source rows and need no such caveat.
-        </Caption>
-      </Band>
+      <Sheet>
+      {/* TWO CONTAINERS, NOT ONE CARD WITH TWO HALVES. Births and deaths are opposite facts
+          with different provenance — the births date falls back to the day the record was added
+          on 61% of rows and the deaths date does not — so one border around both put the reader
+          in charge of working out which caveat belonged to which chart. Equal weight, side by
+          side where there is room, stacked where there is not. */}
+      <div className="grid gap-[var(--gap)] @[720px]:grid-cols-2">
+        <FlowPanel
+          label="Births recorded"
+          value={births.total}
+          where={sitesWord(births.sites.length)}
+          caption={
+            <>
+              Dated by the record's own birth date where it has one and by the day it was added
+              otherwise — 39,170 of 64,083 compiled births take the fallback, so this is when young
+              were <em>recorded</em> rather than when they were born.
+            </>
+          }
+        >
+          <EventTrend headless points={births.points} unit="births" empty={`No births recorded in ${scope.win.window}.`} />
+        </FlowPanel>
+
+        <FlowPanel
+          label="Deaths recorded"
+          value={deaths.total}
+          where={sitesWord(deaths.sites.length)}
+          tone="bad"
+          caption={<>Deaths carry a real event date on 38,680 of 38,684 source rows and need no such caveat.</>}
+        >
+          <EventTrend
+            headless
+            points={deaths.points}
+            unit="deaths"
+            tone="bad"
+            empty={`No deaths recorded in ${scope.win.window}.`}
+          />
+        </FlowPanel>
+      </div>
 
       {wide && wide.total > 0 && (
-        <Band title="Sex" aside="counted from the register" icon={Layers}>
+        <Band flat title="Sex" aside="counted from the register" icon={Layers}>
           <SplitLayout
             visual={
               <Ring
@@ -554,11 +778,11 @@ export function SpeciesOverviewTab({
               total={wide.total}
             />
             <Caption>
-              Undetermined is a recorded answer in <code>housing.gender</code>, not a missing one —
-              995 of the 1,045 Ochre Warblers held carry it — so it is shown as its own share
-              rather than folded away. On a past window the split is the register's present ratio
-              apportioned to the reconstructed headcount: <code>animals.bin</code> is a snapshot
-              and carries no sex history.
+              Undetermined is an answer a keeper recorded in <code>housing.gender</code>, not a gap
+              in the file, so it is shown as its own share rather than folded away — for many
+              species it is the large majority of the holding. On a past window the split is the
+              register's present ratio apportioned to the reconstructed headcount:{' '}
+              <code>animals.bin</code> is a snapshot and carries no sex history.
             </Caption>
           </SplitLayout>
         </Band>
@@ -566,11 +790,12 @@ export function SpeciesOverviewTab({
 
       {readiness.enclosures > 0 && (
         <Band
+          flat
           title="Breeding readiness"
           aside={`${fmt(readiness.enclosures)} enclosures`}
           icon={HeartPulse}
         >
-          <RankedBars items={readiness.rows} unit="enclosures" max={4} total={readiness.enclosures} />
+          <Compare items={readiness.rows.map(([label, value]) => ({ label, value }))} total={readiness.enclosures} />
           <Caption>
             Counted per enclosure from the register as at the extract's last day, so it does not
             move with the date filter. No bucket says "can breed": that is a claim about maturity,
@@ -584,6 +809,7 @@ export function SpeciesOverviewTab({
 
       {deaths.total > 0 && (
         <Band
+          flat
           title="Causes of death"
           aside={`${fmt(deaths.total)} deaths · ${scope.win.window}`}
           icon={Skull}
@@ -608,46 +834,40 @@ export function SpeciesOverviewTab({
 
       {wide && wide.sites.length > 0 && (
         <Band
+          flat
           title="Population by site"
           aside={`${fmt(wide.total)} held`}
           icon={MapPin}
           note="Where this species is now. A site that recorded births or deaths but holds none today does not appear here — that history is in the flows above."
         >
-          <DataTable
+          <Ranking
             rows={wide.sites}
-            columns={siteColumns}
             keyOf={(r) => r.siteKey}
+            labelOf={(r) => r.siteName}
+            valueOf={(r) => r.count}
+            total={wide.total}
             onOpen={(r) => drillTo({ kind: 'site', id: r.siteKey })}
           />
         </Band>
       )}
 
-      <Band title="Standing" aside="published" icon={ShieldCheck}>
-        <Facts
+      <Band flat title="Standing" aside="published" icon={ShieldCheck}>
+        <MetaStrip
           items={[
             { label: 'Class', value: sp?.cls ?? '—' },
             { label: 'Site', value: siteOf(sp?.siteKey ?? '')?.name ?? '—' },
-            {
-              label: 'IUCN Red List',
-              value: standing?.iucn ?? '—',
-              /* THE BADGE IS THE CATEGORY. The Red List publishes LC, NT, EN and the rest as a
-                 coloured scale, and rendering the code as plain text throws away the one part of
-                 it a reader recognises without reading. */
-              lead: iucnBadge(standing?.iucn),
-            },
-            {
-              label: 'CITES',
-              value: standing?.cites ? `Appendix ${standing.cites}` : 'Not listed',
-            },
+            /* THE BADGE IS THE CATEGORY. The Red List publishes LC, NT, EN and the rest as a
+               coloured scale, and rendering the code as plain text throws away the one part of
+               it a reader recognises without reading. */
+            { label: 'IUCN Red List', value: standing?.iucn ?? '—', lead: iucnBadge(standing?.iucn) ?? undefined },
+            { label: 'CITES', value: standing?.cites ? `Appendix ${standing.cites}` : 'Not listed' },
             /* The schema carries no Wildlife Protection Act column, so this says so rather than
                printing a zero or an unearned "Not scheduled". */
-            {
-              label: 'WPA schedule',
-              value: standing?.schedule ? `Schedule ${standing.schedule}` : 'Not recorded',
-            },
+            { label: 'WPA schedule', value: standing?.schedule ? `Schedule ${standing.schedule}` : 'Not recorded' },
           ]}
         />
       </Band>
+      </Sheet>
     </TabBody>
   )
 }
@@ -689,6 +909,11 @@ export function SpeciesLifeTab({
 
   const life = useMemo(() => speciesLifecycle(speciesId, scope.win), [speciesId, scope.win])
   const wide = useMemo(() => speciesWideAt(speciesId, scope.win, siteKey), [speciesId, scope.win, siteKey])
+  /* Which site's register the bridge above actually reads. Named on screen rather than left to be
+     inferred: `speciesLifecycle` is scoped to the population in the route while everything under
+     it is cross-site, and two "Deaths" figures differing by one is a bug to a reader who has not
+     been told they are answers to two different questions. */
+  const bridgeSite = siteOf(speciesOf(speciesId)?.siteKey ?? '')?.name
 
   const births = useMemo(
     () =>
@@ -755,8 +980,9 @@ export function SpeciesLifeTab({
 
   return (
     <TabBody>
+      <Sheet>
       {life && (
-        <Band title="Circle of Life" aside={scope.win.window} icon={Sparkles} first>
+        <Band flat title="Circle of Life" aside={scope.win.window} icon={Sparkles} first>
           <FlowSplit
             inward={{ label: 'Entered', value: life.additions, icon: Baby }}
             outward={{ label: 'Left', value: life.removals, icon: ArrowLeftRight }}
@@ -776,11 +1002,20 @@ export function SpeciesLifeTab({
               No {life.silent.map((s) => s.toLowerCase()).join(', ')} recorded in {scope.win.window}.
             </p>
           )}
+          {bridgeSite && (wide?.sites.length ?? 0) > 1 && (
+            <Caption>
+              This ladder reads one site — {bridgeSite}. An opening and a closing balance belong
+              to a register and a register belongs to a site, so the bridge is the population this
+              page's route names. Every mark below it reads every site holding the name, which is
+              why a flow here and the same flow below can differ by whatever the other sites
+              recorded.
+            </Caption>
+          )}
         </Band>
       )}
 
       {life && (
-        <Band title="Population change" aside={scope.win.window} icon={Activity}>
+        <Band flat title="Population change" aside={scope.win.window} icon={Activity}>
           <Facts
             items={[
               { label: 'Opening', value: fmt(life.opening), sub: 'the day before the window' },
@@ -813,7 +1048,7 @@ export function SpeciesLifeTab({
         </Band>
       )}
 
-      <Band title="Over time" aside={scope.win.window} icon={Activity}>
+      <Band flat title="Over time" aside={scope.win.window} icon={Activity}>
         <Pairs>
           <div>
             <MarkHead label="Births" aside={births.total ? fmt(births.total) : undefined} />
@@ -832,7 +1067,7 @@ export function SpeciesLifeTab({
       </Band>
 
       {(births.dated > 0 || deaths.total > 0) && (
-        <Band title="Across the year" aside="pooled over the window's years" icon={CalendarRange}>
+        <Band flat title="Across the year" aside="pooled over the window's years" icon={CalendarRange}>
           <Pairs>
             {births.dated > 0 ? (
               <div>
@@ -841,9 +1076,16 @@ export function SpeciesLifeTab({
                   values={births.months}
                   labels={MONTHS}
                   highlight={peakIndex(births.months)}
-                  unit={`births whose record carries a real birth date — the other ${fmt(
-                    births.total - births.dated,
-                  )} are dated by the day they were added and are left out of this chart`}
+                  /* The excluded rows are named only where there are any: "the other 0 are
+                     dated by the day they were added" is a caveat about nothing, and a caveat
+                     about nothing teaches a reader to skip the ones that matter. */
+                  unit={
+                    births.total > births.dated
+                      ? `births whose record carries a real birth date — the other ${fmt(
+                          births.total - births.dated,
+                        )} are dated by the day the record was added and are left out of this chart`
+                      : 'births, by the month the record says they were born in'
+                  }
                 />
               </div>
             ) : (
@@ -871,7 +1113,7 @@ export function SpeciesLifeTab({
       )}
 
       {(births.facet.sex?.length || deaths.facet.sex?.length) && (
-        <Band title="By sex" aside={scope.win.window} icon={Layers}>
+        <Band flat title="By sex" aside={scope.win.window} icon={Layers}>
           <Pairs>
             {births.facet.sex?.length > 0 && (
               <div>
@@ -897,6 +1139,7 @@ export function SpeciesLifeTab({
 
       {ages.length > 0 && (
         <Band
+          flat
           title="Age at death"
           aside={`${fmt(ages.length)} of ${fmt(deaths.total)} deaths carry an age`}
           icon={Skull}
@@ -926,7 +1169,7 @@ export function SpeciesLifeTab({
       )}
 
       {deaths.detail.length > 0 && (
-        <Band title="Cause of death" aside={`${fmt(deaths.total)} deaths`} icon={Skull}>
+        <Band flat title="Cause of death" aside={`${fmt(deaths.total)} deaths`} icon={Skull}>
           <RankedBars
             items={deaths.detail.map((d) => [d.label, d.value] as [string, number])}
             unit="deaths"
@@ -936,34 +1179,25 @@ export function SpeciesLifeTab({
       )}
 
       {(profile?.lifespan_years || profile?.longevity) && (
-        <Band title="Longevity" aside="two different figures" icon={Heart}>
+        <Band flat title="Longevity" aside="two different figures" icon={Heart}>
           <DefinitionList
             columns={2}
             items={[
               ...(profile.lifespan_years
                 ? [
                     {
-                      label: 'Reference lifespan',
+                      label: 'Reference lifespan of the species',
                       value: `${profile.lifespan_years} years`,
-                      sub: 'the species',
                     },
                   ]
                 : []),
               ...(profile.longevity
                 ? [
+                    { label: 'Median age of the animals we hold', value: ageWords(profile.longevity.medianDays) },
+                    { label: '90th percentile age held', value: ageWords(profile.longevity.p90Days) },
+                    { label: 'Oldest animal held', value: ageWords(profile.longevity.maxDays) },
                     {
-                      label: 'Median age held',
-                      value: ageWords(profile.longevity.medianDays),
-                      sub: 'our collection',
-                    },
-                    {
-                      label: '90th percentile',
-                      value: ageWords(profile.longevity.p90Days),
-                      sub: 'our collection',
-                    },
-                    { label: 'Oldest held', value: ageWords(profile.longevity.maxDays), sub: 'our collection' },
-                    {
-                      label: 'Animals with a birth date',
+                      label: 'Held animals carrying a birth date',
                       value: `${fmt(profile.longevity.dated[0])} of ${fmt(profile.longevity.dated[1])}`,
                     },
                   ]
@@ -981,6 +1215,7 @@ export function SpeciesLifeTab({
 
       {ledger.length > 0 && (
         <Band
+          flat
           title="Recorded by site"
           aside={scope.win.window}
           icon={MapPin}
@@ -1000,6 +1235,7 @@ export function SpeciesLifeTab({
         <p>{notes.ageAtDeath}</p>
         <p className="mt-2">{notes.birthDating}</p>
       </NotePanel>
+      </Sheet>
     </TabBody>
   )
 }
@@ -1058,7 +1294,8 @@ export function SpeciesAnimalsTab({
 
   return (
     <TabBody>
-      <Band title={name} aside={`${fmt(paged.total)} held`} icon={Boxes} first>
+      <Sheet>
+      <Band flat title={name} aside={`${fmt(paged.total)} held`} icon={Boxes} first>
         <DataTable
           rows={paged.rows}
           columns={columns}
@@ -1076,6 +1313,7 @@ export function SpeciesAnimalsTab({
           an empty cell says so rather than printing a dash that looks like a measurement.
         </Caption>
       </Band>
+      </Sheet>
     </TabBody>
   )
 }

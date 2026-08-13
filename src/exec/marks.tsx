@@ -533,6 +533,7 @@ export function EventTrend({
   onPick,
   format = fmt,
   empty = 'Nothing recorded in this window.',
+  headless,
 }: {
   points: Pt[]
   unit?: string
@@ -542,6 +543,16 @@ export function EventTrend({
    * module pages pass it, and breaking them to delete one caption is the wrong trade.
    */
   span?: string
+  /**
+   * Draw the plot without its own headline figure.
+   *
+   * For a caller whose container ALREADY states the total — the species Overview prints the
+   * count as the panel's own headline, so the mark printing it again gave each panel two
+   * numbers of different sizes saying the same thing. Off by default, so the seven module pages
+   * that rely on the figure are untouched. The hover readout still works: `at` swaps the value
+   * on the panel's own line instead, because that line is the one the reader is watching.
+   */
+  headless?: boolean
   compare?: Compare
   height?: number
   tone?: Tone
@@ -606,6 +617,7 @@ export function EventTrend({
 
   return (
     <div ref={ref}>
+      {!headless && (
       <PlotHead
         value={at === null ? total : shown.value}
         format={format}
@@ -620,6 +632,7 @@ export function EventTrend({
           ) : undefined
         }
       />
+      )}
 
       {/* The strip caps and centres the columns so a one- or two-period range is a bar rather
           than a slab the width of the card. The scrub reads this element's own rect, so a

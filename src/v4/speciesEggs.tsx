@@ -470,7 +470,7 @@ export function SpeciesEggsTab({
       {/* ── 1 · the top strip, where four requested figures are simply not ─ */}
 
       {stats.length > 0 ? (
-        <Band title="Young recorded" aside={win.window} icon={Baby} first>
+        <Band title="Young recorded" aside={win.window} icon={Baby}>
           <MetricStrip items={stats} />
           {/* THE WORD MATTERS MORE THAN THE NUMBER HERE. Every one of these is the registration
               of an animal; nothing in the extract says an egg preceded it, so this is not a hatch
@@ -482,7 +482,7 @@ export function SpeciesEggsTab({
           </p>
         </Band>
       ) : (
-        <Band title="Young recorded" aside={win.window} icon={Baby} first>
+        <Band title="Young recorded" aside={win.window} icon={Baby}>
           <p className="text-small" style={{ color: '#5c574f' }}>
             No young of this species were recorded across {place} in {win.window}. That is what the
             register holds for this window — not a statement that none were born.
