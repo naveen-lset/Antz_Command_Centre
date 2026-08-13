@@ -45,7 +45,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import { Boxes, HeartHandshake, Layers, MapPin, PawPrint, ScrollText } from 'lucide-react'
+import { Boxes, HeartHandshake, Layers, MapPin, PawPrint } from 'lucide-react'
 import {
   animalAt,
   animalLabel,
@@ -449,35 +449,6 @@ export function SpeciesPairingTab({ name }: { speciesId: string; name: string })
         </Section>
       )}
 
-      {/* A CARD OF PROSE, NOT OF FIGURES, and last. Everything above is a count; this is the
-          shape of what was counted, and printing it as facts-with-values would make four
-          absences look like four more readings. */}
-      <Section icon={ScrollText} label="What this cannot tell you">
-        <div className="flex flex-col gap-3 text-small leading-relaxed text-[#3d3a34]">
-          <p>
-            <span className="font-medium text-[#1c1a16]">No pairing record exists. </span>
-            The dump holds no pairing, mating or breeding-outcome table anywhere, so a band here
-            describes a complement and never a plan — and there is no pair count on this tab for
-            the same reason.
-          </p>
-          <p>
-            <span className="font-medium text-[#1c1a16]">Not alone together. </span>
-            1,456 of 15,959 enclosures hold more than one species. “Both sexes present” describes
-            this species’ complement in that enclosure, not everything living in it.
-          </p>
-          <p>
-            <span className="font-medium text-[#1c1a16]">No age filter. </span>
-            A usable date of birth is absent on 89,579 of 110,005 register rows, and a maturity
-            age exists for 775 of 2,339 species — so nothing here is narrowed to breeding-age
-            animals, and no band claims readiness.
-          </p>
-          <p>
-            <span className="font-medium text-[#1c1a16]">A position, not a period. </span>
-            The register records who is housed where on {longDate(TODAY)} and carries no
-            enclosure-move history, so this tab does not move with the date filter above it.
-          </p>
-        </div>
-      </Section>
     </>
   )
 }

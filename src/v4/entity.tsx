@@ -90,7 +90,9 @@ import {
   Facts,
   Figure,
   HERO_INK,
+  GROUND_GRADIENT,
   MUTED,
+  RED_LIST,
   Section,
   Stack,
   TONE,
@@ -103,6 +105,7 @@ import { speciesLifecycle } from './modules/population'
 import { standingOf } from './modules/regulatory'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
+import { ScopeStrip } from './ScopeHeader'
 
 /* ── shared bits ─────────────────────────────────────────────────────────── */
 
@@ -154,6 +157,40 @@ function Hero({
 }
 
 /**
+ * The published Red List badge for a status string, or nothing.
+ *
+ * `standingOf` returns the verbatim published label — "Least Concern (Low Risk)" — so the code is
+ * matched by prefix rather than by equality. A species the list has not assessed gets NO badge,
+ * because a neutral chip beside "Not Evaluated" reads as a category that was assigned.
+ */
+function iucnBadge(status?: string | null) {
+  if (!status) return null
+  /* MATCHED ON THE CODE FIRST, THEN THE NAME, because two callers hand this two different strings
+     for the same fact: `standingOf` returns the bare code ("LC") while `profiles.json` carries
+     the published label ("Least Concern (Low Risk)"). Matching only the name drew no badge at all
+     on the Overview tab — the defect this was added to fix, still present. */
+  const key = status.trim().toLowerCase()
+  const hit =
+    RED_LIST.find((c) => c.code.toLowerCase() === key) ??
+    RED_LIST.find((c) => key.startsWith(c.name.toLowerCase()))
+  if (!hit) return null
+  return (
+    <span
+      className="grid size-6 place-items-center rounded-full rounded-tr-[4px] font-display text-[10px] font-bold"
+      style={{
+        backgroundColor: hit.fill,
+        color: hit.ink,
+        boxShadow: 'outline' in hit && hit.outline ? `inset 0 0 0 1.25px ${hit.outline}` : undefined,
+      }}
+      title={hit.name}
+      aria-hidden
+    >
+      {hit.code}
+    </span>
+  )
+}
+
+/**
  * THE SPECIES HEADER — identity, standing and position in one card.
  *
  * ONE CARD, NOT THREE. The hero, the standing pills and the figure strip were three stacked
@@ -177,20 +214,30 @@ function Hero({
  * though absence were an assessment.
  */
 function SpeciesHeader({
+  name,
+  onBack,
   wide,
   enclosures,
   standing,
   window: windowLabel,
   filtered,
 }: {
-  /* No `name` prop. The card deliberately does not know the species' name, because the moment
-     it does somebody will print it and the page will have two titles again. */
+  /* THE NAME IS BACK, AND THIS IS NOW THE ONLY PLACE IT APPEARS. It was pulled out when the
+     shell was also drawing a title, because two titles for one subject is worse than either.
+     The shell no longer draws one — `titleInBody` leaves it the trail — so this card is the
+     header, and the name belongs in the surface that describes it. */
+  name: string
+  onBack?: () => void
   wide: NonNullable<ReturnType<typeof speciesWide>>
   enclosures: number
   standing?: { iucn?: string | null; cites?: string | null }
   window: string
   filtered: boolean
 }) {
+  /* The strip reads the LIVE scope rather than taking it as a prop, so the pills it draws and the
+     figures beside them come from one source on the same render. A threaded scope would let a
+     caller hand it a stale one and put a window pill over figures cut to a different window. */
+  const { scope: liveScope } = useScope()
   const stats = [
     { icon: PawPrint, label: 'Animals', value: fmt(wide.total) },
     ...(wide.ratio !== undefined
@@ -223,6 +270,33 @@ function SpeciesHeader({
           boxShadow: '0 2px 14px rgba(15,42,30,0.07)',
         }}
       >
+        {/* THE NAME AND THE CONTROLS THAT QUALIFY IT, ON ONE LINE. The date and site pills used
+            to sit in a full-width white toolbar of their own between the title and this card —
+            measured 60px of band holding two pills at its right edge and nothing else. They
+            govern every figure below them, so they belong in the same surface as those figures,
+            and the row they vacated is gone rather than left empty. */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                aria-label="Back"
+                className="-ml-1.5 grid size-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-white/60 active:bg-white/50"
+              >
+                <ChevronRight strokeWidth={2} className="size-5 rotate-180" style={{ color: '#44544a' }} aria-hidden />
+              </button>
+            )}
+            <h1
+              className="min-w-0 truncate text-[length:var(--fs-name)] leading-[var(--lh-name)] font-semibold tracking-[-0.4px]"
+              style={{ color: HERO_INK }}
+            >
+              {name}
+            </h1>
+          </div>
+          <ScopeStrip scope={liveScope} bare />
+        </div>
+
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="flex min-w-0 items-start gap-3.5">
             <span
@@ -983,9 +1057,25 @@ function EntityTabs({
   label: string
 }) {
   return (
-    <div className="px-[var(--gutter)] pb-3">
+    /* ONE TAB BAR, NOT TEN FLOATING PILLS.
+       Every tab used to carry its own white background, so ten of them scattered across the sage
+       read as browser chrome rather than as one control belonging to the page — and the eye had
+       to find the filled one among ten equal shapes. There is now a single white track, the
+       inactive tabs are plain text inside it, and only the active tab takes a fill: one object
+       with one selected state.
+
+       STICKY, because a species page is ten sections deep and a reader who has scrolled into
+       Housing should reach Profile without scrolling back to the top. The track carries the
+       page's own ground behind it so content cannot show through while it is pinned.
+
+       IT NEVER WRAPS. `overflow-x-auto` with `shrink-0` children holds the row on one line at
+       every width and scrolls it on a phone; wrapping would reflow the page whenever a label
+       changed length. The scrollbar is hidden because a bar under a ten-item row is noise, and
+       the partly-clipped last tab is the affordance that says there is more. */
+    <div className="sticky top-0 z-20 px-[var(--gutter)] pt-1 pb-3" style={{ background: GROUND_GRADIENT }}>
       <div
-        className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hidden"
+        className="flex gap-1 overflow-x-auto rounded-full bg-white p-1 scrollbar-hidden"
+        style={{ boxShadow: 'inset 0 0 0 1px rgba(31,81,91,0.07)' }}
         role="tablist"
         aria-label={label}
       >
@@ -998,9 +1088,10 @@ function EntityTabs({
               role="tab"
               aria-selected={on}
               onClick={() => onPick(t.key)}
-              className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-caption font-medium whitespace-nowrap transition-colors ${
-                on ? 'bg-[#123a2c] text-white' : 'bg-white text-[#3d3a34]'
+              className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-[7px] text-caption font-medium whitespace-nowrap transition-colors ${
+                on ? 'text-white' : 'text-[#55524a] hover:bg-[#f4f3ef]'
               }`}
+              style={on ? { backgroundColor: '#123a2c' } : undefined}
             >
               <t.icon size={13} strokeWidth={2} style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
               {t.label}
@@ -1042,9 +1133,20 @@ const SPECIES_TABS = [
 ] as const
 
 function SpeciesPage({ entity }: { entity: Entity }) {
-  const { scope } = useScope()
+  const { scope, go } = useScope()
   const sp = speciesOf(entity.id)
   const [tab, setTab] = useState<string>('overview')
+
+  /* THE SAME STEP UP THE LINEAGE THE SHELL WOULD HAVE TAKEN — the species' own site, never
+     wherever the reader arrived from, so the chevron behaves identically from a search hit, a
+     drill-down popup and a pasted link. Computed here rather than threaded down through
+     `EntityPage` because it is one line of the entity's own parentage, and a prop crossing two
+     components to say the same thing is a prop that eventually says something different.
+     `{ back: true }` picks the outward half of the page transition. */
+  const back = useMemo(
+    () => (sp ? () => go(`e/site/${encodeURIComponent(sp.siteKey)}`, { back: true }) : undefined),
+    [sp, go],
+  )
   const total = stockOfSpecies(entity.id, scope.win)
 
   /**
@@ -1147,6 +1249,8 @@ function SpeciesPage({ entity }: { entity: Entity }) {
           that ignores it is the contradiction this product exists to avoid. */}
       {wide && wide.total > 0 ? (
         <SpeciesHeader
+          name={entity.name}
+          onBack={back}
           wide={wide}
           enclosures={headerEnclosures}
           standing={standing}
@@ -1196,7 +1300,14 @@ function SpeciesPage({ entity }: { entity: Entity }) {
                 items={[
                   { label: 'Class', value: sp?.cls ?? '—' },
                   { label: 'Site', value: siteOf(sp?.siteKey ?? '')?.name ?? '—' },
-                  { label: 'IUCN Red List', value: standing?.iucn ?? '—' },
+                  {
+                    label: 'IUCN Red List',
+                    value: standing?.iucn ?? '—',
+                    /* THE BADGE IS THE CATEGORY. The Red List publishes LC, NT, EN and the rest
+                       as a coloured scale, and rendering the code as plain text throws away the
+                       one part of it a reader recognises without reading. */
+                    lead: iucnBadge(standing?.iucn),
+                  },
                   {
                     label: 'CITES',
                     value: standing?.cites ? `Appendix ${standing.cites}` : 'Not listed',

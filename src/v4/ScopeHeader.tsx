@@ -114,7 +114,7 @@ export function Breadcrumbs({
  * previous banner appeared only when a site was picked, which left "Overall" implied by silence —
  * and silence is the one thing a reader cannot verify.
  */
-export function ScopeStrip({ scope }: { scope: Scope }) {
+export function ScopeStrip({ scope, bare }: { scope: Scope; bare?: boolean }) {
   const { setSite } = useScope()
   const { open } = useSheet()
   const narrowed = Boolean(scope.site)
@@ -124,7 +124,17 @@ export function ScopeStrip({ scope }: { scope: Scope }) {
        read as chrome belonging to the browser rather than as controls belonging to the page, and
        they left a band of empty ground between the title and the first card. On a white surface
        they are a toolbar, and the band becomes the toolbar's own padding. */
-    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] bg-white px-[var(--pad-card-sm)] py-3 @[760px]:justify-end">
+    /* `bare` drops the white toolbar so the same three controls can sit INSIDE a page's own
+       header card. On the species page the toolbar was a full-width white band holding two
+       pills at its right edge and nothing else — measured 60px tall and almost entirely empty,
+       between a title and the card that answers it. The controls belong to that card. */
+    <div
+      className={
+        bare
+          ? 'flex flex-wrap items-center gap-2'
+          : 'mt-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] bg-white px-[var(--pad-card-sm)] py-3 @[760px]:justify-end'
+      }
+    >
       <ScopePill
         icon={CalendarRange}
         label={scope.win.label}
@@ -233,6 +243,7 @@ export function ScopeHeader({
   entity,
   onBack,
   actions,
+  titleInBody,
 }: {
   title: string
   /** One short line above the title. Usually the entity's kind or the module it belongs to. */
@@ -243,6 +254,15 @@ export function ScopeHeader({
   entity?: Ref
   onBack?: () => void
   actions?: React.ReactNode
+  /**
+   * The page carries its own title and its own scope controls, so this renders the trail only.
+   *
+   * A species page states the animal's name inside the card that describes it, with the date
+   * and site pills in the same card — one header rather than a title, a mostly-empty white
+   * toolbar, and then a card repeating the context. Nothing is removed from the page; the two
+   * rows are folded into the one surface that was already saying the same thing.
+   */
+  titleInBody?: boolean
 }) {
   const { scope } = useScope()
   /* THE TRAIL ROW IS A SHELL-TIER MARK, not a phone one.
@@ -262,42 +282,45 @@ export function ScopeHeader({
           corner of a report is furniture. */}
       {shell && <Breadcrumbs scope={scope} moduleTitle={moduleTitle} entity={entity} />}
 
-      <div className={`flex items-start gap-3 ${shell ? 'mt-2' : ''}`}>
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Back"
-            className="-ml-2 mt-0.5 grid size-[calc(var(--fs-name)*1.3)] shrink-0 place-items-center rounded-full transition-colors hover:bg-white/70 active:bg-white/60"
-          >
-            {/* THE CHEVRON IS SIZED OFF THE TITLE, not off a fixed 20px. A 20px mark beside a
-                30px semibold heading reads as a stray glyph rather than the way back, and it
-                only got worse up the tiers, where the title grows to 38px and the icon did
-                not. Both the mark and its target now scale with `--fs-name`, so the pair keeps
-                one proportion on a phone and on a desktop column. */}
-            <ChevronRight
-              strokeWidth={2}
-              className="size-[calc(var(--fs-name)*0.84)] rotate-180 text-[#55524a]"
-              aria-hidden
-            />
-          </button>
-        )}
-        <div className="min-w-0 flex-1">
-          {/* "Monthly report" / "Operations" above "Animal Population" is a classification of the
-              page, not information about it — the shell keeps it beside the crumbs it belongs
-              with, the phone opens on the title. */}
-          {eyebrow && shell && (
-            <p className="truncate text-overline font-medium uppercase" style={{ color: FAINT }}>
-              {eyebrow}
-            </p>
+      {!titleInBody && (
+        <div className={`flex items-start gap-3 ${shell ? 'mt-2' : ''}`}>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back"
+              className="-ml-2 mt-0.5 grid size-[calc(var(--fs-name)*1.3)] shrink-0 place-items-center rounded-full transition-colors hover:bg-white/70 active:bg-white/60"
+            >
+              {/* THE CHEVRON IS SIZED OFF THE TITLE, not off a fixed 20px. A 20px mark beside a
+                  30px semibold heading reads as a stray glyph rather than the way back, and it
+                  only got worse up the tiers, where the title grows to 38px and the icon did
+                  not. Both the mark and its target now scale with `--fs-name`, so the pair keeps
+                  one proportion on a phone and on a desktop column. */}
+              <ChevronRight
+                strokeWidth={2}
+                className="size-[calc(var(--fs-name)*0.84)] rotate-180 text-[#55524a]"
+                aria-hidden
+              />
+            </button>
           )}
-          <h1 className="mt-[3px] truncate text-[length:var(--fs-name)] leading-[var(--lh-name)] font-semibold tracking-[-0.4px] text-[#16150f]">
-            {title}
-          </h1>
+          <div className="min-w-0 flex-1">
+            {/* "Monthly report" / "Operations" above "Animal Population" is a classification of the
+                page, not information about it — the shell keeps it beside the crumbs it belongs
+                with, the phone opens on the title. */}
+            {eyebrow && shell && (
+              <p className="truncate text-overline font-medium uppercase" style={{ color: FAINT }}>
+                {eyebrow}
+              </p>
+            )}
+            <h1 className="mt-[3px] truncate text-[length:var(--fs-name)] leading-[var(--lh-name)] font-semibold tracking-[-0.4px] text-[#16150f]">
+              {title}
+            </h1>
+          </div>
+          {actions}
         </div>
-        {actions}
-      </div>
-      <ScopeStrip scope={scope} />
+      )}
+
+      {!titleInBody && <ScopeStrip scope={scope} />}
     </header>
   )
 }

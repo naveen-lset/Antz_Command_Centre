@@ -1579,7 +1579,21 @@ export function Facts({
    * a bridge's opening and closing balances are positions, not events, and have no
    * list behind them, so the chevron is per-row rather than per-card.
    */
-  items: { label: string; value: string; sub?: string; delta?: string; tone?: Tone; href?: string }[]
+  /**
+   * `lead` is a mark that belongs to the ROW rather than to the card — a Red List badge on a
+   * conservation status, where the colour IS the published category and printing "LC" as plain
+   * text throws that away. Per-row because only some rows have one; a card-level icon would
+   * make every row claim the same mark.
+   */
+  items: {
+    label: string
+    value: string
+    sub?: string
+    delta?: string
+    tone?: Tone
+    href?: string
+    lead?: ReactNode
+  }[]
   size?: 'md' | 'lg'
 }) {
   const lg = size === 'lg'
@@ -1589,6 +1603,7 @@ export function Facts({
       {items.map((it, i) => {
         const row = (
           <>
+            {it.lead && <span className="shrink-0">{it.lead}</span>}
             <span className="min-w-0 flex-1">
               <span className={`block ${lg ? 'text-small' : 'text-small'} text-[#1c1a16]`}>{it.label}</span>
               {it.sub && <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>}

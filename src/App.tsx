@@ -100,6 +100,8 @@ interface Framed {
   body: ReactNode
   /** The entity being viewed, so the header can build its trail. */
   entity?: { kind: EntityKind; id: string }
+  /** The page states its own name and its own scope controls; the shell renders the trail only. */
+  titleInBody?: boolean
 }
 
 function useFramed(route: Route, phone: boolean, home: () => void): Framed {
@@ -171,6 +173,11 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
              when they dropped theirs. Every other kind keeps it, because a ward or a lab
              department named alone genuinely is ambiguous about what it is. */
           eyebrow: route.ref.kind === 'species' ? undefined : KIND_ONE[route.ref.kind],
+          /* A SPECIES PAGE IS ITS OWN HEADER. The shell was drawing a title, then a full-width
+             white toolbar holding two pills at its right edge and nothing else — measured 60px
+             of almost entirely empty band — and then a card restating the same context. The
+             name, the controls and the figures now share one surface. */
+          titleInBody: route.ref.kind === 'species',
           moduleTitle: from ? [titleOf(from.module), from.label].filter(Boolean).join(' › ') : undefined,
           /* One step up the lineage, which is the entity's own parent rather than wherever the
              reader happened to arrive from — so the back button is the same from a search hit,
@@ -287,6 +294,7 @@ function Router() {
         moduleTitle={framed.moduleTitle}
         entity={framed.entity}
         onBack={framed.onBack}
+        titleInBody={framed.titleInBody}
       />
       <Boundary key={`${path}-body`} title={framed.title}>
         {framed.body}
