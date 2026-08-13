@@ -466,7 +466,7 @@ export function SpeciesEggsTab({
 
       {!profile && (
         <Section icon={Feather} label="Reference biology">
-          <p className="text-small" style={{ color: '#6d6860' }}>
+          <p className="text-small" style={{ color: '#5c574f' }}>
             No reference biology is recorded for this species in the extract. The recorded young
             below are unaffected — they come from our own birth records, not from the reference.
           </p>
@@ -587,7 +587,7 @@ export function SpeciesEggsTab({
 
       {rec.total === 0 && (
         <Section icon={Baby} label="Young recorded" aside={win.window}>
-          <p className="text-small" style={{ color: '#6d6860' }}>
+          <p className="text-small" style={{ color: '#5c574f' }}>
             No young of this species were recorded across {place} in {win.window}. That is what
             the register holds for this window — not a statement that none were born.
           </p>

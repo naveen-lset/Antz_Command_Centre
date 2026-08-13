@@ -80,7 +80,7 @@ function DewormingHero() {
         <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
           <span className="min-w-0 flex-1 pr-4">
             <Figure value={fmt(due.value)} size={28} />
-            <span className="mt-1 block truncate text-caption text-[#6d6860]">Treatments pending</span>
+            <span className="mt-1 block truncate text-caption text-[#5c574f]">Treatments pending</span>
           </span>
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
             <Figure
@@ -88,7 +88,7 @@ function DewormingHero() {
               unit={cover.known ? '%' : undefined}
               size={28}
             />
-            <span className="mt-1 block truncate text-caption text-[#6d6860]">
+            <span className="mt-1 block truncate text-caption text-[#5c574f]">
               {cover.known ? 'Of all housed animals' : 'Coverage not reported'}
             </span>
           </span>
@@ -214,7 +214,7 @@ function Derivation() {
   if (!note) return null
   return (
     <Section icon={Info} label="How coverage is counted">
-      <p className="text-small text-balance" style={{ color: '#6d6860' }}>
+      <p className="text-small text-balance" style={{ color: '#5c574f' }}>
         {note}
       </p>
     </Section>

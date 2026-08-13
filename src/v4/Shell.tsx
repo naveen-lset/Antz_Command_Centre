@@ -140,7 +140,7 @@ export function ModuleHeader({
         </button>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-overline font-medium text-[#9b958b] uppercase">{eyebrow}</p>
+        <p className="text-overline font-medium text-[#736e67] uppercase">{eyebrow}</p>
         <h1 className="mt-[3px] truncate text-[length:var(--fs-name)] leading-[var(--lh-name)] font-semibold tracking-[-0.4px] text-[#16150f]">
           {title}
         </h1>
@@ -283,7 +283,7 @@ export function PhonePage({
             <ChevronLeft size={20} strokeWidth={2} className="text-[#55524a]" aria-hidden />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-overline font-medium text-[#9b958b] uppercase">{eyebrow}</p>
+            <p className="truncate text-overline font-medium text-[#736e67] uppercase">{eyebrow}</p>
             <h1 className="mt-[3px] truncate text-h2 font-semibold text-[#16150f]">
               {title}
             </h1>

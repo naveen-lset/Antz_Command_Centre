@@ -111,7 +111,7 @@ export function ModuleHero({
                 }`}
               >
                 <Figure value={s.value} unit={s.unit} size={24} />
-                <span className="mt-1 block truncate text-caption text-[#6d6860]">{s.label}</span>
+                <span className="mt-1 block truncate text-caption text-[#5c574f]">{s.label}</span>
               </span>
             ))}
           </div>
@@ -163,7 +163,7 @@ export function DrillRow({
         )}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-small text-[#1c1a16]">{label}</span>
-          {sub && <span className="mt-1 block text-caption text-[#9b958b]">{sub}</span>}
+          {sub && <span className="mt-1 block text-caption text-[#736e67]">{sub}</span>}
         </span>
         <span className="shrink-0 text-right">
           <span
@@ -172,7 +172,7 @@ export function DrillRow({
           >
             {value}
           </span>
-          {unit && <span className="ml-1 text-caption text-[#9b958b]">{unit}</span>}
+          {unit && <span className="ml-1 text-caption text-[#736e67]">{unit}</span>}
         </span>
         <span className="w-[10px] shrink-0" style={{ color: onOpen ? ACCENT_INK : 'transparent' }} aria-hidden>
           <ChevronRight size={13} strokeWidth={2.25} />
@@ -242,7 +242,7 @@ export function NodePanel({
             {title}
             {unit ? ` · ${unit}` : ''}
           </p>
-          {trail.length > 0 && <p className="mt-3 text-caption text-[#9b958b]">{trail.join(' › ')}</p>}
+          {trail.length > 0 && <p className="mt-3 text-caption text-[#736e67]">{trail.join(' › ')}</p>}
         </section>
       </div>
       <Stack>
@@ -290,7 +290,7 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
         <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
           <Figure value={fmt(node.value)} unit={node.unit} size={48} color={node.tone ? TONE[node.tone] : HERO_INK} />
           <p className="mt-1 text-body text-[#3d3a34]">{node.label}</p>
-          {node.sub && <p className="mt-3 text-caption text-[#9b958b]">{node.sub}</p>}
+          {node.sub && <p className="mt-3 text-caption text-[#736e67]">{node.sub}</p>}
         </section>
       </div>
       <Stack>
@@ -300,7 +300,7 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
               <li key={f.label} className="flex items-baseline gap-3 py-3 first:pt-0 last:pb-0">
                 <span className="min-w-0 flex-1">
                   <span className="block text-small text-[#1c1a16]">{f.label}</span>
-                  {f.sub && <span className="mt-1 block text-caption text-[#9b958b]">{f.sub}</span>}
+                  {f.sub && <span className="mt-1 block text-caption text-[#736e67]">{f.sub}</span>}
                 </span>
                 <span
                   className="shrink-0 text-small font-medium tabular-nums"
@@ -313,7 +313,7 @@ export function LeafPanel({ node, trail }: { node: Node; trail: string[] }) {
           </ul>
         </Section>
       </Stack>
-      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#9b958b]">Deepest level</p>
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#736e67]">Deepest level</p>
     </>
   )
 }

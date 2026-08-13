@@ -572,7 +572,7 @@ function SheetHost({
             <button
               type="button"
               onClick={onBack}
-              className="-ml-2 grid size-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-[#f7f6f3] active:bg-[#f2f1ed]"
+              className="tap-tall -ml-2 grid size-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-[#f7f6f3] active:bg-[#f2f1ed]"
               aria-label="Back"
             >
               <ChevronLeft size={20} strokeWidth={2} className="text-[#55524a]" aria-hidden />
@@ -581,7 +581,7 @@ function SheetHost({
           <span className="min-w-0 flex-1">
             {/* The eyebrow is the trail. Four levels deep it is the only thing that
                 says which species of which site this is, and it costs one line. */}
-            <span className="block truncate text-overline font-medium text-[#b3aea6] uppercase">
+            <span className="block truncate text-overline font-medium text-[#76736e] uppercase">
               {top.eyebrow ?? 'Command Centre'}
             </span>
             <h1 className="mt-[3px] truncate text-h2 font-semibold text-[#16150f]">
@@ -591,7 +591,7 @@ function SheetHost({
           <button
             type="button"
             onClick={onClose}
-            className="grid size-9 shrink-0 place-items-center rounded-full border border-[#eceae5] transition-colors hover:bg-[#f7f6f3] active:bg-[#f2f1ed]"
+            className="tap-tall grid size-10 shrink-0 place-items-center rounded-full border border-[#eceae5] transition-colors hover:bg-[#f7f6f3] active:bg-[#f2f1ed]"
             aria-label="Close"
           >
             <X size={16} strokeWidth={2} className="text-[#55524a]" aria-hidden />

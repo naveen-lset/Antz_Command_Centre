@@ -141,7 +141,7 @@ export function SpeciesProfileTab({ p }: { p: SpeciesProfile | undefined }) {
     return (
       <TabBody>
         <Band title="Profile" icon={Sparkles} first>
-          <p className="text-small" style={{ color: '#6d6860' }}>
+          <p className="text-small" style={{ color: '#5c574f' }}>
             No reference biology is recorded for this species in the extract.
           </p>
         </Band>

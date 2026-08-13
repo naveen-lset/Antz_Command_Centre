@@ -214,7 +214,7 @@ function GroupSheet({ rows, name, label }: { rows: Holding[]; name: string; labe
           ))}
         </TapList>
         {found.length === 0 && (
-          <p className="text-small text-[#6d6860]">No enclosure here matches “{query.trim()}”.</p>
+          <p className="text-small text-[#5c574f]">No enclosure here matches “{query.trim()}”.</p>
         )}
         <MoreRows page={encPage} noun="enclosures" />
       </Section>
@@ -327,7 +327,7 @@ export function SpeciesPairingTab({ name }: { speciesId: string; name: string })
   if (!holdings.length) {
     return (
       <Section icon={HeartHandshake} label="Pairing">
-        <p className="text-small text-[#6d6860]">
+        <p className="text-small text-[#5c574f]">
           The register holds no animal of this species at any site, so there is no enclosure to
           read a pairing position from.
         </p>

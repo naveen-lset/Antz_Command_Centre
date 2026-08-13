@@ -90,7 +90,6 @@ import {
   Facts,
   Figure,
   HERO_INK,
-  GROUND_GRADIENT,
   MUTED,
   RED_LIST,
   Section,
@@ -1072,9 +1071,23 @@ function EntityTabs({
        every width and scrolls it on a phone; wrapping would reflow the page whenever a label
        changed length. The scrollbar is hidden because a bar under a ten-item row is noise, and
        the partly-clipped last tab is the affordance that says there is more. */
-    <div className="sticky top-0 z-20 px-[var(--gutter)] pt-1 pb-3" style={{ background: GROUND_GRADIENT }}>
+    /* NO BAND BEHIND THE TRACK AT ALL, and it took two attempts to get there.
+       It began as `GROUND_GRADIENT`, which is a PAGE-HEIGHT ramp — `#ddeae3` at the top of a
+       scroll to `#c6ddd1` at the bottom. Every other caller paints it on a full-height
+       scroller, where those stops are hundreds of pixels apart and read as one settled ground.
+       This strip is about sixty pixels tall, so the whole ramp was compressed into it: lighter
+       than the page along its top edge, darker along its bottom, with a seam on both. Replacing
+       it with a flat canopy tint fixed the seam and kept the real problem — a green band behind
+       the tabs that read as a surface, because it was one.
+
+       THE TRACK IS THE ONLY SURFACE THE BAR NEEDS. The white pill already separates the tabs
+       from the page; a second background behind it was drawing a container around a container.
+       The blur stays and the colour goes: pinned, the real ground shows through softened, so
+       the bar matches the page at every scroll position by construction rather than at the one
+       position a fixed colour would have been right for. */
+    <div className="sticky top-0 z-20 px-[var(--gutter)] pt-1 pb-3 backdrop-blur-md">
       <div
-        className="flex gap-1 overflow-x-auto rounded-full bg-white p-1 scrollbar-hidden"
+        className="flex gap-2 overflow-x-auto rounded-full bg-white p-1.5 scrollbar-hidden"
         style={{ boxShadow: 'inset 0 0 0 1px rgba(31,81,91,0.07)' }}
         role="tablist"
         aria-label={label}
@@ -1088,12 +1101,18 @@ function EntityTabs({
               role="tab"
               aria-selected={on}
               onClick={() => onPick(t.key)}
-              className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-[7px] text-caption font-medium whitespace-nowrap transition-colors ${
+              /* `text-body`, NOT `text-caption`. This is the page's primary navigation and it was
+                 set at 12px — the size this product reserves for captions, units and the notes
+                 UNDER a figure. The type scale's own comment names 16px as the nav size, and at
+                 nine tabs the row is the most-used control on a species page. 10px of vertical
+                 padding on a 24px line takes the tab to 44px, so the row finally carries a
+                 platform-sized tap target as well as a readable label. */
+              className={`card-press flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-body font-medium whitespace-nowrap transition-colors ${
                 on ? 'text-white' : 'text-[#55524a] hover:bg-[#f4f3ef]'
               }`}
               style={on ? { backgroundColor: '#123a2c' } : undefined}
             >
-              <t.icon size={13} strokeWidth={2} style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
+              <t.icon size={16} strokeWidth={2} style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
               {t.label}
             </button>
           )
@@ -1331,7 +1350,7 @@ function SpeciesPage({ entity }: { entity: Entity }) {
         {tab === 'profile' &&
           (profileFailed ? (
             <Section icon={BookOpen} label="Profile">
-              <p className="text-small text-[#6d6860]">
+              <p className="text-small text-[#5c574f]">
                 The species reference could not be loaded. Every other tab on this page is
                 unaffected — they read the collection, not the reference.
               </p>
@@ -1340,7 +1359,7 @@ function SpeciesPage({ entity }: { entity: Entity }) {
             <SpeciesProfileTab p={profile} />
           ) : (
             <Section icon={BookOpen} label="Profile">
-              <p className="text-small text-[#6d6860]">Loading the species reference…</p>
+              <p className="text-small text-[#5c574f]">Loading the species reference…</p>
             </Section>
           ))}
 
@@ -1882,13 +1901,13 @@ export function EntityBrowser({ kind }: { kind: EntityKind }) {
         aside={fmt(kind === 'animal' ? animals.total : all.length)}
       >
         {kind !== 'animal' && (
-          <label className="mb-3 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
+          <label className="mb-3 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2 focus-within:ring-2 focus-within:ring-[#37bd69]/35">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Find a ${KIND_ONE[kind].toLowerCase()}`}
               aria-label={`Find a ${KIND_ONE[kind]}`}
-              className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+              className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#736e67]"
             />
           </label>
         )}

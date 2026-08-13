@@ -153,7 +153,7 @@ export function ScheduleGrid({
         })}
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-overline uppercase" style={{ color: '#b3aea6' }}>
+        <span className="text-overline uppercase" style={{ color: '#76736e' }}>
           One square · one {grain}
         </span>
         <span className="flex items-center gap-1.5">
@@ -616,7 +616,7 @@ export function SortableList<T>({
                   >
                     {lead.cell(row)}
                   </span>
-                  <span className="mt-0.5 block text-overline uppercase" style={{ color: '#b3aea6' }}>
+                  <span className="mt-0.5 block text-overline uppercase" style={{ color: '#76736e' }}>
                     {lead.head}
                   </span>
                 </span>

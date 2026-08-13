@@ -311,7 +311,7 @@ export function SpeciesHousingTab({ speciesId, name }: { speciesId: string; name
         )}
 
         {q && visible === 0 ? (
-          <p className="text-small" style={{ color: '#6d6860' }}>
+          <p className="text-small" style={{ color: '#5c574f' }}>
             No {view === 'site' ? 'site' : 'enclosure'} matches “{query.trim()}”.
           </p>
         ) : view === 'site' ? (

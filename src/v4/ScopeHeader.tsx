@@ -81,7 +81,7 @@ export function Breadcrumbs({
           {c.href ? (
             <a
               href={c.href}
-              className="text-caption font-medium text-[#6d6860] transition-colors hover:text-[#1c1a16] hover:underline"
+              className="text-caption font-medium text-[#5c574f] transition-colors hover:text-[#1c1a16] hover:underline"
             >
               {c.label}
             </a>
@@ -153,7 +153,7 @@ export function ScopeStrip({ scope, bare }: { scope: Scope; bare?: boolean }) {
         <button
           type="button"
           onClick={() => setSite(null)}
-          className="card-press flex shrink-0 items-center gap-1 rounded-full px-3 py-[4px] text-caption font-semibold"
+          className="card-press tap-tall flex shrink-0 items-center gap-1 rounded-full px-3 py-[4px] text-caption font-semibold"
           style={{ backgroundColor: mix(TONE.warn, 0.14), color: TONE.warn }}
         >
           <RotateCcw size={10} strokeWidth={2.5} aria-hidden />
@@ -179,7 +179,7 @@ function ScopePill({
     <button
       type="button"
       onClick={onClick}
-      className={`card-press flex min-w-0 shrink-0 items-center gap-1.5 rounded-full px-3 py-[6px] text-body font-medium whitespace-nowrap transition-colors ${
+      className={`card-press tap-tall flex min-w-0 shrink-0 items-center gap-1.5 rounded-full px-3 py-[6px] text-body font-medium whitespace-nowrap transition-colors ${
         on ? 'bg-[#123a2c] text-white' : 'bg-white text-[#3d3a34]'
       }`}
     >
@@ -289,7 +289,7 @@ export function ScopeHeader({
               type="button"
               onClick={onBack}
               aria-label="Back"
-              className="-ml-2 mt-0.5 grid size-[calc(var(--fs-name)*1.3)] shrink-0 place-items-center rounded-full transition-colors hover:bg-white/70 active:bg-white/60"
+              className="tap-tall -ml-2 mt-0.5 grid size-[calc(var(--fs-name)*1.3)] shrink-0 place-items-center rounded-full transition-colors hover:bg-white/70 active:bg-white/60"
             >
               {/* THE CHEVRON IS SIZED OFF THE TITLE, not off a fixed 20px. A 20px mark beside a
                   30px semibold heading reads as a stray glyph rather than the way back, and it

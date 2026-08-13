@@ -105,7 +105,7 @@ function Pill({
     <button
       type="button"
       onClick={onClick}
-      className={`card-press flex min-w-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-body font-medium whitespace-nowrap transition-colors ${
+      className={`card-press tap-tall flex min-w-0 items-center gap-1.5 rounded-full px-3 py-[7px] text-body font-medium whitespace-nowrap transition-colors ${
         on ? 'bg-[#123a2c] text-white' : 'bg-white/85 text-[#3d3a34] backdrop-blur-sm'
       }`}
     >
@@ -354,7 +354,7 @@ export function FindField({
   placeholder: string
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
+    <label className="flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2 focus-within:ring-2 focus-within:ring-[#37bd69]/35">
       <Search size={14} strokeWidth={2} className="shrink-0" style={{ color: FAINT }} aria-hidden />
       <input
         value={value}
@@ -362,7 +362,7 @@ export function FindField({
         placeholder={placeholder}
         aria-label={placeholder}
         autoComplete="off"
-        className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+        className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#736e67]"
       />
       {value && (
         <button
@@ -371,7 +371,7 @@ export function FindField({
           aria-label="Clear"
           className="-mr-1 grid size-5 shrink-0 place-items-center rounded-full active:bg-[#eceae5]"
         >
-          <X size={13} strokeWidth={2} style={{ color: '#6d6860' }} aria-hidden />
+          <X size={13} strokeWidth={2} style={{ color: '#5c574f' }} aria-hidden />
         </button>
       )}
     </label>

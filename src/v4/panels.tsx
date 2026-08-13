@@ -133,7 +133,7 @@ export function TapRow({
               already sets in the design system: the label is an identifier and can be
               clipped, but the sub carries the where and the when — "ANM-22140 ·
               Savanna · Zone A ·…" has thrown away the only part that was new. */}
-          {sub && <span className="mt-1 block text-caption text-[#9b958b]">{sub}</span>}
+          {sub && <span className="mt-1 block text-caption text-[#736e67]">{sub}</span>}
         </span>
       </span>
       <span className="shrink-0 text-right">
@@ -143,7 +143,7 @@ export function TapRow({
         >
           {value}
         </span>
-        {unit && <span className="ml-1 text-caption text-[#9b958b]">{unit}</span>}
+        {unit && <span className="ml-1 text-caption text-[#736e67]">{unit}</span>}
       </span>
       <span
         className="w-[10px] shrink-0"
@@ -328,7 +328,7 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
           <p className="mt-1 text-body text-[#3d3a34]">
             {def.unit} · {scopeLabel === 'Zoo-wide' ? 'zoo-wide' : scopeLabel}
           </p>
-          <p className="mt-3 text-caption text-[#9b958b]">{period.window}</p>
+          <p className="mt-3 text-caption text-[#736e67]">{period.window}</p>
         </section>
       </div>
 
@@ -444,7 +444,7 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
             {animals.total > animals.rows.length && (
               /* Never let forty rows imply forty animals. The cap is a reading limit
                  and has to be stated as one. */
-              <p className="mb-3 text-caption text-[#9b958b]">
+              <p className="mb-3 text-caption text-[#736e67]">
                 A sample across {site ? 'this site' : 'all sites'}, drawn in proportion to each
                 species' share. Narrow further to see fewer, truer rows.
               </p>
@@ -464,7 +464,7 @@ export function MetricPanel({ metric, siteKey }: { metric: string; siteKey?: str
               ))}
             </TapList>
             {animals.rows.length === 0 && (
-              <p className="text-small text-[#6d6860]">Nothing recorded here in {period.window}.</p>
+              <p className="text-small text-[#5c574f]">Nothing recorded here in {period.window}.</p>
             )}
           </Section>
         </div>
@@ -509,7 +509,7 @@ function Chip({
 }
 
 const Sep = () => (
-  <span className="shrink-0 text-caption text-[#b3aea6]" aria-hidden>
+  <span className="shrink-0 text-caption text-[#76736e]" aria-hidden>
     ›
   </span>
 )
@@ -549,15 +549,15 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
           <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
             <span className="min-w-0 flex-1 pr-4">
               <span className="block text-small font-medium text-[#1c1a16]">{SEX_WORD[r.sex]}</span>
-              <span className="mt-1 block text-caption text-[#9b958b]">Sex</span>
+              <span className="mt-1 block text-caption text-[#736e67]">Sex</span>
             </span>
             <span className="min-w-0 flex-1 border-l border-[#f0efec] px-4">
               <span className="block text-small font-medium text-[#1c1a16]">{r.age}</span>
-              <span className="mt-1 block text-caption text-[#9b958b]">Age</span>
+              <span className="mt-1 block text-caption text-[#736e67]">Age</span>
             </span>
             <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
               <span className="block truncate text-small font-medium text-[#1c1a16]">{r.weight}</span>
-              <span className="mt-1 block text-caption text-[#9b958b]">Weight</span>
+              <span className="mt-1 block text-caption text-[#736e67]">Weight</span>
             </span>
           </div>
         </section>
@@ -597,7 +597,7 @@ export function AnimalPanel({ row, record }: { row?: AnimalRow; record?: AnimalR
       {/* No level below. The record is the answer to "which animal"; everything
           past it — samples, doses, keeper notes — is the working screen of the
           person who owns the animal, not the executive question that opened this. */}
-      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#736e67]">
         Animal record · deepest level
       </p>
     </>
@@ -706,7 +706,7 @@ export function ApprovalPanel({ group }: { group: ApprovalGroup }) {
 
         {pending.length === 0 && (
           <Section icon={Check} label="Queue clear">
-            <p className="text-small text-[#6d6860]">Nothing in {group.label.toLowerCase()} is waiting on you.</p>
+            <p className="text-small text-[#5c574f]">Nothing in {group.label.toLowerCase()} is waiting on you.</p>
           </Section>
         )}
 

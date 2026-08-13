@@ -980,6 +980,80 @@
 }
 
 /**
+ * THE PILL — one control, one declaration, and a tap target the drawing does not have.
+ *
+ * FOUR HEIGHTS FOR ONE CONTROL. The same visual pill — a rounded caption-sized chip that
+ * selects a span, a sort or a facet — was being hand-padded at four different values:
+ * `py-[3px]` on the home's trend switch (22px), `py-[5px]` on its horizon switch and on the
+ * population page's facet chips (26px), `py-1` almost everywhere else (24px). Nobody chose
+ * three of those; they accumulated. This is the one declaration they now share.
+ *
+ * THE HIT AREA IS A PSEUDO-ELEMENT, WHICH IS THE WHOLE REASON THIS IS NOT JUST MORE PADDING.
+ * Apple asks for 44×44pt and Material for 48×48dp, and this product is unambiguously
+ * touch-first — safe-area insets throughout, swipe-to-dismiss sheets, press states on every
+ * row. Yet its most-tapped controls were half the minimum. Padding the pill up to 44px would
+ * have worked and would have wrecked the design: a 44px-tall chip is not a chip, and the
+ * filter rows these sit in are already tight against the cards above them.
+ *
+ * So the pill keeps its drawn size and grows an invisible 44px box centred on it. The chip
+ * still reads as a chip; the finger gets what the platform asks for. `min-width` covers the
+ * short labels — "All", "7", "Year" — where the drawn width is under 44 as well.
+ *
+ * The box is `::before` rather than `::after` so it sits UNDER the label in paint order, and
+ * the pill needs no `z-index` for its own text to stay clickable.
+ */
+@utility pill {
+  position: relative;
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    background-color var(--dur-standard) var(--ease-out),
+    color var(--dur-standard) var(--ease-out);
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    min-width: 44px;
+    height: 44px;
+    translate: -50% -50%;
+  }
+}
+
+/**
+ * THE SAME HIT AREA, VERTICAL ONLY — for icon buttons that live inside another control.
+ *
+ * `pill` widens its box to a 44px minimum as well as heightening it, which is right for a
+ * chip standing on its own in a row. It is wrong for the 16px dismiss cross INSIDE a facet
+ * chip: a 44px-wide box centred on it reaches 14px past the cross in both directions, which
+ * is over the chip's own label on one side and over the next chip on the other. The reader
+ * would tap a filter's name and clear it instead.
+ *
+ * So this one grows only in the axis that has room. It takes these buttons to the full 44px
+ * of height and leaves the horizontal alone, where the parent control is already the target.
+ */
+@utility tap-tall {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    translate: 0 -50%;
+  }
+}
+
+/**
  * PAGE TRANSITIONS — home ⇄ module, via the browser's own view transitions.
  *
  * The alternative was keeping the outgoing page's React tree mounted for the length

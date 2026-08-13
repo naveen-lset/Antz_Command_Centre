@@ -247,7 +247,7 @@ function PreventiveHero() {
           ].map((s, i) => (
             <span key={s.label} className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-4' : 'pr-4'}`}>
               <Figure value={s.value} size={24} />
-              <span className="mt-1 block truncate text-caption text-[#6d6860]">{s.label}</span>
+              <span className="mt-1 block truncate text-caption text-[#5c574f]">{s.label}</span>
             </span>
           ))}
           {/* The one due-status figure on the card, separated and captioned as one — the

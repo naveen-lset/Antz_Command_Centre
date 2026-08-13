@@ -80,7 +80,7 @@ export function NoSource({ icon: Glyph, what, metrics, related }: NoSourceProps)
             <Glyph size={15} strokeWidth={1.75} style={{ color: FAINT }} aria-hidden />
             Not recorded in this system
           </p>
-          <p className="mt-3 text-small text-balance text-[#6d6860]">{what}</p>
+          <p className="mt-3 text-small text-balance text-[#5c574f]">{what}</p>
         </section>
       </div>
 
@@ -90,7 +90,7 @@ export function NoSource({ icon: Glyph, what, metrics, related }: NoSourceProps)
             {metrics.map((slug) => (
               <li key={slug} className="flex flex-col gap-0.5 py-3 first:pt-0 last:pb-0">
                 <span className="text-small font-medium text-[#1c1a16]">{LABELS[slug] ?? slug}</span>
-                <span className="text-caption text-[#6d6860]">
+                <span className="text-caption text-[#5c574f]">
                   {UNSOURCED[slug] ?? 'no source in the extract'}
                 </span>
               </li>
@@ -98,7 +98,7 @@ export function NoSource({ icon: Glyph, what, metrics, related }: NoSourceProps)
           </ul>
           {/* Named, because "no source" invites the question "in what?" and the answer is a
               specific extract with a specific horizon rather than the product in general. */}
-          <p className="mt-4 border-t pt-3 text-caption text-[#9b958b]" style={{ borderColor: HAIR }}>
+          <p className="mt-4 border-t pt-3 text-caption text-[#736e67]" style={{ borderColor: HAIR }}>
             Checked against <span className="font-medium">species_mgmt_anon</span>. Extend the ETL and
             this page fills itself.
           </p>
@@ -112,7 +112,7 @@ export function NoSource({ icon: Glyph, what, metrics, related }: NoSourceProps)
             >
               <span className="min-w-0 flex-1">
                 <span className="block text-small font-medium text-[#1c1a16]">{related.label}</span>
-                <span className="mt-1 block text-caption text-balance text-[#6d6860]">{related.note}</span>
+                <span className="mt-1 block text-caption text-balance text-[#5c574f]">{related.note}</span>
               </span>
               <ArrowRight size={16} strokeWidth={1.75} style={{ color: FAINT }} aria-hidden />
             </a>

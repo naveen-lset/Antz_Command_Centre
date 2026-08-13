@@ -37,23 +37,23 @@ export function Sidebar({ route }: { route: string }) {
     >
       <div className="shrink-0 px-4 pt-5 pb-3">
         <p className="px-1 text-body font-semibold text-[#1c1a16]">{site.org}</p>
-        <p className="mt-1 px-1 text-caption text-[#9b958b]">{site.zooName}</p>
+        <p className="mt-1 px-1 text-caption text-[#736e67]">{site.zooName}</p>
         <label className="mt-4 flex items-center gap-2 rounded-[11px] bg-[#f4f6f4] px-3 py-3 focus-within:ring-2 focus-within:ring-[#37bd69]/35">
-          <Search size={15} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
+          <Search size={15} strokeWidth={2} className="shrink-0 text-[#736e67]" aria-hidden />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search modules"
             aria-label="Search modules"
-            className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b] [&::-webkit-search-cancel-button]:appearance-none"
+            className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#736e67] [&::-webkit-search-cancel-button]:appearance-none"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
               aria-label="Clear search"
-              className="grid size-5 shrink-0 place-items-center rounded-full text-[#9b958b] transition-colors hover:bg-[#e7ebe8] hover:text-[#3d3a34]"
+              className="grid size-5 shrink-0 place-items-center rounded-full text-[#736e67] transition-colors hover:bg-[#e7ebe8] hover:text-[#3d3a34]"
             >
               <X size={12} strokeWidth={2.5} aria-hidden />
             </button>
@@ -76,7 +76,7 @@ export function Sidebar({ route }: { route: string }) {
              instead of two cost about a row and a half of height, and the rail is worth
              keeping inside a 13-inch laptop — this is where that comes back from. */
           <div key={group.name} className="mt-4 first:mt-3">
-            <h2 className="px-3 pb-1 text-overline font-semibold text-[#9b958b] uppercase">
+            <h2 className="px-3 pb-1 text-overline font-semibold text-[#736e67] uppercase">
               {group.name}
             </h2>
             {group.items.map((item) => {
@@ -118,7 +118,7 @@ export function Sidebar({ route }: { route: string }) {
         ))}
 
         {groups.length === 0 && (
-          <p className="px-3 pt-6 text-small text-[#9b958b]">No module matches “{query}”.</p>
+          <p className="px-3 pt-6 text-small text-[#736e67]">No module matches “{query}”.</p>
         )}
       </div>
 
@@ -132,7 +132,7 @@ export function Sidebar({ route }: { route: string }) {
           onClick={() => open({ title: 'Settings', eyebrow: site.zooName, body: <SettingsPanel /> })}
           className="flex w-full items-center gap-3 rounded-[10px] px-3 py-[9px] text-left text-small font-medium text-[#3d3a34] transition-colors hover:bg-[#f6f7f6]"
         >
-          <SETTINGS.icon size={16} strokeWidth={1.75} className="text-[#9b958b]" aria-hidden />
+          <SETTINGS.icon size={16} strokeWidth={1.75} className="text-[#736e67]" aria-hidden />
           <span className="min-w-0 flex-1 truncate">{SETTINGS.label}</span>
         </button>
       </div>
@@ -169,7 +169,7 @@ function SidebarLink({
       <Glyph
         size={small ? 14 : 16}
         strokeWidth={1.75}
-        className={active ? 'text-[#0a4d3c]' : 'text-[#9b958b]'}
+        className={active ? 'text-[#0a4d3c]' : 'text-[#736e67]'}
       />
       {/* NO COUNT BADGE. A folded row used to print how many chapters were under it, on the
           reasoning that the fold should announce itself. Read in place it does not announce a

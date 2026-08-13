@@ -130,7 +130,7 @@ function GreetingHeader({ onSearch }: { onSearch: () => void }) {
       <MistBackdrop />
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-lead text-[#6d6860] @[900px]:text-h3">{greetingFor(now)},</p>
+          <p className="text-lead text-[#5c574f] @[900px]:text-h3">{greetingFor(now)},</p>
           <h1 className="mt-0.5 text-[length:var(--fs-name)] leading-[var(--lh-name)] font-bold tracking-[-0.4px] text-[#1c1a16]">
             {site.userName} <span aria-hidden>👋</span>
           </h1>
@@ -547,7 +547,7 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
               which reads as a missing word rather than as a word deliberately not there. */}
           {(note || hasMovement(delta)) && (
             <span className="flex min-w-0 items-baseline gap-2">
-              {note && <span className="min-w-0 truncate text-caption text-[#9b958b]">{note}</span>}
+              {note && <span className="min-w-0 truncate text-caption text-[#736e67]">{note}</span>}
               {hasMovement(delta) && (
                 <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
                   {delta}
@@ -583,14 +583,14 @@ function EmptyCard({ label, icon: Glyph }: { label: string; icon: HeadlineKpi['i
     <div className={`${CARD} flex min-w-0 flex-col p-[var(--pad-card)]`}>
       <span className="flex items-start gap-1.5">
         <Glyph size={15} strokeWidth={1.75} className="mt-[2px] shrink-0" style={{ color: FAINT }} aria-hidden />
-        <span className="min-w-0 text-small font-medium text-balance text-[#6d6860]">
+        <span className="min-w-0 text-small font-medium text-balance text-[#5c574f]">
           {label}
         </span>
       </span>
       <span className="mt-3 block font-display text-n-lg font-bold" style={{ color: '#c9c4bb' }}>
         —
       </span>
-      <span className="mt-1 block text-caption text-[#9b958b]">Not reported for this scope</span>
+      <span className="mt-1 block text-caption text-[#736e67]">Not reported for this scope</span>
     </div>
   )
 }
@@ -658,7 +658,7 @@ function KpiTile({ kpi }: { kpi: Kpi }) {
       <span className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1.5">
         <Figure value={value} unit={unit} size={28} color={HERO_INK} />
         <span className="flex min-w-0 items-baseline gap-2">
-          <span className="min-w-0 truncate text-caption text-[#9b958b]">{note || ' '}</span>
+          <span className="min-w-0 truncate text-caption text-[#736e67]">{note || ' '}</span>
           {/* Shown under a site scope now, because it IS that site's movement — the delta
               is read from the same scoped series as the figure beside it. It had to be
               hidden before, when it was the collection's change beside a site's figure. */}
@@ -751,15 +751,22 @@ function Upcoming() {
         {/* Two windows, not a date picker. The question is "what is due soon", and
             soon is either this week or this month — anything else is planning, which
             happens in the module. */}
-        <div className="flex gap-1.5" role="tablist" aria-label="Horizon">
+        {/* `aria-pressed`, NOT `role="tab"`. These were declared as an ARIA tablist with
+            `aria-selected`, and the pattern was never completed: there is no `role="tabpanel"`
+            anywhere in the product, no `aria-controls` pointing at one, and no roving tabindex.
+            A screen reader announced "tab, 1 of 2, selected" and then the arrow keys the tab
+            pattern promises did nothing, because there was no tablist to move within. These are
+            not tabs — nothing is being revealed and hidden, the list below simply re-reads at a
+            different horizon. That is a toggle button, which is what `aria-pressed` names, and
+            it is what the population page's own chips have always used. */}
+        <div className="flex gap-2">
           {[7, 30].map((d) => (
             <button
               key={d}
               type="button"
-              role="tab"
-              aria-selected={horizon === d}
+              aria-pressed={horizon === d}
               onClick={() => setHorizon(d)}
-              className={`rounded-full px-3 py-[5px] text-caption font-medium transition-colors ${
+              className={`pill ${
                 horizon === d ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a]'
               }`}
             >
@@ -824,7 +831,7 @@ function Upcoming() {
         })}
       </ul>
       {groups.length === 0 && (
-        <p className="mt-4 text-small text-[#6d6860]">Nothing scheduled in the next {horizon} days.</p>
+        <p className="mt-4 text-small text-[#5c574f]">Nothing scheduled in the next {horizon} days.</p>
       )}
     </div>
   )
@@ -861,7 +868,7 @@ function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
             <span className="min-w-0 truncate text-small text-[#1c1a16]">{risk.label}</span>
             <LevelChip level={risk.level} />
           </span>
-          <span className="mt-1 block truncate text-caption text-[#9b958b]">{risk.note}</span>
+          <span className="mt-1 block truncate text-caption text-[#736e67]">{risk.note}</span>
         </span>
         {/* Ink, for the same reason as the alert count above — the icon and the chip carry the
             level, so the figure carries only the figure. */}
@@ -932,15 +939,14 @@ function TrendsSection() {
         aside={
           /* Same pill as the Upcoming horizon switch below — one control shape on this page,
              not two that do the same job. */
-          <span className="flex gap-1.5" role="tablist" aria-label="Trend span">
+          <span className="flex gap-2">
             {TREND_SPANS.map((s) => (
               <button
                 key={s.key}
                 type="button"
-                role="tab"
-                aria-selected={span === s.key}
+                aria-pressed={span === s.key}
                 onClick={() => setSpan(s.key)}
-                className={`rounded-full px-3 py-[3px] text-caption font-medium transition-colors ${
+                className={`pill ${
                   span === s.key ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a]'
                 }`}
               >

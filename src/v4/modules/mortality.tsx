@@ -497,7 +497,7 @@ function ChipRow({
               style={on ? { backgroundColor: MORTALITY_ACCENT } : undefined}
             >
               {o}
-              <span className={`ml-1 tabular-nums ${on ? 'text-white/60' : 'text-[#9b958b]'}`}>{count(o)}</span>
+              <span className={`ml-1 tabular-nums ${on ? 'text-white/60' : 'text-[#736e67]'}`}>{count(o)}</span>
             </button>
           )
         })}

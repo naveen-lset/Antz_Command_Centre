@@ -56,8 +56,32 @@ export const VALUE = '#2f2424'
  */
 export const HERO_INK = '#08100C'
 export const INK2 = '#3d3a34'
-export const MUTED = '#6d6860'
-export const FAINT = '#9b958b'
+/**
+ * THE TWO SECONDARY INKS, DARKENED — and the ramp moved as a ramp, not as one step.
+ *
+ * `FAINT` was `#736e67`: 2.97:1 on white, 2.55:1 on the sage ground. That is under the 4.5:1
+ * AA floor for body text and under the 3:1 floor a large or non-text mark needs, so it failed
+ * at every size it was ever set at — and it is not a decorative ink. At 12px it carries the KPI
+ * note ("2,171 of 2,374"), the Upcoming sub-line, every risk note, the leader tags, the site
+ * table's column headers and the sex-split labels. Nearly every qualifying fact in the product
+ * was set in a grey that a reader with any contrast loss cannot resolve.
+ *
+ * `MUTED` MOVED TOO, AND THAT IS THE POINT. It already passed at 5.53:1, so on its own it
+ * needed nothing. But `FAINT` has to land above 4.5 to be legal, and 4.5 is within a hair of
+ * where `MUTED` already sat — darkening one and not the other would have put the two steps of
+ * this ramp at 5.05 and 5.53, which is not two steps, it is one colour rendered twice. The
+ * hierarchy these two encode (a fact, versus the note that qualifies it) is worth more than the
+ * absolute values, so both moved and the gap between them is preserved.
+ *
+ *   INK2   #3d3a34   11.33 : 1     unchanged — headings, section titles
+ *   MUTED  #5c574f    7.16 : 1     was 5.53 — secondary body, list meta
+ *   FAINT  #736e67    5.05 : 1     was 2.97 — notes, units, captions, table headers
+ *
+ * Both are the ORIGINAL HUE scaled toward black, not re-picked, so the warm cast the palette
+ * is built on survives — these read as the same two greys, correctly weighted.
+ */
+export const MUTED = '#5c574f'
+export const FAINT = '#736e67'
 export const HAIR = '#f0efec'
 
 /**
@@ -117,7 +141,7 @@ export const GRID = MD3.neutral05
  *
  * `TONE` is read far more often as text than as a mark — severity counts, deltas, status
  * labels — so it stays on values that clear AA. `good` and `neutral` move onto MD3_Antz
- * (`onSurface` 6.48:1, `onSurfaceVariant` 8.04:1); `neutral` in particular was #9b958b at
+ * (`onSurface` 6.48:1, `onSurfaceVariant` 8.04:1); `neutral` in particular was #736e67 at
  * 2.97:1, which failed everywhere it appeared.
  *
  * `warn` and `bad` stay put, and that is a deliberate gap rather than an oversight: the
@@ -367,7 +391,7 @@ export function Section({
             {Glyph && <Glyph size={13} strokeWidth={2} style={{ color: accent }} aria-hidden />}
             <h3 className="text-overline font-semibold whitespace-nowrap text-[#3d3a34] uppercase">{label}</h3>
             <span className="h-px flex-1" style={{ backgroundColor: HAIR }} aria-hidden />
-            {aside && <span className="shrink-0 text-caption whitespace-nowrap text-[#9b958b]">{aside}</span>}
+            {aside && <span className="shrink-0 text-caption whitespace-nowrap text-[#736e67]">{aside}</span>}
           </div>
         )}
         {children}
@@ -409,7 +433,7 @@ export function Section({
                 {label}
               </h2>
             </span>
-            {aside && <span className="shrink-0 text-caption whitespace-nowrap text-[#9b958b]">{aside}</span>}
+            {aside && <span className="shrink-0 text-caption whitespace-nowrap text-[#736e67]">{aside}</span>}
           </header>
         )}
         {children}
@@ -462,7 +486,7 @@ export function Duo({ children }: { children: ReactNode }) {
 export function Rule({ label }: { label: string }) {
   return (
     <div className="mt-5 mb-3 flex items-center gap-3">
-      <span className="text-overline font-medium text-[#9b958b] uppercase">{label}</span>
+      <span className="text-overline font-medium text-[#736e67] uppercase">{label}</span>
       <span className="h-px flex-1" style={{ backgroundColor: HAIR }} />
     </div>
   )
@@ -497,7 +521,7 @@ export function Figure({
           color,
         }}
       />
-      {unit && <span className="text-small text-[#9b958b]">{unit}</span>}
+      {unit && <span className="text-small text-[#736e67]">{unit}</span>}
     </span>
   )
 }
@@ -602,7 +626,7 @@ export function Hero({
                 } ${centred ? 'text-center' : ''}`}
               >
                 <Figure value={s.value} unit={s.unit} size={24} />
-                <span className="mt-1 block truncate text-caption text-[#6d6860]">{s.label}</span>
+                <span className="mt-1 block truncate text-caption text-[#5c574f]">{s.label}</span>
               </span>
             ))}
           </div>
@@ -658,7 +682,7 @@ export function MetricGrid({
         >
           <Figure value={m.value} unit={m.unit} size={cols === 3 ? 24 : 28} />
           <p className="mt-1 text-small text-[#3d3a34]">{m.label}</p>
-          {m.note && <p className="mt-1 text-caption text-[#9b958b]">{m.note}</p>}
+          {m.note && <p className="mt-1 text-caption text-[#736e67]">{m.note}</p>}
         </div>
       ))}
     </div>
@@ -718,10 +742,10 @@ export function Bars({
           <span className="shrink-0 text-right">
             <span className="block text-small font-medium tabular-nums text-[#1c1a16]">
               {compact(it.value)}
-              {unit && <span className="ml-0.5 text-caption font-normal text-[#9b958b]">{unit}</span>}
+              {unit && <span className="ml-0.5 text-caption font-normal text-[#736e67]">{unit}</span>}
             </span>
             {showShare && (
-              <span className="mt-1 block text-caption tabular-nums text-[#9b958b]">{shareText(it.value)}</span>
+              <span className="mt-1 block text-caption tabular-nums text-[#736e67]">{shareText(it.value)}</span>
             )}
           </span>
         )
@@ -731,7 +755,7 @@ export function Bars({
             <li key={it.label}>
               <div className="flex items-baseline gap-3">
                 <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{it.label}</span>
-                {it.sub && <span className="shrink-0 text-caption text-[#9b958b]">{it.sub}</span>}
+                {it.sub && <span className="shrink-0 text-caption text-[#736e67]">{it.sub}</span>}
                 {figure}
               </div>
               <div className="mt-1.5 h-[6px] w-full overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
@@ -757,7 +781,7 @@ export function Bars({
               <span className="min-w-0 flex-1 self-center">
                 <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
                 {it.sub && (
-                  <span className="mt-1 block truncate text-caption text-[#9b958b]">{it.sub}</span>
+                  <span className="mt-1 block truncate text-caption text-[#736e67]">{it.sub}</span>
                 )}
               </span>
               <span className="self-center">{figure}</span>
@@ -804,7 +828,7 @@ export function Composition({ items, unit }: { items: { label: string; value: nu
           </li>
         ))}
       </ul>
-      {unit && <p className="mt-3 text-caption text-[#9b958b]">{fmt(total)} {unit} total</p>}
+      {unit && <p className="mt-3 text-caption text-[#736e67]">{fmt(total)} {unit} total</p>}
     </div>
   )
 }
@@ -1111,7 +1135,7 @@ export function Matrix({
             <tr>
               <th />
               {cols.map((c) => (
-                <th key={c} className="pb-1 text-tick font-normal text-[#9b958b]">
+                <th key={c} className="pb-1 text-tick font-normal text-[#736e67]">
                   {c}
                 </th>
               ))}
@@ -1191,7 +1215,7 @@ export function Tray({
                 `break-words` is the belt to that braces: hyphenation needs a
                 dictionary the engine may not ship, and a chip that keeps its text
                 inside itself matters more than where the break lands. */}
-            <p className="mt-1 text-caption hyphens-auto break-words text-[#6d6860]" lang="en">
+            <p className="mt-1 text-caption hyphens-auto break-words text-[#5c574f]" lang="en">
               {c.label}
             </p>
           </div>
@@ -1212,10 +1236,10 @@ export function Funnel({ stages, unit }: { stages: { label: string; value: numbe
         <li key={s.label}>
           <div className="flex items-baseline gap-3">
             <span className="min-w-0 flex-1 text-small text-[#1c1a16]">{s.label}</span>
-            {s.sub && <span className="shrink-0 text-caption text-[#9b958b]">{s.sub}</span>}
+            {s.sub && <span className="shrink-0 text-caption text-[#736e67]">{s.sub}</span>}
             <span className="shrink-0 text-small font-medium tabular-nums text-[#1c1a16]">
               {s.value}
-              {unit && <span className="ml-0.5 text-caption font-normal text-[#9b958b]">{unit}</span>}
+              {unit && <span className="ml-0.5 text-caption font-normal text-[#736e67]">{unit}</span>}
             </span>
           </div>
           <div className="mt-1.5 h-[8px] w-full overflow-hidden rounded-[4px]" style={{ backgroundColor: TRACK }}>
@@ -1251,11 +1275,11 @@ export function Lanes({
         <li key={`${r.from}-${r.to}`}>
           <div className="flex items-baseline gap-2 text-small">
             <span className="min-w-0 truncate text-[#1c1a16]">{r.from}</span>
-            <span className="shrink-0 text-[#9b958b]" aria-hidden>→</span>
+            <span className="shrink-0 text-[#736e67]" aria-hidden>→</span>
             <span className="min-w-0 flex-1 truncate text-[#1c1a16]">{r.to}</span>
             <span className="shrink-0 font-medium tabular-nums text-[#1c1a16]">
               {r.value}
-              {unit && <span className="ml-0.5 text-caption font-normal text-[#9b958b]">{unit}</span>}
+              {unit && <span className="ml-0.5 text-caption font-normal text-[#736e67]">{unit}</span>}
             </span>
           </div>
           <div className="mt-1.5 flex items-center gap-2">
@@ -1269,7 +1293,7 @@ export function Lanes({
                 }}
               />
             </span>
-            {r.sub && <span className="shrink-0 text-caption text-[#9b958b]">{r.sub}</span>}
+            {r.sub && <span className="shrink-0 text-caption text-[#736e67]">{r.sub}</span>}
           </div>
         </li>
       ))}
@@ -1291,11 +1315,11 @@ export function Ledger({
       {items.map((it, i) => (
         <li key={it.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
           {rank && (
-            <span className="w-[14px] shrink-0 text-caption tabular-nums text-[#9b958b]">{String(i + 1)}</span>
+            <span className="w-[14px] shrink-0 text-caption tabular-nums text-[#736e67]">{String(i + 1)}</span>
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
-            {it.sub && <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>}
+            {it.sub && <span className="mt-1 block text-caption text-[#736e67]">{it.sub}</span>}
           </span>
           {it.share !== undefined && (
             <span className="h-[5px] w-[44px] shrink-0 overflow-hidden rounded-full" style={{ backgroundColor: TRACK }}>
@@ -1349,13 +1373,13 @@ export function Columns({
         {labels.map((l, i) => (
           <span
             key={`${l}-${i}`}
-            className={`flex-1 text-center text-tick ${i === hi ? 'font-semibold text-[#1c1a16]' : 'text-[#9b958b]'}`}
+            className={`flex-1 text-center text-tick ${i === hi ? 'font-semibold text-[#1c1a16]' : 'text-[#736e67]'}`}
           >
             {l}
           </span>
         ))}
       </div>
-      {unit && <p className="mt-3 text-caption text-[#9b958b]">{unit}</p>}
+      {unit && <p className="mt-3 text-caption text-[#736e67]">{unit}</p>}
     </div>
   )
 }
@@ -1436,7 +1460,7 @@ export function Pareto({
                 aria-hidden
               />
               <span className="min-w-0 flex-1 truncate text-small text-[#1c1a16]">{it.label}</span>
-              <span className="shrink-0 text-caption tabular-nums text-[#9b958b]">{cum[i].toFixed(0)}%</span>
+              <span className="shrink-0 text-caption tabular-nums text-[#736e67]">{cum[i].toFixed(0)}%</span>
               <span className="w-[30px] shrink-0 text-right text-small font-medium tabular-nums text-[#1c1a16]">
                 {it.value}
               </span>
@@ -1551,9 +1575,9 @@ export function Records({ items }: { items: { label: string; sub: string; value:
             <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
             {/* Wraps: the label is an identifier and can be clipped, but the sub
                 carries the reason and a clipped reason is worth nothing. */}
-            <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>
+            <span className="mt-1 block text-caption text-[#736e67]">{it.sub}</span>
           </span>
-          <span className="shrink-0 pt-[1px] text-caption tabular-nums whitespace-nowrap text-[#9b958b]">{it.value}</span>
+          <span className="shrink-0 pt-[1px] text-caption tabular-nums whitespace-nowrap text-[#736e67]">{it.value}</span>
         </li>
       ))}
     </ul>
@@ -1606,7 +1630,7 @@ export function Facts({
             {it.lead && <span className="shrink-0">{it.lead}</span>}
             <span className="min-w-0 flex-1">
               <span className={`block ${lg ? 'text-small' : 'text-small'} text-[#1c1a16]`}>{it.label}</span>
-              {it.sub && <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>}
+              {it.sub && <span className="mt-1 block text-caption text-[#736e67]">{it.sub}</span>}
             </span>
             {it.delta && (
               <span
@@ -1862,7 +1886,7 @@ export function Snapshot({
               "Sample quality" clipped to "Sample qua…" states nothing. Grid rows
               size to the tallest cell, so a second line stays aligned. */}
           <p className="mt-1 text-small text-[#3d3a34]">{m.label}</p>
-          {m.note && <p className="mt-1 text-caption text-[#9b958b]">{m.note}</p>}
+          {m.note && <p className="mt-1 text-caption text-[#736e67]">{m.note}</p>}
         </div>
       ))}
     </div>
@@ -1938,7 +1962,7 @@ export function Scoreboard({
             size={size}
             color={it.tone && it.tone !== 'neutral' ? TONE[it.tone] : VALUE}
           />
-          <p className="mt-1 text-caption text-[#6d6860]">{it.label}</p>
+          <p className="mt-1 text-caption text-[#5c574f]">{it.label}</p>
         </div>
       ))}
     </div>
@@ -1973,7 +1997,7 @@ export function Poles({
           <Figure value={high.value} size={24} />
         </div>
         <p className="mt-1.5 truncate text-small text-[#1c1a16]">{high.label}</p>
-        {high.sub && <p className="mt-1 text-caption text-[#9b958b]">{high.sub}</p>}
+        {high.sub && <p className="mt-1 text-caption text-[#736e67]">{high.sub}</p>}
       </div>
       <span className="w-px shrink-0" style={{ backgroundColor: HAIR }} aria-hidden />
       <div className="min-w-0 flex-1">
@@ -1987,7 +2011,7 @@ export function Poles({
           <Figure value={low.value} size={24} color={lowTone && lowTone !== 'neutral' ? TONE[lowTone] : INK2} />
         </div>
         <p className="mt-1.5 truncate text-small text-[#1c1a16]">{low.label}</p>
-        {low.sub && <p className="mt-1 text-caption text-[#9b958b]">{low.sub}</p>}
+        {low.sub && <p className="mt-1 text-caption text-[#736e67]">{low.sub}</p>}
       </div>
     </div>
   )
@@ -2006,7 +2030,7 @@ export function Movers({ items, unit }: { items: { label: string; sub?: string; 
           <li key={it.label} className="flex items-center gap-3">
             <span className="min-w-0 flex-1">
               <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-1 block truncate text-caption text-[#9b958b]">{it.sub}</span>}
+              {it.sub && <span className="mt-1 block truncate text-caption text-[#736e67]">{it.sub}</span>}
             </span>
             <span className="relative h-[8px] w-[76px] shrink-0" aria-hidden>
               <span className="absolute inset-y-0 left-1/2 w-px" style={{ backgroundColor: '#e3e1dc' }} />
@@ -2074,7 +2098,7 @@ export function Bullet({
           />
         )}
       </div>
-      {note && <p className="mt-1.5 text-caption text-[#9b958b]">{note}</p>}
+      {note && <p className="mt-1.5 text-caption text-[#736e67]">{note}</p>}
     </div>
   )
 }
@@ -2110,7 +2134,7 @@ export function Table({
             {head.map((h, i) => (
               <th
                 key={h}
-                className={`pb-2 text-overline font-medium whitespace-nowrap text-[#9b958b] uppercase ${
+                className={`pb-2 text-overline font-medium whitespace-nowrap text-[#736e67] uppercase ${
                   i === 0 ? 'text-left' : 'pl-3 text-right'
                 }`}
               >
@@ -2124,7 +2148,7 @@ export function Table({
             <tr key={r.label} className="border-t border-[#f0efec]">
               <td className="py-3 pr-2">
                 <span className="block text-small text-[#1c1a16]">{r.label}</span>
-                {r.sub && <span className="mt-1 block text-caption text-[#9b958b]">{r.sub}</span>}
+                {r.sub && <span className="mt-1 block text-caption text-[#736e67]">{r.sub}</span>}
               </td>
               {r.cells.map((c, ci) => (
                 <td
@@ -2165,17 +2189,17 @@ export function Ladder({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-small font-medium text-[#1c1a16]">{leader.label}</span>
-          {leader.sub && <span className="mt-1 block truncate text-caption text-[#6d6860]">{leader.sub}</span>}
+          {leader.sub && <span className="mt-1 block truncate text-caption text-[#5c574f]">{leader.sub}</span>}
         </span>
         <Figure value={leader.value} size={24} />
       </div>
       <ol className="mt-1 divide-y divide-[#f0efec]">
         {rest.map((it, i) => (
           <li key={it.label} className="flex items-center gap-3 px-4 py-3">
-            <span className="text-caption tabular-nums text-[#9b958b]">{i + 2}</span>
+            <span className="text-caption tabular-nums text-[#736e67]">{i + 2}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-small text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-1 block truncate text-caption text-[#9b958b]">{it.sub}</span>}
+              {it.sub && <span className="mt-1 block truncate text-caption text-[#736e67]">{it.sub}</span>}
             </span>
             <span className="shrink-0 text-small font-medium tabular-nums text-[#3d3a34]">{it.value}</span>
           </li>
@@ -2212,7 +2236,7 @@ export function Band({
           {label}
         </span>
         <span className="mt-1 block text-small text-[#1c1a16]">{title}</span>
-        {sub && <span className="mt-1 block text-caption text-[#6d6860]">{sub}</span>}
+        {sub && <span className="mt-1 block text-caption text-[#5c574f]">{sub}</span>}
       </span>
       <span className="shrink-0 whitespace-nowrap">
         <Figure value={value} unit={unit} size={24} color={tone && tone !== 'neutral' ? TONE[tone] : VALUE} />
@@ -2328,7 +2352,7 @@ export function Dial({
         </div>
       </div>
       <p className="mt-1 text-center text-small text-[#3d3a34]">{label}</p>
-      {benchmarkLabel && <p className="mt-1 text-center text-caption text-[#9b958b]">{benchmarkLabel}</p>}
+      {benchmarkLabel && <p className="mt-1 text-center text-caption text-[#736e67]">{benchmarkLabel}</p>}
     </div>
   )
 }
@@ -2353,7 +2377,7 @@ export function Calendar({
     <div>
       <div className="grid grid-cols-7 gap-[3px]">
         {weekLabels.map((w, i) => (
-          <span key={i} className="pb-1 text-center text-tick text-[#9b958b]">
+          <span key={i} className="pb-1 text-center text-tick text-[#736e67]">
             {w}
           </span>
         ))}
@@ -2431,7 +2455,7 @@ export function Highlights({
             <div className="mt-1">
               <Figure value={it.value} unit={it.unit} size={24} color={it.tone && it.tone !== 'neutral' ? c : VALUE} />
             </div>
-            <p className="mt-1 text-caption text-[#6d6860]">{it.label}</p>
+            <p className="mt-1 text-caption text-[#5c574f]">{it.label}</p>
           </li>
         )
       })}
@@ -2453,7 +2477,7 @@ export function Events({
     <ul className="flex flex-col">
       {items.map((it, i) => (
         <li key={`${it.when}-${i}`} className="flex gap-3">
-          <span className="w-[44px] shrink-0 pt-[1px] text-right text-caption tabular-nums text-[#9b958b]">
+          <span className="w-[44px] shrink-0 pt-[1px] text-right text-caption tabular-nums text-[#736e67]">
             {it.when}
           </span>
           <span className="relative flex w-[9px] shrink-0 justify-center" aria-hidden>
@@ -2466,7 +2490,7 @@ export function Events({
           <span className={`flex min-w-0 flex-1 items-baseline gap-3 ${i < items.length - 1 ? 'pb-4' : ''}`}>
             <span className="min-w-0 flex-1">
               <span className="block text-small text-[#1c1a16]">{it.label}</span>
-              {it.sub && <span className="mt-1 block text-caption text-[#9b958b]">{it.sub}</span>}
+              {it.sub && <span className="mt-1 block text-caption text-[#736e67]">{it.sub}</span>}
             </span>
             {it.value && (
               <span
@@ -2554,7 +2578,7 @@ export function Ring({
       <div className="min-w-0 flex-1">
         <Figure value={`${Math.round(p)}`} unit="%" size={32} color={c} />
         <p className="mt-1 text-small text-[#1c1a16]">{label}</p>
-        {note && <p className="mt-1 text-caption text-[#9b958b]">{note}</p>}
+        {note && <p className="mt-1 text-caption text-[#736e67]">{note}</p>}
         {href && (
           <div className="mt-3">
             <More href={href} />
@@ -2580,7 +2604,7 @@ export function Ring({
         <div className="absolute inset-x-0 top-[38px] text-center">
           <Figure value={value} size={20} />
           <span className="mx-auto mt-1 block h-px w-[42px]" style={{ backgroundColor: HAIR }} aria-hidden />
-          <span className="mt-1 block text-caption tabular-nums text-[#6d6860]">{of}</span>
+          <span className="mt-1 block text-caption tabular-nums text-[#5c574f]">{of}</span>
         </div>
       </div>
     </div>
@@ -2645,7 +2669,7 @@ export function Donut({
             </g>
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-caption text-[#9b958b]">{label}</span>
+            <span className="text-caption text-[#736e67]">{label}</span>
             <Figure value={compact(total)} size={28} />
           </div>
         </div>
@@ -2670,7 +2694,7 @@ export function Donut({
         </ul>
       </div>
       {unit && (
-        <p className="mt-4 text-caption text-[#9b958b]">
+        <p className="mt-4 text-caption text-[#736e67]">
           {fmt(total)} {unit}
         </p>
       )}
@@ -2768,7 +2792,7 @@ export function Trend({
           {gridlines.map((g) => (
             <span
               key={g}
-              className="absolute right-0 -translate-y-1/2 text-tick tabular-nums text-[#9b958b]"
+              className="absolute right-0 -translate-y-1/2 text-tick tabular-nums text-[#736e67]"
               style={{ top: `${(1 - g / top) * 100}%` }}
             >
               {compact(g)}
@@ -2829,7 +2853,7 @@ export function Trend({
             {labels.map((l, i) => (
               <span
                 key={`${l}-${i}`}
-                className={`flex-1 text-tick text-[#9b958b] ${
+                className={`flex-1 text-tick text-[#736e67] ${
                   i === 0 ? 'text-left' : i === labels.length - 1 ? 'text-right' : 'text-center'
                 }`}
               >
@@ -2839,7 +2863,7 @@ export function Trend({
           </div>
         </div>
       </div>
-      {unit && <p className="mt-3 text-caption text-[#9b958b]">{unit}</p>}
+      {unit && <p className="mt-3 text-caption text-[#736e67]">{unit}</p>}
     </div>
   )
 }
@@ -2933,7 +2957,7 @@ export function Roster({
               <span className="size-[7px] rounded-full" style={{ backgroundColor: accent }} />
             </span>
             <span className="min-w-0 truncate text-small font-medium text-[#1c1a16]">{g.group}</span>
-            <span className="shrink-0 text-caption text-[#9b958b]">· {g.count}</span>
+            <span className="shrink-0 text-caption text-[#736e67]">· {g.count}</span>
           </div>
           <div className="overflow-hidden rounded-[10px]">
             <table className="w-full table-fixed">
@@ -2982,7 +3006,7 @@ export function Roster({
                          but printing over the next column is wrong. */
                       <td
                         key={ci}
-                        className={`px-3 py-3 align-top text-caption break-words whitespace-pre-line text-[#6d6860] ${
+                        className={`px-3 py-3 align-top text-caption break-words whitespace-pre-line text-[#5c574f] ${
                           alignOf(ci) === 'right' ? 'text-right tabular-nums' : ''
                         }`}
                       >
@@ -3077,17 +3101,17 @@ export function Sites({
             Overall · {period.label.toLowerCase()}
           </p>
         </span>
-        <span className="shrink-0 pb-1 text-caption whitespace-nowrap text-[#9b958b]">{note}</span>
+        <span className="shrink-0 pb-1 text-caption whitespace-nowrap text-[#736e67]">{note}</span>
       </div>
-      <label className="mt-4 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
-        <Search size={14} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
+      <label className="mt-4 flex items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2 focus-within:ring-2 focus-within:ring-[#37bd69]/35">
+        <Search size={14} strokeWidth={2} className="shrink-0 text-[#736e67]" aria-hidden />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Find a site"
           aria-label="Find a site"
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+          className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#736e67]"
         />
         {query && (
           <button
@@ -3096,13 +3120,13 @@ export function Sites({
             aria-label="Clear"
             className="-mr-1 grid size-5 shrink-0 place-items-center rounded-full active:bg-[#eceae5]"
           >
-            <X size={13} strokeWidth={2} className="text-[#6d6860]" aria-hidden />
+            <X size={13} strokeWidth={2} className="text-[#5c574f]" aria-hidden />
           </button>
         )}
       </label>
 
       {rows.length === 0 && (
-        <p className="mt-4 border-t border-[#f0efec] pt-4 text-caption text-[#9b958b]">
+        <p className="mt-4 border-t border-[#f0efec] pt-4 text-caption text-[#736e67]">
           No site matches “{query.trim()}”.
         </p>
       )}
@@ -3125,7 +3149,7 @@ export function Sites({
                 <span className="flex min-w-0 items-baseline gap-2">
                   <span className="truncate text-small text-[#1c1a16]">{r.site.name}</span>
                   {!dense && (
-                    <span className="shrink-0 text-caption tabular-nums text-[#9b958b]">
+                    <span className="shrink-0 text-caption tabular-nums text-[#736e67]">
                       {r.site.code} · {r.site.enclosures}
                     </span>
                   )}
@@ -3133,12 +3157,12 @@ export function Sites({
                 <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
                   {rate ? `${Math.round(r.percent)}%` : fmt(r.value)}
                   {rate && r.of && (
-                    <span className="ml-1 text-caption font-normal text-[#9b958b]">
+                    <span className="ml-1 text-caption font-normal text-[#736e67]">
                       {fmt(r.value)}/{fmt(r.of)}
                     </span>
                   )}
                   {!rate && r.value > 0 && (
-                    <span className="ml-1 text-caption font-normal text-[#9b958b]">
+                    <span className="ml-1 text-caption font-normal text-[#736e67]">
                       {Math.round(r.percent)}%
                     </span>
                   )}
@@ -3231,7 +3255,7 @@ export function RedList({
             {/* Tier header carries its own subtotal. This is where the hierarchy comes
                 from: three figures at a glance, before any individual row is read. */}
             <div className="mb-3 flex items-baseline gap-3">
-              <span className="text-overline font-medium whitespace-nowrap text-[#9b958b] uppercase">
+              <span className="text-overline font-medium whitespace-nowrap text-[#736e67] uppercase">
                 {tier.label}
               </span>
               <span className="h-px flex-1" style={{ backgroundColor: HAIR }} />
@@ -3256,7 +3280,7 @@ export function RedList({
                     type={tap ? 'button' : undefined}
                     onClick={tap}
                     className={`flex w-full items-center gap-3 py-[5px] text-left ${
-                      live ? 'card-press -mx-2 rounded-[10px] px-2' : ''
+                      live ? 'card-press tap-tall -mx-2 rounded-[10px] px-2' : ''
                     }`}
                   >
                     {/* 22px, down from 40. The badge is an identifier now, not the
@@ -3364,7 +3388,7 @@ export function Filter<T>({
               {o}
               {/* The count is the point of a filter chip — it tells you whether the
                   narrowing is worth the tap before you spend it. */}
-              <span className={`ml-1 tabular-nums ${on ? 'text-white/60' : 'text-[#9b958b]'}`}>{n}</span>
+              <span className={`ml-1 tabular-nums ${on ? 'text-white/60' : 'text-[#736e67]'}`}>{n}</span>
             </button>
           )
         })}
@@ -3378,7 +3402,7 @@ export function Filter<T>({
         {visible.length > 0 ? (
           children(visible, active)
         ) : (
-          <p className="py-3 text-caption text-[#9b958b]">Nothing under {active} in this window.</p>
+          <p className="py-3 text-caption text-[#736e67]">Nothing under {active} in this window.</p>
         )}
       </div>
     </div>
@@ -3456,7 +3480,7 @@ export function PeriodHero({
 export function Stamp({ source }: { source?: string }) {
   const { period } = usePeriod()
   return (
-    <p className="px-1 pt-1 pb-2 text-center text-caption text-[#9b958b]">
+    <p className="px-1 pt-1 pb-2 text-center text-caption text-[#736e67]">
       {period.key === 'month' ? `As of ${longDate(TODAY)}` : period.window}
       {` · ${source ?? `${SITES.length} sites`}`}
     </p>

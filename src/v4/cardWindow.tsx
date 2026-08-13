@@ -64,7 +64,7 @@ export function useCardWindow(): { win: Win; pill: ReactNode; overridden: boolea
           type="button"
           onClick={() => setOverride(null)}
           title={`Follow the page window (${scope.win.label})`}
-          className="card-press grid size-7 shrink-0 place-items-center rounded-full"
+          className="card-press tap-tall grid size-7 shrink-0 place-items-center rounded-full"
           style={{ backgroundColor: mix(ACCENT, 0.12), color: ACCENT_INK }}
         >
           <RotateCcw size={11} strokeWidth={2.5} aria-hidden />
@@ -93,7 +93,7 @@ export function useCardWindow(): { win: Win; pill: ReactNode; overridden: boolea
         /* 28px, not 22. `py-[3px]` on 12px/16px text gave a pill shorter than the gap beside it —
            cramped against a 24px card title and under any sensible click target. 28 is the 4px
            grid's step that clears both without competing with the 36px header pills. */
-        className="card-press flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-caption font-medium whitespace-nowrap"
+        className="card-press tap-tall flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-caption font-medium whitespace-nowrap"
         style={
           overridden
             ? { backgroundColor: mix(ACCENT, 0.14), color: ACCENT_INK }

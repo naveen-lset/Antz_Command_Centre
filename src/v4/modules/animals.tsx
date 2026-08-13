@@ -434,7 +434,7 @@ export default function Animals() {
         <SectionLabel n={1}>Population</SectionLabel>
         <Grid cols={2}>
           <div className="@[560px]:col-span-2">
-            <PopulationOverview siteKey={siteKey} facets={facets} onSex={(v) => setFacets({ ...facets, sex: v })} />
+            <PopulationOverview siteKey={siteKey} species={species} onSex={(v) => setFacets({ ...facets, sex: v })} />
           </div>
           {/* BIRTHS AND MORTALITY SHARE A ROW, and the order is the argument for it: they are
               the same question with opposite signs, so reading them side by side is reading
@@ -580,19 +580,37 @@ export default function Animals() {
  * overview to say nothing happened. It now appears only when it is non-zero, which is the only
  * time it is information, and it is named for what a reader would call it.
  */
-/* The three inks this container uses, named where they are used. Neutral dark rather than pure
-   black: #1F2421 on a white card reads as considered, #000 reads as a default. */
-const INK = '#1F2421'
-const INK_2 = '#777C78'
-const INK_3 = '#9A9E9B'
+/* THE THREE PRIVATE INKS ARE GONE, and the container reads the product's own ramp instead.
+   They were `#1F2421 / #777C78 / #9A9E9B` — a second, cooler grey ladder declared beside a page
+   that already imports `VALUE`, `MUTED` and `FAINT` from `exec/system.tsx`. Two ramps for one job
+   is how a module drifts off the palette, and this one had drifted somewhere illegible: `#777C78`
+   measured 4.25:1 on white and `#9A9E9B` 2.71:1, so the three captions naming the headline figures
+   of this card — "starting", "net change", "current" — were the least readable type on the page
+   they were labelling. The globals carry the same hierarchy at 15.01 / 7.16 / 5.05. */
 
+/**
+ * `species` ARRIVES AS A PROP, AND THAT DELETES A SECOND PASS OVER THE WHOLE COLLECTION.
+ *
+ * This card used to call `useLens(siteKey, win, facets)` itself. Every argument was identical to
+ * the one the page had already run — same site, same `scope.win`, same facets — but `useMemo` is
+ * per-component, so nothing was shared and the work happened twice on every render.
+ *
+ * That work is not small. Each pass runs `holdings()`, which flatMaps `speciesStock` across all
+ * fifty sites, attaches regulatory standing to every row and sorts the result, then `speciesRows()`
+ * over the same ~4,745 species, then the lens filter on top. Doing it twice bought nothing — this
+ * card reads only `species`, which the page is already holding.
+ *
+ * It stays a PROP rather than becoming a context or a module-level cache because the page is the
+ * only caller and the value is already in its hand. The card cannot now disagree with the page
+ * about what the lens means, which was the original argument for factoring `useLens` out at all.
+ */
 function PopulationOverview({
   siteKey,
-  facets,
+  species,
   onSex,
 }: {
   siteKey: string | null
-  facets: Facets
+  species: SpeciesRow[]
   onSex: (sex: Facets['sex']) => void
 }) {
   /* NO PER-CARD WINDOW. The pill let this card be recut independently of the page, which is right
@@ -602,7 +620,6 @@ function PopulationOverview({
   const win = scope.win
   const move = useMemo(() => movement(siteKey, win), [siteKey, win])
   const delta = useMemo(() => change(siteKey, win), [siteKey, win])
-  const { species } = useLens(siteKey, win, facets)
   const sexes = useMemo(() => sexTotals(species), [species])
 
   const share = (n: number) => Math.round((n / Math.max(1, sexes.total)) * 100)
@@ -636,14 +653,14 @@ function PopulationOverview({
               and the line under it says which number it is. */}
           <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
             <span className="min-w-0">
-              <span className="block font-display text-n-sm font-medium tabular-nums" style={{ color: INK_2 }}>
+              <span className="block font-display text-n-sm font-medium tabular-nums" style={{ color: MUTED }}>
                 {fmt(delta.opening)}
               </span>
-              <span className="mt-1 block text-caption" style={{ color: INK_3 }}>
+              <span className="mt-1 block text-caption" style={{ color: FAINT }}>
                 {shortDate(Math.max(0, win.from - 1))} · starting
               </span>
             </span>
-            <span className="pb-5 text-caption" style={{ color: INK_3 }} aria-hidden>
+            <span className="pb-5 text-caption" style={{ color: FAINT }} aria-hidden>
               →
             </span>
             <span className="min-w-0">
@@ -653,18 +670,18 @@ function PopulationOverview({
               >
                 {signed(delta.net)}
               </span>
-              <span className="mt-1 block text-caption" style={{ color: INK_3 }}>
+              <span className="mt-1 block text-caption" style={{ color: FAINT }}>
                 net change
               </span>
             </span>
-            <span className="pb-5 text-caption" style={{ color: INK_3 }} aria-hidden>
+            <span className="pb-5 text-caption" style={{ color: FAINT }} aria-hidden>
               →
             </span>
             <span className="min-w-0">
-              <span className="block font-display text-n-xl font-semibold tabular-nums" style={{ color: INK }}>
+              <span className="block font-display text-n-xl font-semibold tabular-nums" style={{ color: VALUE }}>
                 {fmt(delta.closing)}
               </span>
-              <span className="mt-1 block text-caption" style={{ color: INK_3 }}>
+              <span className="mt-1 block text-caption" style={{ color: FAINT }}>
                 {shortDate(win.to)} · current
               </span>
             </span>
@@ -673,13 +690,13 @@ function PopulationOverview({
           {/* A LABEL, NOT A `Rule`. The rule drew a hairline the full width of the zone and cost
               about 40px to say two words — and §6 asks for fewer dividers, keeping only the one
               above Net change and the vertical one between the zones. */}
-          <p className="mt-6 mb-3 text-body font-semibold" style={{ color: INK }}>What changed</p>
+          <p className="mt-6 mb-3 text-body font-semibold" style={{ color: VALUE }}>What changed</p>
           <ul className="grid grid-cols-2 gap-x-5 gap-y-3 @[420px]:grid-cols-3">
             {flows.map((f) => (
               <li key={f.key} className="min-w-0">
                 <span className="flex items-center gap-2">
-                  <f.icon size={18} strokeWidth={1.75} className="shrink-0" style={{ color: INK_3 }} aria-hidden />
-                  <span className="min-w-0 truncate text-body" style={{ color: INK_2 }}>
+                  <f.icon size={18} strokeWidth={1.75} className="shrink-0" style={{ color: FAINT }} aria-hidden />
+                  <span className="min-w-0 truncate text-body" style={{ color: MUTED }}>
                     {f.label}
                   </span>
                 </span>
@@ -687,13 +704,13 @@ function PopulationOverview({
                     reads as "not available", which is what `UNSOURCED` means — the extract holds
                     no escape or fetal-loss record. The reason stays in the tooltip. */}
                 {f.value === null ? (
-                  <span className="mt-1 block text-lead font-medium italic" style={{ color: INK_3 }} title={f.note}>
+                  <span className="mt-1 block text-lead font-medium italic" style={{ color: FAINT }} title={f.note}>
                     NA
                   </span>
                 ) : (
                   <span
                     className="mt-1 block font-display text-lead font-bold tabular-nums"
-                    style={{ color: f.value === 0 ? INK_3 : f.sign > 0 ? TONE.good : TONE.bad }}
+                    style={{ color: f.value === 0 ? FAINT : f.sign > 0 ? TONE.good : TONE.bad }}
                   >
                     {f.value === 0 ? '0' : signed(f.sign * f.value)}
                   </span>
@@ -903,7 +920,7 @@ function FlowTrendCard({
 
   return (
     <Section bare={bare} icon={icon} label={label}>
-      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
+      <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
         {TREND_RANGES.map((r) => {
           const on = r.key === range
           return (
@@ -912,7 +929,7 @@ function FlowTrendCard({
               type="button"
               aria-pressed={on}
               onClick={() => setRange(r.key)}
-              className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+              className={`pill ${
                 on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
               }`}
             >
@@ -1224,7 +1241,7 @@ function Toolbar({
             restated below — the as-of date by the page footer, the counts by the hero's own
             stats. The search field and the filter button stay. */}
         <div className="mt-3 flex items-center gap-2">
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f7f6f3] px-3 py-2 focus-within:ring-2 focus-within:ring-[#37bd69]/35">
             <Search size={14} strokeWidth={2} className="shrink-0" style={{ color: FAINT }} aria-hidden />
             <input
               value={query}
@@ -1232,16 +1249,16 @@ function Toolbar({
               placeholder="Species, class, site or animal ID"
               aria-label="Search the collection"
               autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+              className="min-w-0 flex-1 bg-transparent text-small text-[#1c1a16] outline-none placeholder:text-[#736e67]"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => onQuery('')}
                 aria-label="Clear search"
-                className="-mr-1 grid size-5 shrink-0 place-items-center rounded-full active:bg-[#eceae5]"
+                className="tap-tall -mr-1 grid size-7 shrink-0 place-items-center rounded-full active:bg-[#eceae5]"
               >
-                <X size={13} strokeWidth={2} style={{ color: '#6d6860' }} aria-hidden />
+                <X size={13} strokeWidth={2} style={{ color: '#5c574f' }} aria-hidden />
               </button>
             )}
           </label>
@@ -1255,7 +1272,7 @@ function Toolbar({
               })
             }
             aria-label="Filters"
-            className={`card-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-caption font-medium ${
+            className={`card-press tap-tall flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-caption font-medium ${
               on ? 'bg-[#123a2c] text-white' : 'bg-[#f7f6f3] text-[#3d3a34]'
             }`}
           >
@@ -1291,7 +1308,7 @@ function Toolbar({
         )}
 
         {on > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {activeChips(facets).map((c) => (
               <span
                 key={c.key}
@@ -1302,9 +1319,9 @@ function Toolbar({
                   type="button"
                   onClick={() => onApply({ ...facets, [c.key]: 'all' } as Facets)}
                   aria-label={`Clear ${c.label}`}
-                  className="grid size-[16px] shrink-0 place-items-center rounded-full bg-[#e4e2dc]"
+                  className="tap-tall grid size-5 shrink-0 place-items-center rounded-full bg-[#e4e2dc]"
                 >
-                  <X size={10} strokeWidth={2.5} aria-hidden />
+                  <X size={11} strokeWidth={2.5} aria-hidden />
                 </button>
               </span>
             ))}
@@ -1473,7 +1490,7 @@ function Chips({
   onPick: (v: string) => void
 }) {
   return (
-    <div className="-mx-1 flex flex-wrap gap-1.5 px-1">
+    <div className="-mx-1 flex flex-wrap gap-2 px-1">
       {options.map(([key, label]) => {
         const on = key === value
         return (
@@ -1482,7 +1499,7 @@ function Chips({
             type="button"
             aria-pressed={on}
             onClick={() => onPick(key)}
-            className={`shrink-0 rounded-full px-3 py-[5px] text-caption font-medium whitespace-nowrap transition-colors ${
+            className={`pill ${
               on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
             }`}
           >
@@ -1524,7 +1541,7 @@ function TrendCard({
 
   return (
     <Section bare={bare} icon={TrendingUp} label="Population trend">
-      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
+      <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-0.5 scrollbar-hidden">
         {[...TREND_RANGES.map((r) => [r.key, r.label] as [string, string]), ['custom', 'Custom'] as [string, string]].map(
           ([key, label]) => {
             const on = key === range
@@ -1539,7 +1556,7 @@ function TrendCard({
                     open({ title: 'Date range', eyebrow: globalWin.window, body: <DateSheet /> })
                   }
                 }}
-                className={`shrink-0 rounded-full px-3 py-1 text-caption font-medium whitespace-nowrap transition-colors ${
+                className={`pill ${
                   on ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a] active:bg-[#eceae5]'
                 }`}
               >
@@ -1658,7 +1675,7 @@ function CollectionExplorer({
                     type="button"
                     onClick={() => setCls(c.cls)}
                     aria-pressed={on}
-                    className="card-press -mx-2 flex w-full items-center gap-2 rounded-[10px] px-2 py-2 text-left transition-colors"
+                    className="card-press tap-tall -mx-2 flex w-full items-center gap-2 rounded-[10px] px-2 py-2 text-left transition-colors"
                     style={on ? { backgroundColor: mix(accent, 0.1) } : undefined}
                   >
                     <Glyph size={14} strokeWidth={1.75} className="shrink-0" style={{ color: on ? ACCENT_INK : FAINT }} aria-hidden />
@@ -1693,7 +1710,7 @@ function CollectionExplorer({
               {/* AT THE TOP, beside the count it qualifies. At the foot it sat below eight rows,
                   so a reader had to reach the end of a truncated list to learn it was truncated. */}
               {inClass.length > shown.length && (
-                <button type="button" onClick={onViewAllSpecies} className="text-caption font-semibold" style={{ color: ACCENT_INK }}>
+                <button type="button" onClick={onViewAllSpecies} className="tap-tall text-caption font-semibold" style={{ color: ACCENT_INK }}>
                   View all →
                 </button>
               )}
@@ -1891,7 +1908,7 @@ function SitesCard({
                  width is pinned to the row, so the negative margins only SHIFT the button 8px
                  left — every figure landed 16px inside its own column header. Widening by the
                  two margins is what makes the bleed a bleed instead of an offset. */
-              className="card-press -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-[10px] px-2 py-[7px] text-left @[900px]:gap-3"
+              className="card-press tap-tall -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-[10px] px-2 py-[7px] text-left @[900px]:gap-3"
             >
               <span className="w-[16px] shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
                 {String(i + 1).padStart(2, '0')}
@@ -1934,7 +1951,7 @@ function SitesCard({
           <button
             type="button"
             onClick={() => onViewAll()}
-            className="card-press shrink-0 text-small font-semibold whitespace-nowrap"
+            className="card-press tap-tall shrink-0 text-small font-semibold whitespace-nowrap"
             style={{ color: ACCENT_INK }}
           >
             View all {shown.length} sites →

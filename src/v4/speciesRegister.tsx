@@ -45,7 +45,7 @@ export function SpeciesIdentificationTab({ profile }: { profile?: SpeciesProfile
     return (
       <TabBody>
         <Band title="Identification" icon={Fingerprint} first>
-          <p className="text-small" style={{ color: '#6d6860' }}>
+          <p className="text-small" style={{ color: '#5c574f' }}>
             No identification is recorded against this species in the register.
           </p>
         </Band>
@@ -121,7 +121,7 @@ export function SpeciesBreedsTab({ profile }: { profile?: SpeciesProfile }) {
     return (
       <TabBody>
         <Band title="Breeds &amp; morphs" icon={Sparkles} first>
-          <p className="text-small" style={{ color: '#6d6860' }}>
+          <p className="text-small" style={{ color: '#5c574f' }}>
             No breed or morph is recorded for this species. The register carries one for 225 of
             its 2,411 held species — it is the exception rather than the rule.
           </p>
@@ -193,7 +193,7 @@ export function SpeciesAssessmentsTab({ profile }: { profile?: SpeciesProfile })
     return (
       <TabBody>
         <Band title="Assessments" icon={Ruler} first>
-          <p className="text-small" style={{ color: '#6d6860' }}>
+          <p className="text-small" style={{ color: '#5c574f' }}>
             No assessment has been recorded against this species.
           </p>
         </Band>

@@ -56,14 +56,14 @@ function Weather() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-small font-medium text-[#1c1a16]">{site.zooName}</p>
-          <p className="mt-1 text-caption text-[#9b958b]">{site.weather.summary}</p>
+          <p className="mt-1 text-caption text-[#736e67]">{site.weather.summary}</p>
         </div>
         <CloudSun size={26} strokeWidth={1.5} className="shrink-0 text-[#0284c7]" aria-hidden />
       </div>
       <p className="mt-3 font-display text-n-xl font-bold tabular-nums text-[#1c1a16]">
         {site.weather.tempC}°
       </p>
-      <p className="mt-3 flex items-center gap-1.5 text-caption tabular-nums text-[#6d6860]">
+      <p className="mt-3 flex items-center gap-1.5 text-caption tabular-nums text-[#5c574f]">
         <Thermometer size={12} strokeWidth={1.75} aria-hidden />
         Feels {site.weather.feelsLike}° · H {site.weather.high}° · L {site.weather.low}°
       </p>
@@ -92,7 +92,7 @@ function Queues() {
 
   return (
     <section className={`${CARD} px-5 py-4`} aria-label="Queues">
-      <h2 className="pb-1 text-overline font-semibold text-[#9b958b] uppercase">Needs attention</h2>
+      <h2 className="pb-1 text-overline font-semibold text-[#736e67] uppercase">Needs attention</h2>
       <ul className="divide-y divide-[#f0efec]">
         {railQueues.map((q) => (
           <QueueRow key={q.slug} queue={q} onOpen={openFor(q.slug)} />
@@ -132,7 +132,7 @@ function QueueRow({
     return (
       <li className="flex items-center gap-2 py-2">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-small font-medium text-[#9b958b]">{queue.label}</span>
+          <span className="block truncate text-small font-medium text-[#736e67]">{queue.label}</span>
           <span className="mt-1 block truncate text-caption text-[#c9c4bb]">not recorded</span>
         </span>
         <span className="shrink-0 font-display text-n-sm font-bold tabular-nums text-[#c9c4bb]">—</span>
@@ -153,7 +153,7 @@ function QueueRow({
     <>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-small font-medium text-[#1c1a16]">{queue.label}</span>
-        <span className="mt-1 block truncate text-caption text-[#9b958b]">{note}</span>
+        <span className="mt-1 block truncate text-caption text-[#736e67]">{note}</span>
       </span>
       <span
         className="shrink-0 font-display text-n-sm font-bold tabular-nums"
@@ -194,7 +194,7 @@ function TopRisks() {
 
   return (
     <section className={`${CARD} px-5 py-4`} aria-label="Risks">
-      <h2 className="pb-1 text-overline font-semibold text-[#9b958b] uppercase">Top risks</h2>
+      <h2 className="pb-1 text-overline font-semibold text-[#736e67] uppercase">Top risks</h2>
       <ul className="divide-y divide-[#f0efec]">
         {top.map((r) => (
           <li key={r.key}>
@@ -206,7 +206,7 @@ function TopRisks() {
               <r.icon size={15} strokeWidth={1.75} className="shrink-0" style={{ color: TONE.bad }} aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-small font-medium text-[#1c1a16]">{r.label}</span>
-                <span className="mt-1 block truncate text-caption text-[#9b958b]">{r.note}</span>
+                <span className="mt-1 block truncate text-caption text-[#736e67]">{r.note}</span>
               </span>
               <span className="shrink-0 font-display text-n-sm font-bold tabular-nums" style={{ color: TONE.bad }}>
                 {r.value}
@@ -222,7 +222,7 @@ function TopRisks() {
 function Recent() {
   return (
     <section className={`${CARD} px-5 py-4`} aria-label="Recent activity">
-      <h2 className="pb-2 text-overline font-semibold text-[#9b958b] uppercase">Recent activity</h2>
+      <h2 className="pb-2 text-overline font-semibold text-[#736e67] uppercase">Recent activity</h2>
       <ul className="flex flex-col">
         {activity.map((a, i) => (
           <li key={`${a.at}-${i}`}>
@@ -238,7 +238,7 @@ function Recent() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-small text-[#3d3a34]">{a.text}</span>
-                <span className="mt-1 block text-caption tabular-nums text-[#9b958b]">{a.at}</span>
+                <span className="mt-1 block text-caption tabular-nums text-[#736e67]">{a.at}</span>
               </span>
             </a>
           </li>

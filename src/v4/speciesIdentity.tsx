@@ -180,7 +180,7 @@ function Ranking({
       <MoreRows page={page} noun={noun} />
 
       {hits.length === 0 && (
-        <p className="text-small" style={{ color: '#6d6860' }}>
+        <p className="text-small" style={{ color: '#5c574f' }}>
           No {noun.replace(/s$/, '')} matches “{query.trim()}”.
         </p>
       )}
@@ -252,7 +252,7 @@ export function SpeciesIdentityTab({ speciesId, name }: { speciesId: string; nam
   if (failed) {
     return (
       <Section icon={Fingerprint} label="Identification & breeds">
-        <p className="text-small" style={{ color: '#6d6860' }}>
+        <p className="text-small" style={{ color: '#5c574f' }}>
           The species reference could not be loaded, and every figure on this tab comes from it.
           The rest of this page is unaffected — it reads the register directly.
         </p>
@@ -263,7 +263,7 @@ export function SpeciesIdentityTab({ speciesId, name }: { speciesId: string; nam
   if (!profiles) {
     return (
       <Section icon={Fingerprint} label="Identification & breeds">
-        <p className="text-small" style={{ color: '#6d6860' }}>
+        <p className="text-small" style={{ color: '#5c574f' }}>
           Loading the register summary…
         </p>
       </Section>

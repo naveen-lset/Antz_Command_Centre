@@ -361,7 +361,7 @@ function Vocabulary({
       </TapList>
       <MoreRows page={page} noun={noun} />
       {hits.length === 0 && (
-        <p className="text-small" style={{ color: '#6d6860' }}>
+        <p className="text-small" style={{ color: '#5c574f' }}>
           Nothing matches “{query.trim()}”.
         </p>
       )}

@@ -84,7 +84,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
           <Section icon={ShieldAlert} label={cat.name}>
             {/* An empty category is a statement about the collection, not a dead end —
                 that the zoo holds no Extinct animals is worth being able to read. */}
-            <p className="text-small text-[#6d6860]">
+            <p className="text-small text-[#5c574f]">
               The collection holds no animals in this category.
             </p>
           </Section>
@@ -144,7 +144,7 @@ export function ConservationPanel({ code }: { code: RedListCode }) {
           </>
         )}
       </Stack>
-      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#9b958b]">
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#736e67]">
         IUCN Red List · {cat.name}
       </p>
     </>

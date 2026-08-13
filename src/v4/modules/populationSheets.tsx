@@ -167,7 +167,7 @@ function SheetHero({
             className="card-press mt-4 flex w-full items-center justify-between gap-3 rounded-[12px] bg-[#f4f3ef] px-3 py-2.5 text-left"
           >
             <span className="text-small font-semibold text-[#3d3a34]">{action.label}</span>
-            <ArrowRight size={15} strokeWidth={2.25} className="shrink-0 text-[#6d6860]" aria-hidden />
+            <ArrowRight size={15} strokeWidth={2.25} className="shrink-0 text-[#5c574f]" aria-hidden />
           </button>
         )}
       </section>
@@ -214,7 +214,7 @@ function Animals({
           />
         ))}
       </TapList>
-      {paged.total === 0 && <p className="text-small text-[#6d6860]">No animals in this scope.</p>}
+      {paged.total === 0 && <p className="text-small text-[#5c574f]">No animals in this scope.</p>}
       <MoreRows page={paged} noun="animals" />
     </Section>
   )
@@ -514,7 +514,7 @@ export function GroupPanel({
       <Stack>
         {total === 0 ? (
           <Section icon={ShieldAlert} label={title}>
-            <p className="text-small text-[#6d6860]">The collection holds no animals in this category.</p>
+            <p className="text-small text-[#5c574f]">The collection holds no animals in this category.</p>
           </Section>
         ) : (
           <>
@@ -560,14 +560,14 @@ export function GroupPanel({
                   ))}
                 </TapList>
                 {shown.length === 0 && (
-                  <p className="text-small text-[#6d6860]">No species here match “{query.trim()}”.</p>
+                  <p className="text-small text-[#5c574f]">No species here match “{query.trim()}”.</p>
                 )}
               </div>
             </Section>
           </>
         )}
       </Stack>
-      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#9b958b]">{eyebrow}</p>
+      <p className="px-[var(--gutter)] pt-1 pb-2 text-center text-caption text-[#736e67]">{eyebrow}</p>
     </>
   )
 }
@@ -864,7 +864,7 @@ export function FlowPanel({ spec, siteKey, win }: { spec: FlowSpec; siteKey: str
             ))}
           </TapList>
           {paged.total === 0 && (
-            <p className="text-small text-[#6d6860]">Nothing recorded in {win.window}.</p>
+            <p className="text-small text-[#5c574f]">Nothing recorded in {win.window}.</p>
           )}
           <MoreRows page={paged} noun={spec.unit} />
         </Section>

@@ -78,11 +78,11 @@ function AccessionHero() {
         <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
           <span className="min-w-0 flex-1 pr-4">
             <Figure value={fmt(routes)} size={28} />
-            <span className="mt-1 block truncate text-caption text-[#6d6860]">Routes</span>
+            <span className="mt-1 block truncate text-caption text-[#5c574f]">Routes</span>
           </span>
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
             <Figure value={fmt(species)} size={28} />
-            <span className="mt-1 block truncate text-caption text-[#6d6860]">Species</span>
+            <span className="mt-1 block truncate text-caption text-[#5c574f]">Species</span>
           </span>
         </div>
       </section>

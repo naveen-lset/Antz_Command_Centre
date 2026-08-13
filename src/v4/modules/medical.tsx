@@ -155,17 +155,17 @@ function MedicalHero() {
         <div className="mt-5 flex items-stretch border-t border-[#f0efec] pt-4">
           <span className="min-w-0 flex-1 pr-4">
             <Figure value={fmt(s.underCare)} size={28} />
-            <span className="mt-1 block text-caption text-[#6d6860]">Under treatment · now</span>
+            <span className="mt-1 block text-caption text-[#5c574f]">Under treatment · now</span>
           </span>
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
             <Figure value={fmt(s.severe)} size={28} color={s.severe ? TONE.bad : undefined} />
-            <span className="mt-1 block text-caption" style={{ color: s.severe ? TONE.bad : '#6d6860' }}>
+            <span className="mt-1 block text-caption" style={{ color: s.severe ? TONE.bad : '#5c574f' }}>
               High or extreme
             </span>
           </span>
           <span className="min-w-0 flex-1 border-l border-[#f0efec] pl-4">
             <Figure value={fmt(s.complaints)} size={28} />
-            <span className="mt-1 block text-caption text-[#6d6860]">Presenting signs</span>
+            <span className="mt-1 block text-caption text-[#5c574f]">Presenting signs</span>
           </span>
         </div>
       </section>

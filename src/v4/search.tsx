@@ -98,7 +98,7 @@ function Row({ hit, onGo, meta = false }: { hit: Hit; onGo: (slug: string) => vo
         className="shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-small font-medium text-[#1c1a16]">{hit.page.title}</span>
-        {meta && <span className="mt-1 block truncate text-caption text-[#9b958b]">{sub}</span>}
+        {meta && <span className="mt-1 block truncate text-caption text-[#736e67]">{sub}</span>}
       </span>
       <ChevronRight size={16} strokeWidth={2} className="shrink-0 text-[#c8c3ba]" aria-hidden />
     </button>
@@ -238,13 +238,13 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
               The 44px start is the search button's own size, so what expands is
               visibly the control that was tapped rather than a new thing. */}
           <div
-            className="flex items-center gap-2 rounded-full bg-white px-4 py-3"
+            className="flex items-center gap-2 rounded-full bg-white px-4 py-3 focus-within:ring-2 focus-within:ring-[#37bd69]/35"
             style={{
               clipPath: open ? 'inset(0 0 0 0 round 999px)' : 'inset(0 0 0 calc(100% - 44px) round 999px)',
               transition: `clip-path ${open ? 'var(--dur-emphasis) var(--ease-out)' : 'var(--dur-emphasis-out) var(--ease-in)'}`,
             }}
           >
-            <Search size={17} strokeWidth={2} className="shrink-0 text-[#9b958b]" aria-hidden />
+            <Search size={17} strokeWidth={2} className="shrink-0 text-[#736e67]" aria-hidden />
             <input
               ref={field}
               value={q}
@@ -252,7 +252,7 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
               placeholder="Search modules, sites, species, animals"
               aria-label="Search modules, sites, species and animals"
               autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent text-body text-[#1c1a16] outline-none placeholder:text-[#9b958b]"
+              className="min-w-0 flex-1 bg-transparent text-body text-[#1c1a16] outline-none placeholder:text-[#736e67]"
             />
             <button
               type="button"
@@ -260,7 +260,7 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
               aria-label={q ? 'Clear' : 'Close search'}
               className="-mr-1 grid size-7 shrink-0 place-items-center rounded-full transition-colors active:bg-[#f2f1ed]"
             >
-              <X size={15} strokeWidth={2} className="text-[#6d6860]" aria-hidden />
+              <X size={15} strokeWidth={2} className="text-[#5c574f]" aria-hidden />
             </button>
           </div>
         </form>
@@ -320,7 +320,7 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
                 )}
               </>
             ) : (
-              <p className="px-1 pt-6 text-small text-[#6d6860]">
+              <p className="px-1 pt-6 text-small text-[#5c574f]">
                 Nothing matches “{q.trim()}”
                 {scope.site ? ` in ${scope.site.name}` : ''}. Try a word from the figure you're after
                 — “death”, “vaccine”, “intake” — or a site, a species, or an animal's id.
@@ -344,7 +344,7 @@ export function ModuleSearch({ onClose }: { onClose: () => void }) {
 function ResultHead({ label, count }: { label: string; count: number }) {
   return (
     <div className="flex items-center gap-2 px-1 pt-2 pb-2">
-      <h2 className="text-overline font-semibold text-[#6d6860] uppercase">{label}</h2>
+      <h2 className="text-overline font-semibold text-[#5c574f] uppercase">{label}</h2>
       <span className="h-px flex-1 bg-[#1c1a16]/8" aria-hidden />
       <span className="text-caption tabular-nums" style={{ color: FAINT }}>
         {count}
@@ -364,7 +364,7 @@ function Group({
 }) {
   return (
     <>
-      <h2 className="px-1 pt-2 pb-2 text-overline font-semibold text-[#6d6860] uppercase">
+      <h2 className="px-1 pt-2 pb-2 text-overline font-semibold text-[#5c574f] uppercase">
         {label}
       </h2>
       <ul className="mb-2 flex flex-col gap-2">

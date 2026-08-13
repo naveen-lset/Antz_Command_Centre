@@ -92,7 +92,7 @@ function PharmacyHero() {
           {use.streams.map((s, i) => (
             <span key={s.stream} className={`min-w-0 flex-1 ${i ? 'border-l border-[#f0efec] pl-4' : 'pr-4'}`}>
               <Figure value={fmt(s.units)} size={28} />
-              <span className="mt-1 block text-caption text-[#6d6860]">
+              <span className="mt-1 block text-caption text-[#5c574f]">
                 {s.label} · {s.medicines}
               </span>
             </span>
