@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ANTZ · Species Tabs — 5 Variations</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #e7f0ea;
+    padding: 32px 24px 56px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .study { max-width: 1440px; margin: 0 auto 40px; }
+  .study-label { font-size: 13px; font-weight: 500; color: #5c6b61; margin: 0 4px 8px; }
+
+  .tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    border-radius: 8px;
+    color: #55524a;
+    transition: background 0.15s ease, color 0.15s ease;
+    flex-shrink: 0;
+  }
+  .tab svg { flex-shrink: 0; }
+
+  /* ── 1 · Pill track — white rail, emerald pill ─────────────────────────── */
+  .v1 { background: #fff; border-radius: 10px; padding: 6px; box-shadow: inset 0 0 0 1px rgba(31,81,91,0.07); }
+  .v1 .tab:hover { background: #f4f3ef; }
+  .v1 .tab svg { color: #37bd69; }
+  .v1 .tab.on { background: #2f6449; color: #fff; }
+  .v1 .tab.on svg { color: #8fd6ae; }
+
+  /* ── 2 · Underline — flat bar, emerald rule under the active tab ───────── */
+  .v2 { background: #fff; border-radius: 10px; padding: 4px 12px 0; box-shadow: inset 0 0 0 1px rgba(31,81,91,0.07); }
+  .v2 .tab { border-radius: 0; padding: 14px 14px 12px; border-bottom: 2.5px solid transparent; }
+  .v2 .tab:hover { color: #1c1a16; }
+  .v2 .tab svg { color: #37bd69; }
+  .v2 .tab.on { color: #123a2c; font-weight: 600; border-bottom-color: #2f6449; }
+  .v2 .tab.on svg { color: #2f6449; }
+
+  /* ── 3 · On the ground — no rail, active lifts as a white pill ─────────── */
+  .v3 { padding: 2px; }
+  .v3 .tab { color: #44544a; }
+  .v3 .tab:hover { background: rgba(255,255,255,0.55); }
+  .v3 .tab svg { color: #2e7d54; }
+  .v3 .tab.on { background: #fff; color: #123a2c; font-weight: 600; box-shadow: 0 2px 10px rgba(15,42,30,0.10); }
+  .v3 .tab.on svg { color: #2f6449; }
+
+  /* ── 4 · Emerald rail — the header's own surface, white active pill ────── */
+  .v4 { background: linear-gradient(145deg, #3e7d5d 0%, #2f6449 60%, #245239 100%); border-radius: 10px; padding: 6px; box-shadow: 0 3px 14px rgba(15,42,30,0.12); }
+  .v4 .tab { color: #c8e2d1; }
+  .v4 .tab:hover { background: rgba(255,255,255,0.12); }
+  .v4 .tab svg { color: #8fd6ae; }
+  .v4 .tab.on { background: #fff; color: #123a2c; font-weight: 600; }
+  .v4 .tab.on svg { color: #2f6449; }
+
+  /* ── 5 · Connected card — active tab fuses with the content below ──────── */
+  .v5-wrap { position: relative; }
+  .v5 { padding: 0 12px; }
+  .v5 .tab { border-radius: 8px 8px 0 0; padding: 12px 16px; color: #55524a; }
+  .v5 .tab:hover { background: rgba(255,255,255,0.6); }
+  .v5 .tab svg { color: #37bd69; }
+  .v5 .tab.on { background: #fff; color: #123a2c; font-weight: 600; }
+  .v5 .tab.on svg { color: #2f6449; }
+  .v5-body { background: #fff; border-radius: 10px; height: 56px; box-shadow: 0 2px 10px rgba(15,42,30,0.05); }
+
+  @media (max-width: 700px) {
+    body { padding: 16px 12px 40px; }
+    .tab { font-size: 14px; padding: 9px 13px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- one icon set, referenced by every variation -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-overview" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+    <symbol id="i-profile" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+    <symbol id="i-pairing" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></symbol>
+    <symbol id="i-housing" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+    <symbol id="i-life" viewBox="0 0 24 24"><path d="M12 7.5a4.5 4.5 0 1 1 4.5 4.5M12 7.5A4.5 4.5 0 1 0 7.5 12M12 7.5V9m-4.5 3a4.5 4.5 0 1 0 4.5 4.5M7.5 12H9m7.5 0a4.5 4.5 0 1 1-4.5 4.5m4.5-4.5H15m-3 4.5V15"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-assess" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></symbol>
+    <symbol id="i-medical" viewBox="0 0 24 24"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></symbol>
+    <symbol id="i-hospital" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M2 22h20"/><path d="M12 6v4"/><path d="M10 8h4"/><path d="M10 14h.01M14 14h.01M10 18h.01M14 18h.01"/></symbol>
+    <symbol id="i-lab" viewBox="0 0 24 24"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></symbol>
+    <symbol id="i-ident" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+    <symbol id="i-breeds" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<div class="study">
+  <p class="study-label">Variation 1 · Pill track — white rail, emerald active pill</p>
+  <nav class="tabs v1">
+    <button class="tab on"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-overview"/></svg>Overview</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-profile"/></svg>Profile</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-pairing"/></svg>Pairing</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-housing"/></svg>Housing</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-life"/></svg>Circle of Life</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-assess"/></svg>Assessments</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-medical"/></svg>Medical</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hospital"/></svg>Hospital</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-lab"/></svg>Lab</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ident"/></svg>Identification</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-breeds"/></svg>Breeds</button>
+  </nav>
+</div>
+
+<div class="study">
+  <p class="study-label">Variation 2 · Underline — flat bar, emerald rule marks the active tab</p>
+  <nav class="tabs v2">
+    <button class="tab on"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-overview"/></svg>Overview</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-profile"/></svg>Profile</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-pairing"/></svg>Pairing</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-housing"/></svg>Housing</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-life"/></svg>Circle of Life</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-assess"/></svg>Assessments</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-medical"/></svg>Medical</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hospital"/></svg>Hospital</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-lab"/></svg>Lab</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ident"/></svg>Identification</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-breeds"/></svg>Breeds</button>
+  </nav>
+</div>
+
+<div class="study">
+  <p class="study-label">Variation 3 · On the ground — no rail, the active tab lifts as a white pill</p>
+  <nav class="tabs v3">
+    <button class="tab on"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-overview"/></svg>Overview</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-profile"/></svg>Profile</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-pairing"/></svg>Pairing</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-housing"/></svg>Housing</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-life"/></svg>Circle of Life</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-assess"/></svg>Assessments</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-medical"/></svg>Medical</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hospital"/></svg>Hospital</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-lab"/></svg>Lab</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ident"/></svg>Identification</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-breeds"/></svg>Breeds</button>
+  </nav>
+</div>
+
+<div class="study">
+  <p class="study-label">Variation 4 · Emerald rail — the header's surface, white active pill</p>
+  <nav class="tabs v4">
+    <button class="tab on"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-overview"/></svg>Overview</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-profile"/></svg>Profile</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-pairing"/></svg>Pairing</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-housing"/></svg>Housing</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-life"/></svg>Circle of Life</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-assess"/></svg>Assessments</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-medical"/></svg>Medical</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hospital"/></svg>Hospital</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-lab"/></svg>Lab</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ident"/></svg>Identification</button>
+    <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-breeds"/></svg>Breeds</button>
+  </nav>
+</div>
+
+<div class="study">
+  <p class="study-label">Variation 5 · Connected card — the active tab fuses into the content surface</p>
+  <div class="v5-wrap">
+    <nav class="tabs v5">
+      <button class="tab on"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-overview"/></svg>Overview</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-profile"/></svg>Profile</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-pairing"/></svg>Pairing</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-housing"/></svg>Housing</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-life"/></svg>Circle of Life</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-assess"/></svg>Assessments</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-medical"/></svg>Medical</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hospital"/></svg>Hospital</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-lab"/></svg>Lab</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ident"/></svg>Identification</button>
+      <button class="tab"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-breeds"/></svg>Breeds</button>
+    </nav>
+    <div class="v5-body"></div>
+  </div>
+</div>
+
+</body>
+</html>

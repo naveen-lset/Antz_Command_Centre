@@ -22,10 +22,10 @@
  * different denominator for every species, and a renderer that supplied one printed "110%".
  */
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { FAINT, HAIR, INK, TRACK, VALUE, fmt, useAccent } from '../exec/system'
+import { ACCENT_INK, FAINT, HAIR, INK, MUTED, TONE, TRACK, VALUE, fmt, useAccent, useChartTip, type Tone } from '../exec/system'
 
 /* ── 1 · the band, which is not a card ───────────────────────────────────── */
 
@@ -54,7 +54,6 @@ import { FAINT, HAIR, INK, TRACK, VALUE, fmt, useAccent } from '../exec/system'
 export function Band({
   title,
   aside,
-  note,
   icon: Glyph,
   flat,
   first,
@@ -62,6 +61,7 @@ export function Band({
 }: {
   title?: string
   aside?: ReactNode
+  /** Kept on the interface and never drawn — see the note in the header row below. */
   note?: string
   icon?: LucideIcon
   /** Drop the card and separate by a hairline instead. The default is a white surface. */
@@ -82,18 +82,24 @@ export function Band({
             {Glyph && <Glyph size={16} strokeWidth={1.75} aria-hidden style={{ color: accent }} />}
             {title}
           </h3>
-          {aside && (
+          {/* A TEXT ASIDE IS NOT DRAWN, ANYWHERE. Every band on the species page carried a
+              qualifier beside its title — "31 females · every site", "4 facilities", "pooled
+              this season" — and a heading that needs a caption to be understood is a heading
+              that has not done its job. The counts are all present inside the panels the
+              headings sit over. A NODE aside still renders, because those are controls (the
+              period tabs, the animal/site segments) rather than prose, and a control is not a
+              caption. The prop keeps its call sites so nothing has to be rewritten to be
+              silenced. */}
+          {aside && typeof aside !== 'string' && (
             <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
               {aside}
             </span>
           )}
         </div>
       )}
-      {note && (
-        <p className="-mt-2 mb-4 text-caption" style={{ color: FAINT }}>
-          {note}
-        </p>
-      )}
+      {/* `note` is prose by definition, so it is no longer drawn at all. The prop stays on the
+          interface — undrawn, and deliberately — so the provenance a band was written with
+          survives in the source for the next reader of the code. */}
       {children}
     </>
   )
@@ -150,6 +156,134 @@ export function MetricStrip({ items, dense }: { items: Metric[]; dense?: boolean
         </div>
       ))}
     </div>
+  )
+}
+
+/* ── 2b · stat grid ──────────────────────────────────────────────────────── */
+
+export interface Stat {
+  label: string
+  value: string
+  sub?: string
+  tone?: Tone
+  /** Makes the cell a drill. A stat with nothing behind it stays a plain cell. */
+  onOpen?: () => void
+}
+
+/**
+ * THE HAIRLINE STAT GRID — value first, one cell per figure, pressable where there is a level
+ * below.
+ *
+ * DIFFERENT MARK FROM `MetricStrip`, not a variant of it. The strip is label-first figures on
+ * one baseline inside a card that already has a subject; this is the card — bounded cells with
+ * their own hairlines, a tone on the figure, and a drill. The operational tabs open with it
+ * because "32 in care of 544" is a state to act on rather than a fact about the species.
+ *
+ * IT LIVES HERE BECAUSE THREE TABS DREW IT. `speciesMedical.tsx` and `speciesHospital.tsx` each
+ * carry a file-private copy that has already forked (one takes `value: number`, the other a
+ * preformatted string), which is how one grid becomes three grids that no longer match. New
+ * callers take this one; the two copies migrate when their files are next opened.
+ */
+export function StatGrid({ items, cols = 3 }: { items: Stat[]; cols?: 2 | 3 | 4 }) {
+  const at = cols === 2 ? '@[720px]:grid-cols-2' : cols === 4 ? '@[720px]:grid-cols-4' : '@[720px]:grid-cols-3'
+  return (
+    <div
+      className={`grid grid-cols-1 gap-px overflow-hidden rounded-[var(--radius-card)] border @[420px]:grid-cols-2 ${at}`}
+      style={{ borderColor: HAIR, background: HAIR }}
+    >
+      {items.map((k) => {
+        const body = (
+          <>
+            <p className="font-display text-n font-bold tabular-nums" style={{ color: k.tone ? TONE[k.tone] : VALUE }}>
+              {k.value}
+            </p>
+            <p className="mt-0.5 text-caption" style={{ color: FAINT }}>
+              {k.label}
+            </p>
+            {/* NO THIRD LINE. `sub` stays on the type so a caller can record what a figure is
+                of, but a stat cell is a value and its name — the qualifier under it turned a
+                grid meant to be read across into six stacked sentences. */}
+          </>
+        )
+        return k.onOpen ? (
+          <button
+            key={k.label}
+            type="button"
+            onClick={k.onOpen}
+            className="card-press bg-white px-4 py-3.5 text-left outline-none focus-visible:ring-2"
+            style={{ '--tw-ring-color': 'rgba(55,189,105,0.45)' } as CSSProperties}
+          >
+            {body}
+          </button>
+        ) : (
+          <div key={k.label} className="bg-white px-4 py-3.5">
+            {body}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+
+/* ── 2c · segment toggle ─────────────────────────────────────────────────── */
+
+export interface Segment2<T extends string> {
+  key: T
+  label: string
+  count?: number
+  icon?: LucideIcon
+}
+
+/**
+ * THE SEGMENTED TOGGLE — one track, the active span on a white pill.
+ *
+ * THE SINGLE HOME FOR A CONTROL THAT HAD FIVE. Every species tab had grown its own `LineTabs` or
+ * `NavTabs`: same job, five files, and they had already drifted apart in padding, type scale and
+ * whether they carried a count. A control the reader meets on six tabs of one page has to be the
+ * same control on all six, so it is defined once here and imported. The span filters (1Y/2Y/3Y/
+ * All) and the small view switches take it; the top-level tab strips stay as they are, because a
+ * page's primary navigation is not the same object as a filter inside a card.
+ */
+export function SegmentToggle<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: Segment2<T>[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-full p-0.5"
+      style={{ backgroundColor: TRACK }}
+      role="tablist"
+    >
+      {options.map((o) => {
+        const on = o.key === value
+        const Glyph = o.icon
+        return (
+          <button
+            key={o.key}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(o.key)}
+            className="card-press flex items-center gap-1.5 rounded-full px-3 py-[5px] text-caption font-semibold whitespace-nowrap transition-colors"
+            style={on ? { backgroundColor: '#ffffff', color: ACCENT_INK } : { color: MUTED }}
+          >
+            {Glyph && <Glyph size={13} strokeWidth={2} aria-hidden />}
+            {o.label}
+            {o.count !== undefined && (
+              <span className="tabular-nums" style={{ color: on ? ACCENT_INK : FAINT }}>
+                {fmt(o.count)}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </span>
   )
 }
 
@@ -440,6 +574,7 @@ export interface Segment {
  * a four-part whole and get a chart that silently rebased itself to 100%.
  */
 export function CoverageMeter({ segments, total }: { segments: Segment[]; total: number }) {
+  const { show, hide, node } = useChartTip()
   const parts = segments.filter((s) => s.value > 0)
   if (!parts.length || total <= 0) return null
   return (
@@ -450,7 +585,10 @@ export function CoverageMeter({ segments, total }: { segments: Segment[]; total:
             key={s.label}
             className="h-full first:rounded-l-full last:rounded-r-full"
             style={{ width: `${(s.value / total) * 100}%`, backgroundColor: s.fill }}
-            title={`${s.label} · ${fmt(s.value)}`}
+            onPointerEnter={(e) => show(e, s.label, [{ label: `${Math.round((s.value / total) * 100)}% of ${fmt(total)}`, value: fmt(s.value), fill: s.fill }])}
+            onPointerDown={(e) => show(e, s.label, [{ label: `${Math.round((s.value / total) * 100)}% of ${fmt(total)}`, value: fmt(s.value), fill: s.fill }])}
+            onPointerMove={(e) => show(e, s.label, [{ label: `${Math.round((s.value / total) * 100)}% of ${fmt(total)}`, value: fmt(s.value), fill: s.fill }])}
+            onPointerLeave={hide}
           />
         ))}
       </div>
@@ -470,6 +608,7 @@ export function CoverageMeter({ segments, total }: { segments: Segment[]; total:
           </li>
         ))}
       </ul>
+      {node}
     </>
   )
 }

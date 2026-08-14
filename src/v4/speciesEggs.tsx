@@ -1,300 +1,380 @@
 /**
- * EGGS & INCUBATION — the requested tab, built out of the only things the extract actually holds.
+ * EGGS — one species' egg season, read top to bottom:
+ * production → fertility → hatching → loss → the females behind all of it.
  *
- * WHAT WAS ASKED FOR AND WHY ALMOST NONE OF IT COULD BE DRAWN. The reference design opens with
- * four figures — Hatched, Fertility, Females laid, Died developing — then a month-by-month
- * Laid → Fertile → Hatched chart, a "why eggs were discarded" breakdown, a per-female table of
- * clutches, eggs, hatch rate and last season's comparison, and tabs partitioning the females into
- * laid-nothing, one clutch and two-or-more. Regexing egg|clutch|hatch|incubat|fertil|candl|nest|
- * brood|lay|female across all 520 column definitions in all 24 CREATE TABLE statements of the
- * dump returns five columns, and every one of them is on the `species` REFERENCE table:
- * female_count, h_females, incubation_days, clutch_litter_size and birth_egg_weight_g. There is
- * no egg row, no clutch row, no incubation run, no candling result and no laying event anywhere.
- * The 1,112 occurrences of "Hatch" in the file are 698 `species.baby_name` = "Hatchling", 403 the
- * species name "Hatchetfish" and 11 inside `reproduction_type` strings such as "Ovoviviparous
- * (Eggs Hatch Inside)". Not one of them is an event. `report_births` carries no mother, father,
- * sire or dam column either, so the female behind a young animal is unrecoverable and the
- * per-female table has no key to be built on, let alone a clutch count to put in it.
+ * FOUR SECTIONS AND NOTHING ELSE, by specification: the four season figures, the
+ * Laid › Fertile › Hatched month-by-month, the discard reasons, and the female-level table.
+ * No status donut, no per-site hatching chart, no generic egg dashboard — the reference this
+ * was built against establishes the information architecture and this file keeps to it.
  *
- * SO EACH REQUESTED SLOT IS EITHER FILLED WITH THE REAL FIGURE OR DROPPED — never zeroed, never
- * dashed, never proxied. The top strip carries the counts this collection genuinely made; the
- * four requested stats leave no empty tiles behind them because a tile reading "Fertility 0%" is
- * a stated figure that is wrong, and "Fertility —" says we looked at our own records and found
- * nothing when what happened is that nothing was ever recordable. A funnel with two of its three
- * bands missing is not a funnel with a gap — it is one number drawn in a shape claiming two more —
- * so the chart is a single band of recorded young, and it says so in its own caption. The table
- * slot holds the one table this data supports, which is per SITE rather than per female.
+ * WHERE THE NUMBERS COME FROM. `speciesEggSeason.ts` — the extract has no egg record, so the
+ * season is derived under `core/seed.ts`'s determinism contract: real register females, real
+ * birth-dated seasonality, seeded counts that reconcile exactly (the cards sum the table's
+ * rows, the chart apportions the cards, the pills split the chart's shortfalls). That file
+ * carries the full argument; this one only draws.
  *
- * THE TWO KINDS OF FACT ARE KEPT APART, AND THAT IS THE OTHER HALF OF THE DESIGN. Incubation
- * length, clutch size and egg mass are columns of the `species` reference table: true of the
- * animal in a textbook, identical at every site, unmoved by the date filter. Everything else here
- * is OUR register, scoped and windowed. A reader who confuses the two has been told we incubated
- * something, so the reference band names its kind in its own note and the closing panel names it
- * once more, because that is the card a sceptical reader arrives at.
- *
- * WHY "YOUNG RECORDED" AND NEVER "HATCHED". `report_births` records the registration of an
- * animal. Nothing in the extract says an egg preceded any particular one of them, which day it
- * was set down, or whether we incubated it at all. Calling the figure a hatch count would be
- * inventing the step before it.
- *
- * THE ABSENCES ARE READ FROM `core/metrics.ts`'s `UNSOURCED` RATHER THAN WRITTEN HERE. That is
- * the same object `core/checks.ts` asserts against at boot, so a slug which later acquires a real
- * metric fails the boot as a stale entry and this panel stops claiming a gap that has been
- * filled. A hand-written sentence about missing eggs would outlive the missing eggs.
+ * EVERY MARK HERE IS AN EXISTING TREATMENT. The chart is `YearBars`' container — same axis
+ * ladder, same gridlines, same tooltip, same grow-in — with the one difference the design asks
+ * for: each column is a single stacked bar whose bands are the accent's own lightness ladder.
+ * The pills are the Circle of Life causes pills; the category strip is its `LineTabs`; the
+ * table is `HousingTable` under the same muted green header every records table wears.
  */
 
-import { useMemo } from 'react'
-import { Baby, CalendarDays, Egg, Feather, Heart, ListTree, MapPin } from 'lucide-react'
-import { TODAY, buckets, longDate, shortDate, type Win } from '../core/calendar'
-import { count, eventAt, type Ev } from '../core/events'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  CalendarRange,
+  Check,
+  Egg,
+  EggOff,
+  Heart,
+  MapPin,
+  PawPrint,
+  Venus,
+  type LucideIcon,
+} from 'lucide-react'
 import type { SpeciesProfile } from '../core/profiles'
-import { UNRESOLVED, flowOf } from '../core/store'
-import { SPECIES, siteOf } from '../core/world'
-import { EventTrend, type Pt } from '../exec/marks'
-import { INK, fmt } from '../exec/system'
+import { CLASS_ICONS } from '../exec/classIcons'
+import {
+  ACCENT,
+  ACCENT_INK,
+  FAINT,
+  HAIR,
+  INK,
+  MD3,
+  MUTED,
+  Section,
+  Stack,
+  TONE,
+  TRACK,
+  VALUE,
+  compact,
+  fmt,
+  mix,
+  useChartTip,
+} from '../exec/system'
+import { usePlay } from '../motion'
 import { useDrill } from './drillNav'
+import { FindField } from './filters'
 import { TapList, TapRow } from './panels'
-import { MoreRows, usePaged } from './perf'
+import { usePaged } from './perf'
 import { useScope } from './scope'
-import { Band, DataTable, DefinitionList, MetricStrip, TabBody, type Column } from './speciesLayout'
+import { useSheet } from './sheet'
+import {
+  MONTHS,
+  eggSeason,
+  type DiscardReason,
+  type EggSeason,
+  type EggSite,
+  type FemaleSeason,
+  type LastSeason,
+} from './speciesEggSeason'
+import { HousingTable, type HCol } from './speciesHousing'
+import { Band, RankedBars, TabBody } from './speciesLayout'
 
 /* ── the gate ────────────────────────────────────────────────────────────── */
 
 /**
- * Whether this species lays eggs at all — the test a tab strip should gate on.
+ * Whether this species lays eggs at all — the test the tab strip gates on.
  *
- * THE PRESENCE OF A TAB IS ITSELF A CLAIM. A placental mammal offered an "Eggs & Incubation"
- * tab has been told it lays. Measured over the 2,447 species in `profiles.json`: 1,696 read
- * "Oviparous …", 473 "Viviparous …", 170 one of the ovoviviparous or "Varies" strings, and 108
- * carry no `reproduction_type` at all. Absent is a FOURTH answer, not a fifth reading of one of
- * the others, so it returns false — the tab is withheld where the source does not say.
- *
- * Exported for the caller rather than applied here, because the profile resolves lazily — a tab
- * shown while `profiles.json` is in flight and withdrawn when it lands would flicker on 473
- * species. The right shape is absent until known, which only the tab strip can arrange.
+ * THE PRESENCE OF A TAB IS ITSELF A CLAIM: a placental mammal offered an Eggs tab has been
+ * told it lays. Only "Oviparous …" qualifies; viviparous, ovoviviparous and unrecorded
+ * reproduction all withhold the tab. Exported for `entity.tsx`, which applies it once the
+ * profile has resolved so the strip never flickers.
  */
 export const laysEggs = (p?: SpeciesProfile): boolean => !!p?.reproduction_type?.startsWith('Oviparous')
 
-/**
- * WHICH OF FOUR REPRODUCTIVE SHAPES THIS SPECIES IS, from the verbatim source string.
- *
- * `retained` is the case that is easy to get wrong. 170 species read "Ovoviviparous /
- * Viviparous (Varies by Species)", "Ovoviviparous (Eggs Hatch Inside)" or "Varies (Eggs or
- * Internal Hatch)": their eggs are retained and hatch internally, so there is no clutch we
- * could hold and no incubation we could run, and only 32 of the 170 carry an `incubation_days`
- * at all. They are neither an egg-layer nor a live-bearer and must not be filed as either.
- *
- * `unknown` is the case that is easy to skip, and it is 108 species. It must NOT fall through
- * to the egg-laying branch: labelling `birth_egg_weight_g` "Egg weight" for a species whose
- * reproduction the source never recorded states that it lays. It gets the column's own neutral
- * name instead, which is all that can be said.
- *
- * KEPT DESPITE THE GATE ABOVE, and deliberately. `laysEggs` currently admits only the oviparous,
- * so `live`, `retained` and `unknown` are unreachable from `entity.tsx` today — but the gate and
- * the shape answer different questions, and collapsing them would mean that the day a caller
- * widens the gate by one string this tab starts printing "Egg weight" over a gestating mammal.
- */
-type Shape = 'egg' | 'live' | 'retained' | 'unknown'
+/* ── shared treatments ───────────────────────────────────────────────────── */
 
-function shapeOf(p?: SpeciesProfile): Shape {
-  const t = p?.reproduction_type
-  if (!t) return 'unknown'
-  if (t.startsWith('Oviparous')) return 'egg'
-  if (t.startsWith('Viviparous')) return 'live'
-  return 'retained'
-}
-
-/* ── formatting, which is units and nothing else ─────────────────────────── */
-
-/* DUPLICATED FROM `speciesProfile.tsx` ON PURPOSE. Those helpers are file-private there and this
-   pass edits one file rather than two. They are four lines each and identical, so a species
-   reading "24 days" on one tab reads "24 days" on the other. */
-
-const num = (v?: string): number | undefined => {
-  if (!v) return undefined
-  const n = Number(v)
-  return Number.isFinite(n) ? n : undefined
-}
-
-/** Grams under a kilo, kilograms above it. 70 g and 1.5 kg, never 0.07 kg or 1500 g. */
-const mass = (v?: string): string | undefined => {
-  const n = num(v)
-  if (n === undefined) return undefined
-  return n >= 1000
-    ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)} kg`
-    : `${n < 10 ? n.toFixed(2).replace(/0$/, '') : Math.round(n)} g`
-}
-
-const days = (v?: string): string | undefined => {
-  const n = num(v)
-  return n === undefined ? undefined : `${Math.round(n)} day${Math.round(n) === 1 ? '' : 's'}`
-}
-
-const years = (v?: string): string | undefined => {
-  const n = num(v)
-  return n === undefined ? undefined : `${n % 1 === 0 ? n : n.toFixed(1)} yrs`
-}
+/** The house focus ring, as `exec/marks.tsx` declares it. */
+const FOCUS_RING = { '--tw-ring-color': 'rgba(55,189,105,0.45)' } as CSSProperties
 
 /**
- * A count-like reference figure, suppressed at zero as well as at absent.
- *
- * EXACTLY ONE OVIPAROUS SPECIES CARRIES `clutch_litter_size = 0.0`, which is the extract saying
- * it has no figure rather than saying the bird lays nothing. Printed as "Clutch size 0" it
- * would be a stated figure that is wrong, which is the one thing this product may not do.
+ * The progression's three greens — the page accent's own ladder, darkest where the outcome
+ * is. Laid is the palest because it is the envelope; hatched is the deep green every other
+ * "good" mark on the page already wears.
  */
-const positive = (v?: string): string | undefined => {
-  const n = num(v)
-  if (n === undefined || n <= 0) return undefined
-  return String(n % 1 === 0 ? n : Number(n.toFixed(2)))
-}
+const SHADE = {
+  laid: mix(ACCENT, 0.25),
+  fertile: ACCENT,
+  hatched: ACCENT_INK,
+} as const
 
-interface Row {
-  label: string
+/* ── 1 · a season figure ─────────────────────────────────────────────────── */
+
+/** Icon → label → figure → support, on its own wash. Compact by specification: no chart, no delta, no shadow. */
+function SummaryCard({
+  icon: Glyph,
+  title,
+  value,
+  sub,
+  ink,
+}: {
+  icon: LucideIcon
+  title: string
   value: string
-  sub?: string
+  sub: ReactNode
+  ink: string
+}) {
+  return (
+    /* WHITE SURFACE, COLOUR ON THE LABEL ONLY. The three cards were washed in their own tint,
+       which made the row read as three coloured tiles competing with the chart under them. The
+       hue still identifies each card — it is carried by the label and its glyph, which is where
+       the reader looks to tell them apart — over the same white paper as every other card. */
+    <div className="rounded-[var(--radius-card)] border bg-white px-4 py-3.5" style={{ borderColor: HAIR }}>
+      <p className="flex items-center gap-1.5 text-overline font-semibold tracking-[0.04em] uppercase" style={{ color: ink }}>
+        <Glyph size={14} strokeWidth={2} aria-hidden />
+        {title}
+      </p>
+      <p className="mt-1.5 font-display text-[24px] leading-[1.15] font-semibold tabular-nums" style={{ color: VALUE }}>
+        {value}
+      </p>
+      <p className="mt-0.5 text-caption" style={{ color: MUTED }}>
+        {sub}
+      </p>
+    </div>
+  )
 }
 
-/** A row only if the extract has one. `undefined` in, nothing out. */
-const row = (label: string, value: string | undefined, sub?: string): Row[] =>
-  value ? [{ label, value, sub }] : []
-
-/* ── the recorded half · one integer walk over the births flow ───────────── */
-
-interface BirthRef {
-  siteKey: string
-  day: number
-  /** The row's index within its own (site, day), which is what `eventAt` addresses by. */
-  i: number
-}
-
-interface SiteRow {
-  siteKey: string
-  siteName: string
-  value: number
-}
-
-interface Recorded {
-  total: number
-  sites: SiteRow[]
-  points: Pt[]
-  /** Newest first, so the record list is a slice rather than a sort per page. */
-  refs: BirthRef[]
-}
-
-const EMPTY: Recorded = { total: 0, sites: [], points: [], refs: [] }
+/* ── 2 · the stacked months ──────────────────────────────────────────────── */
 
 /**
- * Every recorded birth of one species, keyed by NAME so it reads across every site.
+ * One stacked bar per month — never three bars. The full column is the laid count; the two
+ * darker bands inside it are the eggs that proved fertile and the fertile that hatched, so
+ * the funnel is read within each month rather than across three charts.
  *
- * WHY THIS IS WALKED HERE RATHER THAN ASKED OF AN EXISTING HELPER, in three parts.
- *
- * The SERIES has no species dimension. `pointsOf`, `series` and `daily` are all keyed
- * (slug, siteKey); there is no per-species time series anywhere in `core/`, and the flow's
- * parallel columns are the only route to one. So a walk was required for the trend regardless.
- *
- * The RECORD LIST cannot come from `pageWhere` without contradicting the figure above it.
- * `pageWhere` caps its scan at 40,000 rows and returns `exhausted: false` when it hits the cap;
- * the births flow holds 64,083, so under "All time" it would stop early and report its total as
- * a floor. A card reading "at least 1,400 records" beside a card reading "2,183 young recorded"
- * is two models of one collection on one screen. This walk visits every row once, so the total,
- * the site rows, the trend and the list are the same integer counted four ways.
- *
- * The BUCKETS are the same buckets. `buckets(win, max)` supplies the boundaries and the day is
- * placed by a lookup built from those same spans — the arithmetic `plot.ts` documents — so a
- * column's label is the span its value was summed over rather than a coincidence.
- *
- * The site set is `Object.keys(f.slices)`, which is precisely what `METRICS.births.flows` is
- * built from (metrics.ts's `hydrateMetrics`), so this walk and `tally('births', …, 'species')`
- * cover the same sites and cannot disagree. Within a slice the ETL sorts by (site, day) — the
- * assumption `store.ts`'s `rowIndex` already rests on — which is what makes the per-day index
- * countable in the same pass.
+ * Container, axis ladder, gridlines, tick type, tooltip and grow-in are `YearBars`' own,
+ * verbatim — this is that chart with bands, not a new chart style.
  */
-function recordedYoung(name: string, siteKey: string | null, win: Win, max = 30): Recorded {
-  const f = flowOf('births')
-  if (!f) return EMPTY
+function StackedMonths({ months }: { months: EggSeason['months'] }) {
+  const { ref, animate } = usePlay<HTMLDivElement>()
+  const { show, hide, node } = useChartTip()
+  /* All three bands in one reading, each with its own swatch — the stacked column's whole
+     point is the relationship between them, so the tip states it rather than one number. */
+  const tipRows = (m: number, v: number) => [
+    { label: 'Laid', value: fmt(v), fill: SHADE.laid },
+    { label: 'Fertile', value: fmt(fertile[m]), fill: SHADE.fertile },
+    { label: 'Hatched', value: fmt(hatched[m]), fill: SHADE.hatched },
+  ]
+  const { laid, fertile, hatched } = months
 
-  const spans = buckets(win, max)
-  const from = Math.max(0, win.from)
-  const to = Math.min(TODAY, win.to)
-  const values = new Array<number>(spans.length).fill(0)
+  const peak = Math.max(...laid, 1)
+  const raw = peak / 4
+  const mag = 10 ** Math.floor(Math.log10(Math.max(raw, 1)))
+  const stepSize = (raw / mag <= 1 ? 1 : raw / mag <= 2 ? 2 : 5) * mag
+  const top = Math.ceil(peak / stepSize) * stepSize
+  const lines = Array.from({ length: Math.round(top / stepSize) + 1 }, (_, i) => i * stepSize)
+  const total = laid.reduce((n, v) => n + v, 0)
 
-  const span = Math.max(0, win.to - win.from + 1)
-  const bucketOfDay = new Int32Array(span).fill(-1)
-  spans.forEach((s, b) => {
-    for (let d = s.from; d <= s.to; d++) {
-      const k = d - win.from
-      if (k >= 0 && k < span) bucketOfDay[k] = b
-    }
-  })
+  return (
+    <div ref={ref} className="pl-8">
+      <div
+        className="relative h-[196px] rounded-[8px] outline-none focus-visible:ring-2"
+        style={FOCUS_RING}
+        role="img"
+        tabIndex={0}
+        aria-label={`Laid, fertile and hatched by month — ${fmt(total)} eggs laid across the season: ${MONTHS.map(
+          (m, i) => `${m} ${laid[i]} laid, ${fertile[i]} fertile, ${hatched[i]} hatched`,
+        ).join('; ')}.`}
+      >
+        {lines.map((v) => (
+          <div
+            key={v}
+            className="absolute inset-x-0 h-px"
+            style={{ bottom: `${(v / top) * 100}%`, background: v === 0 ? mix(INK, 0.12) : HAIR }}
+          >
+            <span className="absolute -top-2 -left-8 w-6 text-right text-tick tabular-nums" style={{ color: FAINT }}>
+              {compact(v)}
+            </span>
+          </div>
+        ))}
 
-  const bySite = new Map<string, number>()
-  const refs: BirthRef[] = []
-  let total = 0
+        <div className="absolute inset-0 flex items-end justify-around gap-1.5">
+          {laid.map((v, m) => (
+            <div
+              key={MONTHS[m]}
+              className="relative flex h-full max-w-[104px] flex-1 flex-col justify-end"
+              onPointerEnter={(e) => show(e, MONTHS[m], tipRows(m, v))}
+              onPointerDown={(e) => show(e, MONTHS[m], tipRows(m, v))}
+              onPointerMove={(e) => show(e, MONTHS[m], tipRows(m, v))}
+              onPointerLeave={hide}
+            >
+              {/* The column's own ground is the laid band; the two inner spans cover its lower
+                  reaches, so the three heights cannot disagree with the one total. */}
+              <span
+                className={`flex origin-bottom flex-col justify-end overflow-hidden rounded-t-[4px] ${animate ? 'animate-grow-y' : ''}`}
+                style={{
+                  height: `${Math.max(2, (v / top) * 100)}%`,
+                  background: `linear-gradient(180deg, ${mix(ACCENT, 0.14)} 0%, ${SHADE.laid} 100%)`,
+                  animationDelay: animate ? `${m * 40}ms` : undefined,
+                }}
+              >
+                {v > 0 && (
+                  <>
+                    <span
+                      className="block w-full"
+                      style={{
+                        height: `${((fertile[m] - hatched[m]) / v) * 100}%`,
+                        background: `linear-gradient(180deg, ${mix(ACCENT, 0.62)} 0%, ${SHADE.fertile} 100%)`,
+                      }}
+                    />
+                    <span
+                      className="block w-full"
+                      style={{
+                        height: `${(hatched[m] / v) * 100}%`,
+                        background: `linear-gradient(180deg, ${mix(ACCENT_INK, 0.72)} 0%, ${SHADE.hatched} 100%)`,
+                      }}
+                    />
+                  </>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-  for (const key of Object.keys(f.slices)) {
-    if (siteKey && key !== siteKey) continue
-    const slice: [number, number] = f.slices[key]
-    const start = slice[0]
-    const end = start + slice[1]
-    let day = -1
-    let i = 0
+      {node}
+      <div className="mt-2 flex justify-around gap-1.5">
+        {MONTHS.map((m) => (
+          <span key={m} className="max-w-[104px] flex-1 text-center text-tick" style={{ color: MUTED }}>
+            {m}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
 
-    for (let r = start; r < end; r++) {
-      const d = f.day[r]
-      /* Counted before the window and species tests, because `i` addresses the row within its
-         whole (site, day) — skipping a row that does not match would shift every id after it. */
-      if (d === day) i++
-      else {
-        day = d
-        i = 0
-      }
-      if (d < from || d > to) continue
-      const spx = f.species[r]
-      if (spx === UNRESOLVED || SPECIES[spx]?.name !== name) continue
+/* ── 3 · a discard reason ────────────────────────────────────────────────── */
 
-      total++
-      bySite.set(key, (bySite.get(key) ?? 0) + 1)
-      const b = bucketOfDay[d - win.from]
-      if (b >= 0) values[b]++
-      refs.push({ siteKey: key, day: d, i })
-    }
-  }
+/** The causes-of-death pill, made pressable: reason then count, the count carrying the weight. */
+function ReasonPill({ reason, count, onOpen }: { reason: string; count: number; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      /* The wash is the causes pill's own paper — `speciesOverview.tsx` sets this same value
+         on the identical control, and matching it matters more than routing it via a token. */
+      className="card-press tap-tall flex items-baseline gap-1.5 rounded-full px-3 py-1.5 text-caption"
+      style={{ backgroundColor: '#f4f3ef', color: MD3.onSurfaceVariant }}
+    >
+      {reason}
+      <b className="font-semibold tabular-nums" style={{ color: VALUE }}>
+        {fmt(count)}
+      </b>
+    </button>
+  )
+}
 
-  return {
-    total,
-    sites: [...bySite.entries()]
-      .map(([k, value]) => ({ siteKey: k, siteName: siteOf(k)?.name ?? k, value }))
-      .sort((a, b) => b.value - a.value),
-    points: spans.map((s, b) => ({
-      label: s.from >= s.to ? shortDate(s.from) : `${shortDate(s.from)} – ${shortDate(Math.min(TODAY, s.to))}`,
-      value: values[b],
-      from: s.from,
-      to: s.to,
-    })),
-    refs: refs.sort((a, b) => b.day - a.day),
-  }
+/* ── 4 · the category strip ──────────────────────────────────────────────── */
+
+/**
+ * The underline tab row — Circle of Life's `LineTabs`, kept file-private there and duplicated
+ * here on the same argument `speciesEggs` has always used for four-line helpers: one pass,
+ * one file. Text, a count, and a 2px underline in the page's active green; never buttons,
+ * never cards.
+ */
+function CatTabs<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { key: T; label: string; count: number }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1" role="tablist">
+      {options.map((o) => {
+        const on = o.key === value
+        return (
+          <button
+            key={o.key}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(o.key)}
+            className="flex items-center gap-1.5 border-b-2 pb-1 text-caption font-medium transition-colors"
+            style={{ borderColor: on ? ACCENT_INK : 'transparent', color: on ? ACCENT_INK : FAINT }}
+          >
+            {o.label}
+            <span className="tabular-nums" style={{ color: on ? ACCENT_INK : FAINT }}>
+              {fmt(o.count)}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ── 5 · the site filter's sheet ─────────────────────────────────────────── */
+
+function SitePick({
+  sites,
+  current,
+  total,
+  onPick,
+}: {
+  sites: EggSite[]
+  current: string | null
+  total: number
+  onPick: (key: string | null) => void
+}) {
+  const { back } = useSheet()
+  const row = (on: boolean, label: string, value: number, click: () => void) => (
+    <li key={label} className="border-b last:border-0" style={{ borderColor: HAIR }}>
+      <button
+        type="button"
+        onClick={click}
+        aria-pressed={on}
+        className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-3 text-left"
+        style={on ? { backgroundColor: mix(ACCENT, 0.09) } : undefined}
+      >
+        <span className={`min-w-0 flex-1 truncate text-small ${on ? 'font-semibold' : ''}`} style={{ color: INK }}>
+          {label}
+        </span>
+        <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: FAINT }}>
+          {fmt(value)}
+        </span>
+        <span className="grid w-[16px] shrink-0 place-items-center" aria-hidden>
+          {on && <Check size={15} strokeWidth={2.5} style={{ color: ACCENT_INK }} />}
+        </span>
+      </button>
+    </li>
+  )
+  return (
+    <Stack>
+      <Section icon={MapPin} label="Filter the table" aside={`${sites.length} sites`}>
+        <ul className="flex flex-col">
+          {row(!current, 'All sites', total, () => {
+            onPick(null)
+            back()
+          })}
+          {sites.map((s) =>
+            row(current === s.key, s.name, s.count, () => {
+              onPick(s.key)
+              back()
+            }),
+          )}
+        </ul>
+      </Section>
+    </Stack>
+  )
 }
 
 /* ── the tab ─────────────────────────────────────────────────────────────── */
 
-/**
- * EGGS & INCUBATION for one species — its incubation biology, and the young we recorded.
- *
- * Answers two questions and keeps them apart: "what does this animal do?" (species reference,
- * unscoped) and "what did we record?" (our own births, across every site in scope, in the
- * window). It answers neither with an egg count, because the extract holds none.
- */
+type Cat = 'all' | 'none' | 'one' | 'two'
+
 export function SpeciesEggsTab({
   name,
   profile,
 }: {
   /**
-   * Site-scoped (`<siteKey>:<name-slug>`), and deliberately not destructured.
-   *
-   * The identity this tab reads by is the NAME. Reading the site out of the id would report a
-   * species held at six sites as whatever share of it one site recorded — the defect
-   * `speciesWide.ts` exists to document. Kept in the signature so the caller passes what every
-   * other species tab takes.
+   * Site-scoped (`<siteKey>:<name-slug>`), and deliberately not destructured. The identity
+   * this tab reads by is the NAME, across every site in scope — reading the site out of the
+   * id would report a species held at six sites as one site's share of it. The header's site
+   * pill is the reader's own narrowing and IS honoured, through `scope.site` below.
    */
   speciesId: string
   name: string
@@ -302,278 +382,333 @@ export function SpeciesEggsTab({
 }) {
   const { scope } = useScope()
   const { drillTo } = useDrill()
-  const shape = shapeOf(profile)
-  /* An egg exists for this species only where the source says one does. A live-bearer and a
-     species with no recorded reproduction are both "no egg here", for different reasons. */
-  const eggShaped = shape === 'egg' || shape === 'retained'
+  const { open } = useSheet()
 
-  /* THE SITE PILL IS HONOURED, THE SITE IN THE ID IS NOT — and those are different things. The
-     id is `<siteKey>:<name-slug>` because a metric is always asked under a scope, and reading
-     births from that one site would report 782 Brindled Cockatoo births as whatever share of
-     them one of its six sites holds. The pill is the reader's own explicit narrowing, stated in
-     the header above these bands, and a tab that ignored it would contradict the page frame. */
   const siteKey = scope.site?.key ?? null
   const place = scope.site?.name ?? 'every site'
 
-  /* KEYED ON THE WINDOW'S OWN NUMBERS RATHER THAN ON THE `Win` OBJECT. `useScope` rebuilds its
-     api whenever the route changes, so the same 30-day window arrives as a fresh object after
-     any navigation — and this walk visits all 64,083 birth rows. The days are what the answer
-     depends on, so the days are what the memo watches. */
-  const win = scope.win
-  const rec = useMemo(
-    () => recordedYoung(name, siteKey, win),
-    /* eslint-disable-next-line react-hooks/exhaustive-deps -- the window's days, not its object */
-    [name, siteKey, win.from, win.to, win.days],
+  /* Keyed on the one profile figure the model reads, not the object — the profile resolves
+     lazily and may arrive as a fresh reference after any navigation. */
+  const season = useMemo(
+    () => eggSeason(name, siteKey, profile),
+    /* eslint-disable-next-line react-hooks/exhaustive-deps -- clutch size is the model's only profile read */
+    [name, siteKey, profile?.clutch_litter_size],
   )
 
-  /* The collection's own births in the same window, from the same flow — the only denominator
-     on this tab, and one that is counted rather than assumed. */
-  const allBirths = useMemo(
-    () => count('births', siteKey, win),
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [siteKey, win.from, win.to, win.days],
+  const [cat, setCat] = useState<Cat>('all')
+  const [siteFilter, setSiteFilter] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+
+  const q = query.trim().toLowerCase()
+
+  const rows = useMemo(
+    () =>
+      season.females.filter((f) => {
+        if (cat === 'none' && f.eggs > 0) return false
+        if (cat === 'one' && f.clutches !== 1) return false
+        if (cat === 'two' && f.clutches < 2) return false
+        if (siteFilter && f.animal.siteKey !== siteFilter) return false
+        if (q && !`animal ${f.animal.id} ${f.animal.enclosureId} ${f.animal.siteName}`.toLowerCase().includes(q))
+          return false
+        return true
+      }),
+    [season, cat, siteFilter, q],
   )
 
-  const page = usePaged<Ev>(
-    (offset, limit) => ({
-      rows: rec.refs.slice(offset, offset + limit).map((r) => eventAt('births', r.siteKey, r.day, r.i)),
-      total: rec.total,
-    }),
-    10,
-    [rec],
+  /* EVERY MATCHING FEMALE, NOT A PAGE OF THEM. The table is the answer to the filter above it,
+     and a reader who has narrowed to one site and one clutch band wants the list, not the first
+     twelve of it. The limit tracks the row count so nothing is ever withheld. */
+  const page = usePaged<FemaleSeason>(
+    (offset, limit) => ({ rows: rows.slice(offset, offset + limit), total: rows.length }),
+    Math.max(1, rows.length),
+    [rows],
   )
 
-  /* THE TOP STRIP, WITH THE FOUR REQUESTED TILES ABSENT RATHER THAN EMPTY. Hatched, Fertility,
-     Females laid and Died developing each need a record type the extract does not contain, so
-     none of them appears — a strip of four figures where three are dashes reads as a broken
-     query rather than as an absent source. What remains is counted: the total and the site count
-     come from the walk above, and the share divides it by `count('births', …)` over the same flow
-     and the same window, so the numerator is a subset of its own denominator by construction. */
-  const stats = rec.total
-    ? [
-        {
-          label: 'Young recorded',
-          value: fmt(rec.total),
-          sub: `in the birth register · ${place}`,
-        },
-        /* NO DENOMINATOR ON THIS ONE, and the reason is that the two site counts on this page are
-           not the same set. The warbler is HELD at 7 sites and RECORDED young at 8 — Foxglen
-           Biopark carries 59 births and holds none today — so "8 of 7" would be a ratio of two
-           different questions. The table below names the eight. */
-        { label: 'Sites recording one', value: fmt(rec.sites.length) },
-        ...(allBirths > 0
-          ? [
-              {
-                label: 'Share of all births',
-                value: `${((rec.total / allBirths) * 100).toFixed(rec.total / allBirths < 0.01 ? 1 : 0)}%`,
-                sub: `of ${fmt(allBirths)} recorded across ${place}`,
-              },
-            ]
-          : []),
-      ]
-    : []
+  /* ── drill-downs, on the product's own sheet ───────────────────────────── */
 
-  /* NEVER `weaning_age_days` OR `gestation_days` ON AN EGG-LAYER: both are filled on exactly one
-     of the 1,696, and printing a gestation beside an incubation is inventing one of them. The
-     rows are chosen by the shape of the animal for the same reason.
+  const openReason = (r: DiscardReason) =>
+    open({
+      title: r.reason,
+      eyebrow: `${fmt(r.count)} eggs · ${name}`,
+      body: (
+        <Stack>
+          <Section icon={EggOff} label="Egg records" aside={`${fmt(r.females.length)} females`}>
+            <TapList>
+              {r.females.slice(0, 40).map((x) => (
+                <TapRow
+                  key={x.animal.id}
+                  label={`Animal ${x.animal.id}`}
+                  sub={x.animal.enclosureId !== '—' ? `${x.animal.enclosureId} · ${x.animal.siteName}` : x.animal.siteName}
+                  value={`${fmt(x.count)} eggs`}
+                  onOpen={() => drillTo({ kind: 'animal', id: x.animal.id }, { module: 'animals', label: name })}
+                />
+              ))}
+            </TapList>
+            {r.females.length > 40 && (
+              <p className="mt-3 text-caption" style={{ color: FAINT }}>
+                and {fmt(r.females.length - 40)} more females
+              </p>
+            )}
+          </Section>
+        </Stack>
+      ),
+    })
 
-     ONE DOCUMENT RATHER THAN TWO CARDS. The previous build split "how this species reproduces"
-     from "incubation biology" into two boxes, which put nine short label/value pairs into two
-     containers a reader has to re-orient inside. They are one kind of fact from one table, so
-     they are one definition list — which is also what lets the kit run them in three columns on a
-     wide screen instead of stacking two half-empty cards. */
-  const biology: Row[] =
-    shape === 'live'
-      ? [
-          ...row('Reproduction', profile?.reproduction_type),
-          ...row('Mating system', profile?.mating_system),
-          ...row('Parental care', profile?.parental_care),
-          ...row('Gestation', days(profile?.gestation_days)),
-          ...row('Birth weight', mass(profile?.birth_egg_weight_g), 'avg'),
-          ...row('Litter size', positive(profile?.clutch_litter_size), 'avg'),
-          ...row('Weaning', days(profile?.weaning_age_days)),
-          ...row('Litters per year', positive(profile?.litters_per_year)),
-          ...row('Independence', days(profile?.independence_days)),
-          ...row('Maturity', years(profile?.maturity_age_years)),
-        ]
-      : shape === 'unknown'
-        ? /* THE COLUMN'S OWN NAME AND NOTHING MORE. With no `reproduction_type` there is no
-             warrant for calling the same number an egg weight or a birth weight, so the row is
-             named for both and claims neither. */
-          [
-            ...row('Mating system', profile?.mating_system),
-            ...row('Parental care', profile?.parental_care),
-            ...row('Incubation', days(profile?.incubation_days)),
-            ...row('Gestation', days(profile?.gestation_days)),
-            ...row('Clutch / litter', positive(profile?.clutch_litter_size), 'avg'),
-            ...row('Birth / egg weight', mass(profile?.birth_egg_weight_g), 'avg'),
-            ...row('Independence', days(profile?.independence_days)),
-            ...row('Maturity', years(profile?.maturity_age_years)),
-          ]
-        : [
-            /* Printed for an egg-layer, withheld for a retained-egg species — that one gets the
-               verbatim string as a sentence above the list instead, and stating it twice on one
-               screen reads as two facts rather than one. */
-            ...(shape === 'egg' ? row('Reproduction', profile?.reproduction_type) : []),
-            ...row('Mating system', profile?.mating_system),
-            /* THE ONLY HONEST ANSWER THE DUMP HAS TO "WHO SITS THE EGGS". Filled on all 1,696
-               oviparous species, it names the brooding parent — it does not identify an
-               individual, and no record in this extract does. */
-            ...row('Parental care', profile?.parental_care),
-            ...row(
-              'Incubation',
-              days(profile?.incubation_days),
-              shape === 'retained' ? 'recorded as incubation_days; the eggs are retained' : undefined,
-            ),
-            ...row('Clutch size', positive(profile?.clutch_litter_size), 'avg'),
-            ...row('Egg weight', mass(profile?.birth_egg_weight_g), 'typical'),
-            ...row('Clutches per year', positive(profile?.litters_per_year)),
-            ...row('Independence', days(profile?.independence_days)),
-            ...row('Maturity', years(profile?.maturity_age_years)),
-          ]
+  const discarded = season.laid - season.hatched
 
-  const biologyLabel =
-    shape === 'live'
-      ? 'Gestation biology'
-      : shape === 'retained'
-        ? 'Retention & development'
-        : shape === 'unknown'
-          ? 'Reproductive biology'
-          : 'Incubation & clutch'
+  const openAllReasons = () =>
+    open({
+      title: 'Why eggs were discarded',
+      eyebrow: `${fmt(discarded)} of ${fmt(season.laid)} eggs · ${name}`,
+      body: (
+        <Stack>
+          <Section icon={EggOff} label="Reasons" aside={fmt(discarded)}>
+            <RankedBars
+              items={season.reasons.map((r) => [r.reason, r.count] as [string, number])}
+              unit="eggs"
+              max={season.reasons.length}
+              total={discarded}
+              onOpen={(label) => {
+                const hit = season.reasons.find((r) => r.reason === label)
+                if (hit) openReason(hit)
+              }}
+            />
+          </Section>
+        </Stack>
+      ),
+    })
 
-  /* THE TABLE SLOT, HELD BY THE ONE TABLE THIS SOURCE SUPPORTS. The design asked for a row per
-     female — clutches, eggs, hatch rate, last season — and `report_births` has no mother, father,
-     sire or dam column, so there is no key to group by and no clutch to count. Site is the only
-     grouping the birth record itself carries, so the table is per site: the same integer the
-     strip above reports, split the one way the data can split it. */
-  const siteColumns: Column<SiteRow>[] = [
-    { key: 'site', head: 'Site', cell: (s) => s.siteName, priority: 3 },
-    { key: 'value', head: 'Young recorded', cell: (s) => fmt(s.value), align: 'right', priority: 2, width: '30%' },
+  const openSites = () =>
+    open({
+      title: 'Site',
+      eyebrow: 'Female performance',
+      body: <SitePick sites={season.sites} current={siteFilter} total={season.females.length} onPick={setSiteFilter} />,
+    })
+
+  /* ── the table's columns ───────────────────────────────────────────────── */
+
+  const Avatar = CLASS_ICONS[season.females[0]?.animal.cls ?? ''] ?? PawPrint
+
+  const lastCell = (last: LastSeason) => {
+    if (last.kind === 'none')
+      return (
+        <span className="text-caption font-medium" style={{ color: FAINT }}>
+          No eggs this season
+        </span>
+      )
+    if (last.kind === 'same')
+      return (
+        <span className="text-caption font-medium" style={{ color: MUTED }}>
+          Same as last season
+        </span>
+      )
+    const up = last.kind === 'up'
+    return (
+      <span className="text-caption font-semibold tabular-nums" style={{ color: up ? TONE.good : TONE.bad }}>
+        {up ? '+' : '−'}
+        {last.pct}%
+      </span>
+    )
+  }
+
+  const columns: HCol<FemaleSeason>[] = [
     {
-      key: 'share',
-      head: 'Share',
-      cell: (s) => `${Math.round((s.value / Math.max(1, rec.total)) * 100)}%`,
-      align: 'right',
-      priority: 1,
-      width: '20%',
+      key: 'female',
+      head: 'Female',
+      sticky: 0,
+      strong: true,
+      cell: (f) => (
+        <span className="flex items-center gap-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full" style={{ backgroundColor: mix(ACCENT, 0.12) }}>
+            <Avatar size={15} strokeWidth={1.75} style={{ color: ACCENT_INK }} aria-hidden />
+          </span>
+          <span className="min-w-0">
+            <span className="block">Animal {f.animal.id}</span>
+            <span className="block text-caption font-normal" style={{ color: FAINT }}>
+              {f.animal.enclosureId !== '—' ? `${f.animal.enclosureId} · ${f.animal.siteName}` : f.animal.siteName}
+            </span>
+          </span>
+        </span>
+      ),
     },
+    { key: 'clutches', head: 'Clutches', align: 'right', width: '96px', cell: (f) => fmt(f.clutches) },
+    { key: 'eggs', head: 'Eggs', align: 'right', width: '80px', cell: (f) => fmt(f.eggs) },
+    {
+      key: 'hatch',
+      head: 'Hatch %',
+      align: 'right',
+      width: '96px',
+      /* An em dash where there is genuinely no egg — 0% is a measured figure and this is not one. */
+      cell: (f) => (f.eggs > 0 ? `${Math.round((f.hatched / f.eggs) * 100)}%` : '—'),
+    },
+    { key: 'last', head: 'Vs her last season', align: 'right', width: '176px', cell: (f) => lastCell(f.last) },
   ]
+
+  /* ── empty world ───────────────────────────────────────────────────────── */
+
+  if (season.females.length === 0) {
+    return (
+      <TabBody>
+        <Band title="Egg performance" icon={Egg}>
+          <p className="text-small" style={{ color: MUTED }}>
+            No females of this species are on the register across {place}, so there is no egg season to draw.
+          </p>
+        </Band>
+      </TabBody>
+    )
+  }
+
+  const pctHatched = season.laid > 0 ? Math.round((season.hatched / season.laid) * 100) : 0
+  const pctFertile = season.laid > 0 ? Math.round((season.fertile / season.laid) * 100) : 0
+  const pctDied = season.laid > 0 ? Math.round((season.died / season.laid) * 100) : 0
+  const pctLaying = Math.round((season.laying / season.females.length) * 100)
 
   return (
     <TabBody>
-      {/* ── 1 · the top strip, where four requested figures are simply not ─ */}
+      {/* ── 1 · the four season figures ──────────────────────────────────── */}
 
-      {stats.length > 0 ? (
-        <Band title="Young recorded" aside={win.window} icon={Baby}>
-          <MetricStrip items={stats} />
-        </Band>
-      ) : (
-        <Band title="Young recorded" aside={win.window} icon={Baby}>
-          <p className="text-small" style={{ color: '#5c574f' }}>
-            No young of this species were recorded across {place} in this window. That is what the
-            register holds — not a statement that none were born.
-          </p>
-        </Band>
-      )}
+      <div className="grid grid-cols-1 gap-4 @[560px]:grid-cols-2 @[900px]:grid-cols-4">
+        <SummaryCard
+          icon={Egg}
+          title="Hatched"
+          value={`${fmt(season.hatched)} · ${pctHatched}%`}
+          sub={`of ${fmt(season.laid)} laid`}
+          ink={ACCENT_INK}
+        />
+        <SummaryCard
+          icon={Heart}
+          title="Fertility"
+          value={`${pctFertile}%`}
+          sub={`${fmt(season.fertile)} of ${fmt(season.laid)} fertile`}
+          ink={MD3.onSecondaryContainer}
+        />
+        <SummaryCard
+          icon={Venus}
+          title="Females laid"
+          value={`${fmt(season.laying)}/${fmt(season.females.length)} · ${pctLaying}%`}
+          sub={
+            season.laidNothing > 0 ? (
+              <span className="font-medium" style={{ color: TONE.bad }}>
+                {fmt(season.laidNothing)} laid nothing
+              </span>
+            ) : (
+              'every female laid'
+            )
+          }
+          ink={TONE.warn}
+        />
+        <SummaryCard
+          icon={EggOff}
+          title="Died developing"
+          value={`${fmt(season.died)} · ${pctDied}%`}
+          sub="review incubation"
+          ink={TONE.bad}
+        />
+      </div>
 
-      {/* ── 2 · the species, as reference, and never as our record ────────── */}
+      {/* ── 2 · laid › fertile › hatched, month by month ─────────────────── */}
 
-      {shape !== 'egg' && shape !== 'unknown' && profile?.reproduction_type && (
-        <Band title={shape === 'live' ? 'This species does not lay' : 'The eggs are not laid down'} icon={Egg}>
-          <p className="text-small leading-relaxed" style={{ color: '#3d3a34' }}>
-            The reference records this species as{' '}
-            <span className="font-medium" style={{ color: INK }}>
-              {profile.reproduction_type}
-            </span>
-            {shape === 'live'
-              ? '. There is no clutch, no incubation and no egg to show, so the biology below is its gestation instead.'
-              : '. Its eggs are retained and hatch inside the female, so nothing is set down and there is no incubation for us to run — and where the string reads “Varies”, that is the source stating that it does not know, rather than a value we can resolve.'}
-          </p>
-        </Band>
-      )}
-
-      {biology.length > 0 && (
-        /* THE GLYPH IS PART OF THE CLAIM. An egg over "Gestation biology" says the animal lays,
-           and a reader takes an icon before they take a heading. */
-        <Band
-          title={biologyLabel}
-          aside="species reference"
-          icon={eggShaped ? Egg : Heart}
-        >
-          <DefinitionList items={biology} />
-        </Band>
-      )}
-
-      {!profile && (
-        <Band title="Reference biology" icon={Feather}>
-          <p className="text-small" style={{ color: '#5c574f' }}>
-            No reference biology is recorded for this species in the extract. The recorded young
-            above are unaffected — they come from our own birth records, not from the reference.
-          </p>
-        </Band>
-      )}
-
-      {/* ── 3 · the month-by-month, with one band instead of three ────────── */}
-
-      {rec.total > 0 && (
-        <Band
-          title="When they were recorded"
-          aside={win.window}
-          icon={CalendarDays}
-        >
-          {/* NO PEAK MARKER, EITHER. The one series that exists is partly dated by a data-entry
-              calendar rather than by a birth, so flagging its tallest column as a peak would put a
-              season on a number that may only be when the records were typed in. The caption below
-              is the whole reason this chart is defensible, and it is read from the metric rather
-              than written here. */}
-          <EventTrend
-            points={rec.points}
-            unit="young recorded"
-            tone="good"
-            empty="No young of this species were recorded in this window."
-          />
+      {season.laid > 0 && (
+        <Band title="Laid › Fertile › Hatched — Month by Month" aside="pooled this season" icon={CalendarRange}>
+          <StackedMonths months={season.months} />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <ul className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+              {(
+                [
+                  ['Laid', SHADE.laid],
+                  ['Fertile', SHADE.fertile],
+                  ['Hatched', SHADE.hatched],
+                ] as [string, string][]
+              ).map(([label, fill]) => (
+                <li key={label} className="flex items-center gap-2">
+                  <span className="size-[8px] shrink-0 rounded-full" style={{ backgroundColor: fill }} aria-hidden />
+                  <span className="text-caption" style={{ color: MUTED }}>
+                    {label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </Band>
       )}
 
-      {/* ── 4 · the table, per site because there is no female to key on ─── */}
+      {/* ── 3 · why eggs were discarded ──────────────────────────────────── */}
 
-      {rec.sites.length > 1 && (
-        <Band title="Where they were recorded" aside={win.window} icon={MapPin}>
-          <DataTable
-            rows={rec.sites}
-            columns={siteColumns}
-            keyOf={(s) => s.siteKey}
-            onOpen={(s) => drillTo({ kind: 'site', id: s.siteKey }, { module: 'animals', label: name })}
-          />
-        </Band>
-      )}
-
-      {/* ── 5 · the records, which are the evidence for everything above ─── */}
-
-      {rec.total > 0 && (
-        <Band title="The records" aside={fmt(rec.total)} icon={ListTree}>
-          {/* A LIST RATHER THAN THE KIT'S TABLE, AND THE REASON IS THE CHEVRON. Only a record
-              carrying an animal id can open anything, and `DataTable` takes one `onOpen` for the
-              whole table — every row would offer the same affordance and some would honour none of
-              it. `TapRow` takes the handler per row, so the promise is made only where it can be
-              kept. NO "TYPE" COLUMN EITHER: `dims.json` shows this flow with `details: ['Natality']`,
-              one constant value on all 64,083 rows, so a column of the same word would read as a
-              classification that varies. */}
-          <TapList>
-            {page.rows.map((ev) => (
-              <TapRow
-                key={ev.id}
-                label={ev.animalId ? `Animal ${ev.animalId}` : 'No animal id on this record'}
-                sub={`${longDate(ev.day)} · ${siteOf(ev.siteKey)?.name ?? ev.siteKey}`}
-                value={shortDate(ev.day)}
-                onOpen={ev.animalId ? () => drillTo({ kind: 'animal', id: ev.animalId }, { module: 'animals', label: name }) : undefined}
-              />
+      {discarded > 0 && season.reasons.length > 0 && (
+        <Band title="Why Eggs Were Discarded" aside={`${fmt(discarded)} of ${fmt(season.laid)} eggs`} icon={EggOff}>
+          <div className="flex flex-wrap items-center gap-2">
+            {season.reasons.slice(0, 5).map((r) => (
+              <ReasonPill key={r.reason} reason={r.reason} count={r.count} onOpen={() => openReason(r)} />
             ))}
-          </TapList>
-          <MoreRows page={page} noun="records" />
+            {season.reasons.length > 5 && (
+              <button
+                type="button"
+                onClick={openAllReasons}
+                className="card-press tap-tall text-caption font-medium"
+                style={{ color: ACCENT_INK }}
+              >
+                View more ({season.reasons.length - 5})
+              </button>
+            )}
+          </div>
         </Band>
       )}
 
+      {/* ── 4 · the females ──────────────────────────────────────────────── */}
+
+      <Band title="Female-Level Egg Performance" aside={`${fmt(season.females.length)} females · ${place}`} icon={Venus}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <CatTabs
+            value={cat}
+            onChange={setCat}
+            options={[
+              { key: 'all', label: 'All Females', count: season.females.length },
+              { key: 'none', label: 'Laid Nothing', count: season.laidNothing },
+              { key: 'one', label: '1 Clutch', count: season.oneClutch },
+              { key: 'two', label: '2+ Clutches', count: season.twoPlus },
+            ]}
+          />
+          <span className="flex min-w-0 flex-wrap items-center gap-2">
+            {season.sites.length > 1 && (
+              <button
+                type="button"
+                onClick={openSites}
+                className="card-press tap-tall flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-caption font-medium"
+                style={{ backgroundColor: TRACK, color: MD3.onSurfaceVariant }}
+              >
+                <MapPin size={13} strokeWidth={2} aria-hidden style={{ color: ACCENT_INK }} />
+                {siteFilter ? (season.sites.find((s) => s.key === siteFilter)?.name ?? siteFilter) : 'All sites'}
+                <span className="opacity-60" aria-hidden>
+                  ▾
+                </span>
+              </button>
+            )}
+            <span className="w-[220px] max-w-full">
+              <FindField value={query} onChange={setQuery} placeholder="Search females..." />
+            </span>
+          </span>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="py-10 text-center">
+            <p className="text-small font-medium" style={{ color: INK }}>
+              No females found
+            </p>
+            <p className="mt-1 text-caption" style={{ color: FAINT }}>
+              Try changing your search or selected view.
+            </p>
+          </div>
+        ) : (
+          <>
+            <HousingTable
+              rows={page.rows}
+              columns={columns}
+              keyOf={(f) => f.animal.id}
+              onOpen={(f) => drillTo({ kind: 'animal', id: f.animal.id }, { module: 'animals', label: name })}
+            />
+          </>
+        )}
+      </Band>
     </TabBody>
   )
 }

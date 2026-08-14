@@ -67,12 +67,29 @@ export function useScoped(slug: string): { value: number; of?: number; rate: boo
  * places is read as two controls.
  */
 export function FilterBar({ tone = 'sheet' }: { tone?: 'sheet' | 'home' }) {
-  const { scope } = useScope()
-  const { open } = useSheet()
   const gutter = tone === 'home' ? 'px-5' : 'px-6'
-
   return (
     <div className={`flex items-center gap-2 ${gutter} pb-3`}>
+      <ScopeFilters />
+    </div>
+  )
+}
+
+/**
+ * THE TWO PILLS THEMSELVES, WITHOUT A BAR AROUND THEM.
+ *
+ * Extracted so a surface that needs the global filters inside its own layout — a tab toolbar,
+ * say — renders THE CONTROLS RATHER THAN A COPY OF THEM. Both placements read and write the one
+ * scope in `scope.tsx`, so there is no second state to diverge: change the window in a tab
+ * toolbar and the header pill above it has already changed, because they are the same pill
+ * twice. A tab that declared its own `useState` for a date range would be a second source of
+ * truth, and the first figure drawn under the wrong one is the bug this exists to prevent.
+ */
+export function ScopeFilters() {
+  const { scope } = useScope()
+  const { open } = useSheet()
+  return (
+    <>
       <Pill
         icon={CalendarRange}
         label={scope.win.label}
@@ -86,7 +103,7 @@ export function FilterBar({ tone = 'sheet' }: { tone?: 'sheet' | 'home' }) {
           open({ title: 'Site', eyebrow: scope.site ? scope.site.name : 'All sites', body: <SiteSheet /> })
         }
       />
-    </div>
+    </>
   )
 }
 

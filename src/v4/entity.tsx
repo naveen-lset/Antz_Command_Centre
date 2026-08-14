@@ -23,7 +23,7 @@
  * `pageWhere` — a ward is not a dimension the daily series is keyed by.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
   ArrowLeftRight,
@@ -40,7 +40,6 @@ import {
   MapPin,
   PawPrint,
   Pill,
-  ShieldCheck,
   Skull,
   Sparkles,
   Stethoscope,
@@ -61,6 +60,9 @@ import { speciesWideAt } from './speciesWide'
 import { SpeciesHousingTab } from './speciesHousing'
 import { SpeciesPairingTab } from './speciesPairing'
 import { SpeciesAssessmentsTab, SpeciesBreedsTab, SpeciesIdentificationTab } from './speciesRegister'
+import { SpeciesHospitalTab } from './speciesHospital'
+import { SpeciesLabTab } from './speciesLab'
+import { SpeciesMedicalTab } from './speciesMedical'
 import { SpeciesEggsTab, laysEggs } from './speciesEggs'
 import { animalById, animalsOfSpecies, holdingsByEnclosure, stockOfEnclosure, stockOfSpecies, type Animal } from '../core/animals'
 import { byDimension, delta as deltaOf, figure as figureOf, population } from '../core/query'
@@ -85,7 +87,6 @@ import {
 import {
   ACCENT,
   ACCENT_INK,
-  DEEP,
   FAINT,
   Facts,
   Figure,
@@ -102,7 +103,7 @@ import { RankList, SplitRing } from '../exec/marks'
 import { standingOf } from './modules/regulatory'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
-import { ScopeStrip } from './ScopeHeader'
+import { SpeciesHeader } from './speciesHeader'
 
 /* ── shared bits ─────────────────────────────────────────────────────────── */
 
@@ -148,198 +149,6 @@ function Hero({
           {label}
         </p>
         {sub && <p className="mt-3 text-caption" style={{ color: FAINT }}>{sub}</p>}
-      </section>
-    </div>
-  )
-}
-
-/**
- * THE SPECIES HEADER — identity, standing and position in one card.
- *
- * ONE CARD, NOT THREE. The hero, the standing pills and the figure strip were three stacked
- * white boxes saying one thing: which animal this is and how much of it we hold. Three card
- * edges to carry one subject is three times the vertical cost and none of the meaning, and the
- * reader has to reassemble the sentence themselves. Merged, the name and the numbers that
- * qualify it sit inside one boundary, with a rule between the two halves doing the work the
- * two card edges used to.
- *
- * THE GRADIENT IS THE HOUSE'S OWN GREEN, NOT A NEW COLOUR. `--env-canopy` and `--env-ground`
- * are the ramp every page already sits on; running them at 135° across this card makes it read
- * as the ground gathering into a header rather than as a panel imported from somewhere else.
- * A dark fill would have been the obvious way to make it prominent and the wrong one — this
- * product's heroes are dark type on light ground everywhere else, and one inverted card would
- * make the species page look like a different application.
- *
- * EVERY FIGURE IN THE STRIP IS FILTERED, NOT LISTED. A slot appears only when it has something
- * true in it: the sex ratio is dropped where either side is zero, because "1 : 1.2" against no
- * males is a division by zero wearing the clothes of a finding, and the standing pills are
- * dropped where the species carries no published listing rather than printing "Not listed" as
- * though absence were an assessment.
- */
-function SpeciesHeader({
-  name,
-  onBack,
-  wide,
-  enclosures,
-  standing,
-  window: windowLabel,
-  filtered,
-}: {
-  /* THE NAME IS BACK, AND THIS IS NOW THE ONLY PLACE IT APPEARS. It was pulled out when the
-     shell was also drawing a title, because two titles for one subject is worse than either.
-     The shell no longer draws one — `titleInBody` leaves it the trail — so this card is the
-     header, and the name belongs in the surface that describes it. */
-  name: string
-  onBack?: () => void
-  wide: NonNullable<ReturnType<typeof speciesWideAt>>
-  enclosures: number
-  standing?: { iucn?: string | null; cites?: string | null }
-  window: string
-  filtered: boolean
-}) {
-  /* The strip reads the LIVE scope rather than taking it as a prop, so the pills it draws and the
-     figures beside them come from one source on the same render. A threaded scope would let a
-     caller hand it a stale one and put a window pill over figures cut to a different window. */
-  const { scope: liveScope } = useScope()
-  const stats = [
-    { icon: PawPrint, label: 'Animals', value: fmt(wide.total) },
-    ...(wide.ratio !== undefined
-      ? [{ icon: Layers, label: 'Sex ratio', value: `1 : ${wide.ratio.toFixed(1)}` }]
-      : []),
-    { icon: MapPin, label: filtered ? 'Site' : 'Sites', value: String(wide.sites.length) },
-    ...(enclosures > 0 ? [{ icon: Boxes, label: 'Enclosures', value: fmt(enclosures) }] : []),
-    {
-      icon: ShieldCheck,
-      label: 'Sexed',
-      value: `${Math.round(wide.sexedPct)}%`,
-      sub: `${fmt(wide.male + wide.female)} of ${fmt(wide.total)}`,
-    },
-  ]
-
-  return (
-    <div className="w-full px-[var(--gutter)] pb-3">
-      <section
-        className="animate-hero-in overflow-hidden rounded-[var(--radius-card)] p-[var(--pad-card)]"
-        /* DEEPER THAN THE GROUND, DELIBERATELY. The first attempt ran #e9f4ee → #c4dccf, which
-           is the page's own sage almost exactly — measured against `--env-ground` (#e7f0ea) it
-           had nowhere near the separation a header needs, and the card read as a faint
-           rectangle rather than as the thing the page opens with. This ramp starts near-white
-           and lands on a green with real body, so the card is unmistakably a card while the
-           ink on it stays the near-black every other hero uses. The shadow is the same soft
-           lift the sheet host uses, at a third the strength. */
-        style={{
-          background: 'linear-gradient(135deg, #f2f9f5 0%, #c8e3d5 46%, #a3cfb9 100%)',
-          border: '1px solid rgba(31,81,91,0.16)',
-          boxShadow: '0 2px 14px rgba(15,42,30,0.07)',
-        }}
-      >
-        {/* THE NAME AND THE CONTROLS THAT QUALIFY IT, ON ONE LINE. The date and site pills used
-            to sit in a full-width white toolbar of their own between the title and this card —
-            measured 60px of band holding two pills at its right edge and nothing else. They
-            govern every figure below them, so they belong in the same surface as those figures,
-            and the row they vacated is gone rather than left empty. */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <div className="flex min-w-0 items-center gap-2">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                aria-label="Back"
-                className="-ml-1.5 grid size-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-white/60 active:bg-white/50"
-              >
-                <ChevronRight strokeWidth={2} className="size-5 rotate-180" style={{ color: '#44544a' }} aria-hidden />
-              </button>
-            )}
-            <h1
-              className="min-w-0 truncate text-[length:var(--fs-name)] leading-[var(--lh-name)] font-semibold tracking-[-0.4px]"
-              style={{ color: HERO_INK }}
-            >
-              {name}
-            </h1>
-          </div>
-          <ScopeStrip scope={liveScope} bare />
-        </div>
-
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-          <div className="flex min-w-0 items-start gap-3.5">
-            <span
-              className="grid size-12 shrink-0 place-items-center rounded-[14px]"
-              style={{ backgroundColor: 'rgba(255,255,255,0.72)' }}
-              aria-hidden
-            >
-              <PawPrint size={22} strokeWidth={1.75} style={{ color: DEEP }} />
-            </span>
-            {/* THE NAME IS NOT REPEATED HERE. The page title above already carries it at full
-                weight; printing it again inside the card gives the reader two titles of
-                different sizes for one subject and makes the card compete with the heading it
-                sits under. What this card is for is the CLASS and the position — the identity
-                is established, and this qualifies it. */}
-            <div className="min-w-0">
-              <p className="text-body font-semibold" style={{ color: HERO_INK }}>
-                {wide.cls}
-              </p>
-              <p className="mt-0.5 text-small" style={{ color: '#44544a' }}>
-                {fmt(wide.total)} held · {wide.sites.length} site{wide.sites.length === 1 ? '' : 's'} ·{' '}
-                {windowLabel}
-              </p>
-            </div>
-          </div>
-
-          {/* The published listings, where there are any. Kept as pills on the right because
-              they are a status the animal carries rather than a figure we counted. */}
-          {(standing?.iucn || standing?.cites) && (
-            <div className="flex shrink-0 flex-wrap gap-2">
-              {standing.iucn && (
-                <span
-                  className="rounded-full px-3 py-1 text-caption font-medium"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.72)', color: '#44544a' }}
-                >
-                  IUCN · {standing.iucn}
-                </span>
-              )}
-              {standing.cites && (
-                <span
-                  className="rounded-full px-3 py-1 text-caption font-medium"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.72)', color: '#44544a' }}
-                >
-                  CITES · Appendix {standing.cites}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="my-4 h-px w-full" style={{ backgroundColor: 'rgba(31,81,91,0.14)' }} />
-
-        {/* `flex-auto`, so each stat starts at its OWN content width and only the surplus is
-            shared — the fix the hero stats needed on Animal Population, for the same reason:
-            an equal-thirds grid gives "1 : 1.2" the same column as "7" and clips one of them. */}
-        <div className="flex flex-wrap gap-x-8 gap-y-4">
-          {stats.map((s) => (
-            <div key={s.label} className="flex min-w-0 flex-auto items-center gap-3">
-              <span
-                className="grid size-9 shrink-0 place-items-center rounded-[11px]"
-                style={{ backgroundColor: 'rgba(255,255,255,0.72)' }}
-                aria-hidden
-              >
-                <s.icon size={16} strokeWidth={1.75} style={{ color: DEEP }} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-caption" style={{ color: '#5c6b61' }}>
-                  {s.label}
-                </span>
-                <span className="block text-body font-semibold tabular-nums" style={{ color: HERO_INK }}>
-                  {s.value}
-                  {'sub' in s && s.sub && (
-                    <span className="ml-1.5 text-caption font-normal" style={{ color: '#5c6b61' }}>
-                      {s.sub}
-                    </span>
-                  )}
-                </span>
-              </span>
-            </div>
-          ))}
-        </div>
       </section>
     </div>
   )
@@ -657,7 +466,12 @@ const SPECS: Partial<Record<EntityKind, Spec>> = {
  * result. Where a fact is genuinely just an identifier it is kept last and quiet, because a
  * record still needs to be citable.
  */
-function factsFor(entity: Entity, win: Scope['win']): { label: string; value: string; sub?: string }[] {
+/* `href` is optional and per-row, exactly as `Facts` takes it — a fact that names a set the
+   product can show becomes the way to reach it, and the rest stay inert. */
+function factsFor(
+  entity: Entity,
+  win: Scope['win'],
+): { label: string; value: string; sub?: string; href?: string }[] {
   switch (entity.kind) {
     case 'site': {
       const site = siteOf(entity.id)
@@ -666,7 +480,14 @@ function factsFor(entity: Entity, win: Scope['win']): { label: string; value: st
       return [
         { label: 'Purpose', value: site.about },
         { label: 'Enclosures', value: fmt(site.enclosures), sub: `code ${site.code}` },
-        { label: 'Species held', value: fmt(species.length) },
+        /* The species list, cut to this site. `?s=` is the GLOBAL site scope rather than the
+           panel's own SITE box, so the populations in the table are this site's too — see the
+           note on `FACET_PARAM` in `speciesListData.ts` for why the two must not both narrow. */
+        {
+          label: 'Species held',
+          value: fmt(species.length),
+          href: `#/browse/species?s=${encodeURIComponent(site.key)}`,
+        },
         { label: 'Hospitals on site', value: fmt(HOSPITALS.filter((h) => h.siteKey === site.key).length) },
         { label: 'Staff based here', value: fmt(usersIn(site.key).length) },
       ]
@@ -1019,6 +840,39 @@ function EntityTabs({
   onPick: (key: string) => void
   label: string
 }) {
+  /* THE ACTIVE PILL IS ONE ELEMENT THAT MOVES, not a background each tab paints for itself.
+     Eleven buttons toggling their own fill switch instantly, which reads as a flicker; one
+     pill translating between them is what reads as "the selection moved". It is measured off
+     the active button (`offsetLeft`/`offsetWidth` against the relative rail, which is the
+     same coordinate space whatever the rail's scroll position), and re-measured on the three
+     things that move a button: the tab changing, the window resizing, and the webfont
+     landing. The FIRST paint never slides — the measurement runs in a layout effect, so the
+     pill mounts already under the active tab. */
+  const btns = useRef(new Map<string, HTMLButtonElement | null>())
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const el = btns.current.get(tab)
+    if (el) setPill({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [tab, tabs])
+
+  useEffect(() => {
+    const remeasure = () => {
+      const el = btns.current.get(tab)
+      if (el) setPill({ left: el.offsetLeft, width: el.offsetWidth })
+    }
+    let live = true
+    window.addEventListener('resize', remeasure)
+    document.fonts?.ready.then(() => live && remeasure())
+    /* A tab picked at the clipped end of the rail slides itself into view — `nearest` on
+       both axes so the page never scrolls vertically for it. */
+    btns.current.get(tab)?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
+    return () => {
+      live = false
+      window.removeEventListener('resize', remeasure)
+    }
+  }, [tab])
+
   return (
     /* ONE TAB BAR, NOT TEN FLOATING PILLS.
        Every tab used to carry its own white background, so ten of them scattered across the sage
@@ -1050,17 +904,39 @@ function EntityTabs({
        the bar matches the page at every scroll position by construction rather than at the one
        position a fixed colour would have been right for. */
     <div className="sticky top-0 z-20 px-[var(--gutter)] pt-1 pb-3 backdrop-blur-md">
+      {/* 10px RAIL, 8px TABS, EMERALD ACTIVE — variation 1 of the tab studies (2026-08-14,
+          `_planning/species-tabs.html`). The full-round pill went with it: the header this bar
+          sits under is a 8/10px-cornered surface now, and the active fill is the header's own
+          emerald mid-stop rather than the old near-black, so the two read as one system. */}
       <div
-        className="flex gap-2 overflow-x-auto rounded-full bg-white p-1.5 scrollbar-hidden"
+        className="relative flex gap-1 overflow-x-auto rounded-[10px] bg-white p-1.5 scrollbar-hidden"
         style={{ boxShadow: 'inset 0 0 0 1px rgba(31,81,91,0.07)' }}
         role="tablist"
         aria-label={label}
       >
+        {/* The sliding pill. Left/width are layout coordinates, so it scrolls with the rail's
+            content; the house entry curve at a control's duration. Buttons are `relative` so
+            they paint above it. */}
+        {pill && (
+          <span
+            aria-hidden
+            className="absolute top-1.5 bottom-1.5 rounded-[8px] transition-[left,width] duration-300 motion-reduce:transition-none"
+            style={{
+              left: pill.left,
+              width: pill.width,
+              backgroundColor: '#2f6449',
+              transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
+          />
+        )}
         {tabs.map((t) => {
           const on = t.key === tab
           return (
             <button
               key={t.key}
+              ref={(el) => {
+                btns.current.set(t.key, el)
+              }}
               type="button"
               role="tab"
               aria-selected={on}
@@ -1071,12 +947,14 @@ function EntityTabs({
                  nine tabs the row is the most-used control on a species page. 10px of vertical
                  padding on a 24px line takes the tab to 44px, so the row finally carries a
                  platform-sized tap target as well as a readable label. */
-              className={`card-press flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-body font-medium whitespace-nowrap transition-colors ${
+              className={`card-press relative flex shrink-0 items-center gap-2 rounded-[8px] px-4 py-2.5 text-body font-medium whitespace-nowrap transition-colors duration-300 ${
                 on ? 'text-white' : 'text-[#55524a] hover:bg-[#f4f3ef]'
               }`}
-              style={on ? { backgroundColor: '#123a2c' } : undefined}
+              /* The emerald lives on the SLIDING PILL, not here — this fallback paints only
+                 for the one frame before the first measurement lands. */
+              style={on && !pill ? { backgroundColor: '#2f6449' } : undefined}
             >
-              <t.icon size={16} strokeWidth={2} style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
+              <t.icon size={16} strokeWidth={2} className="transition-colors duration-300" style={{ color: on ? '#8fd6ae' : ACCENT }} aria-hidden />
               {t.label}
             </button>
           )
@@ -1110,6 +988,9 @@ const SPECIES_TABS = [
   { key: 'life', label: 'Circle of Life', icon: Sparkles },
   { key: 'eggs', label: 'Eggs', icon: Egg },
   { key: 'assessments', label: 'Assessments', icon: Activity },
+  { key: 'medical', label: 'Medical', icon: Stethoscope },
+  { key: 'hospital', label: 'Hospital', icon: Building2 },
+  { key: 'lab', label: 'Lab', icon: FlaskConical },
   { key: 'identification', label: 'Identification', icon: FileText },
   { key: 'breeds', label: 'Breeds', icon: Layers },
   { key: 'animals', label: 'Animals', icon: Heart },
@@ -1189,13 +1070,12 @@ function SpeciesPage({ entity }: { entity: Entity }) {
   return (
     <>
       <ScopeConflict entity={entity} />
-      {/* ONE HEADER CARD, IN THE HOUSE GREEN. The hero, the standing pills and the figure
-          strip were three stacked white boxes stating one subject; `SpeciesHeader` is that
-          subject inside one boundary. The reading is the whole species rather than the row
-          that was clicked — a page titled "Ochre Warbler" reading 537 while the collection
-          holds 1,045 across seven sites has answered a question nobody asked — and it narrows
-          to the site pill when one is set, because a header stating a filter over a figure
-          that ignores it is the contradiction this product exists to avoid. */}
+      {/* ONE UNIFIED HEADER — see `speciesHeader.tsx`. The reading is the whole species
+          rather than the row that was clicked — a page titled "Ochre Warbler" reading 537 while
+          the collection holds 1,045 across seven sites has answered a question nobody asked —
+          and it narrows to the site filter when one is set. The scope CONTROLS were removed
+          from the header by direction (2026-08-14); the figures are still cut to the live
+          scope, the header just no longer carries the pills that change it. */}
       {wide && wide.total > 0 ? (
         <SpeciesHeader
           name={entity.name}
@@ -1203,7 +1083,6 @@ function SpeciesPage({ entity }: { entity: Entity }) {
           wide={wide}
           enclosures={headerEnclosures}
           standing={standing}
-          window={scope.win.window}
           filtered={!!scope.site}
         />
       ) : (
@@ -1261,7 +1140,10 @@ function SpeciesPage({ entity }: { entity: Entity }) {
         {tab === 'pairing' && <SpeciesPairingTab speciesId={entity.id} name={entity.name} profile={profile} />}
         {tab === 'housing' && <SpeciesHousingTab speciesId={entity.id} name={entity.name} />}
         {tab === 'eggs' && <SpeciesEggsTab speciesId={entity.id} name={entity.name} profile={profile} />}
-        {tab === 'assessments' && <SpeciesAssessmentsTab profile={profile} />}
+        {tab === 'assessments' && <SpeciesAssessmentsTab name={entity.name} profile={profile} />}
+        {tab === 'medical' && <SpeciesMedicalTab speciesId={entity.id} name={entity.name} />}
+        {tab === 'hospital' && <SpeciesHospitalTab speciesId={entity.id} name={entity.name} />}
+        {tab === 'lab' && <SpeciesLabTab speciesId={entity.id} name={entity.name} />}
         {tab === 'identification' && <SpeciesIdentificationTab profile={profile} />}
         {tab === 'breeds' && <SpeciesBreedsTab profile={profile} />}
       </Stack>

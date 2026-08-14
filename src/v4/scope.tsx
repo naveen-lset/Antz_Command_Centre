@@ -87,6 +87,9 @@ function fromParams(params: URLSearchParams): Partial<Filters> {
   return out
 }
 
+/** The four keys the scope owns. Anything else in a query belongs to the page. */
+const SCOPE_KEYS = new Set(['w', 's', 'from', 'to'])
+
 /** The params a scope contributes to a URL. Defaults are omitted so links stay short. */
 function toParams(f: Filters): URLSearchParams {
   const p = new URLSearchParams()
@@ -99,9 +102,41 @@ function toParams(f: Filters): URLSearchParams {
   return p
 }
 
-const buildHash = (path: string, f: Filters): string => {
-  const q = toParams(f).toString()
+/**
+ * The hash for a path under a scope, KEEPING whatever else the query carried.
+ *
+ * A PAGE MAY OWN QUERY PARAMS NOW, and until this change it could not. Every hash in the
+ * product was rebuilt from the scope filters alone, so a param this file did not recognise
+ * survived exactly until the next reconcile and was then dropped — silently, and on a
+ * `replaceState`, so there was not even a history entry to go back to. `drillNav.tsx` says as
+ * much in its own note about why the drill origin is held in memory rather than in the URL.
+ *
+ * WHY IT MATTERS NOW. A species count is a link into the species list, and the link has to be
+ * able to say WHICH species — `#/browse/species?iucn=CR` from a critically-endangered figure,
+ * `?cls=Aves` from a bird one. That is a page param, and a page param that cannot survive one
+ * reconcile is not a link, it is a redirect to the unfiltered page.
+ *
+ * The scope still wins on its own four keys, so no page can shadow the window or the site by
+ * putting `?s=` in a link — which is the property that made rebuilding-from-scratch safe in
+ * the first place, kept here without the collateral damage.
+ */
+const buildHash = (path: string, f: Filters, extra?: URLSearchParams | null): string => {
+  const p = toParams(f)
+  /* `append`, not `set`: a page filter is multi-valued — `?cls=Aves&cls=Reptilia` is two
+     ticked boxes — and `set` would silently keep only the last one. `p` is rebuilt on every
+     call, so appending cannot accumulate across reconciles. */
+  if (extra) for (const [k, v] of extra) if (!SCOPE_KEYS.has(k)) p.append(k, v)
+  const q = p.toString()
   return `#/${path}${q ? `?${q}` : ''}`
+}
+
+/** A navigation target's own path and its own query — `go('browse/species?cls=Aves')`. */
+function splitTarget(to: string): { path: string; extra: URLSearchParams } {
+  const raw = to.replace(/^#\/?/, '')
+  const q = raw.indexOf('?')
+  return q === -1
+    ? { path: raw, extra: new URLSearchParams() }
+    : { path: raw.slice(0, q), extra: new URLSearchParams(raw.slice(q + 1)) }
 }
 
 /* ── the provider ────────────────────────────────────────────────────────── */
@@ -243,7 +278,8 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const want = buildHash(path, filters)
+    /* `params` is passed back in so a page's own query survives the re-stamp — see `buildHash`. */
+    const want = buildHash(path, filters, params)
     if (want !== `#/${path}` && window.location.hash !== want) {
       window.history.replaceState(window.history.state, '', want)
       setHash(want)
@@ -253,7 +289,11 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
   const write = useCallback(
     (next: Filters) => {
       setFilters(next)
-      const want = buildHash(parseHash(window.location.hash).path, next)
+      /* Read live rather than from state: a page that has written its own params since the
+         last render has them in the URL and nowhere else, and changing the window must not
+         be what discards them. */
+      const cur = parseHash(window.location.hash)
+      const want = buildHash(cur.path, next, cur.params)
       /* `replaceState` rather than a hash assignment: changing the window is not a
          navigation, and filling the back stack with every chip tap would make the back
          button useless for getting out of a module. */
@@ -276,11 +316,16 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
       setWindow: (k) => write({ ...filters, windowKey: k }),
       setCustom: (c) => write({ ...filters, windowKey: 'custom', custom: c }),
       setSite: (s) => write({ ...filters, siteKey: s?.key ?? null }),
+      /* Both take a target that may carry its own query — `go('browse/species?iucn=CR')`. */
       go: (to, opts) => {
         if (opts?.back) goingBack.current = true
-        window.location.hash = buildHash(to.replace(/^#\/?/, ''), filters)
+        const t = splitTarget(to)
+        window.location.hash = buildHash(t.path, filters, t.extra)
       },
-      href: (to) => buildHash(to.replace(/^#\/?/, ''), filters),
+      href: (to) => {
+        const t = splitTarget(to)
+        return buildHash(t.path, filters, t.extra)
+      },
     }
   }, [filters, path, write])
 

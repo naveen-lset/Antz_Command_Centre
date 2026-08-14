@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ANTZ · Home Foliage Continuity — 5 Studies</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --canopy: #d6e8dd;
+    --ink: #1c1a16;
+    --hero-ink: #08100c;
+    --muted: #736e67;
+    --faint: #9a958d;
+    --accent-ink: #1e7a44;
+
+    /* Straight off the illustration — sampled, not invented. */
+    --leaf-pale: #8fb89d;
+    --leaf-mid:  #6f9f81;
+    --leaf-deep: #3f6b52;
+    --vine:      #2f5d45;
+    --bloom:     #f3a2bb;
+    --bloom-deep:#ee8fae;
+  }
+
+  body {
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #cfd8d2; padding: 28px 24px 64px;
+    -webkit-font-smoothing: antialiased; color: var(--ink);
+  }
+  h1.doc { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
+  p.doc { font-size: 13.5px; line-height: 1.6; color: #3d4a42; max-width: 82ch; margin-top: 8px; }
+  p.doc b { font-weight: 600; color: #1f2b24; }
+
+  .rack { display: flex; gap: 22px; margin-top: 24px; overflow-x: auto; padding-bottom: 18px; }
+  .col { flex: 0 0 440px; }
+  .label { font-size: 12.5px; font-weight: 600; color: #22302a; margin: 0 2px 4px; }
+  .sub { font-size: 11.5px; line-height: 1.5; color: #4d5a52; margin: 0 2px 10px; min-height: 66px; }
+
+  .page {
+    position: relative; isolation: isolate;
+    border-radius: 20px; overflow: hidden;
+    box-shadow: 0 4px 22px rgba(15,42,30,0.13);
+  }
+
+  /* THE GROUND — the descent agreed already: canopy under the artwork, one long ramp to a
+     shade that is still green. Identical in all five so the only variable is the foliage. */
+  .ground {
+    position: absolute; inset: 0; z-index: -2;
+    background-color: var(--canopy);
+    background-image: linear-gradient(180deg,
+      var(--canopy) 0px, var(--canopy) 620px,
+      #d9eade 46%, #dceee1 78%, #dfefe4 100%);
+  }
+
+  /* THE FOLIAGE LAYER — above the ground, BELOW the cards.
+     It lives mostly in the gutters, which is the whole reason it can be drawn at a strength
+     you can actually see: it is not competing with a figure, it is framing one. */
+  .foliage { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+  .foliage svg { position: absolute; overflow: visible; }
+
+  /* ══ the five ═════════════════════════════════════════════════════════ */
+  .f1 .foliage { opacity: 0.85; }   /* vine curtain      */
+  .f2 .foliage { opacity: 0.85; }   /* alternating corners */
+  .f3 .foliage { opacity: 0.8;  }   /* continuous rail   */
+  .f4 .foliage { opacity: 0.7;  }   /* drift             */
+  .f5 .foliage { opacity: 0.85; }   /* section crowns    */
+
+  /* ── hero, identical in all five ─────────────────────────────────────── */
+  .banner { position: relative; }
+  .banner-grad {
+    position: absolute; inset: 0; z-index: -1;
+    background: linear-gradient(180deg,#cde4d8 0%,#b4d3c4 38%,#a0c8b5 62%,rgba(231,240,234,0) 100%);
+  }
+  .greeting { padding: 34px 20px 10px; position: relative; }
+  .greeting .hi { font-size: 14px; color: #5c574f; }
+  .greeting .name { font-size: 25px; font-weight: 700; letter-spacing: -0.4px; margin-top: 1px; }
+  .greeting .org { font-size: 12.5px; color: #3d3a34; margin-top: 5px; }
+  .search { position: absolute; top: 34px; right: 20px; width: 36px; height: 36px;
+            border-radius: 50%; background: #fbfaf7; display: grid; place-items: center; }
+  .filters { display: flex; gap: 8px; justify-content: center; padding: 10px 0 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: #fff;
+          border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 500;
+          color: #2c332e; box-shadow: 0 1px 3px rgba(15,42,30,0.06); }
+  .chip .dot { width: 11px; height: 11px; border-radius: 3px; background: #37bd69; }
+  .total { text-align: center; padding: 14px 0 0; position: relative; }
+  .total .fig { font-family: 'Nunito',sans-serif; font-weight: 800; font-size: 52px;
+                letter-spacing: -1.5px; color: var(--hero-ink); line-height: 1.05; }
+  .total .cap { font-size: 13px; margin-top: 6px; }
+  .total .pill { display: inline-flex; align-items: center; gap: 8px; margin-top: 9px;
+                 background: rgba(255,255,255,0.8); border-radius: 999px; padding: 5px 12px;
+                 font-size: 11px; font-weight: 600; color: var(--accent-ink); }
+  .total .pill .bar { width: 1px; height: 11px; background: rgba(22,21,15,0.15); }
+
+  .art { position: relative; height: 210px; margin-top: 10px; }
+  .art img {
+    position: absolute; bottom: 0; left: 0; width: 100%;
+    max-height: 320px; object-fit: cover; object-position: bottom; user-select: none;
+    -webkit-mask-image: linear-gradient(to bottom,
+      rgba(0,0,0,0) 0%,rgba(0,0,0,.04) 10%,rgba(0,0,0,.17) 20%,rgba(0,0,0,.4) 30%,
+      rgba(0,0,0,.68) 39%,rgba(0,0,0,.9) 47%,#000 56%,#000 80%,rgba(0,0,0,.94) 85%,
+      rgba(0,0,0,.79) 89%,rgba(0,0,0,.56) 93%,rgba(0,0,0,.31) 96%,rgba(0,0,0,.12) 98%,rgba(0,0,0,0) 100%);
+            mask-image: linear-gradient(to bottom,
+      rgba(0,0,0,0) 0%,rgba(0,0,0,.04) 10%,rgba(0,0,0,.17) 20%,rgba(0,0,0,.4) 30%,
+      rgba(0,0,0,.68) 39%,rgba(0,0,0,.9) 47%,#000 56%,#000 80%,rgba(0,0,0,.94) 85%,
+      rgba(0,0,0,.79) 89%,rgba(0,0,0,.56) 93%,rgba(0,0,0,.31) 96%,rgba(0,0,0,.12) 98%,rgba(0,0,0,0) 100%);
+  }
+  .art .mist {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 120px;
+    background:
+      radial-gradient(135% 70% at 50% 118%, rgba(214,232,221,.3) 0%, rgba(214,232,221,.16) 38%, rgba(214,232,221,.05) 62%, rgba(214,232,221,0) 80%),
+      linear-gradient(to bottom, rgba(214,232,221,0) 0%,rgba(214,232,221,.015) 20%,rgba(214,232,221,.055) 35%,
+        rgba(214,232,221,.13) 48%,rgba(214,232,221,.23) 58%,rgba(214,232,221,.38) 68%,rgba(214,232,221,.53) 76%,
+        rgba(214,232,221,.68) 83%,rgba(214,232,221,.81) 89%,rgba(214,232,221,.91) 94%,rgba(214,232,221,.97) 97.5%,
+        rgba(214,232,221,1) 100%);
+  }
+
+  /* ── body ────────────────────────────────────────────────────────────── */
+  /* 34px OF GUTTER, NOT 16, AND THAT IS THE CHANGE THAT MAKES THIS WORK AT ALL.
+     The first pass hung the foliage in a 16px channel and the cards ate all of it — every
+     leaf survived as a two-pixel sliver at the page edge, which is why it read as nothing.
+     A frame needs somewhere to be. The cards lose 18px a side and the page gains a margin
+     the illustration can live in. */
+  main { padding: 8px 34px 40px; display: flex; flex-direction: column; gap: 12px; position: relative; }
+  .head { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .head:first-child { margin-top: 0; }
+  .head .t { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #3d3a34; }
+  .head .rule { flex: 1; height: 1px; background: rgba(28,26,22,.08); }
+  .head .aside { font-size: 11px; color: var(--faint); }
+  .card { background: #fff; border-radius: 14px; padding: 14px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .k-label { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: #3d3a34; }
+  .k-label .g { width: 16px; height: 16px; border-radius: 5px; background: #dff0e7; }
+  .k-fig { font-family: 'Nunito',sans-serif; font-weight: 800; font-size: 24px;
+           color: var(--hero-ink); margin-top: 7px; display: flex; align-items: baseline; gap: 6px; }
+  .k-fig .d { font-family: 'Figtree'; font-size: 11px; font-weight: 600; color: var(--accent-ink); }
+  .k-note { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .meter { height: 5px; border-radius: 3px; background: #eef1ee; margin-top: 9px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: #37bd69; border-radius: 3px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid #f0efec; }
+  .row:last-child { border-bottom: 0; }
+  .row .g { width: 24px; height: 24px; border-radius: 8px; background: #e6f4ec; flex: 0 0 auto; }
+  .row .m { flex: 1; min-width: 0; }
+  .row .m b { display: block; font-size: 12.5px; font-weight: 500; }
+  .row .m s { display: block; font-size: 10.5px; color: var(--faint); text-decoration: none; margin-top: 2px; }
+  .row .n { font-size: 12.5px; font-weight: 600; }
+  .foot { text-align: center; font-size: 10.5px; color: #6c7d73; padding: 30px 0 10px; }
+</style>
+</head>
+<body>
+
+<h1 class="doc">Home foliage — carrying the illustration's own frame down the page</h1>
+<p class="doc">
+  The foliage is the <b>hanging vines, monstera leaves and pink wisteria</b> that frame the top
+  corners of the hero artwork — not a landscape. Every mark below is redrawn from that artwork
+  in the same flat-vector idiom and the same sampled colours, so the page has <b>one</b>
+  illustration running through it rather than a photograph followed by a second drawing.
+</p>
+<p class="doc" style="margin-top:6px">
+  It hangs in the <b>gutters</b>, beside the cards rather than behind them. That is what lets it
+  be drawn at a strength you can actually see: at the edges it is framing a figure, not competing
+  with one. The ground under all five is the same agreed descent, so the only variable here is
+  the foliage.
+</p>
+
+<!-- ══ the parts, defined once ══════════════════════════════════════════
+     A monstera blade, a hanging vine with paired leaflets, a wisteria raceme and a palm
+     frond. Every study is these four, placed differently. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- MONSTERA. Three notches a side cut into a single blade, which is what makes the
+         silhouette read as this leaf and not as a generic ellipse. Drawn hanging: the
+         stem is at the origin and the blade falls away from it. -->
+    <g id="monstera">
+      <path d="M0 0 C 2 10 3 18 4 26" stroke="var(--vine)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <path d="M4 26
+               C -3 34 -8 40 -12 48 L -30 42
+               C -27 51 -25 57 -24 65 L -43 63
+               C -37 73 -30 82 -20 90
+               C -8 99 6 102 18 100
+               C 30 97 40 88 45 76
+               C 50 63 48 49 40 39
+               C 33 30 23 25 14 24 Z"
+            fill="var(--leaf-mid)"/>
+      <path d="M4 26 C 10 42 16 60 20 82" stroke="var(--leaf-deep)" stroke-width="1.6"
+            fill="none" opacity="0.5" stroke-linecap="round"/>
+    </g>
+
+    <!-- The same blade, darker and mirrored, for the opposite edge. -->
+    <g id="monstera-dark">
+      <use href="#monstera" fill="var(--leaf-deep)"/>
+    </g>
+
+    <!-- HANGING VINE. A long slack curve with paired leaflets down it — the element that
+         actually creates the continuity, because it can be any length. -->
+    <g id="vine">
+      <path d="M0 0 C 26 26 34 62 30 104 C 27 138 14 168 6 200"
+            stroke="var(--vine)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <g fill="var(--leaf-mid)">
+        <ellipse cx="17" cy="34" rx="9" ry="4.5" transform="rotate(-28 17 34)"/>
+        <ellipse cx="34" cy="42" rx="9" ry="4.5" transform="rotate(24 34 42)"/>
+        <ellipse cx="25" cy="66" rx="9" ry="4.5" transform="rotate(-24 25 66)"/>
+        <ellipse cx="41" cy="76" rx="9" ry="4.5" transform="rotate(22 41 76)"/>
+        <ellipse cx="24" cy="104" rx="8.5" ry="4.2" transform="rotate(-22 24 104)"/>
+        <ellipse cx="39" cy="114" rx="8.5" ry="4.2" transform="rotate(20 39 114)"/>
+        <ellipse cx="18" cy="142" rx="8" ry="4" transform="rotate(-20 18 142)"/>
+        <ellipse cx="32" cy="152" rx="8" ry="4" transform="rotate(18 32 152)"/>
+        <ellipse cx="11" cy="178" rx="7.5" ry="3.8" transform="rotate(-18 11 178)"/>
+        <ellipse cx="24" cy="187" rx="7.5" ry="3.8" transform="rotate(16 24 187)"/>
+      </g>
+    </g>
+
+    <!-- WISTERIA. A pink raceme: a thread with petal pairs stepping down it, each pair a
+         little smaller and a little closer, so the cluster tapers to a point. -->
+    <g id="bloom">
+      <path d="M0 0 L 1 76" stroke="var(--bloom)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <g fill="var(--bloom)">
+        <ellipse cx="-7" cy="16" rx="6.5" ry="4"   transform="rotate(-34 -7 16)"/>
+        <ellipse cx="8"  cy="18" rx="6.5" ry="4"   transform="rotate(34 8 18)"/>
+        <ellipse cx="-6.5" cy="30" rx="6" ry="3.7" transform="rotate(-32 -6.5 30)"/>
+        <ellipse cx="7.5"  cy="32" rx="6" ry="3.7" transform="rotate(32 7.5 32)"/>
+        <ellipse cx="-5.5" cy="43" rx="5.2" ry="3.3" transform="rotate(-30 -5.5 43)"/>
+        <ellipse cx="6.5"  cy="45" rx="5.2" ry="3.3" transform="rotate(30 6.5 45)"/>
+        <ellipse cx="-4.2" cy="55" rx="4.4" ry="2.8" transform="rotate(-28 -4.2 55)"/>
+        <ellipse cx="5"    cy="57" rx="4.4" ry="2.8" transform="rotate(28 5 57)"/>
+      </g>
+      <g fill="var(--bloom-deep)">
+        <ellipse cx="-2.6" cy="66" rx="3.6" ry="2.4" transform="rotate(-24 -2.6 66)"/>
+        <ellipse cx="3.4"  cy="68" rx="3.6" ry="2.4" transform="rotate(24 3.4 68)"/>
+        <ellipse cx="0.8"  cy="77" rx="2.8" ry="2"/>
+      </g>
+    </g>
+
+    <!-- PALM FROND — the wide low blades from the artwork's foreground corners. -->
+    <g id="frond">
+      <g stroke="var(--leaf-deep)" stroke-width="7" stroke-linecap="round" fill="none">
+        <path d="M0 0 C 16 -12 34 -18 54 -18"/>
+        <path d="M0 0 C 18 -4 38 -3 56 3"/>
+        <path d="M0 0 C 16 5 32 13 46 25"/>
+        <path d="M0 0 C 10 14 17 28 21 44"/>
+        <path d="M0 0 C 1 15 -1 30 -6 44"/>
+      </g>
+    </g>
+  </defs>
+</svg>
+
+<div class="rack">
+  <section class="col f1">
+    <div class="label">1 · Vine curtain</div>
+    <div class="sub">The hero's own top corners, repeated down both edges. Long vines with wisteria hanging between them — the densest reading, and the closest match to the artwork.</div>
+    <div class="page" data-study data-f="1"></div>
+  </section>
+
+  <section class="col f2">
+    <div class="label">2 · Alternating corners</div>
+    <div class="sub">One cluster per section, swapping left and right down the page. The frame never sits on both sides at once, so it reads as punctuation rather than as a border.</div>
+    <div class="page" data-study data-f="2"></div>
+  </section>
+
+  <section class="col f3">
+    <div class="label">3 · Continuous rail</div>
+    <div class="sub">One unbroken vine running the entire height of each edge, leaves and blooms along it. Literal continuity — the illustration never stops, it just gets thinner.</div>
+    <div class="page" data-study data-f="3"></div>
+  </section>
+
+  <section class="col f4">
+    <div class="label">4 · Drift</div>
+    <div class="sub">Single leaves and single blooms, widely spaced and small. The quietest option — the foliage is a recurring note down the margin rather than a frame.</div>
+    <div class="page" data-study data-f="4"></div>
+  </section>
+
+  <section class="col f5">
+    <div class="label">5 · Crowns and a close</div>
+    <div class="sub">Foliage at each section head — the page as chapters in a garden — plus a band of it across the foot, so the scroll <b>ends</b> on the illustration instead of running out on bare ground.</div>
+    <div class="page" data-study data-f="5"></div>
+  </section>
+</div>
+
+<script>
+const W = 440;            /* study column width */
+const HERO = 600;         /* where the artwork's foot lands in this mock */
+const END = 2680;         /* the foot of the page */
+
+/* A placed part. `x`/`y` in page coordinates; `s` scale; `flip` mirrors for the right edge. */
+const put = (id, x, y, s = 1, flip = false, rot = 0) =>
+  `<svg style="left:${x}px; top:${y}px" width="1" height="1">
+     <g transform="scale(${flip ? -s : s} ${s}) rotate(${rot})"><use href="#${id}"/></g>
+   </svg>`;
+
+/* ANCHORED TO THE FOOT, NOT TO A NUMBER. The closing band has to land on the last row of the
+   page whatever the page's height turns out to be — filter the list and a `top` in pixels
+   slides it into the middle of the cards. `bottom` is measured from the thing it belongs to. */
+const putB = (id, x, up, s = 1, flip = false, rot = 0) =>
+  `<svg style="left:${x}px; bottom:${up}px" width="1" height="1">
+     <g transform="scale(${flip ? -s : s} ${s}) rotate(${rot})"><use href="#${id}"/></g>
+   </svg>`;
+
+/*
+ * 1 · VINE CURTAIN — both edges, all the way down.
+ * Vines hang from a point, so each cluster starts at a "branch" height and falls; spacing the
+ * branch heights unevenly is what stops the repeat from reading as a pattern.
+ */
+function curtain() {
+  let o = '';
+  const L = [630, 1010, 1400, 1790, 2180, 2500];
+  const R = [670, 1070, 1460, 1850, 2250, 2560];
+  L.forEach((y, i) => {
+    o += put('vine', -14, y, 1.35 - i * 0.06);
+    o += put('monstera', -16, y - 20, 1.2 - i * 0.05);
+    if (i % 2 === 0) o += put('bloom', 26, y + 74, 1.3);
+  });
+  R.forEach((y, i) => {
+    o += put('vine', W + 14, y, 1.3 - i * 0.06, true);
+    o += put('monstera-dark', W + 16, y - 18, 1.15 - i * 0.05, true);
+    if (i % 2 === 1) o += put('bloom', W - 26, y + 70, 1.3);
+  });
+  return o;
+}
+
+/* 2 · ALTERNATING CORNERS — one side at a time. */
+function alternating() {
+  let o = '';
+  const at = [660, 1080, 1500, 1920, 2330];
+  at.forEach((y, i) => {
+    const left = i % 2 === 0;
+    if (left) {
+      o += put('monstera', -18, y, 1.6);
+      o += put('vine', 16, y - 16, 0.95);
+      o += put('bloom', 34, y + 96, 1.35);
+    } else {
+      o += put('monstera-dark', W + 18, y, 1.6, true);
+      o += put('vine', W - 16, y - 16, 0.95, true);
+      o += put('bloom', W - 34, y + 96, 1.35);
+    }
+  });
+  return o;
+}
+
+/*
+ * 3 · CONTINUOUS RAIL — one vine per edge, unbroken from the hero to the foot.
+ * The vine part is 200 units tall, so the rail is that part chained end to end with each
+ * link picking up where the last left off. Nothing else in this file needs the parts to
+ * tile; this study is the reason they were drawn to.
+ */
+function rail() {
+  let o = '';
+  for (let y = HERO + 20; y < END; y += 232) {
+    const t = (y - HERO) / (END - HERO);        /* 0 at the top, 1 at the foot */
+    o += put('vine', -18, y, 1.3 - t * 0.4);
+    o += put('vine', W + 18, y + 74, 1.25 - t * 0.4, true);
+  }
+  o += put('monstera', -16, HERO + 6, 1.35);
+  o += put('monstera-dark', W + 16, HERO + 86, 1.25, true);
+  [860, 1400, 1940, 2420].forEach((y, i) =>
+    o += put('bloom', i % 2 ? W - 24 : 24, y, 1.35 - i * 0.1));
+  return o;
+}
+
+/* 4 · DRIFT — single marks, widely spaced, small. */
+function drift() {
+  let o = '';
+  o += put('monstera', -18, 660, 1.25);
+  o += put('bloom', W - 26, 900, 1.25);
+  o += put('monstera-dark', W + 18, 1160, 1.15, true);
+  o += put('bloom', 26, 1470, 1.2);
+  o += put('monstera', -18, 1740, 1.1);
+  o += put('bloom', W - 26, 2050, 1.15);
+  o += put('monstera-dark', W + 18, 2310, 1.05, true);
+  o += put('bloom', 26, 2530, 1.1);
+  return o;
+}
+
+/*
+ * 5 · SECTION CROWNS — foliage at the four section heads and nowhere else.
+ * The offsets are the measured tops of Executive KPIs, Trends, Upcoming and Risk Indicators
+ * in this mock; in the product they would come from the heads themselves.
+ */
+/*
+ * 5 · CROWNS AND A CLOSE — foliage at each section head, AND a band of it across the foot.
+ *
+ * The closing band is the other half of "continuity from the end". Every other study answers
+ * where the illustration goes AFTER the hero; none of them answers what the page ENDS on, and
+ * a scroll that finishes on bare ground finishes by running out. A row of fronds, leaves and
+ * blooms across the foot closes the page on the same drawing it opened with, so the artwork
+ * has a bottom edge in the same sense it has a top one.
+ */
+function crowns() {
+  let o = '';
+  const heads = [636, 1372, 1806, 2170];
+  heads.forEach((y) => {
+    o += put('monstera', -18, y - 40, 1.15);
+    o += put('vine', 12, y - 50, 0.75);
+    o += put('bloom', 30, y + 40, 1.2);
+    o += put('monstera-dark', W + 18, y - 30, 1.1, true);
+    o += put('vine', W - 12, y - 44, 0.7, true);
+    o += put('bloom', W - 30, y + 34, 1.15);
+  });
+
+  /* THE CLOSING BAND. Fronds rise from the foot rather than hanging into it — the artwork's
+     own foreground corners are ground plants, not vines, so the page ends the way the
+     illustration's bottom edge does. */
+  o += putB('frond', 6,   26, 1.7);
+  o += putB('frond', 66,  16, 1.2);
+  o += putB('monstera', 124, 34, 0.95, false, 168);
+  o += putB('bloom', W * 0.5 - 8, 96, 1.15);
+  o += putB('monstera-dark', W - 124, 34, 0.95, true, -168);
+  o += putB('frond', W - 66, 16, 1.2, true);
+  o += putB('frond', W - 6,  26, 1.7, true);
+  return o;
+}
+
+const FOLIAGE = { 1: curtain, 2: alternating, 3: rail, 4: drift, 5: crowns };
+
+const kpi = (label, fig, delta, note, meter) => `
+  <div class="card">
+    <div class="k-label"><span class="g"></span>${label}</div>
+    <div class="k-fig">${fig}${delta ? `<span class="d">${delta}</span>` : ''}</div>
+    ${note ? `<div class="k-note">${note}</div>` : ''}
+    ${meter ? `<div class="meter"><i style="width:${meter}%"></i></div>` : ''}
+  </div>`;
+const row = (t, s, n) => `
+  <div class="row"><span class="g"></span>
+  <span class="m"><b>${t}</b><s>${s}</s></span><span class="n">${n}</span></div>`;
+const head = (t, a) => `<div class="head"><span class="t">${t}</span><span class="rule"></span>${a ? `<span class="aside">${a}</span>` : ''}</div>`;
+
+const BODY = `
+  <div class="banner">
+    <div class="banner-grad"></div>
+    <div class="greeting">
+      <div class="hi">Good Evening,</div>
+      <div class="name">Bharathi Raja 👋</div>
+      <div class="org">◎ Vantara Wildlife Trust · Zoo Director</div>
+      <div class="search">🔍</div>
+    </div>
+    <div class="filters">
+      <span class="chip"><span class="dot"></span>Last 6 months ▾</span>
+      <span class="chip"><span class="dot"></span>All sites ▾</span>
+    </div>
+    <div class="total">
+      <div class="fig">110,020</div><div class="cap">Total Animals</div>
+      <div class="pill"><span>▲ 3,475 in six months</span><span class="bar"></span><span>◉ View breakdown</span></div>
+    </div>
+    <div class="art"><img src="../src/assets/forest-scene.webp" alt="" /><div class="mist"></div></div>
+  </div>
+  <main>
+    ${head('Executive KPIs')}
+    <div class="grid2">
+      ${kpi('Animal Population','110K','+3.3%')}
+      ${kpi('Health &amp; Medical','812','+0.6%','Under care')}
+      ${kpi('Natality','5,354','+0.7%')}
+      ${kpi('Mortality','13.0K','−2.3%')}
+    </div>
+    <div class="grid2">
+      ${kpi('Vaccination','9.0 %','+1.0 pts','9,942 of 110,020',9)}
+      ${kpi('Welfare Audits','94 %','+2 pts','112 of 119',94)}
+      ${kpi('Training','68 %','−1 pt','212 of 312',68)}
+      ${kpi('Health Score','82','+3','Site average · target 90',82)}
+    </div>
+    ${kpi('Pharmacy','₹9.8L','+4%','Dispensed this period')}
+
+    ${head('Trends','Year')}
+    <div class="grid2">
+      ${kpi('Animal Population','110,020','+11%')}
+      ${kpi('Birth Trend','11,023','−69%')}
+      ${kpi('Mortality Trend','27,192','+151%')}
+      ${kpi('Disease Trend','3,458','+33%')}
+    </div>
+
+    ${head('Upcoming','7 / 30 days')}
+    <div class="card">
+      ${row('Expected Births','Next 08 Aug · Savanna','6')}
+      ${row('Vaccination Due','Next 08 Aug · Aviary Complex','29')}
+      ${row('Deworming Due','Next 09 Aug · Savanna · SV-09','102')}
+      ${row('Supplement Due','Next 08 Aug · Reptile House','164')}
+    </div>
+
+    ${head('Risk Indicators','8 tracked')}
+    <div class="card">
+      ${row('Medicine Expiry','lines expiring in 60 d · ₹4.1L','22')}
+      ${row('Low Medicine Stock','items under reorder level','8')}
+      ${row('Critical Capacity','enclosures over 95% occupancy','4')}
+      ${row('Biosecurity Risk','controls lapsed · 2 zones','3')}
+      ${row('Inbreeding Risk','pairings above 0.125 kinship','14')}
+      ${row('Low Food Inventory','lines under 5 days cover','3')}
+      ${row('Training Compliance','% of 312 staff current','68')}
+      ${row('Compliance Risk','statutory filings open','6')}
+    </div>
+    <div class="foot">— end of page —</div>
+  </main>`;
+
+document.querySelectorAll('[data-study]').forEach((el) => {
+  el.innerHTML = `<div class="ground"></div><div class="foliage">${FOLIAGE[el.dataset.f]()}</div>${BODY}`;
+});
+</script>
+
+</body>
+</html>

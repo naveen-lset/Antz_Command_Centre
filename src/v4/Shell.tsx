@@ -23,7 +23,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Sidebar } from './Sidebar'
-import { Landscape } from './landscape'
 
 /**
  * The page's ground — the sage the whole product stands on, and on the home the light green
@@ -100,11 +99,14 @@ export function AppShell({
             to be a corner between — which is the intent: the column is a measuring stick and
             a clip, not a panel. */}
         <div className="content-box relative isolate min-w-0 flex-1 overflow-hidden rounded-[22px]">
-          {/* THE HOME ONLY. The scenery layer used to run behind every page as well, at
-              5–10%, and it read as noise through the cards — trees and bird tracks showing
-              in the gaps between sections. Content pages now sit on the plain ground; the
-              illustration belongs to the home, where it is the opening image. */}
-          {route === '#/' && <Landscape variant="home" />}
+          {/* NO SCENERY LAYER, ON ANY ROUTE.
+              It came off content pages first, where at 5–10% it read as noise through the
+              cards — trees and bird tracks showing in the gaps between sections. It is now
+              off the home too, for the same reason one tier up: the page below the
+              illustration is the GROUND'S SHADE and nothing else. Flat vector foliage under a
+              photograph reads as a second, cruder drawing at any strength you can actually
+              see, and as smudges at any strength you cannot. `Landscape` and its `.env-home`
+              rules are kept — remounting is this one line. */}
           <div className="tier">{children}</div>
         </div>
       </div>
@@ -236,11 +238,10 @@ export function PhoneFrame({ home, children }: { home?: boolean; children: React
      * from the canopy colour back to the settled sage.
      */
     <div className="content-box relative isolate min-h-dvh bg-[var(--env-ground)] font-sans">
-      {/* Same split as the shell above: on the home the ground and the environment are both
-          shaped around the foot of the illustration, everywhere else they start at the top. */}
+      {/* Same split as the shell above: on the home the ground is shaped around the foot of
+          the illustration, everywhere else it starts at the top. And, as in the shell, no
+          scenery layer on either — see the note there. */}
       <Ground home={home} />
-      {/* Home only, same as the shell: content pages carry the plain ground, no scenery. */}
-      {home && <Landscape variant="home" />}
       <div className="tier pb-[max(48px,env(safe-area-inset-bottom))]">{children}</div>
     </div>
   )

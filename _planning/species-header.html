@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ANTZ · Species Header — Colour Studies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #e7f0ea;
+    min-height: 100vh;
+    padding: 32px 24px 56px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .study { max-width: 1440px; margin: 0 auto 36px; }
+  .study-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #5c6b61;
+    margin: 0 4px 8px;
+  }
+
+  /* ── the header composition — shared bones, no borders anywhere ─────── */
+  .species-header {
+    position: relative;
+    background: var(--ramp);
+    border-radius: 20px;
+    box-shadow: 0 3px 18px rgba(15, 42, 30, 0.10);
+    padding: 28px;
+    overflow: hidden;
+  }
+
+  .sprig { position: absolute; pointer-events: none; color: var(--sprig); }
+  .sprig--tr { top: -14px; right: -18px; opacity: 0.14; }
+  .sprig--bl { bottom: -26px; left: -18px; opacity: 0.10; transform: scaleX(-1); }
+
+  .identity {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px 32px;
+  }
+  .identity-left { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+
+  .back-btn {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    margin-top: 7px;
+    border: none;
+    border-radius: 10px;
+    background: var(--btn);
+    color: var(--btn-ink);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+  }
+  .back-btn:hover { background: var(--btn-hover); }
+
+  .title-block { min-width: 0; }
+  h1 {
+    font-size: 44px;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .species-class { margin-top: 4px; font-size: 16px; line-height: 24px; color: var(--secondary); }
+
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--pill);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--pill-ink);
+    white-space: nowrap;
+  }
+  .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #d81e05; flex-shrink: 0; }
+
+  .stats {
+    position: relative;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--hair);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .stat { min-width: 0; padding-right: 16px; }
+  .stat + .stat { border-left: 1px solid var(--hair); padding-left: 24px; }
+
+  .stat-label { display: flex; align-items: center; gap: 6px; font-size: 14px; line-height: 20px; color: var(--muted); }
+  .stat-label svg { color: var(--icon); flex-shrink: 0; }
+  .stat-value {
+    margin-top: 3px;
+    font-size: 26px;
+    line-height: 1.15;
+    font-weight: 600;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-sub { margin-left: 6px; font-size: 13px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+
+  /* ── the five colour studies, light → dark ──────────────────────────── */
+
+  /* 1 · Sage — the light one, a full step deeper than the page ground */
+  .v1 {
+    --ramp: linear-gradient(145deg, #dcebe1 0%, #bcd8c6 45%, #93bda4 100%);
+    --primary: #123a2c;
+    --secondary: #33493d;
+    --muted: #3f5348;
+    --hair: rgba(18, 58, 44, 0.20);
+    --pill: rgba(255, 255, 255, 0.78);
+    --pill-ink: #33493d;
+    --btn: rgba(255, 255, 255, 0.62);
+    --btn-hover: rgba(255, 255, 255, 0.88);
+    --btn-ink: #1f515b;
+    --icon: #1f515b;
+    --sprig: #1f515b;
+  }
+
+  /* 2 · Meadow — mid green, still dark ink */
+  .v2 {
+    --ramp: linear-gradient(145deg, #c4dfce 0%, #9cc7ab 48%, #6ea886 100%);
+    --primary: #0d2f22;
+    --secondary: #24422f;
+    --muted: #2e4a3a;
+    --hair: rgba(13, 47, 34, 0.22);
+    --pill: rgba(255, 255, 255, 0.72);
+    --pill-ink: #24422f;
+    --btn: rgba(255, 255, 255, 0.55);
+    --btn-hover: rgba(255, 255, 255, 0.82);
+    --btn-ink: #14402e;
+    --icon: #14402e;
+    --sprig: #14402e;
+  }
+
+  /* 3 · Emerald — the first light-on-dark study */
+  .v3 {
+    --ramp: linear-gradient(145deg, #3e7d5d 0%, #2f6449 52%, #245239 100%);
+    --primary: #eef8f1;
+    --secondary: #c8e2d1;
+    --muted: #b4d4c0;
+    --hair: rgba(255, 255, 255, 0.20);
+    --pill: rgba(255, 255, 255, 0.16);
+    --pill-ink: #e2f2e8;
+    --btn: rgba(255, 255, 255, 0.16);
+    --btn-hover: rgba(255, 255, 255, 0.28);
+    --btn-ink: #dff0e6;
+    --icon: #8fd6ae;
+    --sprig: #dff0e6;
+  }
+
+  /* 4 · Forest — deep and calm */
+  .v4 {
+    --ramp: linear-gradient(145deg, #2e5b46 0%, #1f4534 55%, #16382b 100%);
+    --primary: #eaf6ee;
+    --secondary: #bfd8c8;
+    --muted: #a9c9b6;
+    --hair: rgba(255, 255, 255, 0.17);
+    --pill: rgba(255, 255, 255, 0.13);
+    --pill-ink: #dceee3;
+    --btn: rgba(255, 255, 255, 0.13);
+    --btn-hover: rgba(255, 255, 255, 0.24);
+    --btn-ink: #d5eadd;
+    --icon: #8fd6ae;
+    --sprig: #d5eadd;
+  }
+
+  /* 5 · Pine — the darkest, green-teal */
+  .v5 {
+    --ramp: linear-gradient(150deg, #1f4d44 0%, #153a33 55%, #0e2b26 100%);
+    --primary: #dff0e8;
+    --secondary: #aecfc2;
+    --muted: #9bc1b2;
+    --hair: rgba(255, 255, 255, 0.15);
+    --pill: rgba(255, 255, 255, 0.12);
+    --pill-ink: #d3e9de;
+    --btn: rgba(255, 255, 255, 0.12);
+    --btn-hover: rgba(255, 255, 255, 0.22);
+    --btn-ink: #cbe5d8;
+    --icon: #7fc9a4;
+    --sprig: #cbe5d8;
+  }
+
+  /* ── responsive ─────────────────────────────────────────────────────── */
+  @media (max-width: 960px) {
+    h1 { font-size: 34px; }
+    .stats { grid-template-columns: repeat(2, 1fr); gap: 18px 24px; }
+    .stat + .stat { border-left: none; padding-left: 0; }
+    .sprig--bl { display: none; }
+  }
+  @media (max-width: 560px) {
+    body { padding: 16px 12px 40px; }
+    .species-header { padding: 20px; }
+    h1 { font-size: 28px; white-space: normal; }
+    .back-btn { width: 34px; height: 34px; margin-top: 2px; }
+    .sprig--tr { display: none; }
+    .stat-sub { display: block; margin-left: 0; margin-top: 2px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- The header repeats once per colour study; each block is self-contained,
+     so the chosen one can be copied out with its .vN variables and used alone. -->
+
+<div class="study">
+  <p class="study-label">Variation 1 · Sage</p>
+  <header class="species-header v1">
+    <svg class="sprig sprig--tr" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" /><path d="M146 46 q 20 -14 40 -14" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M124 92 q 16 -8 28 -2 q -12 12 -28 2 Z" />
+        <path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" /><path d="M176 26 q -1 -14 9 -21 q 3 13 -9 21 Z" />
+      </g>
+    </svg>
+    <svg class="sprig sprig--bl" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" />
+      </g>
+    </svg>
+    <div class="identity">
+      <div class="identity-left">
+        <button class="back-btn" type="button" aria-label="Back">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
+        </button>
+        <div class="title-block">
+          <h1>Tawny Squirrel</h1>
+          <p class="species-class">Mammalia</p>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge"><span class="dot"></span>IUCN · CR</span>
+        <span class="badge">CITES · Appendix I</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="4" r="2" /><circle cx="18" cy="8" r="2" /><circle cx="20" cy="16" r="2" /><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" /></svg>Animals</p>
+        <p class="stat-value">23</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></svg>Sex ratio</p>
+        <p class="stat-value">1 : 0.9</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>Sites</p>
+        <p class="stat-value">4</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" /><path d="m7 16.5-4.74-2.85" /><path d="m7 16.5 5-3" /><path d="M7 16.5v5.17" /><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" /><path d="m17 16.5-5-3" /><path d="m17 16.5 4.74-2.85" /><path d="M17 16.5v5.17" /><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" /><path d="M12 8 7.26 5.15" /><path d="m12 8 4.74-2.85" /><path d="M12 13.5V8" /></svg>Enclosures</p>
+        <p class="stat-value">14</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>Sexed</p>
+        <p class="stat-value">100%<span class="stat-sub">23 of 23</span></p>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="study">
+  <p class="study-label">Variation 2 · Meadow</p>
+  <header class="species-header v2">
+    <svg class="sprig sprig--tr" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" /><path d="M146 46 q 20 -14 40 -14" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M124 92 q 16 -8 28 -2 q -12 12 -28 2 Z" />
+        <path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" /><path d="M176 26 q -1 -14 9 -21 q 3 13 -9 21 Z" />
+      </g>
+    </svg>
+    <svg class="sprig sprig--bl" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" />
+      </g>
+    </svg>
+    <div class="identity">
+      <div class="identity-left">
+        <button class="back-btn" type="button" aria-label="Back">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
+        </button>
+        <div class="title-block">
+          <h1>Tawny Squirrel</h1>
+          <p class="species-class">Mammalia</p>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge"><span class="dot"></span>IUCN · CR</span>
+        <span class="badge">CITES · Appendix I</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="4" r="2" /><circle cx="18" cy="8" r="2" /><circle cx="20" cy="16" r="2" /><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" /></svg>Animals</p>
+        <p class="stat-value">23</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></svg>Sex ratio</p>
+        <p class="stat-value">1 : 0.9</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>Sites</p>
+        <p class="stat-value">4</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" /><path d="m7 16.5-4.74-2.85" /><path d="m7 16.5 5-3" /><path d="M7 16.5v5.17" /><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" /><path d="m17 16.5-5-3" /><path d="m17 16.5 4.74-2.85" /><path d="M17 16.5v5.17" /><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" /><path d="M12 8 7.26 5.15" /><path d="m12 8 4.74-2.85" /><path d="M12 13.5V8" /></svg>Enclosures</p>
+        <p class="stat-value">14</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>Sexed</p>
+        <p class="stat-value">100%<span class="stat-sub">23 of 23</span></p>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="study">
+  <p class="study-label">Variation 3 · Emerald</p>
+  <header class="species-header v3">
+    <svg class="sprig sprig--tr" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" /><path d="M146 46 q 20 -14 40 -14" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M124 92 q 16 -8 28 -2 q -12 12 -28 2 Z" />
+        <path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" /><path d="M176 26 q -1 -14 9 -21 q 3 13 -9 21 Z" />
+      </g>
+    </svg>
+    <svg class="sprig sprig--bl" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" />
+      </g>
+    </svg>
+    <div class="identity">
+      <div class="identity-left">
+        <button class="back-btn" type="button" aria-label="Back">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
+        </button>
+        <div class="title-block">
+          <h1>Tawny Squirrel</h1>
+          <p class="species-class">Mammalia</p>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge"><span class="dot"></span>IUCN · CR</span>
+        <span class="badge">CITES · Appendix I</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="4" r="2" /><circle cx="18" cy="8" r="2" /><circle cx="20" cy="16" r="2" /><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" /></svg>Animals</p>
+        <p class="stat-value">23</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></svg>Sex ratio</p>
+        <p class="stat-value">1 : 0.9</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>Sites</p>
+        <p class="stat-value">4</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" /><path d="m7 16.5-4.74-2.85" /><path d="m7 16.5 5-3" /><path d="M7 16.5v5.17" /><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" /><path d="m17 16.5-5-3" /><path d="m17 16.5 4.74-2.85" /><path d="M17 16.5v5.17" /><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" /><path d="M12 8 7.26 5.15" /><path d="m12 8 4.74-2.85" /><path d="M12 13.5V8" /></svg>Enclosures</p>
+        <p class="stat-value">14</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>Sexed</p>
+        <p class="stat-value">100%<span class="stat-sub">23 of 23</span></p>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="study">
+  <p class="study-label">Variation 4 · Forest</p>
+  <header class="species-header v4">
+    <svg class="sprig sprig--tr" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" /><path d="M146 46 q 20 -14 40 -14" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M124 92 q 16 -8 28 -2 q -12 12 -28 2 Z" />
+        <path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" /><path d="M176 26 q -1 -14 9 -21 q 3 13 -9 21 Z" />
+      </g>
+    </svg>
+    <svg class="sprig sprig--bl" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" />
+      </g>
+    </svg>
+    <div class="identity">
+      <div class="identity-left">
+        <button class="back-btn" type="button" aria-label="Back">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
+        </button>
+        <div class="title-block">
+          <h1>Tawny Squirrel</h1>
+          <p class="species-class">Mammalia</p>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge"><span class="dot"></span>IUCN · CR</span>
+        <span class="badge">CITES · Appendix I</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="4" r="2" /><circle cx="18" cy="8" r="2" /><circle cx="20" cy="16" r="2" /><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" /></svg>Animals</p>
+        <p class="stat-value">23</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></svg>Sex ratio</p>
+        <p class="stat-value">1 : 0.9</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>Sites</p>
+        <p class="stat-value">4</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" /><path d="m7 16.5-4.74-2.85" /><path d="m7 16.5 5-3" /><path d="M7 16.5v5.17" /><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" /><path d="m17 16.5-5-3" /><path d="m17 16.5 4.74-2.85" /><path d="M17 16.5v5.17" /><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" /><path d="M12 8 7.26 5.15" /><path d="m12 8 4.74-2.85" /><path d="M12 13.5V8" /></svg>Enclosures</p>
+        <p class="stat-value">14</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>Sexed</p>
+        <p class="stat-value">100%<span class="stat-sub">23 of 23</span></p>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="study">
+  <p class="study-label">Variation 5 · Pine</p>
+  <header class="species-header v5">
+    <svg class="sprig sprig--tr" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" /><path d="M146 46 q 20 -14 40 -14" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M124 92 q 16 -8 28 -2 q -12 12 -28 2 Z" />
+        <path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" /><path d="M176 26 q -1 -14 9 -21 q 3 13 -9 21 Z" />
+      </g>
+    </svg>
+    <svg class="sprig sprig--bl" viewBox="0 0 220 140" width="220" height="140" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M10 134 Q 86 100 204 16" /><path d="M92 82 q 24 -2 40 12" />
+      </g>
+      <g fill="currentColor">
+        <path d="M58 112 q 0 -18 12 -26 q 4 16 -12 26 Z" /><path d="M96 86 q -2 -18 10 -27 q 5 16 -10 27 Z" />
+        <path d="M132 60 q -2 -17 10 -25 q 4 15 -10 25 Z" /><path d="M168 40 q 14 -10 27 -7 q -9 13 -27 7 Z" />
+      </g>
+    </svg>
+    <div class="identity">
+      <div class="identity-left">
+        <button class="back-btn" type="button" aria-label="Back">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
+        </button>
+        <div class="title-block">
+          <h1>Tawny Squirrel</h1>
+          <p class="species-class">Mammalia</p>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge"><span class="dot"></span>IUCN · CR</span>
+        <span class="badge">CITES · Appendix I</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="4" r="2" /><circle cx="18" cy="8" r="2" /><circle cx="20" cy="16" r="2" /><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" /></svg>Animals</p>
+        <p class="stat-value">23</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></svg>Sex ratio</p>
+        <p class="stat-value">1 : 0.9</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>Sites</p>
+        <p class="stat-value">4</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" /><path d="m7 16.5-4.74-2.85" /><path d="m7 16.5 5-3" /><path d="M7 16.5v5.17" /><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" /><path d="m17 16.5-5-3" /><path d="m17 16.5 4.74-2.85" /><path d="M17 16.5v5.17" /><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" /><path d="M12 8 7.26 5.15" /><path d="m12 8 4.74-2.85" /><path d="M12 13.5V8" /></svg>Enclosures</p>
+        <p class="stat-value">14</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>Sexed</p>
+        <p class="stat-value">100%<span class="stat-sub">23 of 23</span></p>
+      </div>
+    </div>
+  </header>
+</div>
+
+</body>
+</html>

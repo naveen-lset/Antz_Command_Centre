@@ -45,7 +45,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import { Boxes, ChevronRight, HeartHandshake, Layers, MapPin, PawPrint } from 'lucide-react'
+import { Boxes, HeartHandshake, Layers, PawPrint } from 'lucide-react'
 import {
   animalAt,
   animalLabel,
@@ -55,17 +55,16 @@ import {
   type Composition,
   type EnclosureHolding,
 } from '../core/animals'
-import { TODAY, longDate } from '../core/calendar'
 import type { SpeciesProfile } from '../core/profiles'
 import { UNRESOLVED, data, speciesSpan } from '../core/store'
 import { ENCLOSURES, siteOf, speciesByName } from '../core/world'
-import { ACCENT_INK, FAINT, INK, Section, Snapshot, TONE_FILL, TRACK, VALUE, fmt } from '../exec/system'
-import { usePlay } from '../motion'
+import { ACCENT_INK, FAINT, INK, Section, Snapshot, TONE_FILL, VALUE, fmt } from '../exec/system'
 import { useDrill } from './drillNav'
 import { FindField } from './filters'
 import { TapList, TapRow } from './panels'
 import { MoreRows, usePaged } from './perf'
 import { useSheet } from './sheet'
+import { HousingTable, type HCol } from './speciesHousing'
 
 /* ── the shape one enclosure takes on this tab ───────────────────────────── */
 
@@ -193,9 +192,6 @@ const LENSES: GroupDef[] = [
     ],
   },
 ]
-
-/** The three bands the per-site line still reads, derived from the partition so they cannot drift. */
-const SITE_BANDS = PARTITION.map((g) => ({ label: g.label, of: g.rows }))
 
 /**
  * A display word per sex, and deliberately NOT a second sex mapping.
@@ -352,107 +348,6 @@ interface Counted {
   rows: Holding[]
 }
 
-/**
- * A CATEGORY OF THE BREAKDOWN — dot, uppercase heading, total, then its rows.
- *
- * Drawn in this file rather than taken from the system for the same reason `Segments` is drawn
- * in `speciesHousing.tsx`: the kit has no component of this shape. `Bars precise` draws a label,
- * a figure and a proportional bar but is INERT — no handler, no chevron — so a reader can see a
- * magnitude and not reach the enclosures behind it. `TapRow` is the opposite: it opens something
- * but draws no bar. This row is the two of them joined, which is the whole interaction the tab
- * is for: read the magnitude, then drill into it.
- *
- * THE BAR IS SCALED ACROSS THE WHOLE BREAKDOWN, not within its own category — `max` is handed
- * in rather than derived here. Scaling per category would draw the biggest row of a four-
- * enclosure group at the same length as the biggest of a four-hundred-enclosure one, and then a
- * full bar would mean "most of this category" in one box and "most of the estate" in the next.
- * One scale for all five means a length can be compared with any other length on the card.
- *
- * The 4% floor is `Bars`' own, for `Bars`' own measured reason: a one-enclosure row against a
- * 103-enclosure one renders as a sub-pixel stub that cannot carry a colour, and a row whose bar
- * is invisible reads as a row with no value rather than a row with a small one.
- */
-function CategoryGroup({
-  label,
-  fill,
-  items,
-  max,
-  onOpen,
-  aside,
-}: {
-  label: string
-  fill: string
-  items: Counted[]
-  max: number
-  onOpen: (item: Counted) => void
-  aside?: string
-}) {
-  const { ref, animate } = usePlay<HTMLUListElement>()
-  const total = items.reduce((n, i) => n + i.rows.length, 0)
-
-  return (
-    <section className="mb-7 break-inside-avoid last:mb-0">
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span
-          className="size-[7px] shrink-0 translate-y-[-1px] rounded-full"
-          style={{ backgroundColor: fill }}
-          aria-hidden
-        />
-        <h4 className="text-overline font-semibold tracking-[0.04em] uppercase" style={{ color: '#3d3a34' }}>
-          {label}
-        </h4>
-        <span className="text-caption tabular-nums" style={{ color: FAINT }}>
-          · {fmt(total)}
-        </span>
-        {aside && (
-          <span className="ml-auto shrink-0 text-caption" style={{ color: FAINT }}>
-            {aside}
-          </span>
-        )}
-      </div>
-
-      <ul ref={ref} className="flex flex-col">
-        {items.map((it, i) => (
-          <li key={it.label} className="border-b last:border-0" style={{ borderColor: HAIR_ROW }}>
-            <button
-              type="button"
-              onClick={() => onOpen(it)}
-              className="card-press -mx-2 block w-full rounded-[10px] px-2 py-3 text-left"
-            >
-              <span className="flex items-baseline gap-3">
-                <span className="min-w-0 flex-1 truncate text-small" style={{ color: INK }}>
-                  {it.label}
-                </span>
-                <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: VALUE }}>
-                  {fmt(it.rows.length)}
-                  <span className="ml-1 text-caption font-normal" style={{ color: FAINT }}>
-                    encl.
-                  </span>
-                </span>
-                <span className="w-[10px] shrink-0" style={{ color: ACCENT_INK }} aria-hidden>
-                  <ChevronRight size={13} strokeWidth={2.25} />
-                </span>
-              </span>
-              <span
-                className="mt-2 block h-[6px] w-full overflow-hidden rounded-full"
-                style={{ backgroundColor: TRACK }}
-              >
-                <span
-                  className={`block h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
-                  style={{
-                    width: `${Math.max(4, (it.rows.length / max) * 100)}%`,
-                    backgroundColor: fill,
-                    animationDelay: animate ? `${i * 60}ms` : undefined,
-                  }}
-                />
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
 
 /** The row hairline, matched to `TapRow`'s so the two lists sit on one rhythm. */
 const HAIR_ROW = '#f0efec'
@@ -523,7 +418,6 @@ function ReferenceGroup({ label, fill, items }: { label: string; fill: string; i
  */
 export function SpeciesPairingTab({ name, profile }: { speciesId: string; name: string; profile?: SpeciesProfile }) {
   const { open } = useSheet()
-  const { drillTo } = useDrill()
 
   const holdings = useMemo<Holding[]>(() => {
     const out: Holding[] = []
@@ -554,7 +448,7 @@ export function SpeciesPairingTab({ name, profile }: { speciesId: string; name: 
    * 0" line states that we looked and found none, which for a species held in one enclosure is a
    * row about nothing. A category whose rows are all empty disappears with them.
    */
-  const { groups, lenses, max, unclassified } = useMemo(() => {
+  const { groups, lenses, unclassified } = useMemo(() => {
     const resolve = (defs: GroupDef[]) =>
       defs
         .map((g) => ({
@@ -576,15 +470,57 @@ export function SpeciesPairingTab({ name, profile }: { speciesId: string; name: 
     for (const g of groups) for (const i of g.items) for (const h of i.rows) claimed.add(h)
     const unclassified = holdings.filter((h) => !claimed.has(h))
 
-    /* One scale for every bar on the card — see `CategoryGroup`. Taken across the partition and
-       the lens together so a lens row cannot overflow a track the partition sized. */
-    const max = Math.max(
-      1,
-      ...[...groups, ...lenses].flatMap((g) => g.items.map((i) => i.rows.length)),
-    )
-
-    return { groups, lenses, max, unclassified }
+    return { groups, lenses, unclassified }
   }, [holdings])
+
+  /* THE POSITIONS, FLATTENED. One row per position with the category it belongs to, biggest
+     first — the shape the table above draws. The counted partition and the two lenses are kept
+     apart by the `kind` flag, because a lens re-reads the same enclosures and summing the two
+     together would double the estate. */
+  const positions = useMemo(() => {
+    const out: { group: string; kind: 'partition' | 'lens'; fill: string; item: Counted }[] = []
+    for (const g of groups)
+      for (const it of g.items)
+        out.push({ group: g.label, kind: 'partition', fill: TONE_FILL[g.tone ?? 'neutral'], item: it })
+    for (const g of lenses)
+      for (const it of g.items) out.push({ group: g.label, kind: 'lens', fill: ACCENT_INK, item: it })
+    for (const it of unclassified.length
+      ? [{ label: 'Not matched by any category', rows: unclassified }]
+      : [])
+      out.push({ group: 'Unclassified', kind: 'partition', fill: TONE_FILL.bad, item: it })
+    return out.sort((a, b) => b.item.rows.length - a.item.rows.length)
+  }, [groups, lenses, unclassified])
+
+  const positionColumns: HCol<(typeof positions)[number]>[] = [
+    {
+      key: 'label',
+      head: 'Position',
+      sticky: 0,
+      strong: true,
+      cell: (r) => (
+        <span className="flex items-baseline gap-2">
+          <span
+            className="size-[7px] shrink-0 translate-y-[-1px] rounded-full"
+            style={{ backgroundColor: r.fill }}
+            aria-hidden
+          />
+          <span className="min-w-0">{r.item.label}</span>
+        </span>
+      ),
+    },
+    { key: 'group', head: 'Category', cell: (r) => r.group },
+    { key: 'n', head: 'Enclosures', align: 'right', cell: (r) => fmt(r.item.rows.length) },
+    {
+      key: 'share',
+      head: 'Of holdings',
+      align: 'right',
+      width: '110px',
+      cell: (r) =>
+        r.kind === 'lens'
+          ? '—'
+          : `${Math.round((r.item.rows.length / Math.max(1, holdings.length)) * 100)}%`,
+    },
+  ]
 
   /* The source's own species-level statement, printed only where the extract carries it. */
   const reference = useMemo(
@@ -605,25 +541,6 @@ export function SpeciesPairingTab({ name, profile }: { speciesId: string; name: 
       eyebrow: `${name} · ${groupLabel}`,
       body: <GroupSheet rows={item.rows} name={name} label={groupLabel} />,
     })
-
-  const sites = useMemo(() => {
-    const by = new Map<string, { key: string; name: string; rows: Holding[] }>()
-    for (const h of holdings) {
-      const at = by.get(h.siteKey)
-      if (at) at.rows.push(h)
-      else by.set(h.siteKey, { key: h.siteKey, name: h.siteName, rows: [h] })
-    }
-    return [...by.values()]
-      .map((s) => ({
-        ...s,
-        held: s.rows.reduce((n, h) => n + h.total, 0),
-        mix: SITE_BANDS.map((b) => ({
-          label: b.label,
-          n: s.rows.filter((h) => b.of.some((r) => r.of(h))).length,
-        })),
-      }))
-      .sort((a, b) => b.held - a.held)
-  }, [holdings])
 
   /**
    * NOTHING HOUSED IS A SENTENCE, NOT AN EMPTY TAB.
@@ -658,7 +575,6 @@ export function SpeciesPairingTab({ name, profile }: { speciesId: string; name: 
         wide
         icon={HeartHandshake}
         label="Pairing position"
-        aside={`from the register · ${longDate(TODAY)}`}
       >
         <Snapshot
           cols={4}
@@ -689,89 +605,33 @@ export function SpeciesPairingTab({ name, profile }: { speciesId: string; name: 
         label="Pairing readiness breakdown"
         aside={`${fmt(holdings.length)} enclosure${holdings.length === 1 ? '' : 's'} · tap a row`}
       >
-        {/* COLUMNS RATHER THAN A GRID, and the difference is the empty space. A two-column grid
-            sizes each row to its tallest cell, so a one-row category beside a three-row one is
-            padded to match it — measured on this species, that left 60–90px of white under three
-            of the five categories. A column flow packs each category directly under the previous
-            one and balances the two columns by height, so the card ends where its content does.
-            `break-inside-avoid` is what keeps a category's rows from splitting across the fold. */}
-        <div className="@[860px]:columns-2 @[860px]:gap-x-12">
-          {groups.map((g) => (
-            <CategoryGroup
-              key={g.key}
-              label={g.label}
-              fill={TONE_FILL[g.tone ?? 'neutral']}
-              items={g.items}
-              max={max}
-              onOpen={openGroup(g.label)}
-            />
-          ))}
+        {/* ONE TABLE, NOT FIVE MINI-CHARTS IN TWO COLUMNS. The card was a masonry of category
+            blocks, each a heading over rows of label · count · bar — the same three-part row
+            repeated seventeen times down two columns, which is a shape that has to be READ
+            rather than scanned, and which balanced its columns by height so no two categories
+            lined up. The positions are one flat list of comparable facts, so they are drawn as
+            one: a row per position, its category named beside it, ordered by size. Every row
+            drills exactly where its old row did. */}
+        <HousingTable
+          rows={positions}
+          columns={positionColumns}
+          keyOf={(r) => `${r.group}:${r.item.label}`}
+          minWidth={520}
+          onOpen={(r) => openGroup(r.group)(r.item)}
+        />
 
-          {lenses.map((g) => (
-            <CategoryGroup
-              key={g.key}
-              label={g.label}
-              fill={ACCENT_INK}
-              items={g.items}
-              max={max}
-              onOpen={openGroup(g.label)}
-              aside="same enclosures, read as actions"
-            />
-          ))}
-
-          {/* LAST, AND THAT IS A READING ORDER RATHER THAN A RANKING. The three counted
-              categories above partition the estate and belong together; this is the source
-              speaking about the species instead of the register speaking about enclosures, so it
-              reads after them. Putting it in the middle also split the partition across the two
-              columns and left the first one ending 230px early. */}
-          {reference.length > 0 && (
+        {reference.length > 0 && (
+          <div className="mt-6">
             <ReferenceGroup label="Pairing status" fill={TONE_FILL.neutral} items={reference} />
-          )}
-
-          {/* Only ever rendered when the fifteen predicates have stopped covering the register —
-              see the audit in the memo above. Silence here is the healthy state. */}
-          {unclassified.length > 0 && (
-            <CategoryGroup
-              label="Unclassified"
-              fill={TONE_FILL.bad}
-              items={[{ label: 'Not matched by any category', rows: unclassified }]}
-              max={max}
-              onOpen={openGroup('Unclassified')}
-            />
-          )}
-        </div>
+          </div>
+        )}
       </Section>
 
-      {/* ONE SITE IS NOT A DISTRIBUTION. Most names sit at a single site and 767 in a single
-          enclosure, and a card headed "Where it is held" with one row under it repeats the
-          figures above it in a wider box.
-
-          `wide` for the same reason the two cards above it are: it is the only card left on the
-          tab, and a half-width one would sit against 550px of empty column. */}
-      {sites.length > 1 && (
-        <Section wide icon={MapPin} label="Where it is held" aside={`${sites.length} sites`}>
-          <TapList>
-            {sites.map((s) => (
-              <TapRow
-                key={s.key}
-                label={s.name}
-                /* Each site's own three-band mix, because the collection-wide bands above can
-                   hide the thing worth acting on: a species that is 60% ready overall may be
-                   entirely single-sex at the one site with room to move animals. Bands with no
-                   enclosures at this site are dropped from the line rather than printed as
-                   zeroes. */
-                sub={s.mix
-                  .filter((m) => m.n > 0)
-                  .map((m) => `${fmt(m.n)} ${m.label.toLowerCase()}`)
-                  .join(' · ')}
-                value={fmt(s.held)}
-                onOpen={() => drillTo({ kind: 'site', id: s.key }, { module: 'animals', label: name })}
-              />
-            ))}
-          </TapList>
-        </Section>
-      )}
-
+      {/* "WHERE IT IS HELD" IS GONE FROM THIS TAB. It listed the species' sites with each
+          site's own readiness mix — a location breakdown on a tab about pairing, restating a
+          distribution the Housing tab owns and the Overview's Population by Site already ranks.
+          The per-site readiness mix it added was the only thing here that was not stated
+          elsewhere, and it was not worth a card at the foot of this tab to say it. */}
     </>
   )
 }

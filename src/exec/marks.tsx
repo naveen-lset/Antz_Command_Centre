@@ -947,12 +947,16 @@ export function SplitRing({
   label = 'Total',
   unit,
   size = 128,
+  center,
 }: {
   items: SegItem[]
   /** The word under the centre figure. */
   label?: string
   unit?: string
   size?: number
+  /** Replaces the centre figure and its word — for a ring whose headline is a share
+      ("96% recovered") rather than the total. The legend still carries the counts. */
+  center?: { value: string; label: string }
 }) {
   const accent = useAccent()
   const { ref, animate } = usePlay()
@@ -999,9 +1003,9 @@ export function SplitRing({
               ring's inner diameter edge to edge with no air around it. */}
           {/* Scales with the ring: a 20px figure that sat right inside a 128px ring is lost
               inside a 158px one. Callers on the default size are unaffected. */}
-          <Figure value={compact(total)} size={size >= 150 ? 24 : 20} color={HERO_INK} />
+          <Figure value={center?.value ?? compact(total)} size={size >= 150 ? 24 : 20} color={HERO_INK} />
           <span className="mt-1 text-caption" style={{ color: FAINT }}>
-            {label}
+            {center?.label ?? label}
           </span>
         </div>
       </div>

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ANTZ · Hero Foliage + Image Continuity — 5 Studies</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --canopy: #d6e8dd;
+    --ink: #1c1a16; --hero-ink: #08100c; --muted: #736e67; --faint: #9a958d;
+    --accent-ink: #1e7a44;
+  }
+  body {
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #cfd8d2; padding: 28px 24px 64px;
+    -webkit-font-smoothing: antialiased; color: var(--ink);
+  }
+  h1.doc { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
+  p.doc { font-size: 13.5px; line-height: 1.6; color: #3d4a42; max-width: 84ch; margin-top: 8px; }
+  p.doc b { font-weight: 600; color: #1f2b24; }
+
+  .rack { display: flex; gap: 22px; margin-top: 24px; overflow-x: auto; padding-bottom: 18px; }
+  .col { flex: 0 0 440px; }
+  .label { font-size: 12.5px; font-weight: 600; color: #22302a; margin: 0 2px 4px; }
+  .sub { font-size: 11.5px; line-height: 1.5; color: #4d5a52; margin: 0 2px 10px; min-height: 72px; }
+  .sub b { font-weight: 600; color: #22302a; }
+
+  .page { position: relative; isolation: isolate; border-radius: 20px; overflow: hidden;
+          box-shadow: 0 4px 22px rgba(15,42,30,0.13); }
+
+  /* THE GROUND — the agreed descent, identical in all five. */
+  .ground { position: absolute; inset: 0; z-index: -3; background-color: var(--canopy);
+    background-image: linear-gradient(180deg, var(--canopy) 0px, var(--canopy) 400px,
+      #d9eade 46%, #dceee1 78%, #dfefe4 100%); }
+
+  /*
+   * LAYER 1 · THE HERO ARTWORK, AT ITS OWN WIDTH.
+   *
+   * It is NOT scaled up, and that is the constraint everything else here bends around. The
+   * foliage — the vines, the monstera, the wisteria — lives in the extreme left and right of
+   * the artwork, so any zoom past 100% crops off exactly the thing this study exists to make
+   * visible. At 100% of a 440px column the picture is 330px tall, and that is all the hero it
+   * can be. Reaching past the KPI heading is therefore layer 2's job, not this one's.
+   */
+  .art { position: absolute; top: 0; left: 0; width: 100%; z-index: -2;
+         background-image: url('../src/assets/forest-scene.webp');
+         background-size: 100% auto; background-repeat: no-repeat; background-position: top center;
+         height: 330px; }
+
+  /* LAYER 2 · THE CONTINUATION — the same scene carried past the cards, washed. */
+  .cont { position: absolute; left: 0; width: 100%; z-index: -2;
+          background-image: url('../src/assets/forest-scene.webp');
+          background-size: 100% auto; background-repeat: no-repeat; background-position: top center; }
+
+  /* ══ 1 · FOLIAGE FULL · SHORT CONTINUATION ═══════════════════════════════
+     The top of the artwork is left alone entirely — no fade at all above 62%, so every vine,
+     leaf and bloom is at full strength. The picture then hands over just past the heading. */
+  .s1 .art { -webkit-mask-image: linear-gradient(to bottom,#000 0%,#000 62%,rgba(0,0,0,.85) 76%,rgba(0,0,0,.45) 90%,transparent 100%);
+                     mask-image: linear-gradient(to bottom,#000 0%,#000 62%,rgba(0,0,0,.85) 76%,rgba(0,0,0,.45) 90%,transparent 100%); }
+  .s1 .cont { top: 300px; height: 330px; opacity: 0.16;
+    filter: saturate(.5) brightness(1.1) blur(1.2px);
+    -webkit-mask-image: linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.6) 18%,rgba(0,0,0,.5) 50%,transparent 96%);
+            mask-image: linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.6) 18%,rgba(0,0,0,.5) 50%,transparent 96%); }
+
+  /* ══ 2 · FOLIAGE FULL · BEHIND THE WHOLE KPI BLOCK ═══════════════════════ */
+  .s2 .art { -webkit-mask-image: linear-gradient(to bottom,#000 0%,#000 66%,rgba(0,0,0,.8) 82%,rgba(0,0,0,.4) 93%,transparent 100%);
+                     mask-image: linear-gradient(to bottom,#000 0%,#000 66%,rgba(0,0,0,.8) 82%,rgba(0,0,0,.4) 93%,transparent 100%); }
+  .s2 .cont { top: 296px; height: 620px; background-size: 118% auto; opacity: 0.15;
+    filter: saturate(.5) brightness(1.12) blur(1.4px);
+    -webkit-mask-image: linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.65) 12%,rgba(0,0,0,.6) 46%,rgba(0,0,0,.34) 74%,transparent 98%);
+            mask-image: linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.65) 12%,rgba(0,0,0,.6) 46%,rgba(0,0,0,.34) 74%,transparent 98%); }
+
+  /* ══ 3 · FOLIAGE FULL · THROUGH TO TRENDS ════════════════════════════════ */
+  .s3 .art { -webkit-mask-image: linear-gradient(to bottom,#000 0%,#000 68%,rgba(0,0,0,.82) 84%,rgba(0,0,0,.42) 94%,transparent 100%);
+                     mask-image: linear-gradient(to bottom,#000 0%,#000 68%,rgba(0,0,0,.82) 84%,rgba(0,0,0,.42) 94%,transparent 100%); }
+  .s3 .cont { top: 296px; height: 1080px; background-size: 132% auto; opacity: 0.14;
+    filter: saturate(.5) brightness(1.12) blur(1.6px);
+    -webkit-mask-image: linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.7) 9%,rgba(0,0,0,.62) 38%,rgba(0,0,0,.4) 66%,rgba(0,0,0,.2) 86%,transparent 99%);
+            mask-image: linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.7) 9%,rgba(0,0,0,.62) 38%,rgba(0,0,0,.4) 66%,rgba(0,0,0,.2) 86%,transparent 99%); }
+
+  /* ══ 4 · FOLIAGE FULL · WHOLE PAGE, VERY LIGHT ═══════════════════════════ */
+  .s4 .art { -webkit-mask-image: linear-gradient(to bottom,#000 0%,#000 70%,rgba(0,0,0,.8) 86%,rgba(0,0,0,.4) 95%,transparent 100%);
+                     mask-image: linear-gradient(to bottom,#000 0%,#000 70%,rgba(0,0,0,.8) 86%,rgba(0,0,0,.4) 95%,transparent 100%); }
+  .s4 .cont { top: 296px; bottom: 0; height: auto; background-size: 168% auto; opacity: 0.1;
+    filter: saturate(.45) brightness(1.14) blur(2px);
+    -webkit-mask-image: linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.75) 7%,rgba(0,0,0,.6) 30%,rgba(0,0,0,.45) 60%,rgba(0,0,0,.34) 100%);
+            mask-image: linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.75) 7%,rgba(0,0,0,.6) 30%,rgba(0,0,0,.45) 60%,rgba(0,0,0,.34) 100%); }
+
+  /*
+   * ══ 5 · FOLIAGE FULL · EDGES ONLY BELOW THE HERO ═══════════════════════
+   * The continuation is cut to the two margins by a HORIZONTAL mask, so the scene runs down
+   * the sides of the page and the channel the white cards sit in is left clean. This is the
+   * one option where continuing the image costs the content nothing at all — the picture is
+   * only ever where a card is not.
+   */
+  .s5 .art { -webkit-mask-image: linear-gradient(to bottom,#000 0%,#000 66%,rgba(0,0,0,.82) 82%,rgba(0,0,0,.42) 93%,transparent 100%);
+                     mask-image: linear-gradient(to bottom,#000 0%,#000 66%,rgba(0,0,0,.82) 82%,rgba(0,0,0,.42) 93%,transparent 100%); }
+  .s5 .cont { top: 296px; bottom: 0; height: auto; background-size: 100% auto; opacity: 0.3;
+    filter: saturate(.6) brightness(1.06) blur(1px);
+    -webkit-mask-image:
+      linear-gradient(to right,#000 0%,#000 9%,transparent 19%,transparent 81%,#000 91%,#000 100%),
+      linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.9) 8%,rgba(0,0,0,.8) 40%,rgba(0,0,0,.6) 74%,rgba(0,0,0,.4) 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right,#000 0%,#000 9%,transparent 19%,transparent 81%,#000 91%,#000 100%),
+      linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.9) 8%,rgba(0,0,0,.8) 40%,rgba(0,0,0,.6) 74%,rgba(0,0,0,.4) 100%);
+    mask-composite: intersect; }
+
+  /* ── hero furniture, identical in all five ───────────────────────────────
+     NO BANNER GRADIENT OVER THE ARTWORK. That wash is what was greying the vines out in the
+     first place: a three-stop green laid across the top of the picture, which is precisely
+     where the foliage is. The artwork's own sky is already the right colour. */
+  .greeting { padding: 26px 20px 8px; position: relative; }
+  .greeting .hi { font-size: 14px; color: #4a5a50; }
+  .greeting .name { font-size: 25px; font-weight: 700; letter-spacing: -0.4px; margin-top: 1px; }
+  .greeting .org { font-size: 12.5px; color: #3d3a34; margin-top: 5px; }
+  .search { position: absolute; top: 26px; right: 20px; width: 36px; height: 36px;
+            border-radius: 50%; background: rgba(255,255,255,.9); display: grid; place-items: center; }
+  .filters { display: flex; gap: 8px; justify-content: center; padding: 8px 0 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border-radius: 999px;
+          padding: 7px 13px; font-size: 12.5px; font-weight: 500; color: #2c332e;
+          box-shadow: 0 1px 3px rgba(15,42,30,.08); }
+  .chip .dot { width: 11px; height: 11px; border-radius: 3px; background: #37bd69; }
+  .total { text-align: center; padding: 10px 0 0; }
+  .total .fig { font-family: 'Nunito',sans-serif; font-weight: 800; font-size: 50px;
+                letter-spacing: -1.5px; color: var(--hero-ink); line-height: 1.05; }
+  .total .cap { font-size: 13px; margin-top: 4px; }
+  .total .pill { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px;
+                 background: rgba(255,255,255,.82); border-radius: 999px; padding: 5px 12px;
+                 font-size: 11px; font-weight: 600; color: var(--accent-ink); }
+  .total .pill .bar { width: 1px; height: 11px; background: rgba(22,21,15,.15); }
+
+  /* THE SPACER is what puts the Executive KPI heading below the artwork's ground line.
+     Every study shares it, so "does the image reach the cards" is answered by the image and
+     not by moving the cards. */
+  .spacer { height: 96px; }
+
+  main { padding: 0 16px 40px; display: flex; flex-direction: column; gap: 12px; position: relative; }
+  .head { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .head:first-child { margin-top: 0; }
+  .head .t { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #3d3a34; }
+  .head .rule { flex: 1; height: 1px; background: rgba(28,26,22,.08); }
+  .head .aside { font-size: 11px; color: var(--faint); }
+  .card { background: #fff; border-radius: 14px; padding: 14px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .k-label { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: #3d3a34; }
+  .k-label .g { width: 16px; height: 16px; border-radius: 5px; background: #dff0e7; }
+  .k-fig { font-family: 'Nunito',sans-serif; font-weight: 800; font-size: 24px; color: var(--hero-ink);
+           margin-top: 7px; display: flex; align-items: baseline; gap: 6px; }
+  .k-fig .d { font-family: 'Figtree'; font-size: 11px; font-weight: 600; color: var(--accent-ink); }
+  .k-note { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .meter { height: 5px; border-radius: 3px; background: #eef1ee; margin-top: 9px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: #37bd69; border-radius: 3px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid #f0efec; }
+  .row:last-child { border-bottom: 0; }
+  .row .g { width: 24px; height: 24px; border-radius: 8px; background: #e6f4ec; flex: 0 0 auto; }
+  .row .m { flex: 1; min-width: 0; }
+  .row .m b { display: block; font-size: 12.5px; font-weight: 500; }
+  .row .m s { display: block; font-size: 10.5px; color: var(--faint); text-decoration: none; margin-top: 2px; }
+  .row .n { font-size: 12.5px; font-weight: 600; }
+  .foot { text-align: center; font-size: 10.5px; color: #6c7d73; padding: 26px 0 8px; }
+</style>
+</head>
+<body>
+
+<h1 class="doc">Hero foliage, and the image that does not stop</h1>
+<p class="doc">
+  Two fixes, both in every study. <b>One —</b> the vines, monstera and wisteria at the left and
+  right of the artwork were being greyed out by the banner gradient washed across the top of the
+  picture, which is exactly where that foliage lives. The gradient is gone and the top of the
+  artwork is no longer faded at all, so the foliage is at full strength. <b>Two —</b> the picture
+  no longer ends above Executive KPIs; it carries on behind the cards.
+</p>
+<p class="doc" style="margin-top:6px">
+  The artwork is never zoomed past 100% of the column, because the foliage sits at its extreme
+  left and right and any crop takes off the thing we just made visible. So the hero is 330px and
+  reaching the cards is a <b>second, washed layer</b> of the same scene. The five differ in how far
+  that continuation runs and how strong it is — and 5 keeps it out of the cards' way entirely.
+</p>
+
+<div class="rack">
+  <section class="col s1">
+    <div class="label">1 · Short continuation</div>
+    <div class="sub">Foliage full strength. The scene carries just past the Executive KPI heading, then hands over to the shade. The lightest touch that still answers "don't stop before the cards".</div>
+    <div class="page" data-study></div>
+  </section>
+  <section class="col s2">
+    <div class="label">2 · Behind the KPI block</div>
+    <div class="sub">The scene runs behind the whole Executive KPI grid before dissolving. The cards float on the park rather than starting after it.</div>
+    <div class="page" data-study></div>
+  </section>
+  <section class="col s3">
+    <div class="label">3 · Through to Trends</div>
+    <div class="sub">Continues past the KPIs and into Trends, thinning the whole way. The furthest the picture can run before it starts reading as a second image rather than the same one.</div>
+    <div class="page" data-study></div>
+  </section>
+  <section class="col s4">
+    <div class="label">4 · Whole page, very light</div>
+    <div class="sub">The scene never ends — it just keeps thinning to the foot of the page at about a tenth strength. The most continuous, and the least present at any one point.</div>
+    <div class="page" data-study></div>
+  </section>
+  <section class="col s5">
+    <div class="label">5 · Edges only below the hero</div>
+    <div class="sub">The continuation is cut to the two margins, so it runs down the sides at real strength and the channel the white cards sit in stays clean. <b>Continuing the image costs the content nothing.</b></div>
+    <div class="page" data-study></div>
+  </section>
+</div>
+
+<script>
+const kpi = (label, fig, delta, note, meter) => `
+  <div class="card">
+    <div class="k-label"><span class="g"></span>${label}</div>
+    <div class="k-fig">${fig}${delta ? `<span class="d">${delta}</span>` : ''}</div>
+    ${note ? `<div class="k-note">${note}</div>` : ''}
+    ${meter ? `<div class="meter"><i style="width:${meter}%"></i></div>` : ''}
+  </div>`;
+const row = (t, s, n) => `<div class="row"><span class="g"></span>
+  <span class="m"><b>${t}</b><s>${s}</s></span><span class="n">${n}</span></div>`;
+const head = (t, a) => `<div class="head"><span class="t">${t}</span><span class="rule"></span>${a ? `<span class="aside">${a}</span>` : ''}</div>`;
+
+const BODY = `
+  <div class="ground"></div>
+  <div class="art"></div>
+  <div class="cont"></div>
+
+  <div class="greeting">
+    <div class="hi">Good Evening,</div>
+    <div class="name">Bharathi Raja 👋</div>
+    <div class="org">◎ Vantara Wildlife Trust · Zoo Director</div>
+    <div class="search">🔍</div>
+  </div>
+  <div class="filters">
+    <span class="chip"><span class="dot"></span>Last 6 months ▾</span>
+    <span class="chip"><span class="dot"></span>All sites ▾</span>
+  </div>
+  <div class="total">
+    <div class="fig">110,020</div><div class="cap">Total Animals</div>
+    <div class="pill"><span>▲ 3,475 in six months</span><span class="bar"></span><span>◉ View breakdown</span></div>
+  </div>
+  <div class="spacer"></div>
+
+  <main>
+    ${head('Executive KPIs')}
+    <div class="grid2">
+      ${kpi('Animal Population','110K','+3.3%')}
+      ${kpi('Health &amp; Medical','812','+0.6%','Under care')}
+      ${kpi('Natality','5,354','+0.7%')}
+      ${kpi('Mortality','13.0K','−2.3%')}
+    </div>
+    <div class="grid2">
+      ${kpi('Vaccination','9.0 %','+1.0 pts','9,942 of 110,020',9)}
+      ${kpi('Welfare Audits','94 %','+2 pts','112 of 119',94)}
+      ${kpi('Training','68 %','−1 pt','212 of 312',68)}
+      ${kpi('Health Score','82','+3','Site average · target 90',82)}
+    </div>
+    ${kpi('Pharmacy','₹9.8L','+4%','Dispensed this period')}
+
+    ${head('Trends','Year')}
+    <div class="grid2">
+      ${kpi('Animal Population','110,020','+11%')}
+      ${kpi('Birth Trend','11,023','−69%')}
+      ${kpi('Mortality Trend','27,192','+151%')}
+      ${kpi('Disease Trend','3,458','+33%')}
+    </div>
+
+    ${head('Upcoming','7 / 30 days')}
+    <div class="card">
+      ${row('Expected Births','Next 08 Aug · Savanna','6')}
+      ${row('Vaccination Due','Next 08 Aug · Aviary Complex','29')}
+      ${row('Deworming Due','Next 09 Aug · Savanna · SV-09','102')}
+      ${row('Supplement Due','Next 08 Aug · Reptile House','164')}
+    </div>
+
+    ${head('Risk Indicators','8 tracked')}
+    <div class="card">
+      ${row('Medicine Expiry','lines expiring in 60 d · ₹4.1L','22')}
+      ${row('Low Medicine Stock','items under reorder level','8')}
+      ${row('Critical Capacity','enclosures over 95% occupancy','4')}
+      ${row('Biosecurity Risk','controls lapsed · 2 zones','3')}
+      ${row('Inbreeding Risk','pairings above 0.125 kinship','14')}
+      ${row('Low Food Inventory','lines under 5 days cover','3')}
+    </div>
+    <div class="foot">— end of page —</div>
+  </main>`;
+
+document.querySelectorAll('[data-study]').forEach((el) => { el.innerHTML = BODY; });
+</script>
+</body>
+</html>

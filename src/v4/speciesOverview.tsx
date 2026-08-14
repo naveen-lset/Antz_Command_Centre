@@ -65,6 +65,7 @@ import {
   DataTable,
   MetricStrip,
   RankedBars,
+  SegmentToggle,
   TabBody,
   type Column,
 } from './speciesLayout'
@@ -388,8 +389,6 @@ function walkSpeciesFlow(
  * species the list has not assessed gets NO badge, because a neutral chip beside "Not Evaluated"
  * reads as a category that was assigned.
  */
-const sitesWord = (n: number): string | undefined => (n === 0 ? undefined : n === 1 ? '1 site' : `${n} sites`)
-
 /** The index of the tallest column, so a pooled month chart names its own peak. */
 const peakIndex = (values: number[]): number =>
   values.reduce((best, v, i) => (v > values[best] ? i : best), 0)
@@ -526,12 +525,10 @@ export function SpeciesOverviewTab({
     [name, siteKey, allTime],
   )
   const causes = foldTail(causesFlow.detail.filter((d) => d.value > 0))
-  /* The share of the death vocabulary that is a non-answer. Measured on the warbler this is 131
-     of 278 — so a card that ranked causes without saying so would name "Undetermined" as the
-     species' leading cause of death. Counted from the same rows the ranking draws. */
-  const unknownCause = causes
-    .filter((d) => d.label === 'Undetermined' || d.label === 'Indeterminate' || d.label === 'Not recorded')
-    .reduce((n, d) => n + d.value, 0)
+  /* THE NON-ANSWER SHARE IS NO LONGER PRINTED AS A SUB-LINE. It is still SHOWN: the grey slice
+     is reserved for absence across every chart on this page (`huesFor`), and the legend beneath
+     carries its count — so the reader who wonders how much of the vocabulary is "Undetermined"
+     reads it off the chart rather than off a caption under it. */
   const readyRows = readiness.rows.map(([label, value]) => ({ label, value }))
   const sexRows = wide
     ? [
@@ -553,15 +550,16 @@ export function SpeciesOverviewTab({
 
         <KpiStrip
           items={[
-            { label: 'Animals held', value: fmt(wide?.total ?? 0), note: sitesWord(wide?.sites.length ?? 0) },
+            /* FIVE READINGS, NO SUB-LINES. Each cell carried a second line qualifying it — the
+               site count, the sexed denominator, the window under both flow figures — and five
+               qualifications under five figures is a paragraph the reader has to clear before
+               the numbers can be read across. The window is already stated by the pill that set
+               it, and the denominators live on the cards below that draw them. */
+            { label: 'Animals held', value: fmt(wide?.total ?? 0) },
             { label: 'Enclosures', value: fmt(readiness.enclosures) },
-            {
-              label: 'Sexed',
-              value: wide ? `${Math.round(wide.sexedPct)}%` : '—',
-              note: wide ? `${fmt(wide.male + wide.female)} of ${fmt(wide.total)}` : undefined,
-            },
-            { label: 'Births', value: fmt(births.total), note: scope.win.window, tone: 'good' },
-            { label: 'Deaths', value: fmt(deaths.total), note: scope.win.window, tone: 'bad' },
+            { label: 'Sexed', value: wide ? `${Math.round(wide.sexedPct)}%` : '—' },
+            { label: 'Births', value: fmt(births.total), tone: 'good' },
+            { label: 'Deaths', value: fmt(deaths.total), tone: 'bad' },
           ]}
         />
 
@@ -612,9 +610,8 @@ export function SpeciesOverviewTab({
                 <Slices items={readyRows} inner={0.58} />
                 <SliceKey items={readyRows} />
               </span>
-              <p className="mt-2.5 text-center text-caption tabular-nums" style={{ color: '#8a938d' }}>
-                {fmt(readiness.enclosures)} enclosures
-              </p>
+              {/* The enclosure total is stated once, by the KPI cell above that exists for it —
+                  repeating it under the ring it is the denominator of was the same figure twice. */}
             </DashCard>
           )}
 
@@ -624,15 +621,8 @@ export function SpeciesOverviewTab({
                 <Slices items={causes} inner={0} />
                 <SliceKey items={causes} />
               </span>
-              {/* STATED AS A FIGURE, NOT A WARNING. On the warbler 131 of 278 deaths carry no
-                  manner, so a ranking that did not say so would name "Undetermined" as the
-                  species' leading cause of death. The grey slice says it in the chart; this
-                  says it in numbers, which is the same sub-line the enclosure card carries. */}
-              {unknownCause > 0 && (
-                <p className="mt-2.5 text-center text-caption tabular-nums" style={{ color: '#8a938d' }}>
-                  {fmt(unknownCause)} of {fmt(causesFlow.total)} without a recorded manner
-                </p>
-              )}
+              {/* The unrecorded share is carried by the grey slice and its legend row, which
+                  state the same fact inside the mark rather than as a caption under it. */}
             </DashCard>
           )}
         </div>
@@ -810,47 +800,14 @@ function ChapterHead({ title, sub, right }: { title: string; sub?: string; right
  * active state, against the same green ink every active control on the page uses. Not the
  * pill `Segments` — that one is a view regrouping, this one is navigation.
  */
-function LineTabs<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T
-  options: { key: T; label: string; count?: number; icon?: LucideIcon }[]
-  onChange: (v: T) => void
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1" role="tablist">
-      {options.map((o) => {
-        const on = o.key === value
-        const Glyph = o.icon
-        return (
-          <button
-            key={o.key}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            onClick={() => onChange(o.key)}
-            className="flex items-center gap-1.5 border-b-2 pb-1 text-caption font-medium transition-colors"
-            style={{ borderColor: on ? ACCENT_INK : 'transparent', color: on ? ACCENT_INK : FAINT }}
-          >
-            {Glyph && <Glyph size={13} strokeWidth={2} aria-hidden />}
-            {o.label}
-            {o.count !== undefined && (
-              <span className="tabular-nums" style={{ color: on ? ACCENT_INK : '#a39d94' }}>
-                {fmt(o.count)}
-              </span>
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
+
 
 /** Two panels of equal width and height, stacked below 860px of tab. */
 function Pair({ children }: { children: React.ReactNode }) {
-  return <div className="grid items-stretch gap-4 @[860px]:grid-cols-2">{children}</div>
+  /* `items-start`, NOT `items-stretch`. Stretching made both panels as tall as the taller one,
+     so a card holding a twelve-column strip sat in a box sized for a card holding a ring — the
+     empty half was the layout, not the content. Each panel is now its own height. */
+  return <div className="grid items-start gap-3 @[860px]:grid-cols-2">{children}</div>
 }
 
 /** The pill/segment control the records workspace shares with the Housing tab. */
@@ -1120,11 +1077,15 @@ export function SpeciesLifeTab({
   return (
     <TabBody>
       {/* ── 1 · births vs deaths ─────────────────────────────────────────── */}
+      {/* THE CHAPTER SUB-LINES ARE GONE, ALL FOUR. Each chapter opened with a line qualifying
+          it — "same period · aligned months", the death count and its window, where the
+          lifespan figures are read from, what the records are — and a heading that needs a
+          sentence under it is doing the work twice. The period control to the right states the
+          window, and every panel below states its own subject. */}
       <ChapterHead
         title="Births vs deaths"
-        sub="same period · aligned months"
         right={
-          <LineTabs
+          <SegmentToggle
             value={period}
             onChange={setPeriod}
             options={[
@@ -1148,28 +1109,17 @@ export function SpeciesLifeTab({
       {/* ── 2 · the seasons ──────────────────────────────────────────────── */}
       {(births.length > 0 || deaths.length > 0) && (
         <Pair>
+          {/* The peak is DRAWN — `highlight` sets that column apart and `showValues` prints
+              every count — so naming it again underneath was the chart read back as a
+              sentence, with the dating caveat riding along behind it. */}
           {births.length > 0 && (
-            <Band title="Seasonal Breeding Pattern" aside="pooled over the period's years" icon={CalendarRange}>
-              <Columns values={seasonB} labels={MONTHS} highlight={peakB} showValues />
-              <p className="mt-3 text-caption" style={{ color: FAINT }}>
-                Peak:{' '}
-                <b className="font-semibold" style={{ color: ACCENT_INK }}>
-                  {MONTHS[peakB]}
-                </b>{' '}
-                · dated by the record, and part of the flow is dated by data entry rather than birth
-              </p>
+            <Band title="Seasonal Breeding Pattern" icon={CalendarRange}>
+              <Columns values={seasonB} labels={MONTHS} highlight={peakB} showValues noun="births" />
             </Band>
           )}
           {deaths.length > 0 && (
-            <Band title="Seasonal Mortality Pattern" aside="pooled over the period's years" icon={CalendarRange}>
-              <Columns values={seasonD} labels={MONTHS} highlight={peakD} showValues fill={TONE_FILL.bad} />
-              <p className="mt-3 text-caption" style={{ color: FAINT }}>
-                Peak:{' '}
-                <b className="font-semibold" style={{ color: TONE.bad }}>
-                  {MONTHS[peakD]}
-                </b>{' '}
-                · by the month the death was recorded in
-              </p>
+            <Band title="Seasonal Mortality Pattern" icon={CalendarRange}>
+              <Columns values={seasonD} labels={MONTHS} highlight={peakD} showValues fill={TONE_FILL.bad} noun="deaths" />
             </Band>
           )}
         </Pair>
@@ -1222,19 +1172,18 @@ export function SpeciesLifeTab({
       {/* ── 4 · deaths in detail ─────────────────────────────────────────── */}
       {deaths.length > 0 && (
         <>
-          <ChapterHead title="Deaths — detail" sub={`${fmt(deaths.length)} deaths in ${win.window}`} />
+          <ChapterHead title="Deaths — detail" />
           <Pair>
-            <Band
-              title="Survival Analysis"
-              aside={`${fmt(ageDays.length)} of ${fmt(deaths.length)} aged`}
-              icon={Activity}
-              note="Time from birth to death — the source records no accession-to-death interval, and only the deaths carrying a birth date can be placed."
-            >
+            {/* The aged-of-total count and the provenance note are both dropped: where none of
+                the deaths can be placed the panel still says so in full, in the branch below,
+                which is the only case where the reader needed telling. */}
+            <Band title="Survival Analysis" icon={Activity}>
               {ageDays.length > 0 ? (
                 <>
                   <Columns
                     values={survival.map((b) => b.value)}
                     labels={survival.map((b) => b.label)}
+                    noun="deaths"
                     highlight={peakIndex(survival.map((b) => b.value))}
                     showValues
                     fill={TONE_FILL.bad}
@@ -1263,7 +1212,8 @@ export function SpeciesLifeTab({
               )}
             </Band>
 
-            <Band title="Age at Death" aside={`${fmt(ageDays.length)} records`} icon={Skull}>
+            {/* The record count is in the strip's own "Records" figure a few pixels below. */}
+            <Band title="Age at Death" icon={Skull}>
               <MetricStrip
                 dense
                 items={[
@@ -1315,9 +1265,9 @@ export function SpeciesLifeTab({
       {/* ── 5 · lifespan ─────────────────────────────────────────────────── */}
       {ageDays.length > 0 && (
         <>
-          <ChapterHead title="Lifespan" sub="read from the deaths that carry a birth date" />
+          <ChapterHead title="Lifespan" />
           <Pair>
-            <Band title="Longevity" aside="recorded deaths" icon={Heart}>
+            <Band title="Longevity" icon={Heart}>
               <div className="flex flex-col gap-5">
                 {(
                   [
@@ -1337,15 +1287,11 @@ export function SpeciesLifeTab({
                 ))}
               </div>
             </Band>
-            <Band
-              title="Age at Death Distribution"
-              aside={`${fmt(ageDays.length)} deaths`}
-              icon={Layers}
-              note="The bands are the extract's own, finer at the young end because the data is."
-            >
+            <Band title="Age at Death Distribution" icon={Layers}>
               <Columns
                 values={distribution.map((b) => b.value)}
                 labels={distribution.map((b) => b.label)}
+                noun="deaths"
                 highlight={peakIndex(distribution.map((b) => b.value))}
                 showValues
                 fill={TEAL}
@@ -1358,9 +1304,8 @@ export function SpeciesLifeTab({
       {/* ── 6 · the records ──────────────────────────────────────────────── */}
       <ChapterHead
         title="Records"
-        sub="the rows behind every figure above"
         right={
-          <LineTabs
+          <SegmentToggle
             value={record}
             onChange={(v) => {
               setRecord(v)
@@ -1425,13 +1370,8 @@ export function SpeciesLifeTab({
           />
         )}
 
-        {/* The two columns the specification asks for that no record can fill, named once. */}
-        {mode === 'animal' && record === 'births' && animalRows.length > 0 && (
-          <p className="mt-3 text-caption" style={{ color: FAINT }}>
-            The birth record carries a date, a site, the animal&rsquo;s id and its sex. It carries
-            no mother and no enclosure, so neither is a column.
-          </p>
-        )}
+        {/* The note naming the two columns the birth record cannot fill is gone. The table's own
+            headers are the statement: a column that is not there is not claimed. */}
       </Band>
     </TabBody>
   )

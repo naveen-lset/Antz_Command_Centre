@@ -244,7 +244,7 @@ function useLens(siteKey: string | null, win: Win, facets: Facets) {
 /* ── the page ────────────────────────────────────────────────────────────── */
 
 export default function Animals() {
-  const { scope } = useScope()
+  const { scope, href } = useScope()
   const { open } = useSheet()
   const { drillTo } = useDrill()
   const win = scope.win
@@ -402,8 +402,23 @@ export default function Animals() {
             : `${signed(delta.net)} net · ${win.window}`
         }
         tone={lensed ? 'neutral' : netTone(delta.net)}
+        /* THE SPECIES FIGURE COUNTS NAMES, AND IT USED TO COUNT POPULATIONS.
+           `speciesRows` is keyed by species id, and an id is `<site>:<name>` — so the same
+           warbler held at eleven sites was eleven rows, and this stat read 4,745 where the
+           collection holds 2,411 species. `core/world.ts` has already ruled on the word:
+           `speciesNames` is documented as "distinct common names — what a curator means by
+           'how many species do we hold'", and `speciesWide.ts` opens on the same point. The
+           species list beneath this link counts the same way, so the figure a reader clicks
+           is the figure they land on. Nothing else on this page changes: every card below
+           still works per population, which is right for a figure about a HOLDING. */
         stats={[
-          { value: fmt(species.length), label: 'Species' },
+          {
+            value: fmt(new Set(species.map((s) => s.name)).size),
+            label: 'Species',
+            /* The door into the species list, cut to whatever the page is already cut to —
+               `href` carries the window and the site pill through `scope.tsx`. */
+            href: href('browse/species'),
+          },
           { value: String(siteKey ? 1 : SITES.length), label: 'Sites' },
           { value: fmt(enclosures), label: 'Enclosures' },
         ]}

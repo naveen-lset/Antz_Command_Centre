@@ -18,11 +18,10 @@
  * reads as a finding when it is only a silence.
  */
 
-import { Fingerprint, Layers, Ruler, Sparkles } from 'lucide-react'
-import { longDate } from '../core/calendar'
-import type { Of, Reading, SpeciesProfile } from '../core/profiles'
-import { FAINT, fmt } from '../exec/system'
-import { Band, CoverageMeter, DataTable, DefinitionList, MetricStrip, NotePanel, RankedBars, TabBody } from './speciesLayout'
+import { Fingerprint, Layers, Sparkles } from 'lucide-react'
+import type { SpeciesProfile } from '../core/profiles'
+import { fmt } from '../exec/system'
+import { Band, CoverageMeter, DefinitionList, MetricStrip, NotePanel, RankedBars, TabBody } from './speciesLayout'
 
 /* ── identification · coverage → type → records ──────────────────────────── */
 
@@ -157,137 +156,12 @@ export function SpeciesBreedsTab({ profile }: { profile?: SpeciesProfile }) {
   )
 }
 
-/* ── assessments · an analytics page ─────────────────────────────────────── */
+/* ── assessments ─────────────────────────────────────────────────────────── */
 
 /**
- * One measured reading — its range, its mean, and the unit it was taken in.
- *
- * NEVER POOLED ACROSS UNITS. Weight is recorded in kilograms on 49,502 assessment rows and in
- * grams on 34,584, in one column. A mean over both averages a 940 g animal with a 3.1 kg one
- * and reports about 470, which is a number with no referent — so a species weighed in both gets
- * a row per unit and the unit is on the row.
- *
- * A SCALE IS QUOTED AS A FLOOR, NOT AS A SCALE. The schema declares no maximum for Body
- * Condition Score or any other graded observation, so `outOf` is the highest value seen
- * ANYWHERE in the dump for that type. That makes it a lower bound on the true scale, which is
- * why this says "recorded up to" and never "out of".
+ * REBUILT AS ITS OWN FILE, RE-EXPORTED HERE so `entity.tsx`'s import stands. The tab is no
+ * longer the rollup summary this file used to draw — it is the four-section operational view
+ * (Population / Physical Health / Endoscopy / Alerts) in `speciesAssess.tsx`, fed by the same
+ * `profile.assessments` rollup through `speciesAssessData.ts`.
  */
-function readingRow(r: Reading) {
-  const scaled = Array.isArray(r.mean)
-  const mean = scaled ? (r.mean as Of)[0] : (r.mean as number)
-  const outOf = scaled ? (r.mean as Of)[1] : undefined
-  const unit = r.uom ? ` ${r.uom}` : ''
-  const n = (v: number) => (v % 1 === 0 ? String(v) : v.toFixed(1))
-  return {
-    type: r.type + (r.uom ? ` · ${r.uom}` : ''),
-    mean: outOf === undefined ? n(mean) : `${n(mean)} (recorded up to ${outOf})`,
-    range: `${n(r.lo)} to ${n(r.hi)}${unit}`,
-    n: fmt(r.n),
-  }
-}
-
-/** What has actually been measured of this species, and when. */
-export function SpeciesAssessmentsTab({ profile }: { profile?: SpeciesProfile }) {
-  const a = profile?.assessments
-  if (!a || !a.n) {
-    return (
-      <TabBody>
-        <Band title="Assessments" icon={Ruler}>
-          <p className="text-small" style={{ color: '#5c574f' }}>
-            No assessment has been recorded against this species.
-          </p>
-        </Band>
-      </TabBody>
-    )
-  }
-
-  const months = Object.entries(a.months ?? {}).sort(([x], [y]) => x.localeCompare(y))
-  const peak = Math.max(...months.map(([, v]) => v), 1)
-  const readings = (a.readings ?? []).map(readingRow)
-
-  return (
-    <TabBody>
-      <Band title="Recorded" aside={`${fmt(a.n)} assessment${a.n === 1 ? '' : 's'}`} icon={Ruler}>
-        <MetricStrip
-          items={[
-            { label: 'Assessments', value: fmt(a.n) },
-            ...(a.assessed
-              ? [
-                  {
-                    label: 'Animals assessed',
-                    value: fmt(a.assessed[0]),
-                    /* Counted over the same set as its own denominator, so it cannot exceed
-                       one — the property the reference design's chipped figure did not have. */
-                    sub: `of ${fmt(a.assessed[1])}`,
-                  },
-                ]
-              : []),
-            ...(a.types?.length ? [{ label: 'Types', value: String(a.types.length) }] : []),
-            { label: 'First recorded', value: longDate(a.first) },
-            { label: 'Last recorded', value: longDate(a.last) },
-          ]}
-        />
-      </Band>
-
-      {months.length > 1 && (
-        <Band title="When they were taken" aside={`${months.length} months`} icon={Layers}>
-          {/* A BAR PER MONTH THE SOURCE RECORDED, and no bar for a month it did not. Filling the
-              gaps with zeros would draw a flat line through periods nobody assessed in and read
-              as "we checked and found nothing", which is a different claim from "nobody
-              checked". */}
-          <div className="flex items-end gap-1.5" style={{ height: 96 }}>
-            {months.map(([m, v]) => (
-              <div key={m} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
-                <span className="text-caption tabular-nums" style={{ color: FAINT }}>
-                  {v}
-                </span>
-                <span
-                  className="w-full rounded-t-[3px]"
-                  style={{ height: `${Math.max(3, (v / peak) * 64)}px`, backgroundColor: '#37bd69' }}
-                  title={`${m} · ${v}`}
-                />
-                <span className="truncate text-[10px]" style={{ color: FAINT }}>
-                  {m.slice(2).replace('-', '/')}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Band>
-      )}
-
-      {readings.length > 0 && (
-        <Band title="What was found" aside={String(readings.length)} icon={Ruler}>
-          <DataTable
-            rows={readings}
-            keyOf={(r) => r.type}
-            columns={[
-              { key: 'type', head: 'Assessment', cell: (r) => r.type, priority: 3 },
-              { key: 'mean', head: 'Mean', cell: (r) => r.mean, align: 'right', priority: 2 },
-              { key: 'range', head: 'Range', cell: (r) => r.range, align: 'right', priority: 1 },
-              { key: 'n', head: 'Readings', cell: (r) => r.n, align: 'right', priority: 2 },
-            ]}
-          />
-        </Band>
-      )}
-
-      {!!a.types?.length && (
-        <Band title="By type" aside={String(a.types.length)} icon={Layers}>
-          <RankedBars items={a.types} unit="assessments" total={a.n} />
-        </Band>
-      )}
-      {!!a.categories?.length && (
-        <Band title="By category" aside={String(a.categories.length)} icon={Layers}>
-          <RankedBars items={a.categories} unit="assessments" total={a.n} />
-        </Band>
-      )}
-      {!!a.stages?.length && (
-        <Band title="By life stage" aside={String(a.stages.length)} icon={Layers}>
-          <RankedBars items={a.stages} unit="assessments" />
-          <p className="mt-2 text-caption" style={{ color: FAINT }}>
-            Life stage is unrecorded on most rows, so these do not sum to {fmt(a.n)}.
-          </p>
-        </Band>
-      )}
-    </TabBody>
-  )
-}
+export { SpeciesAssessmentsTab } from './speciesAssess'

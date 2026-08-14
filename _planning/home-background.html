@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ANTZ · Home Background — 5 Studies</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* The two grounds, exactly as `index.css` declares them. */
+    --canopy: #d6e8dd;   /* the colour DIRECTLY under the illustration */
+    --sage:   #e7f0ea;   /* the settled page colour every other page uses */
+
+    --ink:    #1c1a16;
+    --hero-ink: #08100c;
+    --muted:  #736e67;
+    --faint:  #9a958d;
+    --accent: #2f6449;
+    --accent-ink: #1e7a44;
+  }
+
+  body {
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #cfd8d2;
+    padding: 28px 24px 64px;
+    -webkit-font-smoothing: antialiased;
+    color: var(--ink);
+  }
+
+  h1.doc { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
+  p.doc {
+    font-size: 13.5px; line-height: 1.6; color: #3d4a42;
+    max-width: 78ch; margin-top: 8px;
+  }
+  p.doc b { font-weight: 600; color: #1f2b24; }
+
+  /* ── the rack ───────────────────────────────────────────────────────────
+     Five complete pages side by side, because the question is what the ground
+     does over a WHOLE SCROLL. Stacked vertically you would compare each study
+     against its own memory of the last one; side by side the descent of all
+     five is one glance. Scrolls horizontally past the window. */
+  .rack {
+    display: flex;
+    gap: 22px;
+    margin-top: 24px;
+    overflow-x: auto;
+    padding-bottom: 18px;
+  }
+  .col { flex: 0 0 400px; }
+
+  .label {
+    font-size: 12.5px; font-weight: 600; color: #22302a;
+    margin: 0 2px 4px;
+  }
+  .sub {
+    font-size: 11.5px; line-height: 1.5; color: #4d5a52;
+    margin: 0 2px 10px; min-height: 52px;
+  }
+
+  /* The page itself — a clipped column, the ground painted as a layer behind
+     the content exactly as `.page-ground` does in the product. */
+  .page {
+    position: relative;
+    isolation: isolate;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 22px rgba(15, 42, 30, 0.13);
+  }
+  .ground {
+    position: absolute; inset: 0; z-index: -2;
+    background-color: var(--canopy);
+  }
+
+  /* ══ THE FIVE GROUNDS ═══════════════════════════════════════════════════
+     Every one of them holds `--canopy` from the top of the page to the foot
+     of the illustration — that stop is not a variable. It is where the
+     artwork's own atmospheric fade lands, and a ground that is any other
+     colour there puts a visible floor under the elephants. The five differ
+     only in what happens BELOW the hand-over, which is the whole question.
+
+     `--hero` is the foot of the illustration: 560px in this mock. */
+
+  /* 1 · FLAT HOLD — no gradient at all below the hero. */
+  .bg1 .ground { background-image: none; background-color: var(--canopy); }
+
+  /* 2 · LONG DESCENT — one ramp over the whole page, canopy to a shade that
+         is still green. Never reaches the settled sage. */
+  .bg2 .ground {
+    background-image: linear-gradient(
+      180deg,
+      var(--canopy) 0px,
+      var(--canopy) 620px,
+      #d9eade 46%,
+      #dceee1 78%,
+      #dfefe4 100%
+    );
+  }
+
+  /* 3 · ENVELOPE — deeper at both ends, lightest through the middle where the
+         card grid is densest. The page closes on the colour it opened in. */
+  .bg3 .ground {
+    background-image: linear-gradient(
+      180deg,
+      var(--canopy) 0px,
+      var(--canopy) 620px,
+      #dcece2 40%,
+      #dfeee4 54%,
+      #d5e8dc 82%,
+      #cbe1d4 100%
+    );
+  }
+
+  /* 4 · ATMOSPHERIC HOLD — flat canopy, and three enormous soft pools of light
+         drifting down it. No shape, no edge, no drawn mark: only luminosity. */
+  .bg4 .ground {
+    background-image:
+      radial-gradient(78% 20% at 16% 30%, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.2) 46%, rgba(255,255,255,0) 76%),
+      radial-gradient(72% 18% at 88% 56%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.16) 46%, rgba(255,255,255,0) 76%),
+      radial-gradient(86% 22% at 40% 86%, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.13) 46%, rgba(255,255,255,0) 76%);
+    background-color: var(--canopy);
+  }
+
+  /* 5 · HAZE STEPS — the shade holds, and each section band lightens by about
+         one level, the way distance does. Stepped, but the steps are below the
+         threshold at which an edge can be seen. */
+  .bg5 .ground {
+    background-image: linear-gradient(
+      180deg,
+      var(--canopy) 0px,
+      var(--canopy) 620px,
+      #d8e9df 620px, #d8e9df 1080px,
+      #dbebe1 1080px, #dbebe1 1560px,
+      #deede3 1560px, #deede3 2040px,
+      #e0efe5 2040px, #e0efe5 100%
+    );
+    filter: blur(0px);
+  }
+  /* The steps are hard stops above; this second layer is what dissolves them —
+     a 60px-soft copy of the same ramp laid over the top, so the banding gives
+     the page its depth and never gives it a line. */
+  .bg5 .ground::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(255,255,255,0) 0px,
+      rgba(255,255,255,0) 620px,
+      rgba(255,255,255,0.16) 1080px,
+      rgba(255,255,255,0.3) 1560px,
+      rgba(255,255,255,0.42) 2040px,
+      rgba(255,255,255,0.5) 100%
+    );
+    mix-blend-mode: soft-light;
+  }
+
+  /* ── the hero, identical in all five ────────────────────────────────────
+     Banner gradient, greeting, filters, the total, then the illustration with
+     its own two-part hand-over: an eased alpha mask on the artwork and a wash
+     of the canopy colour rising through its foot. Both lifted from `Home.tsx`
+     so the top of every study is the screen as it ships. */
+  .banner { position: relative; }
+  .banner-grad {
+    position: absolute; inset: 0; z-index: -1;
+    background: linear-gradient(180deg, #cde4d8 0%, #b4d3c4 38%, #a0c8b5 62%, rgba(231,240,234,0) 100%);
+  }
+
+  .greeting { padding: 34px 20px 10px; position: relative; }
+  .greeting .hi { font-size: 14px; color: #5c574f; }
+  .greeting .name {
+    font-size: 25px; font-weight: 700; letter-spacing: -0.4px;
+    margin-top: 1px; color: var(--ink);
+  }
+  .greeting .org {
+    font-size: 12.5px; color: #3d3a34; margin-top: 5px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .search {
+    position: absolute; top: 34px; right: 20px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #fbfaf7; display: grid; place-items: center;
+  }
+
+  .filters { display: flex; gap: 8px; justify-content: center; padding: 10px 0 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fff; border-radius: 999px;
+    padding: 7px 13px; font-size: 12.5px; font-weight: 500; color: #2c332e;
+    box-shadow: 0 1px 3px rgba(15,42,30,0.06);
+  }
+  .chip .dot { width: 11px; height: 11px; border-radius: 3px; background: #37bd69; }
+
+  .total { text-align: center; padding: 14px 0 0; }
+  .total .fig {
+    font-family: 'Nunito', sans-serif; font-weight: 800;
+    font-size: 52px; letter-spacing: -1.5px; color: var(--hero-ink);
+    line-height: 1.05;
+  }
+  .total .cap { font-size: 13px; color: var(--ink); margin-top: 6px; }
+  .total .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 9px; background: rgba(255,255,255,0.8);
+    border-radius: 999px; padding: 5px 12px;
+    font-size: 11px; font-weight: 600;
+  }
+  .total .pill .up { color: var(--accent-ink); }
+  .total .pill .bar { width: 1px; height: 11px; background: rgba(22,21,15,0.15); }
+  .total .pill .view { color: var(--accent-ink); }
+
+  /* The artwork. `object-bottom` + a height cap, so the crop only ever eats
+     sky — never the elephants or the pond. */
+  .art { position: relative; height: 200px; margin-top: 10px; }
+  .art img {
+    position: absolute; bottom: 0; left: 0; width: 100%;
+    max-height: 300px; object-fit: cover; object-position: bottom;
+    user-select: none;
+    -webkit-mask-image: linear-gradient(to bottom,
+      rgba(0,0,0,0) 0%, rgba(0,0,0,0.04) 10%, rgba(0,0,0,0.17) 20%, rgba(0,0,0,0.4) 30%,
+      rgba(0,0,0,0.68) 39%, rgba(0,0,0,0.9) 47%, #000 56%, #000 80%,
+      rgba(0,0,0,0.94) 85%, rgba(0,0,0,0.79) 89%, rgba(0,0,0,0.56) 93%,
+      rgba(0,0,0,0.31) 96%, rgba(0,0,0,0.12) 98%, rgba(0,0,0,0) 100%);
+            mask-image: linear-gradient(to bottom,
+      rgba(0,0,0,0) 0%, rgba(0,0,0,0.04) 10%, rgba(0,0,0,0.17) 20%, rgba(0,0,0,0.4) 30%,
+      rgba(0,0,0,0.68) 39%, rgba(0,0,0,0.9) 47%, #000 56%, #000 80%,
+      rgba(0,0,0,0.94) 85%, rgba(0,0,0,0.79) 89%, rgba(0,0,0,0.56) 93%,
+      rgba(0,0,0,0.31) 96%, rgba(0,0,0,0.12) 98%, rgba(0,0,0,0) 100%);
+  }
+  /* Aerial perspective: the canopy colour pooling low and toward the middle,
+     back-loaded so the animals keep their contrast and only the grass goes. */
+  .art .mist {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 116px;
+    background:
+      radial-gradient(135% 70% at 50% 118%, rgba(214,232,221,0.3) 0%, rgba(214,232,221,0.16) 38%, rgba(214,232,221,0.05) 62%, rgba(214,232,221,0) 80%),
+      linear-gradient(to bottom,
+        rgba(214,232,221,0) 0%, rgba(214,232,221,0.015) 20%, rgba(214,232,221,0.055) 35%,
+        rgba(214,232,221,0.13) 48%, rgba(214,232,221,0.23) 58%, rgba(214,232,221,0.38) 68%,
+        rgba(214,232,221,0.53) 76%, rgba(214,232,221,0.68) 83%, rgba(214,232,221,0.81) 89%,
+        rgba(214,232,221,0.91) 94%, rgba(214,232,221,0.97) 97.5%, rgba(214,232,221,1) 100%);
+  }
+
+  /* ── the page body ──────────────────────────────────────────────────────
+     Real section rhythm and real card density, because a background reads
+     entirely differently behind four cards than behind twenty. */
+  main { padding: 8px 16px 40px; display: flex; flex-direction: column; gap: 12px; }
+
+  .head { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .head:first-child { margin-top: 0; }
+  .head .t {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.6px; color: #3d3a34;
+  }
+  .head .rule { flex: 1; height: 1px; background: rgba(28,26,22,0.08); }
+  .head .aside { font-size: 11px; color: var(--faint); }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 14px;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .k-label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 500; color: #3d3a34;
+  }
+  .k-label .g { width: 16px; height: 16px; border-radius: 5px; background: #dff0e7; }
+  .k-fig {
+    font-family: 'Nunito', sans-serif; font-weight: 800;
+    font-size: 24px; color: var(--hero-ink); margin-top: 7px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .k-fig .d { font-family: 'Figtree'; font-size: 11px; font-weight: 600; color: var(--accent-ink); }
+  .k-note { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .meter { height: 5px; border-radius: 3px; background: #eef1ee; margin-top: 9px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 62%; background: #37bd69; border-radius: 3px; }
+
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 0; border-bottom: 1px solid #f0efec;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .g { width: 24px; height: 24px; border-radius: 8px; background: #e6f4ec; flex: 0 0 auto; }
+  .row .m { flex: 1; min-width: 0; }
+  .row .m b { display: block; font-size: 12.5px; font-weight: 500; }
+  .row .m s { display: block; font-size: 10.5px; color: var(--faint); text-decoration: none; margin-top: 2px; }
+  .row .n { font-size: 12.5px; font-weight: 600; }
+
+  .foot {
+    text-align: center; font-size: 10.5px; color: #6c7d73;
+    padding: 26px 0 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="doc">Home background — five studies</h1>
+<p class="doc">
+  Same page, same hero, same cards in all five. <b>No drawn scenery anywhere</b> — the vector
+  trees, bushes, ponds and fences are gone; the only illustration on the page is the one
+  photograph at the top. What differs between the columns is the ground the whole scroll is
+  painted on, and nothing else.
+</p>
+<p class="doc" style="margin-top:6px">
+  All five hold <b>#d6e8dd</b> — the canopy colour, the shade the artwork's own fade lands on —
+  from the top of the page down to the foot of the illustration. That stop is fixed: any other
+  colour there puts a visible floor under the elephants. The five are five answers to what the
+  shade does <b>after</b> that.
+</p>
+
+<div class="rack">
+
+  <!-- 1 -->
+  <section class="col bg1">
+    <div class="label">1 · Flat hold</div>
+    <div class="sub">One colour, top to bottom. No gradient below the hero at all — literally the same shade until the end.</div>
+    <div class="page" data-study></div>
+  </section>
+
+  <!-- 2 -->
+  <section class="col bg2">
+    <div class="label">2 · Long descent</div>
+    <div class="sub">One ramp stretched over the whole page, canopy to a lighter green. Never reaches the old flat sage, so it never runs out.</div>
+    <div class="page" data-study></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="col bg3">
+    <div class="label">3 · Envelope</div>
+    <div class="sub">Deeper at both ends, lightest through the middle where the cards are densest. The page closes on the colour it opened in.</div>
+    <div class="page" data-study></div>
+  </section>
+
+  <!-- 4 -->
+  <section class="col bg4">
+    <div class="label">4 · Atmospheric hold</div>
+    <div class="sub">Flat canopy with three enormous soft pools of light drifting down it. No shape and no edge — only luminosity.</div>
+    <div class="page" data-study></div>
+  </section>
+
+  <!-- 5 -->
+  <section class="col bg5">
+    <div class="label">5 · Haze steps</div>
+    <div class="sub">The shade lightens about one level per section band, the way distance does, with the steps dissolved so depth never becomes a line.</div>
+    <div class="page" data-study></div>
+  </section>
+
+</div>
+
+<script>
+/*
+ * ONE PAGE, WRITTEN ONCE.
+ *
+ * The five studies must be identical in every respect but the ground, and five
+ * hand-copied blocks of markup drift the moment one of them is edited. So the page is
+ * a template instantiated five times, and the only thing that varies is the class on
+ * the column — which is where the ground lives.
+ */
+const kpi = (label, fig, delta, note, meter) => `
+  <div class="card">
+    <div class="k-label"><span class="g"></span>${label}</div>
+    <div class="k-fig">${fig}${delta ? `<span class="d">${delta}</span>` : ''}</div>
+    ${note ? `<div class="k-note">${note}</div>` : ''}
+    ${meter ? `<div class="meter"><i style="width:${meter}%"></i></div>` : ''}
+  </div>`;
+
+const row = (t, s, n) => `
+  <div class="row">
+    <span class="g"></span>
+    <span class="m"><b>${t}</b><s>${s}</s></span>
+    <span class="n">${n}</span>
+  </div>`;
+
+const head = (t, aside) => `
+  <div class="head"><span class="t">${t}</span><span class="rule"></span>
+  ${aside ? `<span class="aside">${aside}</span>` : ''}</div>`;
+
+const PAGE = `
+  <div class="ground"></div>
+
+  <div class="banner">
+    <div class="banner-grad"></div>
+    <div class="greeting">
+      <div class="hi">Good Evening,</div>
+      <div class="name">Bharathi Raja 👋</div>
+      <div class="org">◎ Vantara Wildlife Trust · Zoo Director</div>
+      <div class="search">🔍</div>
+    </div>
+    <div class="filters">
+      <span class="chip"><span class="dot"></span>Last 6 months ▾</span>
+      <span class="chip"><span class="dot"></span>All sites ▾</span>
+    </div>
+    <div class="total">
+      <div class="fig">110,020</div>
+      <div class="cap">Total Animals</div>
+      <div class="pill">
+        <span class="up">▲ 3,475 in six months</span>
+        <span class="bar"></span>
+        <span class="view">◉ View breakdown</span>
+      </div>
+    </div>
+    <div class="art">
+      <img src="../src/assets/forest-scene.webp" alt="" />
+      <div class="mist"></div>
+    </div>
+  </div>
+
+  <main>
+    ${head('Executive KPIs')}
+    <div class="grid2">
+      ${kpi('Animal Population', '110K', '+3.3%')}
+      ${kpi('Health &amp; Medical', '812', '+0.6%', 'Under care')}
+      ${kpi('Natality', '5,354', '+0.7%')}
+      ${kpi('Mortality', '13.0K', '−2.3%')}
+    </div>
+    <div class="grid2">
+      ${kpi('Vaccination', '9.0 %', '+1.0 pts', '9,942 of 110,020', 9)}
+      ${kpi('Welfare Audits', '94 %', '+2 pts', '112 of 119', 94)}
+      ${kpi('Training', '68 %', '−1 pt', '212 of 312', 68)}
+      ${kpi('Health Score', '82', '+3', 'Site average · target 90', 82)}
+    </div>
+    ${kpi('Pharmacy', '₹9.8L', '+4%', 'Dispensed this period')}
+
+    ${head('Trends', 'Year')}
+    <div class="grid2">
+      ${kpi('Animal Population', '110,020', '+11%')}
+      ${kpi('Birth Trend', '11,023', '−69%')}
+      ${kpi('Mortality Trend', '27,192', '+151%')}
+      ${kpi('Disease Trend', '3,458', '+33%')}
+      ${kpi('Medicine Spend', '₹9.8L', '+4%')}
+      ${kpi('Procurement', '₹64.2L', '−3%')}
+    </div>
+
+    ${head('Upcoming', '7 / 30 days')}
+    <div class="card">
+      ${row('Expected Births', 'Next 08 Aug · Savanna', '6')}
+      ${row('Vaccination Due', 'Next 08 Aug · Aviary Complex', '29')}
+      ${row('Deworming Due', 'Next 09 Aug · Savanna · SV-09', '102')}
+      ${row('Supplement Due', 'Next 08 Aug · Reptile House', '164')}
+      ${row('Staff Training Due', 'Next 08 Aug · Veterinary', '55')}
+    </div>
+
+    ${head('Risk Indicators', '8 tracked')}
+    <div class="card">
+      ${row('Medicine Expiry', 'lines expiring in 60 d · ₹4.1L', '22')}
+      ${row('Low Medicine Stock', 'items under reorder level', '8')}
+      ${row('Critical Capacity', 'enclosures over 95% occupancy', '4')}
+      ${row('Biosecurity Risk', 'controls lapsed · 2 zones', '3')}
+      ${row('Inbreeding Risk', 'pairings above 0.125 kinship', '14')}
+      ${row('Low Food Inventory', 'lines under 5 days cover', '3')}
+      ${row('Training Compliance', '% of 312 staff current', '68')}
+      ${row('Compliance Risk', 'statutory filings open', '6')}
+    </div>
+
+    <div class="foot">— end of page —</div>
+  </main>
+`;
+
+document.querySelectorAll('[data-study]').forEach((el) => { el.innerHTML = PAGE; });
+</script>
+
+</body>
+</html>

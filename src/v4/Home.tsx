@@ -36,7 +36,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ChevronRight, Eye, MapPin, Search } from 'lucide-react'
+import { ChevronRight, Eye, MapPin, PawPrint, Search } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
 import forestScene from '../assets/forest-scene.webp'
@@ -74,7 +74,7 @@ import { FilterBar, ScopeNote } from './filters'
 import { useScope } from './scope'
 import { useKpi, useMovement, useTrendCard } from './kpi'
 import { resolveWindow, type Win, type WindowKey } from '../core/calendar'
-import { figure as figureOf } from '../core/query'
+import { figure as figureOf, population } from '../core/query'
 import {
   RiskPanel,
   TrendPanel,
@@ -213,6 +213,20 @@ function StickyPeriod() {
  * banner gradient above it, so the illustration has no top edge either — the hero reads as
  * one environment that the greeting and the total are standing inside.
  */
+/*
+ * THE LONG TOP RAMP IS BACK, AND SHOWING THE FOLIAGE IS NOT ITS JOB.
+ *
+ * It was briefly cut to a 9% lip so the artwork's vines and monstera would survive. They did,
+ * and it was wrong: the picture's top edge lands in the MIDDLE of the page, so an edge that is
+ * opaque at 9% slices every leaf in half across the full width of the screen. The leaves are
+ * drawn bleeding off the top of the artwork — that reads as foliage entering from above only
+ * when the artwork's top edge IS the page's top edge, and here it is nowhere near it.
+ *
+ * So this band goes back to being the scene's foot — animals, pond, ground — dissolving upward
+ * into the sky over half its height, with no edge anywhere for the eye to catch. The foliage is
+ * a separate band pinned to the top of the page, where its leaves can bleed off the screen the
+ * way the illustrator drew them. See `HeroFoliage` below.
+ */
 const ARTWORK_MASK = [
   'rgba(0,0,0,0) 0%',
   'rgba(0,0,0,0.04) 10%',
@@ -289,11 +303,15 @@ const MIST = [
 function ForestBand() {
   return (
     <div className="relative -z-10 h-[clamp(150px,21cqw,250px)] w-full">
-      {/* THE CAP ONLY EVER TRIMS SKY. The artwork is 4:3, so at column width W its
-          natural height is 0.75W; keep the box shorter than that and `object-cover`
-          crops the height — the empty sky the scene was composed with — rather than
-          the sides, where the elephants and the pond are. Nothing here stretches it:
-          one `object-cover` at the artwork's own ratio at every width. */}
+      {/* THE CAP ONLY EVER TRIMS SKY, and it is back to doing exactly that. The artwork is
+          4:3, so at column width W its natural height is 0.75W; keep the box shorter than
+          that and `object-cover` crops the height — the empty sky the scene was composed
+          with — rather than the sides, where the elephants and the pond are.
+          IT WAS BRIEFLY 75cqw, to stop the top crop eating the foliage. That showed the whole
+          picture and put its top edge halfway down the screen, which sliced the leaves across
+          the full width — the crop complaint in a worse form. The foliage is now its own band
+          at the top of the page and this one is free to be what it always was: the scene's
+          foot, and nothing above it that needs protecting. */}
       <img
         src={forestScene}
         alt=""
@@ -398,6 +416,75 @@ function HeroBlock() {
   )
 }
 
+/**
+ * SPECIES COUNT — the hero says how many animals, this says how many KINDS of them.
+ *
+ * WHY IT IS HERE AT ALL. The home had ten KPI tiles and a 110,020 hero and no way to ask what
+ * the collection IS. "How many species do we hold" is the second question anybody asks after
+ * the headcount, and until the species list existed there was nowhere for it to lead — so the
+ * figure was absent rather than dead-ended. It leads somewhere now, so it is here.
+ *
+ * IT COUNTS NAMES, like every other species figure in the product now does. `population()` is
+ * the same apportionment the hero above sums, so the two cannot state different collections;
+ * distinct names is what `core/world.ts` documents a curator to mean by the word. It is also
+ * the cheap read — no register walk — which is what makes it safe on the home screen.
+ *
+ * ONE FIGURE, NOT THREE. Sites and enclosures would fit the row and belong to the Animal
+ * Population page, which already carries all three. A home card earns its place by being a
+ * question the home cannot otherwise answer, and that is one question.
+ */
+function SpeciesCount() {
+  const { scope, href } = useScope()
+  const held = useMemo(() => new Set(population(scope).map((r) => r.species.name)).size, [scope])
+
+  return (
+    <a href={href('browse/species')} className={`${TAP} ${CARD} flex items-center gap-4 p-[var(--pad-card-sm)]`}>
+      <span
+        className="grid size-9 shrink-0 place-items-center rounded-[11px]"
+        style={{ backgroundColor: mix(ACCENT, 0.1) }}
+        aria-hidden
+      >
+        <PawPrint size={18} strokeWidth={1.75} style={{ color: ACCENT }} />
+      </span>
+      <span className="flex min-w-0 flex-1 items-baseline gap-2">
+        <Figure value={held.toLocaleString('en-US')} size={28} color={HERO_INK} />
+        <span className="min-w-0 truncate text-body text-[#1c1a16]">
+          {scope.site ? `Species · ${scope.site.name}` : 'Species held'}
+        </span>
+      </span>
+      <ChevronRight size={16} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
+    </a>
+  )
+}
+
+/**
+ * THE FOLIAGE, PINNED TO THE TOP EDGE OF THE PAGE.
+ *
+ * WHY IT IS A SEPARATE BAND AND NOT JUST "MORE OF THE HERO". The artwork's vines, monstera and
+ * wisteria are drawn BLEEDING OFF ITS TOP EDGE — the leaves are cut by the frame, deliberately,
+ * so they read as a canopy you are standing under. That only works if the artwork's top edge is
+ * the screen's top edge. Show the whole picture lower down and the same cut lands halfway down
+ * the page as a straight line through every leaf, which is what "something's cropped" was.
+ *
+ * So the foliage is taken as its own strip — the top third of the same artwork, no animals, no
+ * ground — and pinned to y=0. The leaves now bleed off the top of the SCREEN, exactly as drawn,
+ * and the scene's foot stays where it has always been, below the total.
+ *
+ * IT IS MASKED TO THE TWO MARGINS, and that is what stops it being a rectangle. The middle of
+ * this strip is empty sky, a few levels off the banner gradient behind it; painted full width
+ * it lays a pale block across the greeting. The foliage itself only ever occupies the outer
+ * sixth of the picture, so that is all that is kept, with a wide soft ramp on the inner edge so
+ * there is no vertical seam. The bottom fades over the lower half — the vines hang and
+ * dissolve into the gradient rather than stopping.
+ *
+ * `-z-10` puts it above the banner gradient and below every piece of hero content, so the
+ * greeting, the filters and the total all read over it, and the white search button sits on
+ * top of it rather than under.
+ */
+function HeroFoliage() {
+  return <div className="hero-foliage" aria-hidden />
+}
+
 export function HomeBanner({ onSearch }: { onSearch: () => void }) {
   return (
     <div className="relative isolate">
@@ -405,6 +492,7 @@ export function HomeBanner({ onSearch }: { onSearch: () => void }) {
         className="pointer-events-none absolute inset-0 -z-20 bg-[linear-gradient(180deg,#cde4d8_0%,#b4d3c4_38%,#a0c8b5_62%,rgba(231,240,234,0)_100%)]"
         aria-hidden
       />
+      <HeroFoliage />
       <GreetingHeader onSearch={onSearch} />
       <StickyPeriod />
       <HeroBlock />
@@ -1044,6 +1132,11 @@ export function HomeSections() {
           SectionHead fell back to its `mt-5`. 32px of nothing on the screen's opening gap, in
           the state the screen is almost always in. The bleed moved onto the note itself. */}
       <ScopeNote />
+      {/* Directly under the hero and above the KPI rule, because it is the hero's other half —
+          how many animals, then how many kinds — and not one of the eleven measures below. */}
+      <Reveal>
+        <SpeciesCount />
+      </Reveal>
       {/* NO COUNT ON THE RIGHT. "11 measures" is the number of tiles you are about to scroll
           past, which the tiles state better by being there. The rule earns its keep as a
           divider; the aside is kept for sections where the summary is a fact you cannot get

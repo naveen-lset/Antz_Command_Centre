@@ -189,6 +189,7 @@ export function HousingTable<T>({
   keyOf,
   onOpen,
   active,
+  minWidth = 700,
 }: {
   rows: T[]
   columns: HCol<T>[]
@@ -196,10 +197,13 @@ export function HousingTable<T>({
   onOpen?: (row: T) => void
   /** The row this page already belongs to — tinted so the reader can find it in a long list. */
   active?: (row: T) => boolean
+  /** 700 fits the eight-column housing layout this was built for; a three-column table inside
+      a half-width card needs less, or its number columns scroll out of first sight. */
+  minWidth?: number
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[700px] border-collapse">
+      <table className="w-full border-collapse" style={{ minWidth }}>
         <thead>
           <tr>
             {columns.map((c, ci) => (

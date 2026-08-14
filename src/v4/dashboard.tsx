@@ -41,6 +41,7 @@ import {
   VALUE,
   fmt,
   mix,
+  useChartTip,
 } from '../exec/system'
 import { usePlay } from '../motion'
 
@@ -56,8 +57,21 @@ import { usePlay } from '../motion'
  */
 const ORDER = [MD3.primary, MD3.addPrimary, MD3.tertiary, MD3.moderateSecondary, MD3.secondaryDark]
 
-/** The "no answer" fill. Never assigned by index — see `huesFor`. */
-const ABSENT_FILL = MD3.neutralSecondary
+/**
+ * The "no answer" fill. Never assigned by index — see `huesFor`.
+ *
+ * HELD BACK 40% AGAINST THE CARD. At full strength the neutral has the same visual weight as
+ * the brand brights beside it, so on a species where most deaths carry no recorded manner the
+ * absence read as the loudest CATEGORY in the chart rather than as the gap it is. Lightened, it
+ * still occupies its true share — the arc is unchanged and the legend still counts it — but the
+ * eye lands on the answers first.
+ *
+ * WRITTEN AS A HEX, NOT AS `mix(MD3.neutralSecondary, 0.6)`, and that is load-bearing: `Slices`
+ * grades every fill it is handed by calling `mix()` on it again, and `mix` parses hex only —
+ * handed the `rgb(…)` string `mix` returns, it produces `rgb(NaN NaN NaN)` and the slice renders
+ * black, which is the loudest a segment can possibly be. This is `#7a8684` at that same 60%.
+ */
+const ABSENT_FILL = '#afb6b5'
 
 /**
  * Labels that mean "the record does not say", in every vocabulary this page meets.
@@ -110,7 +124,10 @@ const FOCUS_RING = { '--tw-ring-color': 'rgba(55,189,105,0.45)' } as React.CSSPr
 export function KpiStrip({
   items,
 }: {
-  items: { label: string; value: string; note?: string; tone?: 'good' | 'bad' }[]
+  /* NO SUB-LINE. The strip carried an optional `note` under each figure and every caller filled
+     it, which turned five readings into five short paragraphs. A qualification belongs on the
+     card that draws the figure, not stacked under the figure itself. */
+  items: { label: string; value: string; tone?: 'good' | 'bad' }[]
 }) {
   return (
     /* One hairline grid rather than five gapped cards: these are five readings of one subject,
@@ -131,11 +148,6 @@ export function KpiStrip({
           >
             {k.value}
           </p>
-          {k.note && (
-            <p className="mt-0.5 text-caption" style={{ color: FAINT }}>
-              {k.note}
-            </p>
-          )}
         </div>
       ))}
     </div>
@@ -210,7 +222,13 @@ export function YearBars({
   noun: string
 }) {
   const { ref, animate } = usePlay<HTMLDivElement>()
-  const fill = TONE[tone]
+  const { show, hide, node } = useChartTip()
+  /* THE COLUMN FILLS ARE CHART COLOURS, NOT THE TEXT TONES. `TONE.good` is the deep green the
+     product sets type in and `TONE.bad` is the error red; at 196px of solid column the pair
+     read as a status banner — one severe, one alarming — rather than as two counts. The brand's
+     own light green and orange carry the same good/bad distinction at the weight a chart wants.
+     Type keeps `TONE`; areas take these. */
+  const fill = tone === 'bad' ? MD3.tertiary : MD3.primary
 
   if (!years.length) {
     return (
@@ -256,13 +274,14 @@ export function YearBars({
 
         <div className="absolute inset-0 flex items-end justify-around gap-2">
           {years.map(([y, v], i) => (
-            <div key={y} className="group relative flex h-full max-w-[104px] flex-1 flex-col justify-end">
-              <span
-                className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 rounded-[8px] px-2 py-1 text-caption font-semibold whitespace-nowrap text-white opacity-0 transition-opacity duration-[var(--dur-fast)] group-hover:opacity-100"
-                style={{ background: INK }}
-              >
-                {y} · {fmt(v)} {noun}
-              </span>
+            <div
+              key={y}
+              className="relative flex h-full max-w-[104px] flex-1 flex-col justify-end"
+              onPointerEnter={(e) => show(e, String(y), [{ label: noun, value: fmt(v), fill }])}
+              onPointerDown={(e) => show(e, String(y), [{ label: noun, value: fmt(v), fill }])}
+              onPointerMove={(e) => show(e, String(y), [{ label: noun, value: fmt(v), fill }])}
+              onPointerLeave={hide}
+            >
               <span
                 className={`block origin-bottom rounded-t-[4px] ${animate ? 'animate-grow-y' : ''}`}
                 style={{
@@ -280,6 +299,7 @@ export function YearBars({
         </div>
       </div>
 
+      {node}
       <div className="mt-2 flex justify-around gap-2">
         {years.map(([y]) => (
           <span
@@ -325,6 +345,7 @@ export function Slices({
 }) {
   const uid = useId()
   const { ref, animate } = usePlay<HTMLDivElement>()
+  const { show, hide, node } = useChartTip()
   const total = items.reduce((n, s) => n + s.value, 0)
   const hues = huesFor(items.map((s) => s.label))
   if (!total) return null
@@ -380,9 +401,20 @@ export function Slices({
                 return `M${x1} ${y1}A${ro} ${ro} 0 ${big} 1 ${x2} ${y2}L${x3} ${y3}A${ri} ${ri} 0 ${big} 0 ${x4} ${y4}Z`
               })()
             : `M${R} ${R}L${x1} ${y1}A${ro} ${ro} 0 ${big} 1 ${x2} ${y2}Z`
+          const pct = Math.round((s.value / total) * 100)
           return (
-            <path key={s.label} d={d} fill={`url(#${uid}-g${i})`}>
-              <title>{`${s.label}: ${fmt(s.value)} (${Math.round((s.value / total) * 100)}%)`}</title>
+            /* The native `<title>` stays for the screen reader; the visual reading is the
+               product's own tip, which lands where the pointer is. */
+            <path
+              key={s.label}
+              d={d}
+              fill={`url(#${uid}-g${i})`}
+              onPointerEnter={(e) => show(e, s.label, [{ label: `${pct}% of ${fmt(total)}`, value: fmt(s.value), fill: hues[i] }])}
+              onPointerDown={(e) => show(e, s.label, [{ label: `${pct}% of ${fmt(total)}`, value: fmt(s.value), fill: hues[i] }])}
+              onPointerMove={(e) => show(e, s.label, [{ label: `${pct}% of ${fmt(total)}`, value: fmt(s.value), fill: hues[i] }])}
+              onPointerLeave={hide}
+            >
+              <title>{`${s.label}: ${fmt(s.value)} (${pct}%)`}</title>
             </path>
           )
         })}
@@ -403,6 +435,7 @@ export function Slices({
           </>
         )}
       </svg>
+      {node}
     </div>
   )
 }
@@ -471,8 +504,10 @@ export function RankRows({
                 className={`block h-full origin-left rounded-full ${animate ? 'animate-grow-x' : ''}`}
                 style={{
                   width: `${Math.max(2, (r.value / peak) * 100)}%`,
-                  /* Graded along the bar's own length, matching the columns above. */
-                  background: `linear-gradient(90deg, ${TONE.good} 0%, ${mix(TONE.good, 0.78)} 100%)`,
+                  /* Graded along the bar's own length, in the same light green the columns
+                     above take — a rank bar is a count, so it reads in the chart green rather
+                     than in the deep green the product sets type in. */
+                  background: `linear-gradient(90deg, ${MD3.primary} 0%, ${mix(MD3.primary, 0.72)} 100%)`,
                   animationDelay: animate ? `${i * 40}ms` : undefined,
                 }}
               />

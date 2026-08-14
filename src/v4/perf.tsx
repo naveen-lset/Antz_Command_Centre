@@ -141,6 +141,8 @@ export interface Paged<T> {
   shown: number
   hasMore: boolean
   more: () => void
+  /** Open the whole list in one step, for a reader who wants the rows rather than a page. */
+  all: () => void
   /** Reset to the first page — call when the scope changes under a mounted list. */
   reset: () => void
 }
@@ -178,6 +180,7 @@ export function usePaged<T>(
     shown: rows.length,
     hasMore: rows.length < total,
     more: () => setShown((n) => n + limit),
+    all: () => setShown(total),
     reset: () => setShown(limit),
   }
 }
@@ -193,17 +196,33 @@ export function MoreRows({
   noun,
   label = 'Show more',
 }: {
-  page: Pick<Paged<unknown>, 'shown' | 'total' | 'hasMore' | 'more'>
+  page: Pick<Paged<unknown>, 'shown' | 'total' | 'hasMore' | 'more' | 'all'>
   noun: string
   label?: string
 }) {
   if (page.total === 0) return null
+  /* SHOW ALL SITS BESIDE SHOW MORE, and only where it saves real work. A reader who wants the
+     list rather than the next page should not have to press a button ⌈total/limit⌉ times — but
+     on a list one press from complete the two buttons do the same thing, so only one is drawn.
+     `all()` opens the whole list; the ceiling on that is the caller's page size, not this
+     control's, which is why the huge registers use `VirtualRows` instead. */
+  const worthAll = page.hasMore && page.total > page.shown * 2
   return (
     <div className="flex items-center gap-3 pt-3">
       <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
         {page.shown.toLocaleString('en-US')} of {page.total.toLocaleString('en-US')} {noun}
       </span>
       <span className="h-px flex-1" style={{ backgroundColor: TRACK }} aria-hidden />
+      {worthAll && (
+        <button
+          type="button"
+          onClick={page.all}
+          className="card-press shrink-0 rounded-full px-3 py-1 text-caption font-semibold"
+          style={{ color: '#3d3a34' }}
+        >
+          Show all
+        </button>
+      )}
       {page.hasMore && (
         <button
           type="button"

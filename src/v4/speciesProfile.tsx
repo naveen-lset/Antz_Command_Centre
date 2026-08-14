@@ -30,6 +30,7 @@ import { Activity, Heart, Home, MapPin, Moon, Ruler, ScrollText, Sparkles, Wheat
 import type { LucideIcon } from 'lucide-react'
 import { FAINT, INK, TRACK, VALUE, useAccent } from '../exec/system'
 import { Band, DefinitionList, MetricStrip, TabBody } from './speciesLayout'
+import { NativeRangeMap } from './speciesRange'
 import type { Score, SpeciesProfile } from '../core/profiles'
 
 /* ── the two primitives ──────────────────────────────────────────────────── */
@@ -174,9 +175,6 @@ export function SpeciesProfileTab({ p }: { p: SpeciesProfile | undefined }) {
      separated by a group heading rather than interleaved as eight equal boxes. */
   return (
     <TabBody>
-      <p className="text-caption font-semibold tracking-[0.06em] uppercase" style={{ color: FAINT }}>
-        Species characteristics
-      </p>
 
       <Band title="Vital signs" aside="species reference" icon={Sparkles}>
         <MetricStrip items={vitals.map((v) => ({ label: v.label, value: v.value, sub: v.sub }))} />
@@ -298,15 +296,13 @@ export function SpeciesProfileTab({ p }: { p: SpeciesProfile | undefined }) {
         </div>
       </Band>
 
+      {/* THE PILLS BECAME A LIST AND A MAP (2026-08-14, variant 4 of the range studies).
+          Forty pills wrapped into a paragraph nobody could scan; the numbered list carries
+          every entry in one aligned column, and the map beside it frames the range itself —
+          see `speciesRange.tsx` for the resolution and framing rules. */}
       {range.length > 0 && (
         <Band title="Native range" aside={`${range.length}`} icon={MapPin}>
-          <div className="flex flex-wrap gap-1.5">
-            {range.map((c) => (
-              <span key={c} className="rounded-full px-2.5 py-1 text-caption" style={{ backgroundColor: TRACK, color: '#3d3a34' }}>
-                {c}
-              </span>
-            ))}
-          </div>
+          <NativeRangeMap places={range} />
         </Band>
       )}
 

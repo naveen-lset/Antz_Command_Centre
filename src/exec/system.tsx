@@ -13,8 +13,9 @@
  * its own order — see `src/exec/pages/`.
  */
 
-import { createContext, useContext, useId, useState, type ComponentType, type ReactNode } from 'react'
-import { Search, X } from 'lucide-react'
+import { createContext, useContext, useEffect, useId, useState, type ComponentType, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { ChevronRight, Search, X } from 'lucide-react'
 import { AnimatedValue, Reveal, usePlay } from '../motion'
 import { TODAY, longDate } from '../core/calendar'
 import { SITES } from '../core/world'
@@ -130,6 +131,147 @@ export const MD3 = {
   neutralSecondary: '#7a8684',
   neutral05: 'rgba(0,0,0,0.05)',
 } as const
+
+
+/* ── the chart tooltip ───────────────────────────────────────────────────── */
+
+export interface TipRow {
+  label: string
+  value: string
+  /** The series' own colour, drawn as a dot so a stacked reading is legible. */
+  fill?: string
+}
+
+/**
+ * ONE TOOLTIP FOR EVERY MARK IN THE PRODUCT.
+ *
+ * THE DEFECT THIS REPLACES. The bar charts each carried their own tip as an absolutely
+ * positioned child of the COLUMN — `bottom-full` against a full-height column, which puts the
+ * tip above the whole plot rather than above the bar the pointer is on. Measured on the births
+ * chart: a 4px bar at y=723 showed its tip at y=499, 224px away and clear of the chart frame,
+ * and every column showed it at the same height whatever the bar did. The other marks used the
+ * BROWSER's `title` attribute, which is a different shape, a different delay and a different
+ * place again. Three mechanisms, none of them landing where the reader is pointing.
+ *
+ * SO THE TIP FOLLOWS THE POINTER, AND IT IS RENDERED IN A PORTAL. `position: fixed` alone is not
+ * enough — half the cards on these pages animate in on a transform, and a transformed ancestor
+ * becomes the containing block for fixed children, which is how a tip ends up measuring from a
+ * card instead of from the window. Portalled to `body` there is no ancestor to be captured by,
+ * so the coordinates are the window's and the tip cannot be clipped by a card that scrolls or
+ * hides its overflow.
+ *
+ * IT FLIPS RATHER THAN OVERFLOWS. Above the pointer by default, below it within 90px of the top
+ * of the window, and its centre is clamped into the viewport so an edge column's tip stays on
+ * screen and readable instead of being cut in half.
+ */
+export function ChartTip({
+  x,
+  y,
+  title,
+  rows,
+  touch,
+}: {
+  x: number
+  y: number
+  title: string
+  rows: TipRow[]
+  /** Raised clear of the fingertip and given a wider berth from the edges. */
+  touch?: boolean
+}) {
+  if (typeof document === 'undefined') return null
+  const vw = typeof window === 'undefined' ? 1024 : window.innerWidth
+  /* THE TIP IS NEVER WIDER THAN THE SCREEN IT IS ON. 300px on a desktop card, the viewport less
+     a gutter on a phone — and the horizontal clamp is computed from THAT width rather than from
+     a guessed half, so an edge column on a 360px screen cannot push it off either side. */
+  const maxW = Math.min(300, vw - 24)
+  const half = maxW / 2
+  const lo = half + 8
+  const hi = vw - half - 8
+  const left = lo > hi ? vw / 2 : Math.min(Math.max(x, lo), hi)
+  /* A fingertip covers roughly 44px, so on touch the tip is lifted clear of it; a cursor covers
+     nothing and sits 12px away. Either way it flips below when there is no room above. */
+  const lift = touch ? 44 : 12
+  const below = y - lift < 96
+  return createPortal(
+    <div
+      role="tooltip"
+      className="pointer-events-none fixed z-[999] rounded-[10px] px-2.5 py-2 shadow-[0_8px_24px_rgba(8,16,12,0.28)]"
+      style={{
+        left,
+        top: below ? y + lift : y - lift,
+        maxWidth: maxW,
+        transform: below ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+        backgroundColor: INK,
+      }}
+    >
+      <p className="text-caption font-semibold text-white">{title}</p>
+      {rows.length > 0 && (
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {rows.map((r) => (
+            <li key={r.label} className="flex items-center gap-2 text-caption text-white/75">
+              {r.fill && (
+                <span className="size-[7px] shrink-0 rounded-full" style={{ backgroundColor: r.fill }} aria-hidden />
+              )}
+              {/* The label may wrap on a narrow screen; the figure never does. */}
+              <span className="min-w-0">{r.label}</span>
+              <span className="ml-auto shrink-0 pl-3 font-semibold whitespace-nowrap tabular-nums text-white">
+                {r.value}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>,
+    document.body,
+  )
+}
+
+/**
+ * The state behind `ChartTip` — one hook per mark.
+ *
+ * TWO INPUT MODELS, THE SAME ONE `useScrub` ALREADY SETTLED ON. A mouse hovers: crossing a bar
+ * shows the reading and `onPointerMove` keeps it tracking along rather than freezing where the
+ * pointer entered. A FINGER HAS TO BE DOWN — a touch that merely passes over a column while the
+ * page is being scrolled must not drag a tooltip along with it, so on any non-mouse pointer the
+ * tip appears only while pressed. Press-and-hold, or press-and-slide across the chart, is the
+ * touch reading; lifting ends it.
+ *
+ * AND IT IS DISMISSED BY THE WINDOW, NOT ONLY BY THE MARK. `pointerleave` is not guaranteed on
+ * touch, and a tip pinned to a page coordinate is wrong the moment the page moves under it, so
+ * a lifted finger, a cancelled gesture and any scroll all clear it. Without that the phone keeps
+ * a stale reading floating over the content it was describing.
+ */
+export function useChartTip() {
+  const [tip, setTip] = useState<
+    { x: number; y: number; title: string; rows: TipRow[]; touch: boolean } | null
+  >(null)
+
+  useEffect(() => {
+    if (!tip) return
+    const off = () => setTip(null)
+    window.addEventListener('pointerup', off)
+    window.addEventListener('pointercancel', off)
+    window.addEventListener('scroll', off, true)
+    return () => {
+      window.removeEventListener('pointerup', off)
+      window.removeEventListener('pointercancel', off)
+      window.removeEventListener('scroll', off, true)
+    }
+  }, [tip])
+
+  const show = (
+    e: { clientX: number; clientY: number; pointerType?: string; buttons?: number },
+    title: string,
+    rows: TipRow[] = [],
+  ) => {
+    const touch = Boolean(e.pointerType) && e.pointerType !== 'mouse'
+    if (touch && !e.buttons) return
+    setTip({ x: e.clientX, y: e.clientY, title, rows, touch })
+  }
+  const hide = () => setTip(null)
+  const node = tip ? <ChartTip {...tip} /> : null
+  return { show, hide, node }
+}
 
 /** Unfilled meter, bar remainder, gauge rest — the palette's own recessive surface. */
 export const TRACK = MD3.surfaceVariant
@@ -566,8 +708,14 @@ export function Hero({
   unit?: string
   /** One or two words. Names the number, never explains it. */
   label: string
-  /** Up to three supporting figures, hairline-separated. */
-  stats?: { value: string; unit?: string; label: string }[]
+  /**
+   * Up to three supporting figures, hairline-separated.
+   *
+   * `href` makes one of them a door — see the same field on `Snapshot`. A hero stat that names
+   * a set the product can show ("4,745 species") was previously the end of the line: the
+   * reader read the count and had no way to ask which ones, because the figure was type.
+   */
+  stats?: { value: string; unit?: string; label: string; href?: string }[]
   /** Short token — "+324 Month", "3 past SLA". Never a sentence. */
   status?: string
   tone?: Tone
@@ -633,17 +781,35 @@ export function Hero({
                 Stacked across a full-width card the surplus is large and they still spread — the
                 two layouts differed by about a pixel per column, which is why one class serves
                 both and no breakpoint is involved. */}
-            {stats.map((s, i) => (
-              <span
+            {stats.map((s, i) => {
+              /* An anchor where there is somewhere to go — as the same element rather than a
+                 wrapper, so `flex-auto` keeps measuring the stat and the fitting note above
+                 still holds. */
+              const Cell = (s.href ? 'a' : 'span') as 'a'
+              return (
+              <Cell
                 key={`${s.label}-${i}`}
-                className={`min-w-0 flex-auto ${i ? 'border-l border-[#f0efec] pl-4' : ''} ${
+                href={s.href}
+                className={`group/stat min-w-0 flex-auto ${i ? 'border-l border-[#f0efec] pl-4' : ''} ${
                   i < stats.length - 1 ? 'pr-4' : ''
-                } ${centred ? 'text-center' : ''}`}
+                } ${centred ? 'text-center' : ''} ${s.href ? 'block rounded-[8px] transition-colors hover:bg-[#f4f9f6]' : ''}`}
               >
                 <Figure value={s.value} unit={s.unit} size={24} />
-                <span className="mt-1 block truncate text-caption text-[#5c574f]">{s.label}</span>
-              </span>
-            ))}
+                <span className="mt-1 flex items-center gap-1 truncate text-caption text-[#5c574f]">
+                  {s.label}
+                  {s.href && (
+                    <ChevronRight
+                      size={11}
+                      strokeWidth={2.5}
+                      className="shrink-0 opacity-0 transition-opacity group-hover/stat:opacity-100"
+                      style={{ color: accent }}
+                      aria-hidden
+                    />
+                  )}
+                </span>
+              </Cell>
+              )
+            })}
           </div>
         )}
         </div>
@@ -1359,6 +1525,7 @@ export function Columns({
   unit,
   showValues = false,
   fill,
+  noun,
 }: {
   values: number[]
   labels: string[]
@@ -1368,9 +1535,13 @@ export function Columns({
   showValues?: boolean
   /** Semantic colour override — mortality red, lifespan teal. Defaults to the page accent. */
   fill?: string
+  /** What one column counts, for the tooltip only. `unit` prints a line under the chart; this
+      does not — the reading belongs in the tip, not in another caption on the page. */
+  noun?: string
 }) {
   const accent = useAccent()
   const { ref, animate } = usePlay()
+  const { show, hide, node } = useChartTip()
   const max = Math.max(...values, 1)
   const hi = highlight ?? values.length - 1
   const hue = fill ?? accent
@@ -1378,7 +1549,14 @@ export function Columns({
     <div ref={ref}>
       <div className="flex h-[92px] items-end gap-1.5">
         {values.map((v, i) => (
-          <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1.5">
+          <div
+            key={i}
+            className="flex flex-1 flex-col items-center justify-end gap-1.5"
+            onPointerEnter={(e) => show(e, labels[i] ?? '', [{ label: noun ?? unit ?? 'Count', value: fmt(v), fill: hue }])}
+            onPointerDown={(e) => show(e, labels[i] ?? '', [{ label: noun ?? unit ?? 'Count', value: fmt(v), fill: hue }])}
+            onPointerMove={(e) => show(e, labels[i] ?? '', [{ label: noun ?? unit ?? 'Count', value: fmt(v), fill: hue }])}
+            onPointerLeave={hide}
+          >
             {(showValues || i === hi) && (
               <span
                 className={`text-caption tabular-nums ${i === hi ? 'font-semibold text-[#1c1a16]' : 'text-[#736e67]'}`}
@@ -1386,11 +1564,19 @@ export function Columns({
                 {compact(v)}
               </span>
             )}
+            {/* THE HOUSE COLUMN GRADIENT — pale at the tip, full tone at the axis, the same ramp
+                `YearBars`, `RankRows` and the egg-season chart run. The highlighted column keeps
+                its full-strength hue and the rest are held back, so the emphasis still reads;
+                what changes is that a bar now has weight where it is anchored instead of being
+                a flat block of colour. */}
             <span
               className={`w-full origin-bottom rounded-[4px] ${animate ? 'animate-grow-y' : ''}`}
               style={{
                 height: `${Math.max(4, (v / max) * 68)}px`,
-                backgroundColor: i === hi ? hue : mix(hue, 0.28),
+                background:
+                  i === hi
+                    ? `linear-gradient(180deg, ${mix(hue, 0.58)} 0%, ${hue} 100%)`
+                    : `linear-gradient(180deg, ${mix(hue, 0.14)} 0%, ${mix(hue, 0.34)} 100%)`,
                 animationDelay: animate ? `${i * 55}ms` : undefined,
               }}
             />
@@ -1408,6 +1594,7 @@ export function Columns({
         ))}
       </div>
       {unit && <p className="mt-3 text-caption text-[#736e67]">{unit}</p>}
+      {node}
     </div>
   )
 }
@@ -1868,8 +2055,24 @@ export function Snapshot({
   items,
   cols = 2,
 }: {
-  /** `note` is a supporting figure — "of 71", "Target 90%" — never a phrase. */
-  items: { label: string; value: string; unit?: string; note?: string; tone?: Tone; icon?: Icon }[]
+  /**
+   * `note` is a supporting figure — "of 71", "Target 90%" — never a phrase.
+   *
+   * `href` MAKES ONE CELL A DOOR, and the rest of the row is unchanged. A figure that names a
+   * set the product can actually show — "231 species", where there is a species list that can
+   * be cut to those 231 — should be the way to reach it, and a cell that is not such a figure
+   * stays inert rather than growing an affordance that leads nowhere. That is why this is
+   * per-item and not per-Snapshot.
+   */
+  items: {
+    label: string
+    value: string
+    unit?: string
+    note?: string
+    tone?: Tone
+    icon?: Icon
+    href?: string
+  }[]
   cols?: 2 | 3 | 4
 }) {
   const accent = useAccent()
@@ -1884,8 +2087,19 @@ export function Snapshot({
   )
   return (
     <div className={`grid ${grid} gap-x-3 gap-y-4`}>
-      {items.map((m, i) => (
-        <div key={m.label} className={i >= cols ? 'border-t border-[#f0efec] pt-4' : ''}>
+      {items.map((m, i) => {
+        /* An anchor where there is somewhere to go, a plain div otherwise — the cell's own
+           markup, not a wrapper around it, so the grid's border rule and column sizing are
+           identical either way. */
+        const Cell = (m.href ? 'a' : 'div') as 'a'
+        return (
+        <Cell
+          key={m.label}
+          href={m.href}
+          className={`${i >= cols ? 'border-t border-[#f0efec] pt-4' : ''} ${
+            m.href ? 'group/cell -mx-2 -mt-1 block rounded-[10px] px-2 pt-1 pb-1 transition-colors hover:bg-[#f4f9f6]' : ''
+          }`}
+        >
           {/* The icon leads the cell rather than sharing the label's line. Inline it
               had to be 13px to leave room for "Chondrichthyes" in a ~100px column, and
               at 13px a drawn glyph is mush; on its own line it gets room and the label
@@ -1913,10 +2127,24 @@ export function Snapshot({
           {/* Wraps rather than truncates: at four columns a cell is ~78px, and
               "Sample quality" clipped to "Sample qua…" states nothing. Grid rows
               size to the tallest cell, so a second line stays aligned. */}
-          <p className="mt-1 text-small text-[#3d3a34]">{m.label}</p>
+          <p className="mt-1 flex items-center gap-1 text-small text-[#3d3a34]">
+            {m.label}
+            {/* The chevron IS the whole affordance, and only under the pointer — a row of four
+                cells must not grow four arrows to say that one of them leads somewhere. */}
+            {m.href && (
+              <ChevronRight
+                size={12}
+                strokeWidth={2.5}
+                className="opacity-0 transition-opacity group-hover/cell:opacity-100"
+                style={{ color: accent }}
+                aria-hidden
+              />
+            )}
+          </p>
           {m.note && <p className="mt-1 text-caption text-[#736e67]">{m.note}</p>}
-        </div>
-      ))}
+        </Cell>
+        )
+      })}
     </div>
   )
 }

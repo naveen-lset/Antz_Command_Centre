@@ -866,17 +866,165 @@
   --env-offset: var(--shell-pad);
 }
 
+/**
+ * THE HOME'S GROUND RUNS THE WHOLE PAGE, and that is a change from what it used to do.
+ *
+ * It used to be a descent: canopy green under the illustration, back to the settled sage
+ * `#e7f0ea` by 1600px, flat sage for everything after. On a 3600px page that is the top
+ * fifth in the environment and the other four fifths on nothing — which is what the screen
+ * actually looked like. The hero read as an illustrated banner glued to the top of a plain
+ * list, rather than as the top of one park.
+ *
+ * TWO RANGES, TWO UNITS, AND THE SPLIT IS THE POINT.
+ *
+ * The first stops are still PIXELS from the top of the column, because they have to line up
+ * with the foot of the illustration and that lands at a measured place — see `--env-top`.
+ * A percentage there would slide with the page's own height and drag the hand-over off the
+ * artwork, which is the whole reason those stops were written in pixels.
+ *
+ * Everything below the hand-over is PERCENTAGES, because "follow the entire page" is a
+ * statement about the page's height and nothing else. However long the scroll, the same
+ * envelope covers all of it: no stop is left stranded at the top of a long page and none is
+ * cut off on a short one.
+ *
+ * IT BRIGHTENS IN THE MIDDLE AND CLOSES ON COLOUR. A single fade to one flat colour is what
+ * was here and it has no shape — the eye reads it as the environment running out. This is a
+ * ramp with a waist: greenest where the artwork just handed over, lightest at 45–55% where
+ * the card grid is densest and white surfaces need a ground to sit on, then deepening again
+ * to the foot so the page ends on the colour it opened in. Nowhere does it reach the flat
+ * sage; the palest stop is still nine levels greener than `--env-ground`.
+ *
+ * THE TWO RADIALS ARE WHY IT IS NOT A WASH. A pure vertical gradient is uniform across the
+ * width, and uniform over three thousand pixels is a painted wall. Two very wide, very soft
+ * pools of light — one left of centre high up, one right of centre low — give the descent
+ * some weather without adding a single readable shape. They are white at a few per cent, so
+ * they lighten the ground rather than tinting it, and both reach full transparency well
+ * inside their own box so neither can draw an edge.
+ */
 .page-ground.is-home {
-  background-image: linear-gradient(
-    180deg,
-    var(--env-canopy) 0px,
-    var(--env-canopy) calc(var(--env-hero) + 60px),
-    #d9eadf calc(var(--env-hero) + 300px),
-    #dfeee5 calc(var(--env-hero) + 700px),
-    #e4f0e8 calc(var(--env-hero) + 1150px),
-    var(--env-ground) calc(var(--env-hero) + 1600px),
-    var(--env-ground) 100%
-  );
+  background-image:
+    radial-gradient(
+      70% 22% at 18% 34%,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0.16) 45%,
+      rgba(255, 255, 255, 0) 78%
+    ),
+    radial-gradient(
+      66% 20% at 84% 66%,
+      rgba(255, 255, 255, 0.34) 0%,
+      rgba(255, 255, 255, 0.13) 45%,
+      rgba(255, 255, 255, 0) 78%
+    ),
+    linear-gradient(
+      180deg,
+      var(--env-canopy) 0px,
+      var(--env-canopy) calc(var(--env-hero) + 60px),
+      #d4e7db calc(var(--env-hero) + 340px),
+      #d8e9df 34%,
+      #dcece3 50%,
+      #d7e8dd 72%,
+      #cfe4d7 88%,
+      #c8e0d1 100%
+    );
+}
+
+/**
+ * THE SCENE ITSELF, CONTINUING BELOW THE HERO — WASHED OUT.
+ *
+ * The page below the artwork is not a second drawing and not a bare gradient. It is the SAME
+ * PHOTOGRAPH, carried on down and taken almost all the way out: one illustration on the page,
+ * present enough to be an environment and light enough that a white card is still the loudest
+ * thing on the screen.
+ *
+ * WHAT THIS REPLACES, AND WHY BOTH ATTEMPTS FAILED. First there was flat vector foliage —
+ * trees, bushes, ponds, fences — drawn behind the whole scroll. At a strength you could see it
+ * read as a cruder second drawing under the photograph; at a strength you could not, it read as
+ * grey smudges between the cards. Then there were hanging vines and monstera down both gutters.
+ * That is the artwork's own motif, but it framed the data instead of sitting behind it, and a
+ * frame down a working dashboard is decoration with a job to do. Neither problem is fixable by
+ * tuning, because both are the same mistake: drawing something NEW. The scene is already drawn.
+ *
+ * ONE INSTANCE, NOT A TILE, AND THAT IS THE WHOLE REASON THERE IS NO SEAM. The artwork is 4:3
+ * with pale sky at the top and ground at the bottom, so repeating it vertically butts ground
+ * against sky — a ruler-straight line across the page at every tile boundary, plus the same
+ * elephants six times down one screen, which reads as a bug rather than as a park. So it is
+ * placed ONCE, full column width, starting at the foot of the hero, and allowed to be as tall
+ * as its own ratio makes it: 0.75 of the column, which is about 1050px on a desktop column and
+ * 390 on a phone. Below that the ground's own descent carries on alone.
+ *
+ * THREE FILTERS, EACH DOING ONE THING. `saturate(0.45)` takes the green out so the wash cannot
+ * tint the ground it sits on; `brightness(1.16)` lifts it toward the page rather than darkening
+ * it, which is what keeps text contrast intact; `blur(1.2px)` softens the artwork's crisp
+ * vector edges so it reads at a distance instead of as a picture with a focus.
+ *
+ * THE MASK IS THE HAND-OVER. It holds at nothing until just above the hero's foot — the artwork
+ * proper is still there and a second copy underneath it would double every edge — comes up
+ * inside the existing atmospheric fade, holds through the Executive KPI band, then eases to
+ * nothing well before its own bottom edge, so the image has no geometric foot to be seen.
+ */
+/**
+ * THE HERO'S FOLIAGE — see `HeroFoliage` in `Home.tsx` for why this is a band of its own and
+ * not simply more of the hero artwork.
+ *
+ * TWO THINGS STOOD HERE BEFORE AND BOTH ARE GONE. A whole washed copy of the scene behind the
+ * top third of the sections — the dump version: one giant image with a fade at each end, which
+ * continues the page for about a thousand pixels, then stops, and puts a second set of
+ * elephants under the first. And after that a trail of these bands repeating down the page,
+ * which was foliage where foliage was not wanted. The page below the hero is the ground's own
+ * shade now, and nothing else.
+ */
+.hero-foliage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: -10;
+  pointer-events: none;
+  /* The artwork is 4:3 and its foliage hangs through roughly the top third, so the strip that
+     holds it is about 0.25 of the column's width. The clamp keeps it from collapsing on a
+     narrow phone or running away on a very wide column. */
+  height: clamp(120px, 27cqw, 320px);
+  background-image: url('./assets/forest-scene.webp');
+  background-size: 100% auto;
+  background-position: top center;
+  background-repeat: no-repeat;
+  /* Nearly full strength — this IS the illustration, not a wash of it. The masks below leave
+     it only in the two margins, so it is never between a reader and a word. */
+  opacity: 0.92;
+  --foliage-mask:
+    /* THE INNER RAMPS ARE DELIBERATELY WIDE. A tight cut leaves a vertical seam where the
+       artwork's sky stops and the banner gradient carries on; over 8% of travel the two are
+       indistinguishable and the strip has no side. */
+    /* 8%, NOT 10%, AND THE REASON IS THE GREETING. The band starts at y=0, so it shares its
+       first two hundred pixels with "Good Evening" and the name. At 10% the left monstera
+       reached past the gutter and put a vine through the G. Eight per cent stops the solid
+       part of the strip at about the gutter's own edge, so the foliage hangs beside the
+       words instead of over them, and the ramp does the rest. */
+    linear-gradient(
+      to right,
+      #000 0%,
+      #000 8%,
+      transparent 15%,
+      transparent 85%,
+      #000 92%,
+      #000 100%
+    ),
+    /* NO LIP AT THE TOP, and that is the whole point of pinning this to y=0: the leaves are
+       drawn bleeding off the artwork's top edge, and here that edge is the top of the screen,
+       so they bleed off the screen the way the illustrator drew them. The fade is all at the
+       foot, where the vines hang out of the gradient. */
+    linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 44%,
+      rgba(0, 0, 0, 0.72) 64%,
+      rgba(0, 0, 0, 0.3) 84%,
+      transparent 100%
+    );
+  mask-image: var(--foliage-mask);
+  mask-composite: intersect;
+  -webkit-mask-image: var(--foliage-mask);
+  -webkit-mask-composite: source-in;
 }
 
 .env-page {
@@ -893,6 +1041,19 @@
   -webkit-mask-image: var(--env-mask);
 }
 
+/**
+ * DORMANT. `Landscape` is no longer mounted on any route — see `Shell.tsx`.
+ *
+ * The drawn scenery is off the home. The environment below the illustration is now the
+ * GROUND'S OWN SHADE and nothing else: no trees, no bushes, no ponds, no fences. Raising the
+ * layer so it could actually be seen is what proved it wrong — at a visible strength the flat
+ * vector reads as a second, coarser drawing under the photograph rather than as the same park
+ * further back, which is the failure this layer has now hit at 0.095, at 0.13, blurred and
+ * unblurred. The illustration is the only drawing the page gets.
+ *
+ * The rules are left in place, unchanged from what shipped, because remounting the component
+ * is one line and this is the tuning it was last known good at.
+ */
 .env-home {
   /* A shade under the page profile's 0.1. The home is the one page where the layer has an
      illustration directly above it to be compared against, and at 0.1 the vector foliage

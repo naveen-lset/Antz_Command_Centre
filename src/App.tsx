@@ -40,6 +40,7 @@ import { DrillProvider, useDrill } from './v4/drillNav'
 import { ScopeHeader } from './v4/ScopeHeader'
 import { ScopeProvider, useScope } from './v4/scope'
 import { EntityBrowser, EntityIndex, EntityPage } from './v4/entity'
+import { SpeciesList } from './v4/speciesList'
 import { titleOf } from './v4/nav'
 import { SubModules } from './v4/SubModules'
 import { KIND_ONE, resolve, type EntityKind } from './core/entities'
@@ -193,6 +194,22 @@ function useFramed(route: Route, phone: boolean, home: () => void): Framed {
       }
 
       case 'browse':
+        /* SPECIES HAS ITS OWN INDEX, and the other thirteen kinds keep the generic one.
+           `EntityBrowser` is a search box over a column of names — right for the thirty wards,
+           and hopeless for 2,352 species, where the question is never "which one is called
+           what". `SpeciesList` is the faceted table that answers the questions a curator
+           actually arrives with, and it draws its own title and its own export, so the shell
+           renders the trail and stops. Nothing else about this route changes: the path is the
+           same, every existing link to it still lands, and a row still opens the same species
+           page with the same thirteen tabs. */
+        if (route.entity === 'species') {
+          return {
+            title: 'Species List',
+            titleInBody: true,
+            onBack: () => go('entities', { back: true }),
+            body: <SpeciesList />,
+          }
+        }
         return {
           title: KIND_ONE[route.entity],
           eyebrow: 'Browse',
