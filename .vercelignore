@@ -1,0 +1,38 @@
+# WHAT VERCEL IS ALLOWED TO SEE, AND WHY THIS FILE IS NOT OPTIONAL.
+#
+# THE VERCEL CLI DOES NOT READ `.gitignore`. That is the whole reason this file exists, and the
+# first deploy of this project is what proved it: `Dump20260622.sql` is 194 MB, is listed in
+# `.gitignore`, is untracked by git — and was uploaded anyway, in a 229 MB payload that failed on
+# Vercel's 100 MB per-file limit.
+#
+# THE SIZE WAS THE SYMPTOM AND NOT THE PROBLEM. That file is the raw source database extract. It is
+# an INPUT to `tools/etl/build.py`, which compiles it down into the small binaries under
+# `public/data` that the app actually fetches. Uploading it to a static host would have published
+# the entire source database at a public URL. The 100 MB limit refused the deploy for the wrong
+# reason and did the right thing.
+#
+# ANYTHING ADDED HERE MUST NOT BE A BUILD INPUT. Vercel runs `npm run build` on what it receives,
+# so `src/`, `public/`, `index.html`, the tsconfigs, `vite.config.ts` and the manifests all have to
+# survive. Checked before excluding: nothing under `src/` imports from `tools/`, `_planning/` or
+# `docs/`, so none of the three is reachable from the build graph.
+
+# ── the source extract, and any other dump dropped beside it ──────────────────
+*.sql
+
+# ── build artefacts Vercel regenerates itself ─────────────────────────────────
+# `dist` is the OUTPUT of the build command, so shipping it is 20 MB of round trip for a directory
+# that gets overwritten. `node_modules` is 177 MB and is reinstalled from the lockfile.
+node_modules
+dist
+
+# ── working material that is not the product ──────────────────────────────────
+# Design studies, session notes, the ETL, and the local agent config. `_planning` alone is 2.1 MB
+# of standalone HTML explorations that no route serves.
+_planning
+tools
+docs
+.claude
+
+# ── local machine noise ───────────────────────────────────────────────────────
+.DS_Store
+*.local
