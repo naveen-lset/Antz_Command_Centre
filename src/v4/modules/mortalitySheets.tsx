@@ -31,6 +31,7 @@
 
 import { useMemo } from 'react'
 import {
+  ArrowRight,
   Building2,
   ClipboardList,
   Dna,
@@ -43,6 +44,8 @@ import {
 } from 'lucide-react'
 import { longDate, shortDate } from '../../core/calendar'
 import { animalById } from '../../core/animals'
+import { speciesHref } from '../../core/query'
+import { siteKeyOf } from '../../core/scope'
 import {
   FAINT,
   Facts,
@@ -86,12 +89,23 @@ function SheetHero({
   label,
   note,
   tone,
+  action,
 }: {
   value: string
   unit?: string
   label: string
   note?: string
   tone?: 'good' | 'warn' | 'bad'
+  /**
+   * THE WAY OUT OF A POPUP ABOUT ONE NAMED THING — the same affordance, in the same place and the
+   * same words, that the population sheets already offer.
+   *
+   * This module had none, and the species popup was the cost: a reader who found the worst-hit
+   * species in Species-wise mortality opened a panel about it and then had nowhere to go, while
+   * the identical row in Birth Analytics linked straight to the species record. A popup about a
+   * named species is a selection already made, and it owes the reader the record underneath it.
+   */
+  action?: { label: string; href: string }
 }) {
   return (
     <div className="w-full px-[var(--gutter)] pb-3">
@@ -102,6 +116,17 @@ function SheetHero({
           <p className="mt-3 text-caption" style={{ color: FAINT }}>
             {note}
           </p>
+        )}
+        {action && (
+          /* An anchor rather than a callback, so it can be middle-clicked and copied like every
+             other route — and because it LEAVES the popup rather than stacking a panel on it. */
+          <a
+            href={action.href}
+            className="card-press mt-4 flex w-full items-center justify-between gap-3 rounded-[12px] bg-[#f4f3ef] px-3 py-2.5 text-left"
+          >
+            <span className="text-small font-semibold text-[#3d3a34]">{action.label}</span>
+            <ArrowRight size={15} strokeWidth={2.25} className="shrink-0 text-[#5c574f]" aria-hidden />
+          </a>
         )}
       </section>
     </div>
@@ -524,6 +549,9 @@ export function SpeciesMortalitySheet({
   const completed = referred.filter((d) => d.necropsy!.status === 'Completed').length
   const share = rows.length ? (mine.length / rows.length) * 100 : 0
   const sites = new Set(mine.map((d) => d.siteName))
+  /* Scoped to the site pill where one is set, so the record opened is the population the reader
+     is already looking at rather than the largest one anywhere. */
+  const record = useMemo(() => speciesHref(speciesName, siteKeyOf(scope)), [speciesName, scope])
 
   return (
     <>
@@ -532,6 +560,10 @@ export function SpeciesMortalitySheet({
         label={`Deaths · ${speciesName}`}
         note={`${Math.round(share)}% of ${within ?? 'the window'} · ${scope.win.window}`}
         tone={mine.length ? 'bad' : 'good'}
+        /* THE WAY OUT — see `SheetHero`'s own note. `speciesHref` is the one function in the
+           product that decides which population a bare name means, so this popup and a births
+           row naming the same species land on the same record. */
+        action={record ? { label: 'Open the species record', href: record } : undefined}
       />
       <Stack>
         <Section icon={Dna} label="Species" aside={first?.cls}>
@@ -804,6 +836,7 @@ export function SpeciesNecropsySheet({
   const referred = useMemo(() => necropsiesOf(mine), [mine])
   const completed = referred.filter((d) => d.necropsy!.status === 'Completed')
   const first = mine[0]
+  const record = useMemo(() => speciesHref(speciesName, siteKeyOf(scope)), [speciesName, scope])
 
   return (
     <>
@@ -812,6 +845,7 @@ export function SpeciesNecropsySheet({
         label={`Necropsies · ${speciesName}`}
         note={`of ${fmt(mine.length)} deaths · ${within ?? scope.site?.name ?? 'Overall'} · ${scope.win.window}`}
         tone={referred.length > completed.length ? 'warn' : 'good'}
+        action={record ? { label: 'Open the species record', href: record } : undefined}
       />
       <Stack>
         <Section icon={Dna} label="Species" aside={first?.cls}>

@@ -26,9 +26,11 @@
  * because absence is not an assessment.
  */
 
-import { ArrowLeft, Boxes, Layers, MapPin, PawPrint, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Boxes, Layers, MapPin, PawPrint, ScanLine, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { RED_LIST, fmt } from '../exec/system'
+import type { SpeciesProfile } from '../core/profiles'
+import { pctText } from './speciesIdentity'
 import type { SpeciesWide } from './speciesWide'
 
 /* ── the surface's own inks ──────────────────────────────────────────────── */
@@ -62,6 +64,16 @@ export interface SpeciesHeaderProps {
   standing?: { iucn?: string | null; cites?: string | null }
   /** True when the site pill narrows the page — flips 'Sites' to 'Site'. */
   filtered: boolean
+  /**
+   * The species reference, for the three facts the header could not state without it.
+   *
+   * OPTIONAL, AND THE HEADER MUST RENDER WITHOUT IT. `profiles.json` is 5.3 MB fetched on demand,
+   * so for the first moments of a species page it is undefined — and if the fetch fails it stays
+   * that way. Every line it feeds is therefore conditional, and none of them shifts the layout
+   * when it arrives: the binomial and the taxonomy sit on the line the class already occupied,
+   * and the chip figure is the last cell of a grid that was already flexible in count.
+   */
+  profile?: SpeciesProfile
 }
 
 interface Stat {
@@ -71,11 +83,39 @@ interface Stat {
   sub?: string
 }
 
-function statsOf(wide: SpeciesWide, enclosures: number, filtered: boolean): Stat[] {
+function statsOf(
+  wide: SpeciesWide,
+  enclosures: number,
+  filtered: boolean,
+  profile?: SpeciesProfile,
+): Stat[] {
+  /* THE PAIR IS THE FIGURE, and the denominator travels with it.
+     `Of` is `[value, outOf]` as the ETL emitted it, and the chip pair's own denominator is the
+     REGISTER's count for this name — not `wide.total`, which is cut to the reporting window.
+     Dividing by the window's figure is precisely how a coverage percentage comes out at 110%,
+     which is what the reference build prints on several of its rows. `core/profiles.ts` states the
+     rule outright: no renderer may supply a denominator. */
+  const chip = profile?.identification?.chip
+
   return [
     { icon: PawPrint, label: 'Animals', value: fmt(wide.total) },
     ...(wide.ratio !== undefined
-      ? [{ icon: Layers, label: 'Sex ratio', value: `1 : ${wide.ratio.toFixed(1)}` }]
+      ? [
+          {
+            icon: Layers,
+            label: 'Sex ratio',
+            /* THE SEXES ARE NAMED IN THE VALUE — `1 M : 1.0 F`, and the order follows the
+               derivation rather than a preference: `speciesWide.ratio` is FEMALES PER MALE, so the
+               male side is the one pinned at one.
+               It printed a bare `1 : 1.0`, which is a real convention and the opposite of the one
+               the reference build prints (`2.0 : 1`). Two screens showing inverted ratios for one
+               species is unreadable whichever is technically correct, and a ratio with no sexes on
+               it cannot be checked at all. Naming them removes the ambiguity rather than picking a
+               side of it — and it is what stops the next reader "fixing" the order and silently
+               inverting the fact. */
+            value: `1 M : ${wide.ratio.toFixed(1)} F`,
+          },
+        ]
       : []),
     { icon: MapPin, label: filtered ? 'Site' : 'Sites', value: String(wide.sites.length) },
     ...(enclosures > 0 ? [{ icon: Boxes, label: 'Enclosures', value: fmt(enclosures) }] : []),
@@ -85,6 +125,24 @@ function statsOf(wide: SpeciesWide, enclosures: number, filtered: boolean): Stat
       value: `${Math.round(wide.sexedPct)}%`,
       sub: `${fmt(wide.male + wide.female)} of ${fmt(wide.total)}`,
     },
+    /* CHIPPED — present in the reference header and absent here, and it is the collection's
+       largest data-quality gap after sex: the sampled species carries an identifier on 75 of
+       4,010 animals. Rendered only where the reference has a chip figure at all, because absent
+       means zero means "nothing recorded", and "0% chipped" reads as a finding when it is a
+       silence. */
+    ...(chip && chip[1] > 0
+      ? [
+          {
+            icon: ScanLine,
+            label: 'Chipped',
+            /* `pctText`, shared with the Identification tab rather than rounded again here — it is
+               what stops 1 of 1,045 printing as "0%" and 2,127 of 2,141 printing as "100%". Two
+               roundings of one pair is how a header comes to contradict the tab it summarises. */
+            value: pctText(chip[0], chip[1]),
+            sub: `${fmt(chip[0])} of ${fmt(chip[1])}`,
+          },
+        ]
+      : []),
   ]
 }
 
@@ -174,8 +232,28 @@ function Sprig({ className, opacity = 0.12, flip }: { className?: string; opacit
 
 /* ── the header ──────────────────────────────────────────────────────────── */
 
-export function SpeciesHeader({ name, onBack, wide, enclosures, standing, filtered }: SpeciesHeaderProps) {
-  const stats = statsOf(wide, enclosures, filtered)
+export function SpeciesHeader({
+  name,
+  onBack,
+  wide,
+  enclosures,
+  standing,
+  filtered,
+  profile,
+}: SpeciesHeaderProps) {
+  const stats = statsOf(wide, enclosures, filtered, profile)
+  /* THE LINEAGE, AS FAR AS THE REFERENCE HAS IT — class › order › family › genus.
+     The header printed the class alone, which is the one rank a curator can already infer from the
+     animal. `Reptilia › Arcuriformes › Goryxidae › Vorostes` is what the reference build carries
+     and what a taxonomist reads to place a species. Assembled from whatever ranks are filled
+     rather than from all four: `taxonomic_order` and below are absent on part of the file, and a
+     chain padded with dashes reads as missing data where it is simply a shorter lineage.
+     `wide.cls` leads rather than `taxonomic_class`, because that is the class every OTHER figure
+     on the page is grouped by — a header disagreeing with its own page about the class would be a
+     new version of the defect this pass exists to remove. */
+  const lineage = [wide.cls, profile?.taxonomic_order, profile?.taxonomic_family, profile?.taxonomic_genus]
+    .filter((r): r is string => Boolean(r && r.trim()))
+    .join(' › ')
   return (
     /* `content-box` so every `@[…]` below measures THIS header rather than an ancestor — the
        drift the old header hit once, with an `@[680px]` that matched at every width. */
@@ -205,8 +283,18 @@ export function SpeciesHeader({ name, onBack, wide, enclosures, standing, filter
               >
                 {name}
               </h1>
-              <p className="mt-1 text-body" style={{ color: SOFT }}>
-                {wide.cls}
+              {/* THE BINOMIAL, WHICH THE COMMAND CENTRE NEVER PRINTED ANYWHERE.
+                  Italic, as a scientific name is set, and directly under the common name it
+                  qualifies — the two are one identity and the reference sets them the same way.
+                  Rendered only where the reference has one: `speciesList.tsx` already refuses to
+                  invent a Latin name, and a header is not the place to start. */}
+              {profile?.scientific_name && (
+                <p className="mt-0.5 text-body italic" style={{ color: SOFT }}>
+                  {profile.scientific_name}
+                </p>
+              )}
+              <p className="mt-1 text-small" style={{ color: MUTE }}>
+                {lineage}
               </p>
             </div>
           </div>

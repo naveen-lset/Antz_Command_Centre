@@ -150,6 +150,16 @@ export const plural = (n: number, one: string, many = `${one}es`): string => `${
 
 export const totalOf = (rows: Holding[]): number => rows.reduce((n, r) => n + r.count, 0)
 
+/**
+ * How many SPECIES a set of holdings is, as a curator counts them — distinct common names.
+ *
+ * Exported because `rows.length` was being used for this in two files and both were wrong in the
+ * same way: `holdings()` is keyed per `<site>:<name>` registry pair, so a name held at six sites
+ * counted six times. One function, so the page's bands and the sheets that check them cannot give
+ * different answers about the same group.
+ */
+export const speciesCount = (rows: Holding[]): number => new Set(rows.map((r) => r.species.name)).size
+
 export interface Band {
   key: string
   label: string
@@ -158,11 +168,28 @@ export interface Band {
   percent: number
 }
 
+/**
+ * `species` COUNTS DISTINCT COMMON NAMES, and it used to count rows.
+ *
+ * `holdings()` is keyed per registry pair — `<site>:<name>` — so `rows.length` was counting a
+ * species once per site it is held at. The effect was a page that stated its own subject twice
+ * with two different numbers: the Animal Population hero read "2,411 Species" and the Regulatory
+ * standing block two sections below it read 2,628 + 2,117 = 4,745, under the same word. CITES
+ * summed to 2,628 on the same page for the same reason.
+ *
+ * `core/world.ts` documents distinct common names as what a curator means by the word, and the
+ * hero, the species list and the species record all count that way. This is the one place four
+ * sections of this page got their denominator from, so correcting it here corrects Regulatory,
+ * CITES, the Wildlife Protection Act schedules and the class bands together.
+ *
+ * ANIMALS ARE STILL COUNTED PER ROW, because two populations of one name are two real groups of
+ * animals and both belong in the total. Only the species tally deduplicates.
+ */
 const band = (key: string, label: string, rows: Holding[], of: number): Band => ({
   key,
   label,
   animals: totalOf(rows),
-  species: rows.length,
+  species: new Set(rows.map((r) => r.species.name)).size,
   percent: of ? (totalOf(rows) / of) * 100 : 0,
 })
 

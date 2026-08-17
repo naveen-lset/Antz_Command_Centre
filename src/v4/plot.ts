@@ -131,6 +131,63 @@ export function tail(slug: string, siteKey: string | null, win: Win, n = 10): nu
   return out
 }
 
+const lastDay = new Map<string, number>()
+
+/**
+ * THE LAST DAY THIS METRIC HAS AN EVENT ON — where a flow's table actually stops.
+ *
+ * A FLOW READING ZERO HAS TWO CAUSES AND THEY ARE OPPOSITE FACTS. Either nothing happened, which
+ * is an operational result, or the table ends before the window opens, which is a property of the
+ * extract and says nothing whatever about operations. Both arrive at this file as a run of zeroes
+ * and no caller could previously tell them apart.
+ *
+ * It is not a hypothetical. In the current dump `admissions`, `disease` and `pharmacy` all stop on
+ * 2026-04-25 — one shared date across exactly the three clinical tables, twenty-five days before
+ * the dump's own `today` — while `transfers` stops on 2026-02-03 and `supplement` on 2026-03-13.
+ * Read as operations, that is a hospital that discharged its last patient and wrote no
+ * prescription for a month. Read correctly, it is five tables with short tails. A page that
+ * reports the first reading has invented a catastrophe.
+ *
+ * FLOWS ONLY. `daily()` on a level returns a reading for every day in the ledger, so the "last
+ * day with a value" is just the last day and the answer is meaningless. Callers ask this about a
+ * flow or not at all.
+ *
+ * Memoised per (metric, scope) because it scans backwards over up to fifty daily arrays, and the
+ * answer cannot change inside a session — the extract is a file.
+ */
+export function lastEventDay(slug: string, siteKey: string | null): number {
+  const key = `${slug}:${siteKey ?? '*'}`
+  const hit = lastDay.get(key)
+  if (hit !== undefined) return hit
+
+  let last = -1
+  for (const k of siteKeys(siteKey)) {
+    const a = daily(slug, k)
+    /* Stops at `last` rather than at zero: a site can only improve the answer, so once one site
+       has reported day 2331 there is nothing below it worth reading. */
+    for (let d = a.length - 1; d > last; d--) {
+      if (a[d] > 0) {
+        last = d
+        break
+      }
+    }
+  }
+  lastDay.set(key, last)
+  return last
+}
+
+/**
+ * Whether a window sits entirely after the last thing this metric recorded.
+ *
+ * True means every figure the window produces for this metric is a zero with no reading behind
+ * it, and a caller should state the coverage rather than the count. A metric with NO events at
+ * all is not this case — that is `UNSOURCED` territory and it is already named there.
+ */
+export const endsBeforeWindow = (slug: string, siteKey: string | null, win: Win): boolean => {
+  const last = lastEventDay(slug, siteKey)
+  return last >= 0 && last < win.from
+}
+
 /** The bucket that holds the most — what an event trend flags rather than leaves to be found. */
 export function peakOf(points: Pt[]): { index: number; note: string } | undefined {
   if (points.length < 3) return undefined

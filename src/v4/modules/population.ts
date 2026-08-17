@@ -21,10 +21,10 @@
  */
 
 import { TODAY, shortDate, type Win } from '../../core/calendar'
-import { speciesStock } from '../../core/animals'
+import { sexSplit, speciesStock } from '../../core/animals'
 import { count, tally } from '../../core/events'
 import { levelAt, series } from '../../core/series'
-import { SITES, speciesByName, speciesOf, type Species } from '../../core/world'
+import { SITES, speciesOf, type Species } from '../../core/world'
 import { standingOf, type Standing } from './regulatory'
 
 /* ── the reading, and how it moved ───────────────────────────────────────── */
@@ -312,34 +312,29 @@ export const sortSites = (rows: SiteRow[], by: SiteSort): SiteRow[] =>
 /* ── species ─────────────────────────────────────────────────────────────── */
 
 /**
- * How much of a class is counted but never sexed.
+ * THE AUTHORED UNSEXED-RATE TABLE IS GONE, AND THAT IS A CORRECTNESS FIX.
  *
- * The same rates `core/animals.ts` applies, restated at species grain so a row can state its
- * own male/female/undetermined split. Undetermined is the ANSWER for a shoal of carp, not a
- * gap in the record — which is why the species list carries a U column rather than hiding it.
+ * What stood here was a per-class table of "how much of a class is counted but never sexed" —
+ * Aves 6%, Mammalia 4%, Reptilia 9% — with a fixed 52% male split over the remainder. It was a
+ * model, not a reading, and it was wrong on the real extract in the one way that matters most:
+ * it made the Animal Population page report the collection as 6% undetermined while the species
+ * list, the species record and the reference build all read the register and report 52%. Two
+ * screens, one collection, one day, both summing to 110,020, and a director who saw both had no
+ * way to know which to believe.
+ *
+ * `core/animals.ts` already owns the answer. `sexSplit` walks the register spans and counts the
+ * sex each keeper actually recorded, then apportions the parts to the window's headcount so they
+ * sum to it exactly even on a reconstructed earlier day. Its own note says the collection's real
+ * figure is 52% undetermined and that a rate table "would invent an unsexed share of about 4%".
+ * That note was describing this file. There is now one derivation of the collection's sex
+ * composition in the product, and every surface reads it.
+ *
+ * UNDETERMINED IS STILL AN ANSWER, NOT A GAP — the reason the U column exists at all. Nothing
+ * about that reasoning changes; only the source of the number does.
  */
-const UNSEXED: Record<string, number> = {
-  Actinopterygii: 0.985,
-  Chondrichthyes: 0.6,
-  Malacostraca: 0.99,
-  Gastropoda: 0.995,
-  Insecta: 0.97,
-  Amphibia: 0.8,
-  Aves: 0.06,
-  Reptilia: 0.09,
-  Mammalia: 0.04,
-}
-
-/** Largest-remainder split, so the three sexes sum to the population exactly. */
-function sexOf(cls: string, n: number): { male: number; female: number; unknown: number } {
-  const rate = UNSEXED[cls] ?? 0.1
-  const unknown = Math.round(n * rate)
-  const sexed = n - unknown
-  const male = Math.round(sexed * 0.52)
-  return { male, female: sexed - male, unknown }
-}
 
 export interface SpeciesRow {
+  /** The id of the row's LARGEST population, so the drill opens the population a reader meant. */
   id: string
   name: string
   cls: string
@@ -349,38 +344,85 @@ export interface SpeciesRow {
   male: number
   female: number
   unknown: number
-  /** How many sites hold this common name. Usually one; the merge is by name. */
+  /** How many sites hold this common name, counted from the holdings rather than the registry. */
   sites: number
   percent: number
   net: number
   standing: Standing
 }
 
+/**
+ * ONE ROW PER COMMON NAME, and that is the second half of the same correctness fix.
+ *
+ * This used to return one row per REGISTRY PAIR — the registry keys a species as `<site>:<name>`,
+ * so a name held at six sites was six rows. On the page that read as the same species listed
+ * repeatedly with no indication the rows belonged together: Sable Kestrel appeared twice in the
+ * Aves list, at 884 and 517, while the species list beside it showed one row of 1,529. Sorting by
+ * population then ranked fragments of names against whole ones, so "largest species" was not
+ * answering its own question.
+ *
+ * `core/world.ts` has already ruled on the word — `speciesNames` is documented as "distinct
+ * common names, what a curator means by 'how many species do we hold'" — and both the species
+ * list and the species record merge by name for exactly that reason. This is the third surface
+ * doing it the same way rather than the one surface doing it differently.
+ *
+ * WHAT `siteKey` MEANS AFTER THE MERGE. A merged row spans sites, so it carries its largest
+ * population's site: that is what the meta line prints and what the drill opens, which is the
+ * same choice `speciesList.tsx` makes for the same reason. `sites` carries the count.
+ */
 export function speciesRows(siteKey: string | null, win: Win): SpeciesRow[] {
   const total = populationOn(siteKey, win.to)
   const before = Math.max(0, win.from - 1)
   const openingWin = { from: 0, to: before, days: before + 1 } as Win
 
-  return siteKeys(siteKey)
-    .flatMap((k) => {
-      const opening = new Map(speciesStock(k, openingWin).map((r) => [r.species.id, r.count]))
-      return speciesStock(k, win).map(({ species, count: n }) => ({ species, n, was: opening.get(species.id) ?? 0 }))
+  /* Gathered per name first — the sex split has to be asked ONCE per name with all of its
+     populations in hand, because `sexSplit` apportions its parts to the count it is given and
+     three separate calls would each round independently. */
+  const byName = new Map<
+    string,
+    { pops: { species: Species; count: number }[]; animals: number; was: number }
+  >()
+
+  for (const k of siteKeys(siteKey)) {
+    const opening = new Map(speciesStock(k, openingWin).map((r) => [r.species.id, r.count]))
+    for (const { species, count: n } of speciesStock(k, win)) {
+      if (n <= 0) continue
+      const at = byName.get(species.name) ?? { pops: [], animals: 0, was: 0 }
+      at.pops.push({ species, count: n })
+      at.animals += n
+      at.was += opening.get(species.id) ?? 0
+      byName.set(species.name, at)
+    }
+  }
+
+  const rows: SpeciesRow[] = []
+  for (const [name, at] of byName) {
+    /* Largest population first, so `pops[0]` is the one the row represents. */
+    const pops = [...at.pops].sort((a, b) => b.count - a.count)
+    const lead = pops[0].species
+    const split = sexSplit(pops)
+    rows.push({
+      id: lead.id,
+      name,
+      cls: lead.cls,
+      siteKey: lead.siteKey,
+      siteName: SITES.find((s) => s.key === lead.siteKey)?.name ?? lead.siteKey,
+      animals: at.animals,
+      male: split.male,
+      female: split.female,
+      unknown: split.undetermined,
+      /* The sites that actually HOLD it under this scope, not every site the registry names it
+         at. The old count read `speciesByName(name).length`, which is a registry fact and was
+         reporting nine sites for a name held at seven — the species list, counting holdings,
+         disagreed with it on the same screen. */
+      sites: pops.length,
+      percent: total ? (at.animals / total) * 100 : 0,
+      net: at.animals - at.was,
+      standing: standingOf(name),
     })
-    .filter((r) => r.n > 0)
-    .map(({ species, n, was }) => ({
-      id: species.id,
-      name: species.name,
-      cls: species.cls,
-      siteKey: species.siteKey,
-      siteName: SITES.find((s) => s.key === species.siteKey)?.name ?? species.siteKey,
-      animals: n,
-      ...sexOf(species.cls, n),
-      sites: speciesByName(species.name).length,
-      percent: total ? (n / total) * 100 : 0,
-      net: n - was,
-      standing: standingOf(species.name),
-    }))
-    .sort((a, b) => b.animals - a.animals)
+  }
+
+  return rows.sort((a, b) => b.animals - a.animals)
 }
 
 export type SpeciesSort = 'animals' | 'net' | 'sites' | 'name'

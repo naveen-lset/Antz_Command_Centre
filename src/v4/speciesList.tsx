@@ -9,9 +9,15 @@
  * is at risk, which is wholly unsexed, which lost more than it gained this month". A list that
  * cannot be asked those questions sends the reader into 2,352 pages one at a time.
  *
- * SO IT IS A WORKSPACE, NOT A DIRECTORY: five totals across the top, a faceted panel down the
- * left, and a table that carries the eleven figures the species page would otherwise have to
+ * SO IT IS A WORKSPACE, NOT A DIRECTORY: one summary band across the top, a row of filter fields
+ * under it, and a table that carries the eleven figures the species page would otherwise have to
  * be opened to read. `EntityBrowser` is untouched and still serves the other thirteen kinds.
+ *
+ * THE BAND AND THE BAR BOTH REPLACED SOMETHING WIDER. The band was five tinted stat cards and the
+ * bar was a 21% column of collapsed accordions down the left; the notes on `StatBand` and
+ * `FilterBar` give the argument for each. What they have in common is the reason: this page's
+ * subject is an eleven-column table that does not fit, so every pixel spent on chrome above or
+ * beside it was a figure pushed off the right edge.
  *
  * ONE READING, IN ONE PLACE. Every number here comes out of `speciesListData.ts`, which asks
  * `core/` the same questions the species page asks and merges by NAME the same way — so a row
@@ -45,7 +51,8 @@ import {
 import { CLASS_ICONS } from '../exec/classIcons'
 import { loadProfiles, profilesNow } from '../core/profiles'
 import { PawPrint } from 'lucide-react'
-import { FAINT, HAIR, MUTED, RED_LIST, fmt, mix } from '../exec/system'
+import { FAINT, HAIR, MUTED, RED_LIST, VALUE, fmt, mix } from '../exec/system'
+import { Ribbon } from '../exec/marks'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
 import {
@@ -80,121 +87,192 @@ const CORAL = '#d4553a'
 /** Births and population. The product's own dark green, which passes as type. */
 const GREEN = '#1f6b45'
 
-/* ── the five totals ─────────────────────────────────────────────────────── */
+/* ── the summary band ────────────────────────────────────────────────────── */
 
 /**
  * The collection under the live scope — NOT the filtered set.
  *
- * The results header two rows down already states what the filters left, and a card restating
- * it would leave the page with no fixed point: a reader who has narrowed to 41 rows still needs
- * to know it is 41 of 2,352. So these five hold still and the results line moves.
+ * The results header two rows down already states what the filters left, and a band restating it
+ * would leave the page with no fixed point: a reader who has narrowed to 41 rows still needs to
+ * know it is 41 of 2,411. So the band holds still and the results line moves.
  */
-interface StatCard {
-  label: string
-  value: number
-  /** The card's wash. Semantic where the figure is, neutral where it is only a count. */
-  tint: string
-  ink: string
+interface Totals {
+  species: number
+  animals: number
+  male: number
+  female: number
+  undetermined: number
+  critical: number
 }
 
-function statsOf(rows: SpeciesListRow[]): StatCard[] {
+function statsOf(rows: SpeciesListRow[]): Totals {
   let animals = 0
   let male = 0
   let female = 0
+  let undetermined = 0
   let critical = 0
   for (const r of rows) {
     animals += r.total
     male += r.male
     female += r.female
+    undetermined += r.undetermined
     if (CRITICAL.has(r.iucn)) critical++
   }
-  return [
-    { label: 'Species', value: rows.length, tint: '#e3f2e8', ink: GREEN },
-    { label: 'Animals', value: animals, tint: '#eef1ee', ink: '#33413a' },
-    { label: 'Male', value: male, tint: '#e2f1f2', ink: '#1f5b60' },
-    { label: 'Female', value: female, tint: '#e9f2e4', ink: '#3f6030' },
-    { label: 'Critical', value: critical, tint: '#fbeae6', ink: CORAL },
+  return { species: rows.length, animals, male, female, undetermined, critical }
+}
+
+/**
+ * THE COLLECTION IN ONE BAND — and it was five tinted boxes.
+ *
+ * WHAT WAS WRONG WITH THE BOXES was not that any figure was wrong. It was that five equal cards,
+ * each a big number over an uppercase word, each on its own pastel wash, say "here are five
+ * equally important things" — and they are not five things. Two are the size of the collection,
+ * three are one composition. Drawing them identically is the repeated number-and-label ROW this
+ * product removes everywhere else it appears, and the five washes made it louder rather than
+ * clearer: a green, a grey, a blue, a second green and a pink across the top of a page whose
+ * table below is almost entirely ink on white.
+ *
+ * SO THE BAND SAYS THE THREE THINGS IT ACTUALLY HOLDS, at three different weights:
+ *
+ *   THE COUNT        2,411 species, and the animals inside them. One figure leads and the other
+ *                    supports it, because this is the SPECIES list — the species count is the
+ *                    subject and the headcount is its size.
+ *   THE COMPOSITION  one proportional bar, not two numbers. Male, female and undetermined are
+ *                    parts of a whole and a whole is a bar; as three separate boxes the reader
+ *                    had to do the subtraction to notice the finding, which is that MOST OF THE
+ *                    COLLECTION IS UNSEXED — 57,040 of 110,020. The old row omitted undetermined
+ *                    entirely, so the one fact worth acting on was the one it did not print.
+ *   THE EXCEPTION    critical species, in coral, alone on the right. It is the only figure here a
+ *                    reader would act on today, so it is the only one given a colour.
+ *
+ * `Ribbon` rather than a hand-rolled bar: it already carries the 2px segment gap, the sliver floor
+ * that keeps a tiny real part visible, and the grow-in on the product's motion scale.
+ */
+function StatBand({ t }: { t: Totals }) {
+  const sexes = [
+    { label: 'Male', value: t.male, color: GREEN },
+    { label: 'Female', value: t.female, color: '#8fd9ae' },
+    /* The pale step, and the largest segment — see the note above on why it is here at all. */
+    { label: 'Undetermined', value: t.undetermined, color: '#dcebe1' },
   ]
-}
 
-function Totals({ cards }: { cards: StatCard[] }) {
   return (
-    /* Five across once there is room, else a 2/3 wrap. Never a scroller — a summary that has
-       to be swiped past is not a summary. */
-    <div className="grid grid-cols-2 gap-3 @[560px]:grid-cols-3 @[900px]:grid-cols-5">
-      {cards.map((c) => (
-        <div key={c.label} className="rounded-[12px] px-4 py-3" style={{ backgroundColor: c.tint }}>
-          {/* The figure leads. It is the only thing on the card set above 14px, which is what
-              makes five of them scannable in one pass. */}
-          <p className="font-display text-[26px] leading-[1.1] font-semibold tabular-nums" style={{ color: c.ink }}>
-            {fmt(c.value)}
-          </p>
-          <p className="mt-1 text-overline font-medium uppercase" style={{ color: MUTED }}>
-            {c.label}
-          </p>
+    <div className="rounded-[var(--radius-card)] bg-white px-[var(--pad-card-sm)] py-4">
+      <div className="flex flex-col gap-4 @[720px]:flex-row @[720px]:items-center @[720px]:gap-6">
+        {/* THE COUNT. `items-baseline`, so the two figures sit on one line however they wrap. */}
+        <div className="flex shrink-0 items-baseline gap-2">
+          <span className="font-display text-[32px] leading-none font-semibold tabular-nums" style={{ color: VALUE }}>
+            {fmt(t.species)}
+          </span>
+          <span className="text-body" style={{ color: MUTED }}>
+            species
+          </span>
+          <span className="text-body tabular-nums" style={{ color: FAINT }}>
+            · {fmt(t.animals)} animals
+          </span>
         </div>
-      ))}
-    </div>
-  )
-}
 
-/* ── the filter panel ────────────────────────────────────────────────────── */
+        {/* THE COMPOSITION. Takes the slack, because a bar is the one thing here that reads
+            better wide and the two figures either side of it do not. */}
+        <div className="min-w-0 flex-1">
+          <Ribbon items={sexes} height={8} />
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            {sexes.map((s) => (
+              <span key={s.label} className="flex items-center gap-1.5 text-caption tabular-nums">
+                <span className="size-[7px] shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
+                <span style={{ color: MUTED }}>{s.label}</span>
+                <span style={{ color: VALUE }}>{fmt(s.value)}</span>
+              </span>
+            ))}
+          </div>
+        </div>
 
-function FilterPanel({
-  groups,
-  picked,
-  onToggle,
-  onClear,
-  /**
-   * Rendered under a disclosure that already says "Filters", so the panel does not say it again.
-   *
-   * Below 900px the panel is not a column, it is the body of a toggle — and the toggle carries
-   * the icon, the word and the active count. A second identical header inside it was the word
-   * printed twice, eleven pixels apart. Clear still has to be reachable there, so it survives
-   * on its own row.
-   */
-  bare = false,
-}: {
-  groups: FacetGroup[]
-  picked: Picked
-  onToggle: (key: FacetKey, value: string) => void
-  onClear: () => void
-  bare?: boolean
-}) {
-  const n = pickedCount(picked)
-  const clear = n > 0 && (
-    /* Present only when there is something to clear — a permanently-lit Clear is chrome. */
-    <button
-      type="button"
-      onClick={onClear}
-      className="card-press shrink-0 rounded-full px-2 py-[2px] text-caption font-semibold"
-      style={{ backgroundColor: mix(CORAL, 0.1), color: CORAL }}
-    >
-      Clear {n}
-    </button>
-  )
-
-  return (
-    <div className="rounded-[var(--radius-card)] bg-white p-4">
-      {bare ? (
-        clear && <div className="flex justify-end pb-2">{clear}</div>
-      ) : (
-        <header className="flex items-center gap-2 pb-3">
-          <SlidersHorizontal size={15} strokeWidth={1.75} style={{ color: GREEN }} aria-hidden />
-          <h2 className="flex-1 text-body font-semibold text-[#1c1a16]">Filters</h2>
-          {clear}
-        </header>
-      )}
-      <div className="flex flex-col">
-        {groups.map((g) => (
-          <FilterGroup key={g.key} group={g} picked={picked[g.key]} onToggle={onToggle} />
-        ))}
+        {/* THE EXCEPTION. Hidden at zero — a nil here is not a finding, and a coral "0" beside a
+            calm band is an alarm about nothing. */}
+        {t.critical > 0 && (
+          <div className="flex shrink-0 items-baseline gap-2 @[720px]:flex-col @[720px]:items-end @[720px]:gap-0">
+            <span className="font-display text-[26px] leading-none font-semibold tabular-nums" style={{ color: CORAL }}>
+              {fmt(t.critical)}
+            </span>
+            <span className="text-overline font-medium uppercase" style={{ color: MUTED }}>
+              Critical
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function FilterGroup({
+/* ── the filter bar ──────────────────────────────────────────────────────── */
+
+/**
+ * THE FILTERS ARE ONE ROW OF FIELDS, AND THEY WERE A 21% COLUMN DOWN THE LEFT.
+ *
+ * THE COLUMN COST THE TABLE THE THING THE TABLE NEEDED MOST. Eleven columns already do not fit —
+ * the note at `COLS` says so and accepts a horizontal scroll for them — and the filter rail was
+ * taking a fifth of the content width to show nine headings, seven of them collapsed to a word and
+ * a chevron. So the page spent its widest asset on controls that were not in use, and the data it
+ * exists to show was what got pushed off the right edge.
+ *
+ * A FIELD IS THE SAME CONTROL, ADDRESSED DIFFERENTLY. Every group keeps its exact value list, its
+ * counts, its multi-select and its "+ N more" — nothing about what a filter DOES has changed. What
+ * changed is that a group is closed until asked for, which is what a dropdown is, and nine closed
+ * groups are a row rather than a column.
+ *
+ * THE FIELD LABEL DOES NOT CHANGE WIDTH WHEN IT IS PICKED. It states the axis and carries a count
+ * badge — never the chosen value. Substituting "Aves" for "Class" reflows the whole row on every
+ * tick, and a control that moves out from under the pointer as you use it is the one thing a filter
+ * bar must not do. What was ticked is one press away and the badge says how many.
+ *
+ * ONE ROW AT EVERY WIDTH, so the tablet disclosure that used to wrap the column is gone with it.
+ * The row wraps; it does not need a second implementation to be usable narrow.
+ */
+function FilterBar({
+  groups,
+  picked,
+  onToggle,
+  onClear,
+}: {
+  groups: FacetGroup[]
+  picked: Picked
+  onToggle: (key: FacetKey, value: string) => void
+  onClear: () => void
+}) {
+  const n = pickedCount(picked)
+
+  return (
+    <div className="rounded-[var(--radius-card)] bg-white px-[var(--pad-card-sm)] py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <SlidersHorizontal size={15} strokeWidth={1.75} className="shrink-0" style={{ color: GREEN }} aria-hidden />
+        {groups.map((g) => (
+          <FilterField key={g.key} group={g} picked={picked[g.key]} onToggle={onToggle} />
+        ))}
+        {/* Present only when there is something to clear — a permanently-lit Clear is chrome. */}
+        {n > 0 && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="card-press ml-auto shrink-0 rounded-full px-2.5 py-[5px] text-caption font-semibold"
+            style={{ backgroundColor: mix(CORAL, 0.1), color: CORAL }}
+          >
+            Clear {n}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * One axis, as a field that opens its own values.
+ *
+ * THE PANEL FLIPS TO THE RIGHT EDGE NEAR THE VIEWPORT'S, measured when it opens rather than
+ * guessed from a breakpoint. With nine fields on one row the last of them is always close to the
+ * right edge, and a 264px panel anchored left from there opens off-screen — on a page whose body
+ * must never scroll sideways, that is a control the reader cannot reach at all.
+ */
+function FilterField({
   group,
   picked,
   onToggle,
@@ -203,94 +281,135 @@ function FilterGroup({
   picked?: Set<string>
   onToggle: (key: FacetKey, value: string) => void
 }) {
-  const [open, setOpen] = useState(group.open)
+  const [open, setOpen] = useState(false)
   const [full, setFull] = useState(false)
+  const [flip, setFlip] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
 
-  /* A group the reader has narrowed on opens itself, whatever its default — otherwise a
-     restored filter is in force with nothing on screen saying so. */
   const on = picked?.size ?? 0
   const shown = full ? group.values : group.values.slice(0, group.cap)
   const hidden = group.values.length - shown.length
 
+  /* Dismissal, both ways a reader expects it. `mousedown` rather than `click`, so a press that
+     starts outside closes the panel instead of waiting for the release. */
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', key)
+    return () => {
+      document.removeEventListener('mousedown', away)
+      document.removeEventListener('keydown', key)
+    }
+  }, [open])
+
   if (!group.values.length) return null
 
-  return (
-    <section className="border-b last:border-0" style={{ borderColor: HAIR }}>
-      <h3>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open || on > 0}
-          className="flex w-full items-center gap-2 py-3 text-left"
-        >
-          <span className="flex-1 text-overline font-semibold uppercase" style={{ color: '#3d3a34' }}>
-            {group.label}
-          </span>
-          {on > 0 && (
-            <span
-              className="shrink-0 rounded-full px-1.5 text-caption font-semibold tabular-nums"
-              style={{ backgroundColor: mix(GREEN, 0.12), color: GREEN }}
-            >
-              {on}
-            </span>
-          )}
-          <ChevronDown
-            size={14}
-            strokeWidth={2}
-            className={`shrink-0 transition-transform duration-200 ${open || on > 0 ? '' : '-rotate-90'}`}
-            style={{ color: FAINT }}
-            aria-hidden
-          />
-        </button>
-      </h3>
+  const toggleOpen = () => {
+    const r = box.current?.getBoundingClientRect()
+    if (r) setFlip(r.left + PANEL_W > window.innerWidth - 12)
+    setOpen((v) => !v)
+  }
 
-      {(open || on > 0) && (
-        <ul className="pb-3">
-          {shown.map((v) => {
-            const ticked = picked?.has(v.value) ?? false
-            return (
-              <li key={v.value}>
-                <label
-                  className={`flex cursor-pointer items-center gap-2.5 rounded-[8px] py-[5px] pr-1 pl-1 transition-colors hover:bg-[#f4f9f6] ${
-                    v.count === 0 && !ticked ? 'opacity-45' : ''
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={ticked}
-                    onChange={() => onToggle(group.key, v.value)}
-                    /* The browser control, restyled by `accent-color` rather than replaced.
-                       A hand-drawn checkbox loses the keyboard behaviour, the indeterminate
-                       state and the platform's own focus ring for a 1px difference in the tick. */
-                    className="size-[15px] shrink-0 accent-[#1f6b45]"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-small" style={{ color: ticked ? '#1c1a16' : '#3d3a34' }}>
-                    {v.label}
-                  </span>
-                  <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
-                    {fmt(v.count)}
-                  </span>
-                </label>
-              </li>
-            )
-          })}
+  return (
+    <div ref={box} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        aria-haspopup="true"
+        className="card-press flex items-center gap-1.5 rounded-full py-[5px] pr-2 pl-3 text-small font-medium whitespace-nowrap transition-colors"
+        style={{
+          /* Ticked reads as a filled field, untouched as an outlined one. The border is on both,
+             so the row does not change height or step sideways when one lights up. */
+          backgroundColor: on > 0 ? mix(GREEN, 0.1) : '#ffffff',
+          border: `1px solid ${on > 0 ? mix(GREEN, 0.28) : HAIR}`,
+          color: on > 0 ? GREEN : '#3d3a34',
+        }}
+      >
+        {group.label}
+        {on > 0 && (
+          <span
+            className="rounded-full px-1.5 text-caption font-semibold tabular-nums"
+            style={{ backgroundColor: GREEN, color: '#ffffff' }}
+          >
+            {on}
+          </span>
+        )}
+        <ChevronDown
+          size={13}
+          strokeWidth={2}
+          className={`shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          style={{ color: on > 0 ? GREEN : FAINT }}
+          aria-hidden
+        />
+      </button>
+
+      {open && (
+        <div
+          /* `animate-drop-in` is the emphasis tier — the same arrival every other panel in the
+             product uses, rather than a duration invented here. */
+          className={`animate-drop-in absolute top-[calc(100%+6px)] z-20 rounded-[12px] bg-white p-2 shadow-[0_10px_30px_rgba(20,40,30,0.14)] ${
+            flip ? 'right-0' : 'left-0'
+          }`}
+          style={{ width: PANEL_W, border: `1px solid ${HAIR}` }}
+        >
+          <ul className="max-h-[300px] overflow-y-auto">
+            {shown.map((v) => {
+              const ticked = picked?.has(v.value) ?? false
+              return (
+                <li key={v.value}>
+                  <label
+                    className={`flex cursor-pointer items-center gap-2.5 rounded-[8px] px-1.5 py-[6px] transition-colors hover:bg-[#f4f9f6] ${
+                      v.count === 0 && !ticked ? 'opacity-45' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={ticked}
+                      onChange={() => onToggle(group.key, v.value)}
+                      /* The browser control, restyled by `accent-color` rather than replaced.
+                         A hand-drawn checkbox loses the keyboard behaviour, the indeterminate
+                         state and the platform's own focus ring for a 1px difference in the tick. */
+                      className="size-[15px] shrink-0 accent-[#1f6b45]"
+                    />
+                    <span
+                      className="min-w-0 flex-1 truncate text-small"
+                      style={{ color: ticked ? '#1c1a16' : '#3d3a34' }}
+                    >
+                      {v.label}
+                    </span>
+                    <span className="shrink-0 text-caption tabular-nums" style={{ color: FAINT }}>
+                      {fmt(v.count)}
+                    </span>
+                  </label>
+                </li>
+              )
+            })}
+          </ul>
           {hidden > 0 && (
-            <li>
-              <button
-                type="button"
-                onClick={() => setFull(true)}
-                className="card-press mt-1 px-1 py-1 text-caption font-semibold"
-                style={{ color: GREEN }}
-              >
-                + {hidden} more
-              </button>
-            </li>
+            <button
+              type="button"
+              onClick={() => setFull(true)}
+              className="card-press mt-1 px-1.5 py-1 text-caption font-semibold"
+              style={{ color: GREEN }}
+            >
+              + {hidden} more
+            </button>
           )}
-        </ul>
+        </div>
       )}
-    </section>
+    </div>
   )
 }
+
+/** The dropdown's width, and the number the flip test measures against. */
+const PANEL_W = 264
 
 /* ── the species cell ────────────────────────────────────────────────────── */
 
@@ -491,6 +610,23 @@ function SpeciesTable({
                  inherit `text-transform` from its ancestors in Chrome's UA sheet, which left
                  nine of the eleven headers in sentence case while the two unsortable ones were
                  correctly capitalised. */
+              /**
+               * ON A RIGHT-ALIGNED COLUMN THE SORT MARK GOES BEFORE THE LABEL, and that is an
+               * alignment fix rather than a preference.
+               *
+               * With the chevron after the label, it occupies the rightmost 12px of the cell plus
+               * its 4px gap — so the header TEXT stopped 16px short of the cell's padding edge
+               * while every figure beneath it sat flush against that edge. Measured across the
+               * table, all nine sortable numeric headers were out by exactly 16px, and `M · F · U`
+               * — the one right-aligned column with no sort — was the only one landing at zero.
+               * That is what the eye was reading as a crooked table: a column of numbers is a
+               * vertical edge, and its heading was not on it.
+               *
+               * Putting the mark on the far side of the label restores the edge without hiding the
+               * affordance. Left-aligned columns keep the mark trailing, for the same reason —
+               * there the text edge is on the left and the chevron is not standing on it.
+               */
+              const mark = c.sort ? <SortMark dir={active ? dir : null} /> : null
               const head = (
                 <span
                   className={`flex items-center gap-1 text-overline font-semibold uppercase ${
@@ -498,8 +634,17 @@ function SpeciesTable({
                   }`}
                   style={{ color: HEAD_INK }}
                 >
-                  {c.label}
-                  {c.sort && <SortMark dir={active ? dir : null} />}
+                  {c.align === 'right' ? (
+                    <>
+                      {mark}
+                      {c.label}
+                    </>
+                  ) : (
+                    <>
+                      {c.label}
+                      {mark}
+                    </>
+                  )}
                 </span>
               )
               return (
@@ -752,7 +897,6 @@ export function SpeciesList() {
   const setQuery = useCallback((q: string) => narrow((prev) => ({ ...prev, query: q })), [narrow])
   const [sort, setSort] = useState<SortKey>('total')
   const [dir, setDir] = useState<'asc' | 'desc'>('desc')
-  const [panelOpen, setPanelOpen] = useState(false)
 
   const groups = useMemo(() => facets(rows, picked, query), [rows, picked, query])
   const filtered = useMemo(() => applyFilters(rows, picked, query), [rows, picked, query])
@@ -806,91 +950,53 @@ export function SpeciesList() {
     [go],
   )
 
-  const nPicked = pickedCount(picked)
-
   return (
     <div className="content-box w-full px-[var(--gutter)] pb-4">
       <Header rows={sorted} scope={scope} />
 
       <div className="mt-4">
-        <Totals cards={totals} />
+        <StatBand t={totals} />
       </div>
 
-      {/* 21 / 79, measured off the CONTENT COLUMN rather than the window — with a sidebar and
-          an executive panel flanking it, a 1280 desktop hands this less width than a tablet
-          landscape does. The same reasoning `Stack` documents. */}
-      <div className="mt-4 flex flex-col gap-4 @[900px]:grid @[900px]:grid-cols-[minmax(196px,21%)_1fr] @[900px]:items-start">
-        {/* Tablet and below: the panel is a disclosure rather than a column, because 196px of
-            filters beside a table that already needs a horizontal scroll leaves neither usable. */}
-        <div className="@[900px]:hidden">
-          <button
-            type="button"
-            onClick={() => setPanelOpen((v) => !v)}
-            aria-expanded={panelOpen}
-            className="card-press flex w-full items-center gap-2 rounded-[12px] bg-white px-4 py-3"
-          >
-            <SlidersHorizontal size={15} strokeWidth={1.75} style={{ color: GREEN }} aria-hidden />
-            <span className="flex-1 text-left text-body font-semibold text-[#1c1a16]">Filters</span>
-            {nPicked > 0 && (
-              <span
-                className="rounded-full px-1.5 text-caption font-semibold tabular-nums"
-                style={{ backgroundColor: mix(GREEN, 0.12), color: GREEN }}
-              >
-                {nPicked}
-              </span>
-            )}
-            <ChevronDown
-              size={15}
-              strokeWidth={2}
-              className={`transition-transform duration-200 ${panelOpen ? '' : '-rotate-90'}`}
-              style={{ color: FAINT }}
-              aria-hidden
+      {/* ONE COLUMN NOW, AND THE TABLE HAS ALL OF IT. The 21/79 grid that used to hold the filter
+          rail is gone with the rail — see the note on `FilterBar`. The three surfaces stack in the
+          order a reader uses them: what the collection is, how to narrow it, what is left. */}
+      <div className="mt-4">
+        <FilterBar groups={groups} picked={picked} onToggle={toggle} onClear={clear} />
+      </div>
+
+      <section className="mt-4 min-w-0 rounded-[var(--radius-card)] bg-white p-[var(--pad-card-sm)]">
+        <header className="flex flex-wrap items-center justify-between gap-3 pb-4">
+          <div className="min-w-0">
+            <h2 className="text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold tracking-[-0.2px] text-[#1c1a16]">
+              Results
+            </h2>
+            {/* The one line on the page that moves with the filters — see the note on
+                `statsOf`. Both halves are of the SAME set, so they cannot disagree. */}
+            <p className="mt-0.5 text-caption tabular-nums" style={{ color: FAINT }}>
+              {fmt(sorted.length)} species · {fmt(shownAnimals)} animals
+            </p>
+          </div>
+          <SearchField value={query} onChange={setQuery} />
+        </header>
+
+        {sorted.length === 0 ? (
+          <Empty onClear={clear} />
+        ) : (
+          <>
+            <SpeciesTable
+              rows={page.rows}
+              offset={0}
+              sort={sort}
+              dir={dir}
+              onSort={onSort}
+              onOpen={open}
+              href={(r) => href(`e/species/${encodeURIComponent(r.id)}`)}
             />
-          </button>
-          {panelOpen && (
-            <div className="mt-3">
-              <FilterPanel groups={groups} picked={picked} onToggle={toggle} onClear={clear} bare />
-            </div>
-          )}
-        </div>
-
-        <div className="hidden @[900px]:block">
-          <FilterPanel groups={groups} picked={picked} onToggle={toggle} onClear={clear} />
-        </div>
-
-        <section className="min-w-0 rounded-[var(--radius-card)] bg-white p-[var(--pad-card-sm)]">
-          <header className="flex flex-wrap items-center justify-between gap-3 pb-4">
-            <div className="min-w-0">
-              <h2 className="text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold tracking-[-0.2px] text-[#1c1a16]">
-                Results
-              </h2>
-              {/* The one line on the page that moves with the filters — see the note on
-                  `statsOf`. Both halves are of the SAME set, so they cannot disagree. */}
-              <p className="mt-0.5 text-caption tabular-nums" style={{ color: FAINT }}>
-                {fmt(sorted.length)} species · {fmt(shownAnimals)} animals
-              </p>
-            </div>
-            <SearchField value={query} onChange={setQuery} />
-          </header>
-
-          {sorted.length === 0 ? (
-            <Empty onClear={clear} />
-          ) : (
-            <>
-              <SpeciesTable
-                rows={page.rows}
-                offset={0}
-                sort={sort}
-                dir={dir}
-                onSort={onSort}
-                onOpen={open}
-                href={(r) => href(`e/species/${encodeURIComponent(r.id)}`)}
-              />
-              <MoreRows page={page} noun="species" />
-            </>
-          )}
-        </section>
-      </div>
+            <MoreRows page={page} noun="species" />
+          </>
+        )}
+      </section>
     </div>
   )
 }

@@ -158,11 +158,28 @@ export function KpiStrip({
 
 export function DashCard({
   title,
+  span,
   action,
   onAction,
   children,
 }: {
   title: string
+  /**
+   * THE SPAN THIS CARD IS READ OVER, where it is not the page's own date filter.
+   *
+   * Three cards on the species Overview deliberately ignore the date pill — the two year charts
+   * and Causes of Death — for the reason the tab's own note gives: a year axis under a one-month
+   * window is one column, and a cause vocabulary cut to a month is usually empty. That reasoning
+   * holds. What was missing was saying so on the card, and the cost of not saying it was a
+   * genuine contradiction: the KPI strip read "Deaths 33" for the window while the Causes of
+   * Death card beneath it summed to 430 for all time, with nothing on the screen to reconcile
+   * them. A reader could only conclude one of the two was wrong.
+   *
+   * So a card that is not on the page's window states its own. Three words in the corner is the
+   * whole fix, and it is the same disclosure this product makes everywhere else it cannot answer
+   * a question the way the reader assumed.
+   */
+  span?: string
   /** The words on the link out — "View Circle of Life". The chevron is added here. */
   action?: string
   onAction?: () => void
@@ -177,6 +194,11 @@ export function DashCard({
         <h3 className="text-lead font-semibold tracking-[-.2px]" style={{ color: INK }}>
           {title}
         </h3>
+        {span && (
+          <span className="shrink-0 text-caption whitespace-nowrap" style={{ color: FAINT }}>
+            {span}
+          </span>
+        )}
         {action && onAction && (
           <button
             type="button"

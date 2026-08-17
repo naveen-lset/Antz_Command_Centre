@@ -990,7 +990,11 @@ const SPECIES_TABS = [
   { key: 'assessments', label: 'Assessments', icon: Activity },
   { key: 'medical', label: 'Medical', icon: Stethoscope },
   { key: 'hospital', label: 'Hospital', icon: Building2 },
-  { key: 'lab', label: 'Lab', icon: FlaskConical },
+  /* 'Lab Requests', which is what the module in the rail is called. The tab said 'Lab' and the
+     module said 'Lab Requests' about the same records — the reference build adds a third, 'Lab
+     Module', which names the software rather than the content and is not followed here. Same
+     principle as the KPI labels in `data.ts`: one thing, one name, wherever it appears. */
+  { key: 'lab', label: 'Lab Requests', icon: FlaskConical },
   { key: 'identification', label: 'Identification', icon: FileText },
   { key: 'breeds', label: 'Breeds', icon: Layers },
   { key: 'animals', label: 'Animals', icon: Heart },
@@ -1084,6 +1088,11 @@ function SpeciesPage({ entity }: { entity: Entity }) {
           enclosures={headerEnclosures}
           standing={standing}
           filtered={!!scope.site}
+          /* The reference, for the binomial, the lineage and the chip coverage — three facts the
+             header could not state from the register alone. Already resolved on this page for the
+             Profile tab and the Eggs gate, so this adds no fetch; it is undefined until
+             `profiles.json` lands and the header renders without it. */
+          profile={profile}
         />
       ) : (
         <Hero

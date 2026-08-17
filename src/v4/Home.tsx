@@ -36,7 +36,22 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ChevronRight, Eye, MapPin, PawPrint, Search } from 'lucide-react'
+import {
+  BadgeCheck,
+  Bell,
+  Boxes,
+  ChevronRight,
+  Eye,
+  FileBarChart,
+  ListChecks,
+  MapPin,
+  PawPrint,
+  PlusCircle,
+  Search,
+  Stethoscope,
+  Wheat,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
 import forestScene from '../assets/forest-scene.webp'
@@ -53,19 +68,17 @@ import {
   MUTED,
   SparkMeter,
   TONE,
-  compact,
   mix,
 } from '../exec/system'
+import { AreaTrend } from '../exec/marks'
+import { compareOf, pointsOf } from './plot'
+import { LastUpdated } from './ScopeHeader'
 import {
-  LEVEL_TONE,
   SECTION_ICONS,
-  dueWithin,
   headlineKpis,
-  risks,
   site,
   supportingKpis,
   trends,
-  upcoming,
   type HeadlineKpi,
   type Kpi,
 } from './data'
@@ -75,11 +88,8 @@ import { useScope } from './scope'
 import { useKpi, useMovement, useTrendCard } from './kpi'
 import { resolveWindow, type Win, type WindowKey } from '../core/calendar'
 import { figure as figureOf, population } from '../core/query'
-import {
-  RiskPanel,
-  TrendPanel,
-  UpcomingPanel,
-} from './panels'
+import { CollectionWatch } from './collectionWatch'
+import { TrendPanel } from './panels'
 
 const CARD = 'rounded-[var(--radius-card)] bg-white'
 const TAP = 'card-press block w-full text-left'
@@ -105,6 +115,15 @@ function MistBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       <div className="absolute -top-16 right-0 size-64 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0)_70%)]" />
+      {/* THE SAME WASH ON THE LEFT, WHERE THE GREETING IS.
+          There was one of these and it was on the right, over the search button. But the foliage is
+          masked to BOTH outer margins — see `HeroFoliage` — so the left sixth of this header has
+          hanging vines behind it too, and that is exactly where "Good Afternoon," and the
+          organisation line sit. Read against the leaves, a mid-grey caption on mid-green foliage
+          was the lowest-contrast type on the screen, on the screen's first line.
+          Wider and softer than its twin because it has more to clear: the right one only has to
+          lift a white circular button off the canopy, this one carries three lines of type. */}
+      <div className="absolute -top-24 -left-20 h-80 w-[26rem] rounded-full bg-[radial-gradient(ellipse,rgba(255,255,255,0.62)_0%,rgba(255,255,255,0.34)_42%,rgba(255,255,255,0)_74%)]" />
       <svg className="absolute inset-0 size-full" viewBox="0 0 390 200">
         {birds.map((b, i) => (
           <path
@@ -130,7 +149,7 @@ function GreetingHeader({ onSearch }: { onSearch: () => void }) {
       <MistBackdrop />
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-lead text-[#5c574f] @[900px]:text-h3">{greetingFor(now)},</p>
+          <p className="text-lead text-[#3d3a34] @[900px]:text-h3">{greetingFor(now)},</p>
           <h1 className="mt-0.5 text-[length:var(--fs-name)] leading-[var(--lh-name)] font-bold tracking-[-0.4px] text-[#1c1a16]">
             {site.userName} <span aria-hidden>👋</span>
           </h1>
@@ -544,7 +563,16 @@ function SectionHead({
   tone?: 'good' | 'warn' | 'bad'
 }) {
   return (
-    <div className="mt-5 flex items-center gap-3 px-1 first:mt-0">
+    /* `flex-wrap`, AND THE ONE ASIDE THAT NEEDS IT IS TRENDS.
+       The Trends head carries four span pills — Today / Week / 6 months / Year — which measure
+       258px together and are all `shrink-0`, because a pill that squeezes is a pill whose label
+       truncates. Against a 360px screen that is 3px wider than the viewport, and a page whose
+       body scrolls sideways is the one thing every layout in this product is written to prevent.
+       Wrapping puts the pills on their own line at that width and changes nothing at any other:
+       every wider breakpoint has room for them beside the rule, and every other section's aside
+       is a short count that never reaches the wrap. `gap-y-2` so the dropped line is not touching
+       the title above it. */
+    <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 px-1 first:mt-0">
       <Glyph size={14} strokeWidth={2} style={{ color: MUTED }} aria-hidden />
       <h2 className="text-overline font-semibold text-[#3d3a34] uppercase">
         {title}
@@ -572,13 +600,27 @@ function SectionHead({
  * "are we improving?"; forty-five against eleven previous months can, and it costs
  * 34px of card height to say it.
  */
-function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
+/**
+ * TAKES `Kpi`, NOT `HeadlineKpi`, AND THAT IS A DELIBERATE WIDENING.
+ *
+ * The Executive Overview is four cards and they do not all come from one array: three are
+ * `headlineKpis` (Animal Population, Birth Analytics, Mortality & Necropsy) and the fourth is
+ * Vaccination, which lives in `supportingKpis`. `HeadlineKpi extends Kpi` with a REQUIRED
+ * `chart`, so a `Kpi` cannot be passed where a `HeadlineKpi` is expected — but this card no
+ * longer reads `chart` or `series` at all. The curve came off it (see the note at the foot of
+ * the card) and the two fields went unused with it.
+ *
+ * So the parameter widens to the supertype rather than Vaccination being given a `chart` it has
+ * no use for. Adding a field to `data.ts` to satisfy a signature that ignores it would be the
+ * data lying to the type system, and `data.ts` belongs to another session besides.
+ */
+function HeadlineCard({ kpi }: { kpi: Kpi }) {
   const colour = kpi.accent ?? (kpi.tone && kpi.tone !== 'good' ? TONE[kpi.tone] : ACCENT)
 
   /* Figure, note, movement and curve all from the one metric under the one scope — so the
      card cannot state a site's figure beside the collection's movement, which is exactly
      what it did when these came from four separate places. */
-  const { value, note, delta, mood, known } = useKpi(kpi)
+  const { value, unit, note, delta, mood, known, percent, target, inverse } = useKpi(kpi)
 
   if (!known) return <EmptyCard label={kpi.label} icon={kpi.icon} />
 
@@ -627,7 +669,17 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
             truncating "Animals" to "Ani…". The pair is nested so they wrap as one unit; two
             bare items would leave the note stranded beside the figure with the delta below. */}
         <span className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <Figure value={value} size={32} color={HERO_INK} />
+          {/* THE UNIT IS PASSED, and it has to be now that this card is no longer headline-only.
+              This card was written for the four headline KPIs, none of which carries a unit — they
+              are counts, and their labels name what they count. When Vaccination was pulled up from
+              the supporting tiles into the overview it brought a `unit` of '%' that nothing here
+              rendered, so a 9.0% coverage rate printed on the home screen as a bare "9.0". That is
+              not a smaller version of the right answer, it is a different claim: read cold, 9.0 is
+              nine of something. `OperationalStrip` below always drew the unit, which is why the
+              figure was correct until the day it moved.
+              `Figure` already takes `unit` and sets it at the right scale beside the numeral, so
+              this is the whole fix — and it stays correct for any future tile promoted up here. */}
+          <Figure value={value} unit={unit} size={32} color={HERO_INK} />
           {/* THE NOUN IS RENDERED ONLY IF THERE IS ONE. Three of the four headline KPIs
               now carry no note, because their label already names what they count — see
               the block above `headlineKpis` in `data.ts`. An always-rendered span would
@@ -654,7 +706,23 @@ function HeadlineCard({ kpi }: { kpi: HeadlineKpi }) {
           Removed on request: the shape was not earning the height it cost. What answers the same
           question is still on the card — the delta beside the figure, which is a real comparison
           against the preceding window of equal length — and the Trends section below now carries
-          its own period switch for the reader who wants the movement over a longer span. */}
+          its own period switch for the reader who wants the movement over a longer span.
+
+          ONE EXCEPTION, AND IT IS NOT A CURVE. A RATE against a published target gets its meter.
+          Vaccination reads 9.0% and its target is the only thing that says whether 9.0 is the
+          story or the floor — "a percentage drawn as nothing makes 92% and 86% look identical
+          until both are read", which is the note this file's header already makes about
+          `SparkMeter` surviving. It is a 4px track, not a chart, so the brief's "do not overload
+          these cards with charts" is intact while the "small supporting visual where useful"
+          actually earns the word useful. Only Vaccination satisfies the condition today; the
+          other three are counts and have no target to be read against. */}
+      {percent !== undefined && (
+        <span className="mt-3 block @[900px]:mt-4">
+          <AccentProvider value={colour}>
+            <SparkMeter percent={percent} target={target} inverse={inverse} />
+          </AccentProvider>
+        </span>
+      )}
     </a>
   )
 }
@@ -684,133 +752,162 @@ function EmptyCard({ label, icon: Glyph }: { label: string; icon: HeadlineKpi['i
 }
 
 /**
- * A COLUMN ON A PHONE, A ROW ABOVE IT.
+ * THE EXECUTIVE OVERVIEW IS FOUR CARDS, AND WHICH FOUR IS THE WHOLE DECISION.
  *
- * This was a horizontal snap-scroller with peek and dots, on the reasoning that four cards will not
- * fit legibly across 390px. The premise was right and the conclusion was wrong: a sideways row hides
- * three of the four most important figures on the screen behind a gesture, and the dots admit it.
- * A director scrolling down a phone should not have to also scroll sideways to find Mortality.
+ * It was `headlineKpis` verbatim — Animal Population, Health & Medical, Birth Analytics,
+ * Mortality & Necropsy — plus a separate seven-tile grid underneath. Health & Medical comes off
+ * on request, which leaves three; Vaccination moves up from the supporting set to take the fourth
+ * slot, because the four that remain are the collection, what it gained, what it lost and what we
+ * are protecting it with. That is a coherent executive read in a way "three headline metrics and
+ * an orphan" is not.
  *
- * So on a phone the four stack, and each card turns on its side to earn the width — label and figure
- * on the left, the curve on the right, at about half the height a stacked card would need. Past
- * 640px of column they return to a four-across row, where they fit as drawn.
+ * NOTHING IS DELETED FROM `data.ts` TO ACHIEVE THIS. Health & Medical is filtered OUT here and
+ * Vaccination is pulled IN here, so the arrays stay exactly as they are — which matters because
+ * `data.ts` is another session's file and because the Health & Medical card is still perfectly
+ * good, just not on this screen. A `key` filter also cannot silently stop working the way a
+ * positional slice would if the array is ever reordered.
+ *
+ * FOUR COLUMNS AT DESKTOP, TWO AT TABLET AND PHONE. Four across a phone is four unreadable
+ * slivers; two rows of two keeps every figure at full size and is the brief's own tablet and
+ * mobile spec.
  */
-function KpiRail() {
+const DROPPED_FROM_OVERVIEW = 'treatment'
+const OVERVIEW_EXTRA = 'vaccination'
+
+function ExecutiveOverview() {
+  const cards = useMemo(() => {
+    const lead = headlineKpis.filter((k) => k.key !== DROPPED_FROM_OVERVIEW)
+    const extra = supportingKpis.filter((k) => k.key === OVERVIEW_EXTRA)
+    return [...lead, ...extra] as Kpi[]
+  }, [])
+
   return (
-    <div className="grid gap-[var(--gap)] @[640px]:grid-cols-4">
-      {headlineKpis.map((k) => (
+    <div className="grid grid-cols-2 gap-[var(--gap)] @[900px]:grid-cols-4">
+      {cards.map((k) => (
         <HeadlineCard key={k.key} kpi={k} />
       ))}
     </div>
   )
 }
 
-/** The supporting six — the same tile, no graph, quieter. */
-function KpiTile({ kpi }: { kpi: Kpi }) {
-  const { value, unit, note, delta, mood, percent, target, inverse, known } = useKpi(kpi)
-  const accent = kpi.accent ?? ACCENT
+/**
+ * OPERATIONAL STATUS — ONE STRIP, NOT SIX FLOATING CARDS.
+ *
+ * The six were a `grid-cols-6` of separate white tiles, which had two problems and the layout was
+ * only the second of them. Five of the six have no source in the extract — Breeding Success,
+ * Tasks, Welfare Audits, Health Score and Food Wastage are all listed in `core/metrics.ts`
+ * `UNSOURCED` — so the row rendered as five identical "Not reported for this scope" cards with
+ * Vaccination lit between them, and a seventh tile (Pharmacy) orphaned onto its own full-width
+ * row because seven divides by nothing.
+ *
+ * As ONE surface divided by hairlines, the same six read as a control strip: a row of readings on
+ * one instrument rather than six competing findings. The unavailable ones recede into it instead
+ * of each claiming a card, which is the honest weighting — an absent metric should be visible and
+ * quiet, not absent and loud.
+ *
+ * IT SCROLLS SIDEWAYS ONLY ON A PHONE, and the strip is the one place on this page where that is
+ * the right answer rather than a failure. Six readings do not fit across 390px at a legible size,
+ * and the alternative — a 3×2 grid — turns the instrument back into tiles. `snap-x` so a swipe
+ * lands on a cell boundary; the divider stays off the first cell so there is no rule against the
+ * card's own edge.
+ */
+function OperationalStrip() {
+  const cells = useMemo(() => supportingKpis.filter((k) => k.key !== OVERVIEW_EXTRA), [])
 
-  /* The same guard the headline card above already had, and for the same reason: a metric with
-     no model must show the empty state rather than a zero. It mattered less when every metric
-     had one — against the database, Breeding Success and Tasks have no source at all, and this
-     tile was printing "0%" and "0 Done" for them. */
-  if (!known) return <EmptyCard label={kpi.label} icon={kpi.icon} />
+  return (
+    <div className={`${CARD} overflow-hidden`}>
+      <div className="flex snap-x snap-mandatory overflow-x-auto @[760px]:overflow-visible">
+        {cells.map((k, i) => (
+          <div
+            key={k.key}
+            className={`min-w-[46%] shrink-0 snap-start border-l @[520px]:min-w-[33%] @[760px]:min-w-0 @[760px]:flex-1 ${
+              i === 0 ? 'border-l-0' : ''
+            }`}
+            style={{ borderColor: 'rgb(28 26 22 / 0.07)' }}
+          >
+            <StripCell kpi={k} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
-  const inner = (
+/**
+ * One reading on the strip.
+ *
+ * A CELL, NOT A CARD — no surface of its own, no radius, no shadow. The hairline beside it is the
+ * only thing separating it from its neighbour, which is what makes six of them read as one
+ * instrument. Where the metric has no source the figure is an em dash in the disabled ink and the
+ * label stays legible: the reader learns that the measure exists and that we cannot read it, which
+ * are two different facts from "it is zero".
+ */
+function StripCell({ kpi }: { kpi: Kpi }) {
+  const { value, unit, note, delta, mood, known } = useKpi(kpi)
+  const colour = kpi.accent ?? ACCENT
+
+  const body = (
     <>
-      {/* A tinted chip of the tile's own hue, not the one product green every tile used to draw.
-          Six identical cards meant finding "Vaccination" required reading all six labels; colour
-          and position now do that work before the label is read. The hue is the module's own, so
-          the tile and the page behind it match. */}
-      <span className="flex items-center gap-2">
-        {/* Bare glyph, same box, same accent — see the headline card above. */}
-        <span className="grid size-6 shrink-0 place-items-center" aria-hidden>
-          <kpi.icon size={18} strokeWidth={1.75} style={{ color: accent }} />
-        </span>
-        <span className="min-w-0 truncate text-small font-medium text-[#3d3a34]">{kpi.label}</span>
-      </span>
-      {/* 26, not 30. At six columns a KPI cell is ~125px of inner width and
-          "215,432" is about 3.8em wide — at 30pt with the tier multiplier on top it
-          printed straight over the card's own edge. The scale variable still grows it
-          per tier; this is the base it grows from. */}
-      {/* Same one baseline as the headline card above, and the same wrap: figure, the note that
-          qualifies it, then the movement. These six run two, three and six across, so the note —
-          "2,171 of 2,374", "Site average · target 90" — almost always wants the second line and
-          takes it, which is the layout this always had. Where it fits, as on the wide closing
-          tile, the three read as one line rather than as a figure with a caption under it.
-
-          `note || ' '` STAYS. Six tiles in a row are equal height, but the meter under each is
-          not — a tile whose text wraps to two lines sits its bar 17px below a tile whose text
-          did not, and a row of bars at two heights reads as a bug. The nbsp keeps a tile with
-          no note wrapping like its neighbours. */}
-      <span className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1.5">
-        <Figure value={value} unit={unit} size={28} color={HERO_INK} />
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="min-w-0 truncate text-caption text-[#736e67]">{note || ' '}</span>
-          {/* Shown under a site scope now, because it IS that site's movement — the delta
-              is read from the same scoped series as the figure beside it. It had to be
-              hidden before, when it was the collection's change beside a site's figure. */}
-          {hasMovement(delta) && (
-            <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
-              {delta}
-            </span>
-          )}
+      <span className="flex items-center gap-1.5">
+        <kpi.icon
+          size={14}
+          strokeWidth={1.75}
+          className="shrink-0"
+          style={{ color: known ? colour : '#a9b3ad' }}
+          aria-hidden
+        />
+        <span className="min-w-0 truncate text-caption font-medium" style={{ color: known ? '#3d3a34' : FAINT }}>
+          {kpi.label}
         </span>
       </span>
-      {/* THE ONE MARK THESE SIX TILES DID NOT HAVE. All six are rates, and a rate stated as
-          a number and drawn as nothing makes 92% and 86% look identical until both are read.
-          Five pixels answer "how far along" before either number is. Drawn only where there
-          is a percentage to draw, so a tile can never show a bar it invented. */}
-      {percent !== undefined && (
-        /* PUSHED TO THE FLOOR OF THE CARD, not stacked under the text.
-           Now that the figure row wraps only when it has to, two tiles beside each other can
-           carry one line of text and two — "78 % 45 of 58 pairings" fits, "91 % 2,171 of 2,374
-           −0.9 pts" does not — and a bar that follows its own text lands 17px lower on one tile
-           than on its neighbour. A row of grid cells is equal height, so `mt-auto` takes that
-           difference into the gap above the bar instead, and the row's bars all sit on one line.
-           `pt-0.5` is there to stop `SparkMeter`'s own top margin collapsing through the
-           wrapper, which would drag the bar back off the floor. */
-        <span className="mt-auto block pt-0.5">
-          {/* The tile's own hue, not the product green. `SparkMeter` reads the accent from
-             context like every other mark, and this tile sets its accent per KPI rather than
-             on a provider — so the provider goes here, around the one mark that needs it. */}
-          <AccentProvider value={accent}>
-            <SparkMeter percent={percent} target={target} inverse={inverse} />
-          </AccentProvider>
-        </span>
+      {known ? (
+        <>
+          <span className="mt-1.5 flex items-baseline gap-1">
+            <Figure value={value} size={24} color={HERO_INK} />
+            {unit && (
+              <span className="text-caption" style={{ color: FAINT }}>
+                {unit}
+              </span>
+            )}
+          </span>
+          <span className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
+            {note && <span className="truncate text-caption" style={{ color: FAINT }}>{note}</span>}
+            {hasMovement(delta) && (
+              <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+                {delta}
+              </span>
+            )}
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="mt-1.5 block font-display text-[24px] leading-[1.1] font-bold" style={{ color: '#c9c4bb' }}>
+            —
+          </span>
+          {/* THE SAME SENTENCE AS EVERY OTHER EMPTY READING ON THIS SCREEN.
+              This said "Not reported" while `EmptyCard` above and the Trends tiles below both said
+              "Not reported for this scope" — three sections, two wordings, one screen. The audit of
+              17 Aug 2026 logged that class of drift as a finding in its own right, and the shorter
+              form also loses the load-bearing half: "for this scope" is what tells a reader the
+              figure might exist under a different site or window, rather than not existing at all.
+              Kept on one line at this size — it is a caption, and it wraps. */}
+          <span className="mt-0.5 block text-caption" style={{ color: '#a9b3ad' }}>
+            Not reported for this scope
+          </span>
+        </>
       )}
     </>
   )
 
-  /* One destination for all six, the same as the four headline cards above: the module page.
-     Three of these used to open a drill sheet and two a measure panel, so a row of six identical
-     tiles behaved three different ways under the same gesture. The measure panel is still one tap
-     away — it is what the Executive Health tile below opens, where the score belongs. */
-  return (
-    <a
-      href={kpi.href}
-      className={`${TAP} ${CARD} flex min-w-0 flex-col p-[var(--pad-card-sm)] ${
-        kpi.wide ? 'col-span-2 @[640px]:col-span-3 @[1000px]:col-span-6' : ''
-      }`}
-    >
-      {inner}
+  const pad = 'flex h-full flex-col p-[var(--pad-card-sm)]'
+  /* An unavailable reading is not a door. Linking it would send a reader to a page that cannot
+     answer the question the tile just failed to answer. */
+  return known && kpi.href ? (
+    <a href={kpi.href} className={`card-press ${pad}`}>
+      {body}
     </a>
-  )
-}
-
-function KpiGrid() {
-  return (
-    /* Six tiles that divide evenly at two, three and six, and a seventh that spans the
-       last row rather than sitting alone in it. Seven has no column count that divides
-       it, so the choice was an orphaned tile at every breakpoint or a deliberate closing
-       row; `wide` on the KPI picks the second. Measured off the COLUMN, not the window —
-       with a sidebar and a panel flanking it, a 1280 desktop hands this stack less width
-       than a tablet landscape does. See the note in `index.css`. */
-    <div className="grid grid-cols-2 gap-[var(--gap)] @[640px]:grid-cols-3 @[1000px]:grid-cols-6">
-      {supportingKpis.map((k) => (
-        <KpiTile key={k.key} kpi={k} />
-      ))}
-    </div>
+  ) : (
+    <div className={pad}>{body}</div>
   )
 }
 
@@ -818,156 +915,37 @@ function KpiGrid() {
 
 /* ── 3 · approvals ───────────────────────────────────────────────────────── */
 
-/* ── 4 · upcoming ────────────────────────────────────────────────────────── */
-
-function Upcoming() {
-  const { open } = useSheet()
-  const [horizon, setHorizon] = useState(7)
-  const groups = upcoming
-    .map((g) => ({ group: g, rows: g.rows.filter((r) => r.inDays <= horizon) }))
-    .filter((g) => g.rows.length > 0)
-
-  return (
-    <div className={`${CARD} p-[var(--pad-card)]`}>
-      <div className="flex items-center justify-between gap-3">
-        {/* "21 due" was ambiguous beside a column of 6, 29, 300 — the reader has to
-            work out whether 21 is a third figure or a count of the rows. It is the
-            rows, so it says so. */}
-        <span className="text-[length:var(--fs-title)] leading-[var(--lh-title)] font-medium text-[#1c1a16]">
-          {dueWithin(horizon)} scheduled
-        </span>
-        {/* Two windows, not a date picker. The question is "what is due soon", and
-            soon is either this week or this month — anything else is planning, which
-            happens in the module. */}
-        {/* `aria-pressed`, NOT `role="tab"`. These were declared as an ARIA tablist with
-            `aria-selected`, and the pattern was never completed: there is no `role="tabpanel"`
-            anywhere in the product, no `aria-controls` pointing at one, and no roving tabindex.
-            A screen reader announced "tab, 1 of 2, selected" and then the arrow keys the tab
-            pattern promises did nothing, because there was no tablist to move within. These are
-            not tabs — nothing is being revealed and hidden, the list below simply re-reads at a
-            different horizon. That is a toggle button, which is what `aria-pressed` names, and
-            it is what the population page's own chips have always used. */}
-        <div className="flex gap-2">
-          {[7, 30].map((d) => (
-            <button
-              key={d}
-              type="button"
-              aria-pressed={horizon === d}
-              onClick={() => setHorizon(d)}
-              className={`pill ${
-                horizon === d ? 'bg-[#123a2c] text-white' : 'bg-[#f4f3ef] text-[#55524a]'
-              }`}
-            >
-              {d} days
-            </button>
-          ))}
-        </div>
-      </div>
-      <ul className="mt-4 flex flex-col">
-        {groups.map(({ group, rows }) => {
-          const count = rows.reduce((n, r) => n + r.count, 0)
-          const next = rows[0]
-          const soon = next.inDays <= 1
-          return (
-            <li key={group.key} className="border-b border-[#f0efec] last:border-0">
-              <button
-                type="button"
-                onClick={() =>
-                  open({
-                    title: group.label,
-                    eyebrow: `Next ${horizon} days`,
-                    body: <UpcomingPanel group={group} horizon={horizon} />,
-                  })
-                }
-                className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-3 text-left"
-              >
-                <span
-                  className="grid size-7 shrink-0 place-items-center rounded-[9px]"
-                  style={{ backgroundColor: mix(ACCENT, 0.1) }}
-                  aria-hidden
-                >
-                  <group.icon size={15} strokeWidth={1.75} style={{ color: ACCENT }} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-small text-[#1c1a16]">{group.label}</span>
-                  {/* A dot for the ones inside 24 hours, not an amber line.
-                      Six of the nine groups have something due tomorrow, and setting
-                      six of nine sub-lines in warn amber turned the urgency colour
-                      into the list's body colour — at which point it has stopped
-                      marking anything. The dot marks the same rows and leaves the
-                      text readable. */}
-                  <span className="mt-1 flex items-center gap-1.5 truncate text-caption" style={{ color: FAINT }}>
-                    {soon && (
-                      <span
-                        className="size-[5px] shrink-0 rounded-full"
-                        style={{ backgroundColor: TONE.warn }}
-                        aria-label="Within 24 hours"
-                      />
-                    )}
-                    <span className="truncate">
-                      Next {next.date} · {next.where}
-                    </span>
-                  </span>
-                </span>
-                <span className="shrink-0 text-small font-medium tabular-nums" style={{ color: HERO_INK }}>
-                  {compact(count)}
-                </span>
-                <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-      {groups.length === 0 && (
-        <p className="mt-4 text-small text-[#5c574f]">Nothing scheduled in the next {horizon} days.</p>
-      )}
-    </div>
-  )
-}
-
-/* ── 6 · risks ───────────────────────────────────────────────────────────── */
-
-/** Severity chip — the one place a level is spelled out rather than dotted. */
-function LevelChip({ level }: { level: keyof typeof LEVEL_TONE }) {
-  const tone = LEVEL_TONE[level]
-  return (
-    <span
-      className="shrink-0 rounded-full px-2 py-[2px] text-overline font-semibold uppercase"
-      style={{ backgroundColor: mix(TONE[tone], 0.12), color: TONE[tone] }}
-    >
-      {level}
-    </span>
-  )
-}
-
-function RiskRow({ risk }: { risk: (typeof risks)[number] }) {
-  const { open } = useSheet()
-  const tone = LEVEL_TONE[risk.level]
-  return (
-    <li className="border-b border-[#f0efec] last:border-0">
-      <button
-        type="button"
-        onClick={() => open({ title: risk.label, eyebrow: `${risk.level} risk`, body: <RiskPanel risk={risk} /> })}
-        className="card-press -mx-2 flex w-full items-center gap-3 rounded-[10px] px-2 py-3 text-left"
-      >
-        <risk.icon size={16} strokeWidth={1.75} className="shrink-0" style={{ color: TONE[tone] }} aria-hidden />
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="min-w-0 truncate text-small text-[#1c1a16]">{risk.label}</span>
-            <LevelChip level={risk.level} />
-          </span>
-          <span className="mt-1 block truncate text-caption text-[#736e67]">{risk.note}</span>
-        </span>
-        {/* Ink, for the same reason as the alert count above — the icon and the chip carry the
-            level, so the figure carries only the figure. */}
-        <span className="shrink-0 text-body font-semibold tabular-nums" style={{ color: HERO_INK }}>
-          {risk.value}
-        </span>
-        <ChevronRight size={13} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
-      </button>
-    </li>
-  )
-}
+/*
+ * ── 4 · upcoming, and 6 · risk indicators ───────────────────────────────────
+ *
+ * BOTH SECTIONS ARE REMOVED, and the reason is the one the rest of this product already
+ * enforces everywhere else: a figure with no source is absent, not authored.
+ *
+ * They were the last two fully invented sections on the screen. `upcoming` was nine groups of
+ * hand-written due dates anchored to 07 Aug 2025; `risks` was eight hand-written exposures. The
+ * audit of 17 Aug 2026 found the specific failure that made keeping them untenable — they name a
+ * collection that does not exist in the data every other section reads. Asiatic Lion, Chital,
+ * Blackbuck, Sangai Deer, Savanna, Carnivore Ridge, Aviary Complex: none of them are in
+ * `species_mgmt_anon`. The register holds Umber Langur, Ochre Warbler, Amber Agama, Bramblewood
+ * Nature Reserve, Pinecrest Wildlife Estate. So the two most operational sections on the home
+ * screen — the two a director would actually act on — described a different zoo from the one the
+ * KPIs above them were counting.
+ *
+ * ONE OF THEM ALSO CONTRADICTED A MODULE OUTRIGHT. "Inbreeding Risk · 14 pairings above 0.125
+ * kinship" asserts pair-level kinship. `core/metrics.ts` records that the extract carries no
+ * pairing outcome at all, and `speciesPairing.tsx` refuses the word for that reason — which is
+ * why the species list's column reads *Pairable* rather than *Paired*. The home screen was
+ * stating as fact the thing the module documents as unknowable.
+ *
+ * This follows the precedent that already took Critical Alerts, Needs My Approval, Zoo Health and
+ * Executive Health off this screen: four authored sections removed on the same argument. The
+ * `upcoming`, `risks`, `criticalAlerts` and `approvals` structures survive in `data.ts` and their
+ * panels survive in `panels.tsx`, so nothing has to be rewritten if a real source ever lands —
+ * but nothing renders them.
+ *
+ * WHAT TOOK THE SPACE is the Collection Watch section below: the same altitude of question — what
+ * needs attention — answered from the register instead of from a keyboard.
+ */
 
 /* ── 7 · trends ──────────────────────────────────────────────────────────── */
 
@@ -1018,6 +996,9 @@ const TREND_SPANS: { key: WindowKey; label: string }[] = [
 function TrendsSection() {
   const [span, setSpan] = useState<WindowKey>('year')
   const win = useMemo(() => resolveWindow(span), [span])
+  /* `[0]` and the rest — see the note on the grid below for why the split is positional. */
+  const primary = trends[0]
+  const supporting = useMemo(() => trends.slice(1), [])
 
   return (
     <>
@@ -1045,13 +1026,94 @@ function TrendsSection() {
         }
       />
       <Reveal>
-        <div className="grid grid-cols-2 gap-[var(--gap)] @[520px]:grid-cols-4">
-          {trends.map((t) => (
-            <TrendTile key={t.key} card={t} win={win} />
-          ))}
+        {/* PRIMARY, THEN SUPPORTING — and the split is by position in `trends`, not by name.
+            `trends[0]` is Animal Population, the level the whole page opens on, so it gets the
+            chart and the width; everything after it is a supporting reading in a compact grid
+            beside it. A grid of eight identical chart cards states that all eight matter equally,
+            which is the same flattening the KPI row had.
+
+            IT TOLERATES ANY COUNT, deliberately. The supporting set may shrink from seven to three
+            if the three authored trend tiles (Medicine Spend, Procurement Spend, Visitor Trend) are
+            dropped from `data.ts` — that decision is live in another session. `auto-rows` plus a
+            2/3-column grid means three, four or seven all fill without an orphan, and the primary
+            panel does not move either way. Nothing here reads a fixed index beyond `[0]`. */}
+        <div className="grid items-start gap-[var(--gap)] @[1000px]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          {primary && <PrimaryTrend card={primary} win={win} />}
+          {supporting.length > 0 && (
+            <div className="grid auto-rows-fr grid-cols-2 gap-[var(--gap)] @[560px]:grid-cols-3 @[1000px]:grid-cols-2 @[1240px]:grid-cols-3">
+              {supporting.map((t) => (
+                <TrendTile key={t.key} card={t} win={win} />
+              ))}
+            </div>
+          )}
         </div>
       </Reveal>
     </>
+  )
+}
+
+/**
+ * THE ONE TREND THAT GETS A CURVE.
+ *
+ * `AreaTrend` over `pointsOf(metric, site, win)` — the same read `exec/pages/trends.tsx` makes for
+ * its own series and the same one `TrendCard` sums for its figure, so the shape and the number
+ * cannot disagree. No new query, no new endpoint, no smoothing: this is the existing daily series
+ * bucketed to the span the reader picked with the chips above.
+ *
+ * WHY IT IS AN AREA AND NOT COLUMNS. `trends[0]` is a LEVEL — a headcount on a date — and a level
+ * is continuous, so a line through it is honest and the shape is the point. The supporting tiles
+ * keep drawing themselves from their own `shape` field, which is where the level-versus-flow
+ * decision is already recorded for each of them.
+ */
+function PrimaryTrend({ card, win }: { card: (typeof trends)[number]; win: Win }) {
+  const { scope } = useScope()
+  const site = scope.site?.key ?? null
+  const slug = card.metric
+  const { value, delta, mood, known } = useTrendCard(card, win)
+
+  const points = useMemo(() => (slug ? pointsOf(slug, site, win) : []), [slug, site, win])
+  const compare = useMemo(() => (slug ? compareOf(slug, site, win) : undefined), [slug, site, win])
+  const accent = card.accent ?? (card.tone === 'neutral' ? MUTED : TONE[card.tone])
+
+  return (
+    <a href={card.href ?? '#/trends'} className={`${TAP} ${CARD} flex flex-col p-[var(--pad-card)]`}>
+      {/* THE HEADER IS THE LABEL AND NOTHING ELSE, BECAUSE `AreaTrend` OWNS THE FIGURE.
+          The first cut of this panel printed its own `Figure` and its own delta above the chart,
+          and the chart drew them again underneath — 110,020 twice, once with "+11%" and once with
+          "+10,590". Removing the CHART's head would have been the wrong half to cut: `AreaTrend`'s
+          `PlotHead` is SCRUBBABLE, so tracing the curve re-reads it at the point under the cursor,
+          and a static figure sitting above a live one is worse than either alone. Its delta is the
+          same comparison the supporting tiles make — this span against the one before it — stated
+          in animals rather than percent.
+
+          The `delta` and `value` from `useTrendCard` are still read, because `known` is what
+          decides whether there is a series worth drawing at all. */}
+      <span className="flex min-w-0 items-center gap-2">
+        <card.icon size={16} strokeWidth={1.75} className="shrink-0" style={{ color: accent }} aria-hidden />
+        <span className="min-w-0 truncate text-small font-medium text-[#1c1a16]">{card.label}</span>
+      </span>
+      {/* The curve carries the span the chips set. `AccentProvider` so the mark inherits this
+          card's own hue rather than the page accent — the same thing every other panel does. */}
+      {known && points.length > 1 ? (
+        <span className="mt-1 block">
+          <AccentProvider value={accent}>
+            <AreaTrend points={points} compare={compare} height={200} />
+          </AccentProvider>
+        </span>
+      ) : (
+        /* No series to draw — one reading, or a metric with no source. The figure still stands,
+           because "110,020 and we cannot show you its shape" is a different statement from
+           "nothing to report". */
+        <span className="mt-2 flex items-baseline gap-2">
+          <Figure value={value} size={36} color={HERO_INK} />
+          {hasMovement(delta) && (
+            <span className="shrink-0 text-caption font-semibold tabular-nums" style={{ color: MOOD[mood] }}>
+              {delta}
+            </span>
+          )}
+        </span>
+      )}
+    </a>
   )
 }
 
@@ -1114,6 +1176,97 @@ function TrendTile({ card, win }: { card: (typeof trends)[number]; win: Win }) {
   )
 }
 
+/* ── quick actions ───────────────────────────────────────────────────────── */
+
+/**
+ * EIGHT DOORS, AND SEVEN OF THEM LEAD SOMEWHERE.
+ *
+ * These are NAVIGATION, not metrics — which is what makes them safe to add to a screen that
+ * otherwise refuses anything without a source. A shortcut does not assert a figure; it asserts
+ * that a page exists, and that is checkable. Every `href` below was verified against the route
+ * registry in `exec/pages/index.ts`.
+ *
+ * DIET PLAN HAS NO DESTINATION AND IS NOT A LINK. The extract carries no feed or diet table —
+ * `core/metrics.ts` records the absence under `wastage` — and there is no diet module to open. It
+ * renders as a tile with no chevron and no press, so the grid keeps the eight the brief asks for
+ * while the one that cannot do anything does not pretend it can. A dead link on an executive
+ * screen costs more trust than a missing one.
+ *
+ * TWO COLUMNS ON A PHONE, FOUR ON A DESKTOP, and never heavier than Collection Watch beside it:
+ * these are 44px rows of icon-and-label, no figures, no colour beyond the glyph.
+ */
+const QUICK_ACTIONS: { label: string; icon: LucideIcon; href?: string }[] = [
+  { label: 'Add New Animal', icon: PlusCircle, href: '#/accession' },
+  { label: 'Medical Case', icon: Stethoscope, href: '#/health' },
+  { label: 'Enclosure Status', icon: Boxes, href: '#/animals' },
+  /* No route, by the note above. */
+  { label: 'Diet Plan', icon: Wheat },
+  { label: 'Pending Tasks', icon: ListChecks, href: '#/tasks' },
+  { label: 'Reports', icon: FileBarChart, href: '#/trends' },
+  { label: 'Alerts', icon: Bell, href: '#/alerts' },
+  { label: 'Approvals', icon: BadgeCheck, href: '#/approvals' },
+]
+
+function QuickActions() {
+  return (
+    <div className={`${CARD} p-[var(--pad-card-sm)]`}>
+      <div className="grid grid-cols-2 gap-1.5 @[1000px]:grid-cols-2">
+        {QUICK_ACTIONS.map((a) => {
+          const inner = (
+            <>
+              <span
+                className="grid size-8 shrink-0 place-items-center rounded-[10px]"
+                style={{ backgroundColor: a.href ? mix(ACCENT, 0.1) : '#f2f1ee' }}
+                aria-hidden
+              >
+                <a.icon size={15} strokeWidth={1.9} style={{ color: a.href ? ACCENT : '#a9b3ad' }} />
+              </span>
+              <span
+                className="min-w-0 flex-1 text-caption font-medium text-balance"
+                style={{ color: a.href ? '#1c1a16' : '#a9b3ad' }}
+              >
+                {a.label}
+              </span>
+              {a.href && (
+                <ChevronRight size={14} strokeWidth={2.25} className="shrink-0" style={{ color: ACCENT_INK }} aria-hidden />
+              )}
+            </>
+          )
+          const shape = 'flex items-center gap-2.5 rounded-[12px] p-2'
+          return a.href ? (
+            <a key={a.label} href={a.href} className={`card-press ${shape} hover:bg-[#f4f9f6]`}>
+              {inner}
+            </a>
+          ) : (
+            <div key={a.label} className={shape}>
+              {inner}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * WHEN THE FIGURES WERE READ, AND HOW CURRENT THE LEDGER IS.
+ *
+ * `LastUpdated` already exists and already states both halves — the render clock and the last day
+ * the extract holds — with a note on why collapsing them into "updated just now" would imply the
+ * data is as fresh as the render. Reusing it is the whole of this footer; a second component
+ * stating the same two facts differently is how two timestamps end up disagreeing.
+ *
+ * The page ENDS here. No bottom navigation on any breakpoint — checked, there is none in `Shell`
+ * or `Sidebar` to remove, and none is added.
+ */
+function UpdateFooter() {
+  return (
+    <div className="mt-1 flex justify-center pb-1">
+      <LastUpdated alwaysFull />
+    </div>
+  )
+}
+
 /* ── the page ────────────────────────────────────────────────────────────── */
 
 export function HomeSections() {
@@ -1141,12 +1294,19 @@ export function HomeSections() {
           past, which the tiles state better by being there. The rule earns its keep as a
           divider; the aside is kept for sections where the summary is a fact you cannot get
           by looking — "3 urgent", "82 / 100". */}
-      <SectionHead icon={SECTION_ICONS.kpis} title="Executive KPIs" />
+      <SectionHead icon={SECTION_ICONS.kpis} title="Executive Overview" />
       <Reveal>
-        <KpiRail />
+        <ExecutiveOverview />
       </Reveal>
+
+      {/* OPERATIONAL STATUS IS ITS OWN SECTION NOW, not a second unlabelled grid under the
+          headline figures. The two were reading as one eleven-tile block, which is why the
+          absent five were so loud: they sat at the same altitude as Animal Population. A rule
+          and a name puts them where they belong — the readings you check, under the figures you
+          report. */}
+      <SectionHead icon={SECTION_ICONS.kpis} title="Operational Status" />
       <Reveal>
-        <KpiGrid />
+        <OperationalStrip />
       </Reveal>
 
       {/* TRENDS MOVED UP, to directly under the figures it is the shape of.
@@ -1157,22 +1317,28 @@ export function HomeSections() {
           panel's own "· 12 months" line. */}
       <TrendsSection />
 
-      <SectionHead icon={SECTION_ICONS.upcoming} title="Upcoming" aside="7 / 30 days" />
-      <Reveal>
-        <Upcoming />
-      </Reveal>
+      {/* WHERE UPCOMING AND RISK INDICATORS USED TO BE — see the long note above. The question
+          those two sections were asking is a real one and the screen should still answer it; what
+          changed is that the answer is counted from the register rather than typed.
+          NO COUNT IN THE ASIDE. The section's own leading figure states how many species it is
+          about, and repeating it on the rule is the restatement the KPI head already dropped. */}
+      {/* COLLECTION WATCH LEADS AND QUICK ACTIONS SITS BESIDE IT, at a ratio that says which is
+          which. Watch is the analytical panel — a distribution bar and five counted risks — and
+          Actions is a list of doors; giving them equal columns would state that eight shortcuts
+          weigh the same as the collection's risk profile. 1.6fr against 1fr past 1000px of column,
+          stacked below it, Watch first at every width.
 
-      <SectionHead icon={SECTION_ICONS.risks} title="Risk Indicators" aside={`${risks.length} tracked`} />
+          `items-start` so Actions does not stretch to Watch's height and leave dead space under
+          its last row — the two panels end where their content ends. */}
+      <SectionHead icon={SECTION_ICONS.risks} title="Collection Watch" />
       <Reveal>
-        <div className={`${CARD} p-[var(--pad-card)]`}>
-          <ul className="flex flex-col">
-            {risks.map((r) => (
-              <RiskRow key={r.key} risk={r} />
-            ))}
-          </ul>
+        <div className="grid items-start gap-[var(--gap)] @[1000px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <CollectionWatch />
+          <QuickActions />
         </div>
       </Reveal>
 
+      <UpdateFooter />
     </main>
   )
 }

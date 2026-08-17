@@ -38,7 +38,7 @@
  * `titleOf` survives as the single place any future exception would go.
  */
 
-import { Boxes, Settings, type LucideIcon } from 'lucide-react'
+import { Boxes, PawPrint, Settings, type LucideIcon } from 'lucide-react'
 import { execPages } from '../exec/pages'
 
 export const titleOf = (slug: string): string => execPages[slug]?.title ?? slug
@@ -168,6 +168,41 @@ export const SETTINGS: NavItem = { slug: 'settings', label: 'Settings', icon: Se
  * have to work out which module mentions it.
  */
 export const EVERYTHING: NavItem = { slug: 'entities', label: 'Everything', icon: Boxes }
+
+/**
+ * SPECIES — the module that had no way in.
+ *
+ * The audit of 17 Aug 2026 found the species list reachable from exactly three places: a card on
+ * the home screen, one stat on the Animal Population page, and a row on a site record. Nothing in
+ * the rail. Thirteen tabs of species content — profile, pairing, housing, circle of life, eggs,
+ * assessments, medical, hospital, lab, identification, breeds, the animal register — and a reader
+ * who did not already know the card existed could not get to any of it, while six operations pages
+ * carrying far less each had their own row.
+ *
+ * BESIDE HOME AND EVERYTHING RATHER THAN INSIDE `COLLECTION`, for the reason `EVERYTHING` is there:
+ * these three are not modules. A module answers a question about a window — how many died, what is
+ * overdue. The species list is an INDEX of things, which is the product's other axis, and the two
+ * axes belong at the same level as each other rather than one filed under the other. It sits after
+ * Everything because it is the specific case of it: everything, then the 2,411 rows a curator
+ * actually arrives for.
+ *
+ * IT IS NOT IN `execPages`, so it never appears in `navGroups`, `titleOf` or the module search —
+ * `#/browse/species` is an entity route, not a module slug. That is why this is a hand-declared
+ * item like the other two rather than a `TREE` entry.
+ */
+export const SPECIES: NavItem = { slug: 'browse/species', label: 'Species', icon: PawPrint }
+
+/**
+ * Whether a route is inside the species module — its list or any species record.
+ *
+ * Needed because `activeSlug` truncates to the first path segment, so `#/browse/species` and
+ * `#/e/species/umber-langur` both reduce to a word (`browse`, `e`) that says nothing about
+ * species. Without this the Everything row lit up for both and the Species row for neither.
+ */
+export const inSpecies = (route: string): boolean => {
+  const path = route.replace(/^#\//, '').split('?')[0]
+  return path === 'browse/species' || path.startsWith('e/species/')
+}
 
 /**
  * Which sidebar entry to light up. A record page (`mortality/records`) highlights its

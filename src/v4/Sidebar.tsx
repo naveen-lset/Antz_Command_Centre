@@ -18,7 +18,7 @@
 
 import { useMemo, useState } from 'react'
 import { LayoutGrid, Search, X } from 'lucide-react'
-import { EVERYTHING, SETTINGS, activeSlug, filterNav } from './nav'
+import { EVERYTHING, SETTINGS, SPECIES, activeSlug, filterNav, inSpecies } from './nav'
 import { site } from './data'
 import { useSheet } from './sheet'
 import { SettingsPanel } from './Settings'
@@ -28,6 +28,7 @@ export function Sidebar({ route }: { route: string }) {
   const groups = useMemo(() => filterNav(query), [query])
   const active = activeSlug(route)
   const onHome = active === ''
+  const onSpecies = inSpecies(route)
   const { open } = useSheet()
 
   return (
@@ -63,12 +64,24 @@ export function Sidebar({ route }: { route: string }) {
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden px-3 pb-2">
         <SidebarLink href="#/" icon={LayoutGrid} label="Home" active={onHome} />
         {/* The entity index. Beside Home rather than in a module group, because browsing things is
-            the other axis of the product — see `nav.ts`. */}
+            the other axis of the product — see `nav.ts`.
+            IT NO LONGER CLAIMS THE SPECIES ROUTES. `active === 'browse' || active === 'e'` lit this
+            row for the species list and every species record, which is why adding the row below
+            required narrowing this one: two lit rows say the reader is in two places. */}
         <SidebarLink
           href={`#/${EVERYTHING.slug}`}
           icon={EVERYTHING.icon}
           label={EVERYTHING.label}
-          active={active === EVERYTHING.slug || active === 'browse' || active === 'e'}
+          active={
+            !onSpecies && (active === EVERYTHING.slug || active === 'browse' || active === 'e')
+          }
+        />
+        {/* SPECIES. The module with thirteen tabs and, until now, no row — see `nav.ts`. */}
+        <SidebarLink
+          href={`#/${SPECIES.slug}`}
+          icon={SPECIES.icon}
+          label={SPECIES.label}
+          active={onSpecies}
         />
 
         {groups.map((group) => (

@@ -105,7 +105,6 @@ import {
 import {
   AreaTrend,
   EventTrend,
-  Concentration,
   PercentSplit,
   MicroBars,
   RankList,
@@ -119,8 +118,10 @@ import type { LucideIcon } from 'lucide-react'
 import { useSheet } from '../sheet'
 import { CardWindowNote, useCardWindow } from '../cardWindow'
 import { useScope } from '../scope'
+/* The species list's own filter param names, read rather than retyped — the explorer's "View all"
+   is a link into that list and has to speak its query language. */
+import { FACET_PARAM } from '../speciesListData'
 import { DateSheet } from '../filters'
-import { MoreRows, usePaged } from '../perf'
 import { useDrill } from '../drillNav'
 import {
   citesBands,
@@ -130,7 +131,6 @@ import {
   isRegulated,
   regulatorySplit,
   scheduleBands,
-  standingLabel,
   totalOf,
   type CitesAppendix,
   type Holding,
@@ -145,7 +145,6 @@ import {
   siteRows,
   sortSites,
   sortSpecies,
-  searchSpecies,
   speciesRows,
   type Leader,
   type SiteRow,
@@ -277,23 +276,12 @@ export default function Animals() {
      Named entities INSIDE the popup are the terminus. */
   const openSite = (key: string) =>
     open({ title: siteOf(key)?.name ?? key, eyebrow: 'Animal Population', body: <SitePanel siteKey={key} win={win} /> })
-  /* "View all" is the same contextual popup every other drill uses, holding the complete
-     listing the card only shows the head of. Each row selects that site, so the popup is
-     a way IN rather than a terminus. */
-  /* The complete listing keeps `SpeciesCard` — it already carries search, four sorts and
-     paging over 4,745 rows, and rebuilding that inside the sheet would be a second
-     implementation of a control that works. */
-  const openAllSpecies = () =>
-    open({
-      title: 'Species',
-      eyebrow: 'Collection Explorer',
-      body: (
-        <div className="pb-2">
-          <SpeciesCard rows={species} query={query} onQuery={setQuery} onOpen={openSpecies} />
-        </div>
-      ),
-    })
-
+  /* "View all" for SITES is still the contextual popup every other drill uses, holding the
+     complete listing the card only shows the head of. Each row selects that site, so the popup is
+     a way IN rather than a terminus.
+     THE SPECIES EQUIVALENT IS GONE, and `SpeciesCard` with it — see the note on the explorer's
+     own "View all →", which is now a link into `#/browse/species` filtered to the class. There is
+     one species table in the product again. */
   const openAllSites = () =>
     open({
       title: 'Sites',
@@ -480,7 +468,6 @@ export default function Animals() {
               classes={classes}
               species={species}
               onOpenSpecies={openSpecies}
-              onViewAllSpecies={openAllSpecies}
             />
           </div>
         </Grid>
@@ -642,7 +629,9 @@ function PopulationOverview({
   const flows: { key: string; label: string; icon: LucideIcon; value: number | null; sign: 1 | -1; note?: string }[] = [
     { key: 'births', label: 'Births', icon: Baby, value: move.births.total, sign: 1 },
     { key: 'accession', label: 'Accessions', icon: Boxes, value: move.accessions, sign: 1 },
-    { key: 'mortality', label: 'Mortality', icon: Skull, value: move.deaths, sign: -1 },
+    /* 'Deaths', matching Recorded flows further down the same page — which said 'Deaths' while
+       this card said 'Mortality' about the identical figure. One page, one word for the event. */
+    { key: 'mortality', label: 'Deaths', icon: Skull, value: move.deaths, sign: -1 },
     { key: 'transfers', label: 'Transfers out', icon: ArrowLeftRight, value: move.transfers.out, sign: -1 },
     { key: 'escaped', label: 'Escapes', icon: Footprints, value: null, sign: -1, note: UNSOURCED.escaped },
     { key: 'fetal', label: 'Fetal loss', icon: Dna, value: null, sign: -1, note: UNSOURCED.fetal },
@@ -1645,14 +1634,13 @@ function CollectionExplorer({
   classes,
   species,
   onOpenSpecies,
-  onViewAllSpecies,
 }: {
   classes: { cls: string; animals: number; species: number; percent: number }[]
   species: SpeciesRow[]
   onOpenSpecies: (row: SpeciesRow) => void
-  onViewAllSpecies: () => void
 }) {
   const accent = useAccent()
+  const { href } = useScope()
   /* Default is the largest class rather than a hardcoded name — "Aves" is only first because it
      happens to be biggest, and a filtered scope may not hold it at all. */
   const [cls, setCls] = useState<string>(classes[0]?.cls ?? '')
@@ -1723,11 +1711,25 @@ function CollectionExplorer({
                 {fmt(inClass.length)} species
               </span>
               {/* AT THE TOP, beside the count it qualifies. At the foot it sat below eight rows,
-                  so a reader had to reach the end of a truncated list to learn it was truncated. */}
-              {inClass.length > shown.length && (
-                <button type="button" onClick={onViewAllSpecies} className="tap-tall text-caption font-semibold" style={{ color: ACCENT_INK }}>
+                  so a reader had to reach the end of a truncated list to learn it was truncated.
+
+                  IT IS A LINK TO THE SPECIES LIST NOW, not a popup. It used to open a sheet
+                  holding `SpeciesCard` — a second species table with its own search, its own four
+                  sorts and its own paging, standing in for the one at `#/browse/species` that has
+                  eleven columns, nine filter axes and a CSV export. Two implementations of one
+                  table is how the two came to disagree: this one listed registry pairs, so Sable
+                  Kestrel appeared twice, while the list merges by name. Fixing the grain (see
+                  `speciesRows`) removed the disagreement; sending the reader to the real table
+                  removes the duplicate. `?cls=` is the filter the list already understands, so
+                  "View all" lands on exactly the species this column was showing the head of. */}
+              {inClass.length > shown.length && active && (
+                <a
+                  href={href(`browse/species?${FACET_PARAM.cls}=${encodeURIComponent(active.cls)}`)}
+                  className="tap-tall text-caption font-semibold"
+                  style={{ color: ACCENT_INK }}
+                >
                   View all →
-                </button>
+                </a>
               )}
             </span>
           </div>
@@ -1979,104 +1981,17 @@ function SitesCard({
 
 /* ── species ─────────────────────────────────────────────────────────────── */
 
-const SPECIES_SORTS: [SpeciesSort, string][] = [
-  ['animals', 'Population'],
-  ['net', 'Change'],
-  ['sites', 'Sites'],
-  ['name', 'Name'],
-]
-
-/**
- * EVERY SPECIES, searched, sorted and paged — with the distribution stated once above the list
- * instead of drawn on four hundred rows.
+/*
+ * `SpeciesCard` AND `SPECIES_SORTS` USED TO STAND HERE, and both are gone.
  *
- * The concentration ribbon is the whole reason this card does not need a bar per row. Before
- * scrolling anything, the reader wants to know whether this is a collection of a few enormous
- * shoals or of four hundred comparable holdings — that is one ribbon and one percentage, and
- * once it is stated, every row below it can go back to being what it is: a name, a count, a
- * share, a change and a door.
+ * The card was a full species table — a concentration ribbon, four sort chips, a search field and
+ * paged rows — rendered inside a popup opened from the Collection Explorer's "View all". It was a
+ * second implementation of `#/browse/species`, which carries eleven columns, nine filter axes,
+ * URL-addressable filter state and a CSV export. Two tables of one thing is how the two came to
+ * disagree with each other: this one listed registry pairs, so a name held at six sites appeared
+ * six times, while the list merges by name.
  *
- * The sex split moves into the row's own meta line rather than into three table columns that
- * only appeared past 640px. Same five facts, no second rendering to keep in step.
+ * The explorer now links to the real table, filtered to the class the reader is looking at — see
+ * the note on its "View all →". `sortSpecies` survives in `population.ts` and is still used by the
+ * explorer to order the head of each class; only the duplicate table is removed.
  */
-function SpeciesCard({
-  rows,
-  query,
-  onQuery,
-  onOpen, bare }: {
-  rows: SpeciesRow[]
-  query: string
-  onQuery: (v: string) => void
-  onOpen: (row: SpeciesRow) => void; bare?: boolean }) {
-  const [sort, setSort] = useState<SpeciesSort>('animals')
-  const matched = useMemo(() => sortSpecies(searchSpecies(rows, query), sort), [rows, query, sort])
-  /* TEN, NOT TWENTY. Each species row is three lines by design — name, class and site, then
-     standing and the sex split — which the mark's own note defends: one long line ends
-     "…265 M · 244 F" with the standing truncated away. Three good lines cost 78px, so twenty
-     of them opened the card at 1,693px, and this is a REGISTRY of 4,745 species rather than a
-     ranking anyone reads to the end. Ten leaders, then the sorts and the search for everything
-     else, and `MoreRows` still walks the rest twenty at a time. */
-  const paged = usePaged<SpeciesRow>(
-    (offset, limit) => ({ rows: matched.slice(0, offset + limit), total: matched.length }),
-    10,
-    [matched],
-  )
-
-  /* Concentration is a property of the WHOLE registry under the scope, so it is computed from
-     `rows` rather than from the search results — a ribbon that recut itself on every keystroke
-     would be answering a different question each time. */
-  const spread = useMemo(() => {
-    const top = [...rows].sort((a, b) => b.animals - a.animals).slice(0, 5)
-    return {
-      items: top.map((r) => ({ label: r.name, value: r.animals })),
-      total: rows.reduce((n, r) => n + r.animals, 0),
-    }
-  }, [rows])
-
-  return (
-    <Section
-      bare={bare}
-      icon={Dna}
-      label="Species population"
-      aside={query ? `${matched.length} of ${rows.length}` : `${rows.length} species`}
-    >
-      {rows.length > 5 && (
-        <div className="mb-4 border-b border-[#f0efec] pb-4">
-          <Concentration items={spread.items} total={spread.total} of={rows.length} unit="animals" />
-        </div>
-      )}
-
-      <Chips
-        options={SPECIES_SORTS.map(([k, l]) => [k, l] as [string, string])}
-        value={sort}
-        onPick={(v) => setSort(v as SpeciesSort)}
-      />
-
-      {matched.length === 0 && (
-        <p className="mt-4 text-caption" style={{ color: FAINT }}>
-          No species matches “{query.trim()}”.{' '}
-          <button type="button" onClick={() => onQuery('')} className="font-semibold" style={{ color: ACCENT_INK }}>
-            Clear
-          </button>
-        </p>
-      )}
-
-      <div className="mt-2">
-        <RankList
-          rank={sort === 'animals'}
-          items={paged.rows.map((r) => ({
-            key: r.id,
-            title: r.name,
-            meta: `${r.cls} · ${r.siteName}`,
-            meta2: `${standingLabel(r.standing)} · ${fmt(r.male)} M · ${fmt(r.female)} F · ${fmt(r.unknown)} U`,
-            value: fmt(r.animals),
-            share: r.percent,
-            change: r.net === 0 ? undefined : signed(r.net),
-            onPick: () => onOpen(r),
-          }))}
-        />
-      </div>
-      <MoreRows page={paged} noun="species" />
-    </Section>
-  )
-}

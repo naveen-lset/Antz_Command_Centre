@@ -219,26 +219,52 @@
   --container-split: 820px;
   --container-page: 900px;
 
-  --animate-rise: rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-fade-up: fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  /* Page and sheet entrances run on the emphasis tier below, not the 500ms
-     reveal tier — a screen you asked for should be there before you wonder. */
-  --animate-section-in: section-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-swap-fwd: swap-fwd 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-swap-back: swap-back 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-refresh: refresh 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /**
+   * EVERY ANIMATION IS THE MOTION SCALE, AND NONE OF THEM WAS.
+   *
+   * The scale in `:root` below names four durations and two curves and its comment
+   * says it replaced "durations at 250, 300, 320, 360, 380, 460, 500, 620 and
+   * 1000ms across six files". Those exact numbers were still hard-coded here, one
+   * per token, along with fifteen literal copies of the house curve — so the scale
+   * governed transitions and nothing else, and the tokens that carry MOST of the
+   * app's motion were the one place it had never been applied. Retuning a tier
+   * did not move them, which is the whole property the scale exists to provide.
+   *
+   * WHICH TIER A TOKEN GETS IS DECIDED BY THE SCALE'S OWN RULE — what the motion
+   * is FOR, not how far the thing moves:
+   *
+   *   STANDARD  content changing inside a surface that is already there
+   *   EMPHASIS  a surface arriving or leaving
+   *   REVEAL    a data mark drawing itself in — see the note on the tier below
+   *
+   * `pop` LOST ITS OVERSHOOT. It was (0.34, 1.36, 0.64, 1); the 1.36 carries the
+   * value past its resting position and back. The scale says in as many words that
+   * "nothing here is a spring with overshoot… the single most 'animated dashboard'
+   * gesture available, and this product is meant to read as quiet." One token
+   * disagreed with that, and it was the one that fires on every figure.
+   */
+  --animate-rise: rise var(--dur-reveal) var(--ease-out) both;
+  --animate-fade-up: fade-up var(--dur-reveal) var(--ease-out) both;
+  /* Page and sheet entrances run on the emphasis tier, not the reveal tier — a
+     screen you asked for should be there before you wonder. */
+  --animate-section-in: section-in var(--dur-emphasis) var(--ease-out) both;
+  --animate-swap-fwd: swap-fwd var(--dur-standard) var(--ease-out) both;
+  --animate-swap-back: swap-back var(--dur-standard) var(--ease-out) both;
+  --animate-refresh: refresh var(--dur-standard) var(--ease-out) both;
 
-  /* Drill-down motion set — one easing family (0.22, 1, 0.36, 1), 500–1000ms,
-     every animation earns its keep by explaining where a value came from. */
-  --animate-hero-in: hero-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-draw: draw 1000ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-veil: veil 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-grow-x: grow-x 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-grow-y: grow-y 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-pop: pop 520ms cubic-bezier(0.34, 1.36, 0.64, 1) both;
-  --animate-drop-in: drop-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-sheet-in: sheet-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-swap-in: swap-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* The drill-down set. It was 500–1000ms and the range was the bug: `draw` at
+     1000 and `swap-in` at 460 were the same gesture family taking twice as long
+     at one end as the other. A surface arriving is EMPHASIS, a mark drawing
+     itself in is REVEAL, and there is no third speed between them. */
+  --animate-hero-in: hero-in var(--dur-emphasis) var(--ease-out) both;
+  --animate-draw: draw var(--dur-reveal) var(--ease-out) both;
+  --animate-veil: veil var(--dur-reveal) var(--ease-out) both;
+  --animate-grow-x: grow-x var(--dur-reveal) var(--ease-out) both;
+  --animate-grow-y: grow-y var(--dur-reveal) var(--ease-out) both;
+  --animate-pop: pop var(--dur-standard) var(--ease-out) both;
+  --animate-drop-in: drop-in var(--dur-emphasis) var(--ease-out) both;
+  --animate-sheet-in: sheet-in var(--dur-emphasis) var(--ease-out) both;
+  --animate-swap-in: swap-in var(--dur-standard) var(--ease-out) both;
 
   @keyframes rise {
     from {
@@ -418,6 +444,12 @@
  *             of sheet levels, a filter chip, a figure re-counting.
  *   EMPHASIS  a surface arriving or leaving. A page, a sheet, the search. The
  *             only tier allowed to move something the width of the screen.
+ *   REVEAL    a data mark drawing itself in — a bar growing from its baseline, a
+ *             ring closing, a series fading up. The ONE tier slower than
+ *             emphasis, and it is slower on purpose: the mark is explaining where
+ *             a value came from, and a bar that snaps to full height has not
+ *             shown its own magnitude. It is never allowed on a surface, a
+ *             control or anything a reader is waiting on to act.
  *
  * ONE CURVE FOR ARRIVALS. `--ease-out` is the house's (0.22, 1, 0.36, 1): fast
  * from the start, settling long. It is what every existing animation already
@@ -434,6 +466,20 @@
   --dur-emphasis: 320ms;
   /* Leaving is quicker than arriving — the reader has already decided. */
   --dur-emphasis-out: 260ms;
+  /**
+   * THE REVEAL TIER, AND WHY IT IS 560 RATHER THAN THE 600–1000 IT REPLACES.
+   *
+   * The chart marks ran at 600 (`rise`), 700 (`veil`, `grow-y`), 800 (`grow-x`)
+   * and 1000ms (`draw`). Nothing distinguished those four numbers — they are one
+   * gesture, so they get one duration, and the app stops taking a third of a
+   * second longer to draw a bar than to draw the ring beside it.
+   *
+   * 560 keeps the reveal clearly slower than a surface arriving at 320, which is
+   * the relationship that makes a mark read as drawing rather than appearing. The
+   * 1000ms `draw` was the outlier worth losing: a full second is long enough that
+   * a reader who scrolls a chart into view has looked away before it finishes.
+   */
+  --dur-reveal: 560ms;
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);

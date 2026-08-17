@@ -62,7 +62,10 @@ import { useDrill } from './drillNav'
  * The caller always holds `outOf > 0`: the ETL emits no pair whose denominator is the size of
  * a holding it did not find, and the cards below do not render without one.
  */
-function pctText(value: number, outOf: number): string {
+/* EXPORTED, because the species header now states chip coverage too — see `statsOf` in
+   `speciesHeader.tsx`. Two roundings of one pair is how a header comes to read "100% chipped"
+   over a tab reading "99%", which is this function's entire reason for existing. */
+export function pctText(value: number, outOf: number): string {
   const pct = (value / outOf) * 100
   if (value === 0) return '0%'
   if (pct < 0.1) return '<0.1%'

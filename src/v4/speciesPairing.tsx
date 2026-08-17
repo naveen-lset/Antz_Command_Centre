@@ -201,7 +201,9 @@ const LENSES: GroupDef[] = [
  * "indeterminate" would eventually be counted as their own sex by whichever copy forgot them.
  * This keys off the already-resolved `Sex`, so there is nothing here to fall out of step with.
  */
-const SEX_WORD: Record<Animal['sex'], string> = { M: 'Male', F: 'Female', U: 'Unsexed' }
+/* 'Undetermined' — the source's own value for the category, as every other sex vocabulary in the
+   product now spells it. See the note on the Overview tab's sex rows. */
+const SEX_WORD: Record<Animal['sex'], string> = { M: 'Male', F: 'Female', U: 'Undetermined' }
 
 /* ── the animals behind a group of enclosures ────────────────────────────── */
 
@@ -583,7 +585,7 @@ export function SpeciesPairingTab({ name, profile }: { speciesId: string; name: 
             { label: 'Males', value: fmt(male) },
             { label: 'Females', value: fmt(female) },
             {
-              label: 'Unsexed',
+              label: 'Undetermined',
               value: fmt(unsexed),
               /* Derived from the three cells beside it rather than from a second count, so the
                  percentage and the numbers it describes can never tell different stories. */

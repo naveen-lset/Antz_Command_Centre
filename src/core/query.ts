@@ -210,8 +210,14 @@ export function bySpecies(scope: Scope, slug: string): Row[] {
  * A species id carries its site, so a name alone is ambiguous when the scope is Overall.
  * With a site in force the row links to that site's population; without one it links to the
  * largest, which is the population the reader is most likely to have meant.
+ *
+ * EXPORTED, because a name is what the mortality module has. Its species-wise and necropsy tables
+ * were dead ends — a reader who found the worst-hit species there could not reach that species'
+ * record, while Birth Analytics, reading this very function through `bySpecies`, linked straight
+ * through. Rather than let the mortality sheets resolve a name to an id their own way, they call
+ * the one function that already decides which population a bare name means.
  */
-function speciesHref(name: string, siteKey: string | null): string | undefined {
+export function speciesHref(name: string, siteKey: string | null): string | undefined {
   const candidates = SITES.flatMap((s) => speciesIn(s.key)).filter((s) => s.name === name)
   const within = siteKey ? candidates.filter((c) => c.siteKey === siteKey) : candidates
   const best = (within.length ? within : candidates).sort((a, b) => b.weight - a.weight)[0]

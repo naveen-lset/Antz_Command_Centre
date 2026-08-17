@@ -286,7 +286,16 @@ export const headlineKpis: HeadlineKpi[] = [
   },
   {
     key: 'births',
-    label: 'Natality',
+    /* THE REGISTRY'S TITLE, NOT A SECOND NAME FOR IT.
+       This read 'Natality' and the card opens 'Birth Analytics'; 'Mortality' below opened
+       'Mortality & Necropsy'. `nav.ts` already settled this exact argument when it deleted an
+       override map that shortened the rail's labels the same way: "the module you click and the
+       page you land on then say different things, and two names for one module is how a reader
+       stops trusting that two screens are showing the same figure." The rail was fixed and the
+       KPI rail was not, so the home screen kept the drift the sidebar had given up.
+       Species Management says 'Births' and 'Deaths' throughout, so this also removes a
+       Command-Centre-only vocabulary from the boundary between the two. */
+    label: 'Birth Analytics',
     note: '',
     icon: Sparkles,
     accent: '#00abab',
@@ -298,7 +307,7 @@ export const headlineKpis: HeadlineKpi[] = [
   },
   {
     key: 'deaths',
-    label: 'Mortality',
+    label: 'Mortality & Necropsy',
     note: '',
     icon: Activity,
     accent: '#e93353',
@@ -326,7 +335,13 @@ export const supportingKpis: Kpi[] = [
     tone: 'good',
     metric: 'breeding',
     measure: 'breeding',
-    href: '#/births',
+    /* THE SPECIES LIST, NARROWED TO WHAT CAN PAIR — not Birth Analytics.
+       Breeding capability is not a birth record: `core/metrics.ts` registers `breeding` as
+       unsourced ("no pairing outcome record"), and the only place in the product that models
+       pairing at all is the species record's Pairing tab, reached through the list's Readiness
+       facet. A tile named Breeding Success that opened a page of birth counts sent the reader to
+       the one module that cannot answer for it. */
+    href: '#/browse/species?ready=Both%20sexes%20present',
   },
   {
     key: 'vaccination',

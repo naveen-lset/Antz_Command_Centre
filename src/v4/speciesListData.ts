@@ -320,8 +320,24 @@ const genderOf = (r: SpeciesListRow): string => {
  */
 export const ANALYSES: { value: string; test: (r: SpeciesListRow) => boolean }[] = [
   { value: 'At risk', test: (r) => RISK.has(r.iucn) },
+  /**
+   * THREE OR FEWER — the reference build calls this CRISIS and it is the sharpest signal in the
+   * whole table: a species down to three animals is one loss from being gone from the
+   * collection. It was derivable from the Population facet's "Single animal" and "2 – 9" bands
+   * and therefore not actually available, because 2–9 spans the line that matters. Stated as its
+   * own lens so it can be counted on the home screen and ticked in the panel from one
+   * definition. Deliberately overlaps 'Single animal'; a lens is a question, not a partition.
+   */
+  { value: 'Three or fewer', test: (r) => r.total <= 3 },
   { value: 'Losing ground', test: (r) => r.deaths > r.births && r.deaths > 0 },
   { value: 'Gaining ground', test: (r) => r.births > r.deaths && r.births > 0 },
+  /**
+   * SINGLE SEX — held in numbers, but every animal the same sex, so the holding cannot breed
+   * however long it is left. The reference calls the same idea "breeding stalled". Restricted to
+   * holdings that ARE sexed: a wholly unsexed group is not single-sex, it is unknown, and the
+   * lens beside this one already names that case.
+   */
+  { value: 'Single sex', test: (r) => r.male + r.female > 0 && (r.male === 0 || r.female === 0) },
   { value: 'Wholly unsexed', test: (r) => r.male + r.female === 0 },
   { value: 'Single animal', test: (r) => r.total === 1 },
   { value: 'Held at one site', test: (r) => r.sites === 1 },

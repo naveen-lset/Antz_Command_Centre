@@ -67,6 +67,9 @@ import { useSheet } from '../sheet'
 import { useDrill } from '../drillNav'
 import { FindField } from '../filters'
 import { useScope } from '../scope'
+/* The species list's own param names, read rather than retyped — see `FACET_PARAM`'s note on
+   what makes a count elsewhere in the product a link worth pressing. */
+import { FACET_PARAM } from '../speciesListData'
 import { MoreRows, usePaged } from '../perf'
 import {
   citesSpecies,
@@ -77,6 +80,7 @@ import {
   plural,
   regulatorySplit,
   scheduleSpecies,
+  speciesCount,
   standingLabel,
   totalOf,
   type CitesAppendix,
@@ -121,12 +125,24 @@ function SheetHero({
    * A popup about ONE named thing — a site, a species — is a selector whose selection
    * has already been made, so it owes the reader the page underneath it. Every popup
    * that has one offers it in the same place and the same words, which is what stops
-   * "where is the full record" from being a different gesture per card. Popups about a
-   * CATEGORY (a date's births, an appendix) have no single entity to offer and pass
-   * nothing — the rows below them are the selection.
+   * "where is the full record" from being a different gesture per card.
+   *
+   * CATEGORY POPUPS NOW HAVE ONE TOO, and that is a change. This used to read "popups about a
+   * CATEGORY have no single entity to offer and pass nothing — the rows below them are the
+   * selection", which was true while a category had no page. It has one: the species list takes
+   * `#/browse/species?iucn=CR` and opens with the box already ticked. So an appendix or a Red List
+   * category offers the same way out as a site does, and it is a LINK rather than a callback,
+   * because it leaves the popup for a route rather than stacking a second panel.
+   *
+   * `href` and `onOpen` are alternatives, not both. A caller that passes neither passes no action,
+   * which is still right for a group the species list has no facet for — the schedules and the
+   * regulatory split have none, and inventing a filter they cannot honour would be a door that
+   * opens on the wrong room.
    */
-  action?: { label: string; onOpen: () => void }
+  action?: { label: string; onOpen: () => void } | { label: string; href: string }
 }) {
+  const actionStyle =
+    'card-press mt-4 flex w-full items-center justify-between gap-3 rounded-[12px] bg-[#f4f3ef] px-3 py-2.5 text-left'
   return (
     <div className="w-full px-[var(--gutter)] pb-3">
       <section className="animate-hero-in rounded-[var(--radius-card)] bg-white p-[var(--pad-card)]">
@@ -160,16 +176,20 @@ function SheetHero({
             {note}
           </p>
         )}
-        {action && (
-          <button
-            type="button"
-            onClick={action.onOpen}
-            className="card-press mt-4 flex w-full items-center justify-between gap-3 rounded-[12px] bg-[#f4f3ef] px-3 py-2.5 text-left"
-          >
-            <span className="text-small font-semibold text-[#3d3a34]">{action.label}</span>
-            <ArrowRight size={15} strokeWidth={2.25} className="shrink-0 text-[#5c574f]" aria-hidden />
-          </button>
-        )}
+        {action &&
+          ('href' in action ? (
+            /* A real anchor, so the way out of a category popup can be middle-clicked, copied
+               and opened in a tab like every other route in the product. */
+            <a href={action.href} className={actionStyle}>
+              <span className="text-small font-semibold text-[#3d3a34]">{action.label}</span>
+              <ArrowRight size={15} strokeWidth={2.25} className="shrink-0 text-[#5c574f]" aria-hidden />
+            </a>
+          ) : (
+            <button type="button" onClick={action.onOpen} className={actionStyle}>
+              <span className="text-small font-semibold text-[#3d3a34]">{action.label}</span>
+              <ArrowRight size={15} strokeWidth={2.25} className="shrink-0 text-[#5c574f]" aria-hidden />
+            </button>
+          ))}
       </section>
     </div>
   )
@@ -457,6 +477,7 @@ export function GroupPanel({
   badge,
   note,
   reopen,
+  listFilter,
 }: {
   title: string
   eyebrow: string
@@ -468,8 +489,17 @@ export function GroupPanel({
   note?: string
   /** Re-open this same group under a site. Absent once already inside one. */
   reopen?: (siteKey: string) => void
+  /**
+   * The species-list query that shows exactly this group — `iucn=CR`, `cites=Appendix+II`.
+   *
+   * Absent for a group the list has no facet for, and that absence is deliberate: the Wildlife
+   * Protection Act schedules and the regulatory split have no counterpart in the panel, so they
+   * offer no door rather than one that lands somewhere approximate.
+   */
+  listFilter?: string
 }) {
   const { drillTo } = useDrill()
+  const { href } = useScope()
   const [query, setQuery] = useState('')
   const total = totalOf(rows)
   const classes = classBands(rows)
@@ -482,12 +512,20 @@ export function GroupPanel({
   }, [rows])
 
   /* Species rows carry the sexes and the delta, so the group's list is the same row the main
-     page's species list uses rather than a thinner copy of it. */
+     page's species list uses rather than a thinner copy of it.
+     KEYED BY NAME, NOT BY REGISTRY ID. `speciesRows` merges by common name now, so it returns
+     one row per name carrying its largest population's id — an index keyed on that id would
+     miss every holding of the name at any OTHER site and silently drop it from the group. The
+     holdings that arrive here are still per-site, so several of them can point at one merged
+     row; `seen` is what stops the same species being listed once per site it is held at. */
   const detailed = useMemo(() => {
-    const index = new Map(speciesRows(siteKey ?? null, win).map((s) => [s.id, s]))
+    const index = new Map(speciesRows(siteKey ?? null, win).map((s) => [s.name, s]))
+    const seen = new Set<string>()
     return rows.flatMap((r) => {
-      const hit = index.get(r.species.id)
-      return hit ? [hit] : []
+      const hit = index.get(r.species.name)
+      if (!hit || seen.has(hit.name)) return []
+      seen.add(hit.name)
+      return [hit]
     })
   }, [rows, siteKey, win])
 
@@ -509,7 +547,15 @@ export function GroupPanel({
         value={fmt(total)}
         label={title}
         badge={badge}
-        note={note ?? `${rows.length} species · ${plural(classes.length, 'class')}`}
+        /* DISTINCT NAMES, not `rows.length`. `holdings()` is keyed per registry pair, so the old
+           count said "2,628 species" about a group of 1,780 — the same defect the page's own
+           `band()` carried, and the sheet is where a reader who doubted the page came to check. */
+        note={note ?? `${speciesCount(rows)} species · ${plural(classes.length, 'class')}`}
+        action={
+          listFilter
+            ? { label: `Open these ${speciesCount(rows)} in the species list`, href: href(`browse/species?${listFilter}`) }
+            : undefined
+        }
       />
       <Stack>
         {total === 0 ? (
@@ -599,6 +645,10 @@ export function CitesGroup({
       rows={matched}
       win={win}
       siteKey={siteKey}
+      /* The species list's CITES facet stores the value as the reader reads it — "Appendix II" —
+         so the link says that rather than the bare letter. See `valuesOf` in
+         `speciesListData.ts`, which is the one place that spelling is decided. */
+      listFilter={`${FACET_PARAM.cites}=${encodeURIComponent(`Appendix ${appendix}`)}`}
       reopen={
         siteKey
           ? undefined
@@ -669,6 +719,9 @@ export function IucnGroup({
       win={win}
       siteKey={siteKey}
       badge={cat}
+      /* The Conservation facet is keyed on the Red List CODE, which is what the row already
+         carries — so this is the one group whose link needs no translation. */
+      listFilter={`${FACET_PARAM.conservation}=${encodeURIComponent(code)}`}
       reopen={
         siteKey
           ? undefined

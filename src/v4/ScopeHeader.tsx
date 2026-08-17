@@ -201,7 +201,24 @@ function ScopePill({
  * day the ledger holds. Collapsing them into one "updated just now" would imply the data is
  * as fresh as the render, which is the specific thing a dashboard should never imply.
  */
-export function LastUpdated({ compactForm = false }: { compactForm?: boolean }) {
+export function LastUpdated({
+  compactForm = false,
+  /**
+   * Keep the data's own currency at EVERY width, rather than dropping it under 560px.
+   *
+   * The default behaviour below is written for the module header, where this sits in a row that
+   * already holds a title and a scope strip and something has to give. The home's update footer is
+   * the opposite case: it is a line of its own with an otherwise empty row, so there is nothing for
+   * the date to lose to — and dropping it there leaves "Read 15:02" alone, which is exactly the
+   * "implies the data is as fresh as the render" reading the note below warns against.
+   *
+   * OPT-IN, so no existing call site changes behaviour.
+   */
+  alwaysFull = false,
+}: {
+  compactForm?: boolean
+  alwaysFull?: boolean
+}) {
   /* One minute is the finest granularity worth showing — a seconds-accurate timestamp on a
      board figure invites the reader to watch it rather than read the page. */
   const now = useNow(60_000)
@@ -219,7 +236,7 @@ export function LastUpdated({ compactForm = false }: { compactForm?: boolean }) 
           dropped for space, because the title and the scope strip are what a narrow screen needs
           most. The full sentence stays in the tooltip. */}
       {!compactForm && (
-        <span className="hidden @[560px]:inline">
+        <span className={alwaysFull ? 'inline' : 'hidden @[560px]:inline'}>
           · data to {WORLD_TODAY.getDate()} {WORLD_TODAY.toLocaleString('en-GB', { month: 'short' })}
         </span>
       )}

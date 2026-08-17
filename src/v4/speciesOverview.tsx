@@ -534,7 +534,14 @@ export function SpeciesOverviewTab({
     ? [
         { label: 'Male', value: wide.male },
         { label: 'Female', value: wide.female },
-        { label: 'Unsexed', value: wide.undetermined },
+        /* 'Undetermined', which is the SOURCE'S OWN WORD — `housing.gender` records it, and
+           `dims.meta.notes.sexOfBirth` calls it "an answer the keeper gave and not a gap in the
+           file". The product used both words for one category: this card and the Pairing strip
+           said 'Unsexed' while the list legend, the Circle of Life gender charts and the animal
+           record said 'Undetermined'. The recorded value wins, everywhere it is a CATEGORY LABEL.
+           The adjective survives in prose and in the derived rate — "unsexed", "Sexed %" — because
+           those describe a state rather than naming a value of the field. */
+        { label: 'Undetermined', value: wide.undetermined },
       ].filter((s) => s.value > 0)
     : []
 
@@ -570,6 +577,9 @@ export function SpeciesOverviewTab({
         <div className="grid gap-[var(--space-4)] @[720px]:grid-cols-2">
           <DashCard
             title="Births"
+            /* The year axis is all-time by design — see the note on `allTime` above. Saying so is
+               what stops it reading as a contradiction of the scoped Births figure in the strip. */
+            span="all time"
             action="View Circle of Life"
             onAction={() => onTab?.('life')}
           >
@@ -582,6 +592,7 @@ export function SpeciesOverviewTab({
 
           <DashCard
             title="Deaths"
+            span="all time"
             action="View Circle of Life"
             onAction={() => onTab?.('life')}
           >
@@ -605,7 +616,7 @@ export function SpeciesOverviewTab({
           )}
 
           {readyRows.length > 0 && (
-            <DashCard title="Breeding Readiness" action="View Pairing" onAction={() => onTab?.('pairing')}>
+            <DashCard title="Breeding Readiness" span="as held today" action="View Pairing" onAction={() => onTab?.('pairing')}>
               <span title="Counted per enclosure from the register as at the extract's last day, so it does not move with the date filter. No bucket says 'can breed' — that is a claim about maturity, and a birth date is absent on 81% of the register.">
                 <Slices items={readyRows} inner={0.58} />
                 <SliceKey items={readyRows} />
@@ -616,7 +627,15 @@ export function SpeciesOverviewTab({
           )}
 
           {causes.length > 0 && (
-            <DashCard title="Causes of Death" action="View Circle of Life" onAction={() => onTab?.('life')}>
+            /* THE CARD THAT READ 430 UNDER A STRIP READING 33. It is deliberately all-time — a
+               cause vocabulary cut to one month is usually empty — and it now says so, which is
+               the whole of the fix. See `DashCard.span`. */
+            <DashCard
+              title="Causes of Death"
+              span={`all time · ${fmt(causesFlow.total)} deaths`}
+              action="View Circle of Life"
+              onAction={() => onTab?.('life')}
+            >
               <span title="The vocabulary is the source's verbatim. Undetermined and Indeterminate are non-answers and take the grey rather than a category colour.">
                 <Slices items={causes} inner={0} />
                 <SliceKey items={causes} />
@@ -1053,7 +1072,7 @@ export function SpeciesLifeTab({
           },
           { key: 'm', head: 'Male', align: 'right', cell: (s) => fmt(s.male) },
           { key: 'f', head: 'Female', align: 'right', cell: (s) => fmt(s.female) },
-          { key: 'u', head: 'Unsexed', align: 'right', cell: (s) => fmt(s.unsexed) },
+          { key: 'u', head: 'Undetermined', align: 'right', cell: (s) => fmt(s.unsexed) },
         ]
 
   const openCauses = () =>
@@ -1416,7 +1435,7 @@ export function SpeciesAnimalsTab({
 
   const columns: Column<Animal>[] = [
     { key: 'id', head: 'Animal', priority: 3, cell: (a) => a.callName ?? a.id },
-    { key: 'sex', head: 'Sex', priority: 2, cell: (a) => ({ M: 'Male', F: 'Female', U: 'Unsexed' })[a.sex] },
+    { key: 'sex', head: 'Sex', priority: 2, cell: (a) => ({ M: 'Male', F: 'Female', U: 'Undetermined' })[a.sex] },
     { key: 'age', head: 'Age', priority: 2, align: 'right', cell: (a) => (a.bornOn < 0 ? '' : a.age) },
     { key: 'enclosure', head: 'Enclosure', priority: 2, cell: (a) => a.enclosureId },
     { key: 'site', head: 'Site', priority: 1, cell: (a) => a.siteName },
