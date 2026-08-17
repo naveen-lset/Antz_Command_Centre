@@ -55,6 +55,10 @@ class Node {
     return c
   }
   insertChild(i, c) { this.appendChild(c); return c }
+  remove() {
+    if (this.parent) this.parent.children = this.parent.children.filter((n) => n !== this)
+    this.parent = null
+  }
   // Crude auto-layout: enough for HUG heights the builders read back.
   _relayout() {
     if (this.layoutMode === 'NONE') return
@@ -212,19 +216,24 @@ page.name = 'ANTZ — Command Centre (from code)'
 const root = new Node('DOCUMENT')
 root.children = [page]
 
+/* The real API parents every freshly created node to `figma.currentPage` — code
+   that relies on it (a screen frame that is never explicitly appended) works in
+   Figma and silently orphans here unless the mock does the same. */
+const born = (n) => { figma.currentPage.children.push(n); n.parent = figma.currentPage; return n }
+
 export const figma = {
   root,
   currentPage: page,
-  createFrame: () => new Node('FRAME'),
-  createText: () => new TextNode(),
-  createRectangle: () => new Node('RECTANGLE'),
-  createEllipse: () => new Node('ELLIPSE'),
-  createVector: () => new VectorNode(),
+  createFrame: () => born(new Node('FRAME')),
+  createText: () => born(new TextNode()),
+  createRectangle: () => born(new Node('RECTANGLE')),
+  createEllipse: () => born(new Node('ELLIPSE')),
+  createVector: () => born(new VectorNode()),
   createPage: () => { const p = new Node('PAGE'); root.children.push(p); return p },
   createAutoLayout: (dirOrProps, maybeProps) => {
     const dir = typeof dirOrProps === 'string' ? dirOrProps : 'HORIZONTAL'
     const props = typeof dirOrProps === 'object' ? dirOrProps : maybeProps
-    const f = new Node('FRAME')
+    const f = born(new Node('FRAME'))
     f.layoutMode = dir
     f._sizing = { h: 'HUG', v: 'HUG' }
     f.primaryAxisSizingMode = 'AUTO'
@@ -233,6 +242,16 @@ export const figma = {
     return f
   },
   group: (nodes, parent) => { const g = new Node('GROUP'); nodes.forEach((n) => g.appendChild(n)); parent.appendChild(g); return g },
+  /* Enough of the real thing to catch the failure that actually happens: an SVG
+     string that is empty, unparseable or has no drawable child. */
+  createNodeFromSvg: (svg) => {
+    if (typeof svg !== 'string' || !/^<svg[\s>]/.test(svg.trim())) throw new Error('createNodeFromSvg: not an <svg> string')
+    if (!/<(path|circle|rect|line|polyline|polygon|ellipse)\b/.test(svg)) throw new Error('createNodeFromSvg: no drawable children')
+    if ((svg.match(/</g) || []).length !== (svg.match(/>/g) || []).length) throw new Error('createNodeFromSvg: unbalanced markup')
+    const f = born(new Node('FRAME'))
+    f.name = 'svg'
+    return f
+  },
   setCurrentPageAsync: async (p) => { figma.currentPage = p },
   getNodeByIdAsync: async () => null,
   loadFontAsync: async (f) => { loaded.add(`${f.family}|${f.style}`) },
