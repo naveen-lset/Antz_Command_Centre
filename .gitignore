@@ -13,7 +13,7 @@ tools/figma/antz-data.json
 tools/figma/antz-icons.json
 tools/figma/plugin/
 tools/figma/out-dom/
-tools/figma/antz-dom.json
+tools/figma/antz-dom*.json
 .vercel
 .env*
 

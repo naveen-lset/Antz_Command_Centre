@@ -21,7 +21,12 @@ import { execFileSync } from 'node:child_process'
 import { resolve, basename } from 'node:path'
 import { HERE, ROOT } from './paths.mjs'
 import { rpc, useFigma, DEFAULT_FILE } from './call.mjs'
-import { PAGE, FRAME } from './build-dom-scripts.mjs'
+import { manifest } from './build-dom-scripts.mjs'
+
+/* Which frame the last build targeted — read from the manifest beside the scripts
+   rather than from the builder's default constants, which no longer describe a run
+   that was pointed at another page from the command line. */
+const { page: PAGE, frame: FRAME } = manifest()
 
 const TMP = process.env.TMPDIR || '/tmp'
 const doc = JSON.parse(readFileSync(resolve(HERE, 'antz-dom.json'), 'utf8'))

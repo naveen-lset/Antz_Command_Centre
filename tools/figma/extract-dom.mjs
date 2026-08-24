@@ -141,6 +141,55 @@ const WALK = `(() => {
   function svgPaths(svg) {
     const out = []
     const vb = (svg.getAttribute('viewBox') || '').split(/[ ,]+/).map(Number)
+
+    /**
+     * A FILL CAN BE A GRADIENT, AND THE FIRST VERSION THREW ALL OF THEM AWAY.
+     *
+     * color() paints a value onto a canvas to resolve it, which works for every
+     * colour syntax and for nothing else — handed url(#<<r1t>>-g0) it returns null,
+     * so the serialiser wrote fill="none". Every donut and pie in the product is
+     * filled from a <linearGradient> in its own <defs> (see Slices in
+     * v4/dashboard.tsx), so all three composition rings on a species page arrived
+     * in Figma as invisible geometry with their legends underneath — the shape was
+     * there, editable and correct, and painted nothing.
+     *
+     * The referenced gradient is cloned into this fragment's own <defs> instead.
+     * IDS ARE REWRITTEN, and that is not tidiness: React's useId() produces
+     * <<r1t>>, so the real id is <<r1t>>-g0 and url(#<<r1t>>-g0) is not something to
+     * hand an SVG parser. Numbering per fragment also guarantees uniqueness inside
+     * the one standalone document each node becomes.
+     */
+    const defs = []
+    const seenGrad = new Map()
+    function gradRef(value) {
+      const m = /^url\\(["']?#(.+?)["']?\\)$/.exec((value || '').trim())
+      if (!m) return null
+      if (seenGrad.has(m[1])) return seenGrad.get(m[1])
+      const src = svg.querySelector('[id="' + CSS.escape(m[1]) + '"]') || document.getElementById(m[1])
+      if (!src || !/^(linear|radial)Gradient$/i.test(src.tagName)) return null
+      const id = 'grad' + defs.length
+      const clone = src.cloneNode(true)
+      clone.setAttribute('id', id)
+      /* stop-color may be set by CSS rather than by the attribute, and a clone
+         carries no computed style with it. Read it off the live stop and write it
+         onto the copy so the fragment stands alone. */
+      const liveStops = src.querySelectorAll('stop')
+      clone.querySelectorAll('stop').forEach((s, i) => {
+        const live = liveStops[i]
+        if (!live) return
+        const cs = getComputedStyle(live)
+        const c = colorKeep(cs.stopColor)
+        if (c) {
+          s.setAttribute('stop-color', c.hex)
+          const o = c.a * Number(cs.stopOpacity === '' ? 1 : cs.stopOpacity)
+          if (o < 1) s.setAttribute('stop-opacity', String(o))
+        }
+      })
+      defs.push(clone.outerHTML)
+      seenGrad.set(m[1], id)
+      return id
+    }
+
     for (const el of svg.querySelectorAll('path,circle,line,rect,polyline,polygon,ellipse')) {
       const cs = getComputedStyle(el)
       if (cs.display === 'none' || cs.visibility === 'hidden') continue
@@ -170,6 +219,7 @@ const WALK = `(() => {
         d,
         stroke: color(cs.stroke),
         fill: color(cs.fill),
+        grad: gradRef(cs.fill),
         width: px(cs.strokeWidth) || 1,
         cap: cs.strokeLinecap || 'butt',
         join: cs.strokeLinejoin || 'miter',
@@ -177,7 +227,51 @@ const WALK = `(() => {
         opacity: Number(cs.strokeOpacity === '' ? 1 : cs.strokeOpacity),
       })
     }
-    return { viewBox: vb.length === 4 ? vb : null, paths: out }
+    return { viewBox: vb.length === 4 ? vb : null, paths: out, defs }
+  }
+
+  /**
+   * <text> INSIDE AN SVG, AS REAL TEXT — the ring centres, and nothing else so far.
+   *
+   * svgPaths selects six shape tags and <text> is not one of them, so "Sexed /
+   * 100%" in the middle of the sex donut came through as an empty hole. It is not
+   * added to that list because it must not become a path: the whole promise of this
+   * pipeline is editable layers, and a headline reading flattened to outlines is the
+   * one thing in a chart a designer is most likely to want to retype.
+   *
+   * So it leaves as the same {kind:'text'} record every HTML string uses, and the
+   * builder places it over the vector. Positions come from getBoundingClientRect
+   * rather than the x/y attributes, because those are in viewBox units and the
+   * rect is already in the CSS pixels everything else here is measured in.
+   */
+  function svgTexts(svg, rect) {
+    const out = []
+    for (const el of svg.querySelectorAll('text')) {
+      const cs = getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue
+      const chars = el.textContent.replace(/\\s+/g, ' ').trim()
+      if (!chars) continue
+      const r = el.getBoundingClientRect()
+      if (r.width < 0.5 || r.height < 0.5) continue
+      /* text-anchor, not text-align: an SVG string has no box to align in, so
+         the anchor is the whole of its horizontal placement. Middle and end become
+         a centred/right text node sized to the measured rect, which is what keeps
+         the reading centred in the ring after it is edited. */
+      const anchor = cs.textAnchor || el.getAttribute('text-anchor') || 'start'
+      out.push({
+        kind: 'text', chars,
+        x: r.x + SX, y: r.y + SY, w: r.width, h: r.height,
+        opacity: Number(cs.opacity),
+        font: cs.fontFamily.split(',')[0].replace(/["']/g, ''),
+        size: px(cs.fontSize), weight: Number(cs.fontWeight) || 400,
+        /* An SVG glyph is painted by fill, not by color. */
+        color: color(cs.fill) || color(cs.color),
+        align: anchor === 'middle' ? 'center' : anchor === 'end' ? 'right' : 'left',
+        lh: cs.lineHeight === 'normal' ? null : px(cs.lineHeight),
+        ls: px(cs.letterSpacing), transform: cs.textTransform, decoration: 'none',
+      })
+    }
+    return out
   }
 
   const rootRect = document.body.getBoundingClientRect()
@@ -200,12 +294,14 @@ const WALK = `(() => {
        stroke="currentColor", which means nothing outside the document. */
     if (tag === 'svg') {
       const g = svgPaths(el)
-      if (!g.paths.length) return null
+      const texts = svgTexts(el, r)
+      if (!g.paths.length && !texts.length) return null
       const vb = g.viewBox ? g.viewBox.join(' ') : '0 0 ' + r.width + ' ' + r.height
       const body = g.paths.map((p) => {
         const a = ['d="' + p.d + '"']
-        a.push('fill="' + (p.fill ? p.fill.hex : 'none') + '"')
-        if (p.fill && p.fill.a < 1) a.push('fill-opacity="' + p.fill.a + '"')
+        if (p.grad) a.push('fill="url(#' + p.grad + ')"')
+        else a.push('fill="' + (p.fill ? p.fill.hex : 'none') + '"')
+        if (!p.grad && p.fill && p.fill.a < 1) a.push('fill-opacity="' + p.fill.a + '"')
         if (p.stroke) {
           a.push('stroke="' + p.stroke.hex + '"', 'stroke-width="' + p.width + '"')
           if (p.stroke.a < 1 || p.opacity < 1) a.push('stroke-opacity="' + (p.stroke.a * p.opacity) + '"')
@@ -214,10 +310,14 @@ const WALK = `(() => {
         }
         return '<path ' + a.join(' ') + '/>'
       }).join('')
+      const defs = g.defs.length ? '<defs>' + g.defs.join('') + '</defs>' : ''
       return {
         kind: 'svg', name: el.getAttribute('data-name') || el.classList[0] || 'icon',
         x: r.x + SX, y: r.y + SY, w: r.width, h: r.height, opacity: op,
-        svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '" width="' + r.width + '" height="' + r.height + '">' + body + '</svg>',
+        svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '" width="' + r.width + '" height="' + r.height + '">' + defs + body + '</svg>',
+        /* Carried as ordinary children so loadFontsFor finds their fonts and the
+           builder places them with the same makeText every other string uses. */
+        children: texts.length ? texts : undefined,
       }
     }
 
@@ -251,11 +351,24 @@ const WALK = `(() => {
     }
 
     /* A leaf that holds only text becomes one text node — never a frame wrapping a
-       string, which is what makes the result editable rather than a pile of boxes. */
+       string, which is what makes the result editable rather than a pile of boxes.
+
+       UNLESS THE LEAF IS ALSO A SURFACE, and then it has to be both. A pill is one
+       element: rounded, filled, padded, with a word inside it. Collapsing that to a
+       bare text node threw the pill away and left the word floating — and used the
+       BORDER-BOX origin for it, so a horizontally padded label also landed left of
+       where it belongs. Falling through to the frame branch below gives the surface
+       its own node and the string a child text node inside it, which is what the
+       auto-layout planner then turns back into a padded pill.
+
+       The test is deliberately about PAINT, not about padding: an unstyled span with
+       a margin is still just a string, and there are thousands of those. */
     const kids = [...el.childNodes]
     const hasElementChild = kids.some((k) => k.nodeType === 1)
     const raw = el.textContent.replace(/\\s+/g, ' ').trim()
-    if (!hasElementChild && raw) {
+    const isSurface = Boolean(color(cs.backgroundColor) || gradient(cs.backgroundImage)
+      || borders(cs) || cs.boxShadow !== 'none')
+    if (!hasElementChild && raw && !isSurface) {
       return {
         kind: 'text', chars: raw,
         x: r.x + SX, y: r.y + SY, w: r.width, h: r.height, opacity: op,
@@ -286,7 +399,13 @@ const WALK = `(() => {
         })
       }
     }
-    if (!children.length && !color(cs.backgroundColor) && !gradient(cs.backgroundImage)) return null
+    /* A CHILDLESS ELEMENT IS KEPT IF IT DRAWS ANYTHING AT ALL — not only if it has a
+       background. Testing the fill alone dropped every rule and every glow the
+       design draws with nothing else: an empty div carrying border-t is a divider,
+       and one carrying only a shadow is a lift. Both left the capture silently, and
+       a missing hairline is exactly the kind of absence nobody notices in a diff. */
+    if (!children.length && !color(cs.backgroundColor) && !gradient(cs.backgroundImage)
+        && !borders(cs) && cs.boxShadow === 'none') return null
 
     const flex = cs.display === 'flex' || cs.display === 'inline-flex'
     const grid = cs.display === 'grid' || cs.display === 'inline-grid'
@@ -304,7 +423,7 @@ const WALK = `(() => {
       pad: [px(cs.paddingTop), px(cs.paddingRight), px(cs.paddingBottom), px(cs.paddingLeft)],
       bg: color(cs.backgroundColor), grad: gradient(cs.backgroundImage),
       radius: radii(cs),
-      border: px(cs.borderTopWidth) ? { w: px(cs.borderTopWidth), c: color(cs.borderTopColor) } : null,
+      border: borders(cs),
       shadow: cs.boxShadow === 'none' ? null : cs.boxShadow,
       overflow: cs.overflow,
       position: cs.position,
@@ -320,6 +439,41 @@ const WALK = `(() => {
     const r = [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius]
       .map((v) => parseFloat(v) || 0)
     return r.some((x) => x) ? r : null
+  }
+
+  /**
+   * ALL FOUR SIDES, READ SEPARATELY.
+   *
+   * This used to be borderTopWidth and borderTopColor alone, which is wrong in both
+   * directions and wrong on almost every list in the product. A row ruled with
+   * border-b has no top border, so its hairline vanished — that is every divider in
+   * FactRows, RankRows, Facts, TapRow and Records, and it is why the Standing and
+   * Population by Site cards arrived in Figma as unruled columns of text. In the
+   * other direction a single border-t hairline was applied as a stroke on all four
+   * sides, boxing in an element the design only underlines.
+   *
+   * The four widths and their colours travel, and the builder decides whether that
+   * is one uniform stroke or four separate weights.
+   */
+  function borders(cs) {
+    const side = (w, c) => { const n = px(w); return n ? { w: n, c: color(c) } : null }
+    const t = side(cs.borderTopWidth, cs.borderTopColor)
+    const rr = side(cs.borderRightWidth, cs.borderRightColor)
+    const b = side(cs.borderBottomWidth, cs.borderBottomColor)
+    const l = side(cs.borderLeftWidth, cs.borderLeftColor)
+    if (!t && !rr && !b && !l) return null
+    /* The colour is whichever side actually has one — a one-sided border is the
+       common case and there is only ever one answer for it. Figma carries a single
+       stroke paint per node, so a genuinely multi-coloured border keeps the first
+       side's colour; nothing in this product draws one. */
+    const c = (t || rr || b || l).c
+    const uniform = t && rr && b && l && [rr, b, l].every((s) => s.w === t.w)
+    return {
+      c,
+      w: (t || rr || b || l).w,
+      uniform: Boolean(uniform),
+      sides: [t ? t.w : 0, rr ? rr.w : 0, b ? b.w : 0, l ? l.w : 0],
+    }
   }
 
   const root = document.querySelector('#root') || document.body

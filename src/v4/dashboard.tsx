@@ -238,10 +238,20 @@ export function YearBars({
   years,
   tone = 'good',
   noun,
+  onSelect,
 }: {
   years: [number, number][]
   tone?: 'good' | 'bad'
   noun: string
+  /**
+   * TAPPING A COLUMN OPENS WHAT IS BEHIND IT.
+   *
+   * The tip already says "2025 · 306 deaths", which answers how many and leaves the reader with
+   * no way to ask which — the question a curator actually has. Optional, because a chart with
+   * nothing behind it must not grow a cursor that promises there is: the affordance is present
+   * exactly where the handler is.
+   */
+  onSelect?: (year: number, value: number) => void
 }) {
   const { ref, animate } = usePlay<HTMLDivElement>()
   const { show, hide, node } = useChartTip()
@@ -273,8 +283,12 @@ export function YearBars({
       <div
         className="relative h-[196px] rounded-[8px] outline-none focus-visible:ring-2"
         style={FOCUS_RING}
-        role="img"
-        tabIndex={0}
+        /* A CHART WITH BUTTONS IN IT IS NOT AN IMAGE. `role="img"` prunes the subtree from the
+           accessibility tree, so with columns to tap it becomes a labelled group whose children
+           are the real stops — and the reading below stays available on the group itself. Without
+           a handler nothing inside is focusable and the single image stop is still the right one. */
+        role={onSelect ? 'group' : 'img'}
+        tabIndex={onSelect ? undefined : 0}
         aria-label={`${noun}: ${fmt(total)} across ${years.length} years, ${years
           .map(([y, v]) => `${y} ${v}`)
           .join(', ')}.`}
@@ -295,29 +309,45 @@ export function YearBars({
         ))}
 
         <div className="absolute inset-0 flex items-end justify-around gap-2">
-          {years.map(([y, v], i) => (
-            <div
-              key={y}
-              className="relative flex h-full max-w-[104px] flex-1 flex-col justify-end"
-              onPointerEnter={(e) => show(e, String(y), [{ label: noun, value: fmt(v), fill }])}
-              onPointerDown={(e) => show(e, String(y), [{ label: noun, value: fmt(v), fill }])}
-              onPointerMove={(e) => show(e, String(y), [{ label: noun, value: fmt(v), fill }])}
-              onPointerLeave={hide}
-            >
-              <span
-                className={`block origin-bottom rounded-t-[4px] ${animate ? 'animate-grow-y' : ''}`}
-                style={{
-                  /* A 2px floor so a quiet year is a mark on the axis rather than a gap the eye
-                     reads as missing data. */
-                  height: `${Math.max(2, (v / top) * 100)}%`,
-                  /* The house column gradient — pale at the tip, full tone at the axis, so the
-                     bar has weight where it is anchored and the tip breathes against the card. */
-                  background: `linear-gradient(180deg, ${mix(fill, 0.58)} 0%, ${fill} 100%)`,
-                  animationDelay: animate ? `${i * 40}ms` : undefined,
-                }}
-              />
-            </div>
-          ))}
+          {years.map(([y, v], i) => {
+            const tip = (e: React.PointerEvent) => show(e, String(y), [{ label: noun, value: fmt(v), fill }])
+            /* THE WHOLE COLUMN SLOT IS THE TARGET, NOT THE PAINTED BAR. A year with two deaths
+               draws a 2px sliver, and asking a reader to hit that is asking them to fail — the
+               full-height slot is already what the tip responds to, so it is what the tap
+               responds to as well. */
+            return (
+              <div
+                key={y}
+                className="relative flex h-full max-w-[104px] flex-1 flex-col justify-end"
+                onPointerEnter={tip}
+                onPointerDown={tip}
+                onPointerMove={tip}
+                onPointerLeave={hide}
+              >
+                {onSelect && (
+                  <button
+                    type="button"
+                    onClick={() => onSelect(y, v)}
+                    aria-label={`${fmt(v)} ${noun} in ${y} — open the records`}
+                    className="absolute inset-0 z-10 cursor-pointer rounded-[6px] outline-none transition-colors hover:bg-[#16150f]/[0.04] focus-visible:ring-2"
+                    style={FOCUS_RING}
+                  />
+                )}
+                <span
+                  className={`block origin-bottom rounded-t-[4px] ${animate ? 'animate-grow-y' : ''}`}
+                  style={{
+                    /* A 2px floor so a quiet year is a mark on the axis rather than a gap the eye
+                       reads as missing data. */
+                    height: `${Math.max(2, (v / top) * 100)}%`,
+                    /* The house column gradient — pale at the tip, full tone at the axis, so the
+                       bar has weight where it is anchored and the tip breathes against the card. */
+                    background: `linear-gradient(180deg, ${mix(fill, 0.58)} 0%, ${fill} 100%)`,
+                    animationDelay: animate ? `${i * 40}ms` : undefined,
+                  }}
+                />
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -357,6 +387,7 @@ export function Slices({
   inner = 0.62,
   centre,
   size = 188,
+  onSelect,
 }: {
   items: Slice[]
   /** 0 draws a pie. Otherwise the hole's radius as a fraction of the outer. */
@@ -364,9 +395,18 @@ export function Slices({
   /** The two lines in the middle of a ring — a word and a reading. */
   centre?: [string, string]
   size?: number
+  /**
+   * Tapping a segment opens what is behind it. See the note on `YearBars.onSelect`.
+   *
+   * A THIN SEGMENT IS A BAD TARGET AND THE LEGEND IS THE RELIEF. Fifteen deaths out of 430 is a
+   * 12° wedge, which is a hard tap on a phone and an impossible one for anybody who is not
+   * pointing precisely — so `SliceKey` takes the same handler and its rows are full-width. The
+   * ring is the fast path, the key is the reliable one, and both are the same action.
+   */
+  onSelect?: (slice: Slice) => void
 }) {
   const uid = useId()
-  const { ref, animate } = usePlay<HTMLDivElement>()
+  const { ref, animate, reduce } = usePlay<HTMLDivElement>()
   const { show, hide, node } = useChartTip()
   const total = items.reduce((n, s) => n + s.value, 0)
   const hues = huesFor(items.map((s) => s.label))
@@ -393,8 +433,19 @@ export function Slices({
            here: `rise` is `scaleY(0)`, which grows a mark off a baseline — correct for a column
            and wrong for a ring, which it plays as a circle being squashed flat and then
            un-squashed. A radial mark has no baseline to grow from, so it takes the same
-           reveal every card on the page uses. */
-        className={`overflow-visible ${animate ? 'animate-fade-up' : 'opacity-0'}`}
+           reveal every card on the page uses.
+
+           THE THIRD STATE IS THE ONE THAT WAS MISSING, AND IT HID THE CHART COMPLETELY.
+           `usePlay` returns `animate: inView && !reduce` — so under
+           `prefers-reduced-motion: reduce` it is false forever, and this fell to `opacity-0`
+           with nothing that could ever clear it. Every donut and pie in the product was
+           invisible to a reader who asks for less motion: the legend, the tooltip and the
+           screen-reader title were all correct and the mark itself never appeared. `Reveal`
+           in `motion.tsx` has always got this right — `play = inView || reduce` — and the
+           difference is that `animate` means "run the animation" rather than "be visible",
+           so a caller that uses it to gate opacity has to spend the reduced case itself.
+           Reduced motion shows the finished mark at once, which is what it asked for. */
+        className={`overflow-visible ${animate ? 'animate-fade-up' : reduce ? '' : 'opacity-0'}`}
       >
         <title id={uid}>
           {items.map((s) => `${s.label} ${fmt(s.value)}`).join(', ')}
@@ -431,10 +482,16 @@ export function Slices({
               key={s.label}
               d={d}
               fill={`url(#${uid}-g${i})`}
+              className={onSelect ? 'cursor-pointer' : undefined}
               onPointerEnter={(e) => show(e, s.label, [{ label: `${pct}% of ${fmt(total)}`, value: fmt(s.value), fill: hues[i] }])}
               onPointerDown={(e) => show(e, s.label, [{ label: `${pct}% of ${fmt(total)}`, value: fmt(s.value), fill: hues[i] }])}
               onPointerMove={(e) => show(e, s.label, [{ label: `${pct}% of ${fmt(total)}`, value: fmt(s.value), fill: hues[i] }])}
               onPointerLeave={hide}
+              /* NO `tabIndex` ON THE SEGMENTS, deliberately. Six wedges plus six legend rows is
+                 twelve tab stops for six actions, and the segment is the worse of the two to
+                 land on — a focus ring on a path is drawn round its bounding box, which for a
+                 wedge is most of the circle. The key below carries the keyboard path. */
+              onClick={onSelect ? () => onSelect(s) : undefined}
             >
               <title>{`${s.label}: ${fmt(s.value)} (${pct}%)`}</title>
             </path>
@@ -462,24 +519,50 @@ export function Slices({
   )
 }
 
-/** The key under a composition. Always present — identity is never carried by colour alone. */
-export function SliceKey({ items }: { items: Slice[] }) {
+/**
+ * The key under a composition. Always present — identity is never carried by colour alone.
+ *
+ * WITH A HANDLER IT IS ALSO THE CHART'S KEYBOARD AND ITS BIG TARGET. See the note on
+ * `Slices.onSelect`: a 12° wedge is not a tap target, and a legend row is. Hand both the same
+ * handler and the reader can use whichever they can hit.
+ */
+export function SliceKey({ items, onSelect }: { items: Slice[]; onSelect?: (slice: Slice) => void }) {
   const hues = huesFor(items.map((s) => s.label))
   return (
     <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5">
-      {items.map((s, i) => (
-        <li key={s.label} className="flex items-center gap-2 text-caption" style={{ color: INK2 }}>
-          <span
-            className="size-[9px] shrink-0 rounded-[2.5px]"
-            style={{ background: hues[i] }}
-            aria-hidden
-          />
-          {s.label}{' '}
-          <b className="font-semibold tabular-nums" style={{ color: VALUE }}>
-            {fmt(s.value)}
-          </b>
-        </li>
-      ))}
+      {items.map((s, i) => {
+        const body = (
+          <>
+            <span
+              className="size-[9px] shrink-0 rounded-[2.5px]"
+              style={{ background: hues[i] }}
+              aria-hidden
+            />
+            {s.label}{' '}
+            <b className="font-semibold tabular-nums" style={{ color: VALUE }}>
+              {fmt(s.value)}
+            </b>
+          </>
+        )
+        return (
+          <li key={s.label} className="flex items-center text-caption" style={{ color: INK2 }}>
+            {onSelect ? (
+              <button
+                type="button"
+                onClick={() => onSelect(s)}
+                /* `tap-tall` gives the caption-sized row the 44px hit area its type cannot —
+                   the same treatment `DashCard`'s action link takes. */
+                className="tap-tall card-press flex items-center gap-2 rounded-[8px] px-1 outline-none focus-visible:ring-2"
+                style={FOCUS_RING}
+              >
+                {body}
+              </button>
+            ) : (
+              <span className="flex items-center gap-2">{body}</span>
+            )}
+          </li>
+        )
+      })}
     </ul>
   )
 }

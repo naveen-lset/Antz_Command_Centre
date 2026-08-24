@@ -201,7 +201,7 @@ interface ToneSlice {
 
 function ToneRing({ items, centre }: { items: ToneSlice[]; centre: [string, string] }) {
   const uid = useId()
-  const { ref, animate } = usePlay<HTMLDivElement>()
+  const { ref, animate, reduce } = usePlay<HTMLDivElement>()
   const parts = items.filter((s) => s.value > 0)
   const total = parts.reduce((n, s) => n + s.value, 0)
   if (!total) return null
@@ -223,7 +223,11 @@ function ToneRing({ items, centre }: { items: ToneSlice[]; centre: [string, stri
         viewBox={`0 0 ${size} ${size}`}
         role="img"
         aria-labelledby={uid}
-        className={`overflow-visible ${animate ? 'animate-fade-up' : 'opacity-0'}`}
+        /* The reduced-motion case is spent here, not left to `animate`. See the long note
+           on the same line in `v4/dashboard.tsx`: `usePlay` reports whether to ANIMATE, and a
+           reader who asked for no motion would otherwise be left with a permanently
+           `opacity-0` ring. */
+        className={`overflow-visible ${animate ? 'animate-fade-up' : reduce ? '' : 'opacity-0'}`}
       >
         <title id={uid}>{parts.map((s) => `${s.label} ${fmt(s.value)}`).join(', ')}</title>
         <defs>

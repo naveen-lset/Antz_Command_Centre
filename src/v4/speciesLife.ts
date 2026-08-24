@@ -26,6 +26,8 @@
 
 import { EPOCH, TODAY, type Win } from '../core/calendar'
 import { numberAt, pageWhere, type Ev } from '../core/events'
+import { UNRESOLVED, flowOf } from '../core/store'
+import { SPECIES } from '../core/world'
 
 /** Every event of one kind for one species name, across every site, inside the window. */
 export function eventsOfSpecies(kind: string, name: string, win: Win, cap = 20_000): Ev[] {
@@ -34,6 +36,69 @@ export function eventsOfSpecies(kind: string, name: string, win: Win, cap = 20_0
      pathological species rather than a design limit — the largest name in the dump records
      4,010 animals, and its births and deaths are in the hundreds. */
   return pageWhere(kind, null, win, (ev) => ev.speciesName === name, 0, cap, 200_000).rows
+}
+
+/* ── one flow's rows, read straight off the columns ──────────────────────── */
+
+/**
+ * One record of one flow, with the sex and age its own row carries.
+ *
+ * READ STRAIGHT OFF THE COLUMNS, not through `eventAt`. An `Ev`'s id ends in `animal || i`, so
+ * the row index is unrecoverable from an event once the record names an animal — which is most
+ * of the mortality flow — and `facetAt`/`numberAt` keyed on a recovered index would silently
+ * read the wrong row. One walk here reads day, species, animal, detail, the sex facet and the
+ * age column in a single pass, so every figure and every table row built on it is the same read.
+ *
+ * IT LIVES HERE RATHER THAN IN THE TAB THAT FIRST NEEDED IT. Circle of Life's records table and
+ * the Overview's drill-down sheets are the same rows cut two ways — by year for a column, by
+ * cause for a slice — and a second walk written beside the sheet is the second model this file's
+ * own header argues against. One walker, both readers.
+ */
+export interface LifeEv {
+  key: string
+  day: number
+  siteKey: string
+  animalId: string
+  detail: string
+  sex?: string
+  /** Age at death in days, only where the record carries a usable birth date. */
+  age?: number
+}
+
+export function lifeEvents(kind: string, name: string, siteKey: string | null, win: Win): LifeEv[] {
+  const f = flowOf(kind)
+  if (!f) return []
+  const from = Math.max(0, win.from)
+  const to = Math.min(TODAY, win.to)
+  const sex = f.facets.get('sex')
+  const age = f.numbers.get('age')
+  const out: LifeEv[] = []
+  for (const key of Object.keys(f.slices)) {
+    if (siteKey && key !== siteKey) continue
+    const slice: [number, number] = f.slices[key]
+    const start = slice[0]
+    const len = slice[1]
+    for (let r = start; r < start + len; r++) {
+      const d = f.day[r]
+      if (d < from || d > to) continue
+      const spx = f.species[r]
+      if (spx === UNRESOLVED || SPECIES[spx]?.name !== name) continue
+      const animal = f.animal[r]
+      const a = age ? age.col[r] : undefined
+      out.push({
+        key: `${key}-${d}-${r}`,
+        day: d,
+        siteKey: key,
+        animalId: animal ? String(animal) : '',
+        detail: f.details[f.detail[r]] ?? 'Not recorded',
+        sex: sex ? sex.values[sex.col[r]] : undefined,
+        /* The sentinel is the column's own "no value" marker — zero is a REAL age here. */
+        age: a === undefined || a === age?.sentinel ? undefined : a,
+      })
+    }
+  }
+  /* Newest first, so a records table is a slice rather than a sort per page. */
+  return out.sort((x, y) => y.day - x.day)
 }
 
 /* ── over time, and over the year ────────────────────────────────────────── */

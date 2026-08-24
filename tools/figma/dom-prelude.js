@@ -192,7 +192,24 @@ function makeText(t) {
   if (oneLine && !aligned) node.textAutoResize = 'WIDTH_AND_HEIGHT'
   else {
     node.textAutoResize = 'HEIGHT'
-    node.resize(clamp(t.w), clamp(t.h))
+    /**
+     * A LINE THE BROWSER DID NOT WRAP MUST NOT WRAP HERE, and it takes a pixel of
+     * slack to guarantee that.
+     *
+     * The width is the browser's measurement of the same string in the same font at
+     * the same size, so it fits by definition — with nothing to spare. Two things
+     * then eat into it: `build-dom-scripts` rounds geometry to 0.1px and can round
+     * DOWN, and Figma's text engine does not agree with Blink's to the last
+     * hundredth of a pixel. Either is enough to push the final glyph onto a second
+     * line, which is how "Overview" arrived in the file as "Overv / iew", "Mammalia"
+     * as "Mamma / lia" and "Female" as "Fem / ale" — every one of them a centred,
+     * single-line label sized exactly to its own text.
+     *
+     * The pixel is added only where the text was ONE LINE in the browser. A wrapped
+     * block is pinned to the width it wrapped at on purpose, and widening that could
+     * pull a word up from the last line and change the shape of the paragraph.
+     */
+    node.resize(clamp(t.w + (oneLine ? 1 : 0)), clamp(t.h))
   }
   node.name = t.chars.length > 40 ? t.chars.slice(0, 40) + '…' : t.chars
   if (t.opacity < 1) node.opacity = t.opacity
@@ -211,14 +228,71 @@ function paintFrame(f, node) {
     const [tl, tr, br, bl] = f.radius.map((r) => Math.min(r, cap))
     node.topLeftRadius = tl; node.topRightRadius = tr; node.bottomRightRadius = br; node.bottomLeftRadius = bl
   }
-  if (f.border && f.border.c) { node.strokes = solid(f.border.c); node.strokeWeight = f.border.w; node.strokeAlign = 'INSIDE' }
-  if (f.shadow && f.shadow !== 'none') {
-    const m = f.shadow.match(/rgba?\(([^)]+)\)\s*(-?[\d.]+)px\s*(-?[\d.]+)px\s*(-?[\d.]+)px/)
-    if (m) {
-      const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number)
-      node.effects = [{ type: 'DROP_SHADOW', color: { r: p[0] / 255, g: p[1] / 255, b: p[2] / 255, a: p.length > 3 ? p[3] : 1 },
-        offset: { x: Number(m[2]), y: Number(m[3]) }, radius: Number(m[4]), spread: 0, visible: true, blendMode: 'NORMAL' }]
+  if (f.border && f.border.c) {
+    node.strokes = solid(f.border.c)
+    node.strokeAlign = 'INSIDE'
+    /**
+     * PER-SIDE WEIGHTS WHERE THE SIDES DIFFER, which on this product is most of them:
+     * every list row is ruled on ONE edge, and a uniform stroke boxes it in.
+     *
+     * `strokeWeight` is written first and unconditionally. Figma's individual weights
+     * are a refinement of it, not a replacement — setting only the four leaves the
+     * node's own `strokeWeight` at its default 1, which then reads back as a mixed
+     * value and repaints the missing edges on some code paths. Writing the widest
+     * side first and then zeroing the sides that carry nothing is the order that
+     * survives a later edit in the Figma UI.
+     */
+    node.strokeWeight = f.border.w
+    if (!f.border.uniform && f.border.sides) {
+      const [t, r, b, l] = f.border.sides
+      node.strokeTopWeight = t
+      node.strokeRightWeight = r
+      node.strokeBottomWeight = b
+      node.strokeLeftWeight = l
     }
+  }
+  if (f.shadow && f.shadow !== 'none') {
+    /**
+     * SPREAD AND `inset` ARE BOTH READ, and without them a whole class of mark was
+     * invisible rather than merely wrong.
+     *
+     * A Tailwind `ring-*` is not a border — it is a box-shadow of `0 0 0 1px inset`,
+     * all of whose information is in the fourth length and the keyword. The previous
+     * pattern captured three lengths and hardcoded `spread: 0`, so a ring became a
+     * drop shadow at zero offset, zero blur and zero spread: an effect that paints
+     * nothing. Measured on the species page, that is the IUCN Red List chip's outline
+     * (`rgb(200,195,186) 0 0 0 1.25px inset`) and the hero's inner hairline — two
+     * outlines the design draws and the file did not have.
+     *
+     * ALL of the shadows are read, not just the first. `box-shadow` is a list and the
+     * house style pairs a ring with a lift; taking `match()` once kept whichever came
+     * first and dropped the other.
+     */
+    const parts = []
+    let depth = 0
+    let cur = ''
+    for (const ch of f.shadow) {
+      if (ch === '(') depth++
+      if (ch === ')') depth--
+      if (ch === ',' && depth === 0) { parts.push(cur); cur = '' } else cur += ch
+    }
+    if (cur.trim()) parts.push(cur)
+
+    const effects = []
+    for (const raw of parts) {
+      const m = raw.match(/rgba?\(([^)]+)\)\s*(-?[\d.]+)px\s+(-?[\d.]+)px(?:\s+(-?[\d.]+)px)?(?:\s+(-?[\d.]+)px)?/)
+      if (!m) continue
+      const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number)
+      effects.push({
+        type: /\binset\b/.test(raw) ? 'INNER_SHADOW' : 'DROP_SHADOW',
+        color: { r: p[0] / 255, g: p[1] / 255, b: p[2] / 255, a: p.length > 3 ? p[3] : 1 },
+        offset: { x: Number(m[2]), y: Number(m[3]) },
+        radius: m[4] ? Number(m[4]) : 0,
+        spread: m[5] ? Number(m[5]) : 0,
+        visible: true, blendMode: 'NORMAL',
+      })
+    }
+    if (effects.length) node.effects = effects
   }
   if (f.overflow === 'hidden') node.clipsContent = true
   else node.clipsContent = false
@@ -234,7 +308,32 @@ function build(n) {
     g.name = n.name || 'icon'
     g.resize(clamp(n.w), clamp(n.h))
     if (n.opacity < 1) g.opacity = n.opacity
-    return g
+
+    /* A MARK'S OWN LABELS ARE REAL TEXT, laid over the vector rather than inside
+       the SVG string. `createNodeFromSvg` would import `<text>` as text too, but it
+       resolves the font itself — and a font it cannot resolve is a throw, which the
+       catch above turns into a silently missing chart. Building them here means the
+       fonts were loaded by `loadFontsFor` before anything was created, and the
+       reading in the middle of a donut stays a text layer a designer can retype. */
+    const labels = n.children || []
+    if (!labels.length) return g
+
+    const wrap = figma.createFrame()
+    wrap.name = n.name || 'mark'
+    wrap.layoutMode = 'NONE'
+    wrap.fills = []
+    wrap.clipsContent = false
+    wrap.resize(clamp(n.w), clamp(n.h))
+    wrap.appendChild(g)
+    g.x = 0; g.y = 0
+    for (const t of labels) {
+      const node = build(t)
+      if (!node) continue
+      wrap.appendChild(node)
+      node.x = t.x - n.x
+      node.y = t.y - n.y
+    }
+    return wrap
   }
 
   if (n.kind === 'image') {

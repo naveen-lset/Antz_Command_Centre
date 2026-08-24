@@ -44,7 +44,6 @@ import {
   Eye,
   FileBarChart,
   ListChecks,
-  MapPin,
   PawPrint,
   PlusCircle,
   Search,
@@ -54,8 +53,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { greetingFor, useNow } from '../hooks/useNow'
 import { ModuleSearch } from './search'
-import forestScene from '../assets/forest-scene.webp'
-import { usePeriod } from '../exec/period'
+import { HeadlineStrip, HomeDashboard } from './homeDash'
+import zooScene from '../assets/zoo-scene.webp'
 import { useCountUp } from '../hooks/useCountUp'
 import { Reveal } from '../motion'
 import {
@@ -65,6 +64,7 @@ import {
   FAINT,
   Figure,
   HERO_INK,
+  MD3,
   MUTED,
   SparkMeter,
   TONE,
@@ -85,7 +85,7 @@ import {
 import { useSheet } from './sheet'
 import { FilterBar, ScopeNote } from './filters'
 import { useScope } from './scope'
-import { useKpi, useMovement, useTrendCard } from './kpi'
+import { useKpi, useTrendCard } from './kpi'
 import { resolveWindow, type Win, type WindowKey } from '../core/calendar'
 import { figure as figureOf, population } from '../core/query'
 import { CollectionWatch } from './collectionWatch'
@@ -104,59 +104,20 @@ const TAP = 'card-press block w-full text-left'
 
 /* ── the banner ──────────────────────────────────────────────────────────── */
 
-function MistBackdrop() {
-  const birds = [
-    { x: 250, y: 34, s: 1 },
-    { x: 292, y: 22, s: 0.8 },
-    { x: 322, y: 44, s: 0.65 },
-    { x: 275, y: 58, s: 0.55 },
-    { x: 341, y: 18, s: 0.5 },
-  ]
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      <div className="absolute -top-16 right-0 size-64 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0)_70%)]" />
-      {/* THE SAME WASH ON THE LEFT, WHERE THE GREETING IS.
-          There was one of these and it was on the right, over the search button. But the foliage is
-          masked to BOTH outer margins — see `HeroFoliage` — so the left sixth of this header has
-          hanging vines behind it too, and that is exactly where "Good Afternoon," and the
-          organisation line sit. Read against the leaves, a mid-grey caption on mid-green foliage
-          was the lowest-contrast type on the screen, on the screen's first line.
-          Wider and softer than its twin because it has more to clear: the right one only has to
-          lift a white circular button off the canopy, this one carries three lines of type. */}
-      <div className="absolute -top-24 -left-20 h-80 w-[26rem] rounded-full bg-[radial-gradient(ellipse,rgba(255,255,255,0.62)_0%,rgba(255,255,255,0.34)_42%,rgba(255,255,255,0)_74%)]" />
-      <svg className="absolute inset-0 size-full" viewBox="0 0 390 200">
-        {birds.map((b, i) => (
-          <path
-            key={i}
-            d="M0,4 C2.5,0.5 4.5,0.5 6,3.2 C7.5,0.5 9.5,0.5 12,4"
-            fill="none"
-            stroke="#34544a"
-            strokeWidth={1.3}
-            strokeLinecap="round"
-            opacity={0.35}
-            transform={`translate(${b.x} ${b.y}) scale(${b.s})`}
-          />
-        ))}
-      </svg>
-    </div>
-  )
-}
-
 function GreetingHeader({ onSearch }: { onSearch: () => void }) {
   const now = useNow(30_000)
   return (
-    <header className="relative px-[var(--gutter)] pt-12 pb-4 @[460px]:pt-14 @[900px]:pt-16">
-      <MistBackdrop />
+    /* THE ORG-AND-ROLE LINE IS GONE, and the mist wash with it. The design's greeting is two
+       lines — the salutation and the name — over open sky, and the third line was restating
+       what the sidebar's own header says two inches to the left. The wash existed to lift that
+       type off a busy illustration; over the artwork's sky there is nothing to lift it from. */
+    <header className="relative px-[var(--gutter)] pt-[3.6cqw] pb-0">
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-lead text-[#3d3a34] @[900px]:text-h3">{greetingFor(now)},</p>
           <h1 className="mt-0.5 text-[length:var(--fs-name)] leading-[var(--lh-name)] font-bold tracking-[-0.4px] text-[#1c1a16]">
             {site.userName} <span aria-hidden>👋</span>
           </h1>
-          <p className="mt-1.5 flex items-center gap-1.5 text-body text-[#3d3a34]">
-            <MapPin size={14} strokeWidth={1.75} aria-hidden />
-            {site.org} · {site.role}
-          </p>
         </div>
         <button
           type="button"
@@ -190,7 +151,19 @@ function StickyPeriod() {
   return (
     <>
       <div ref={sentinel} className="h-px" aria-hidden />
-      <div className="sticky top-0 z-30 pt-[max(12px,env(safe-area-inset-top))]">
+      {/* HIDDEN UNTIL IT IS STUCK, which is the one place this screen departs from the design in
+          order to keep something the design left out. The frame carries no window or site
+          control over the hero — nothing sits under the greeting — but every figure on the page
+          is read at a window, and a page with no way to change it is a page stuck on This
+          month. So the control keeps its sticky behaviour and loses its resting state: at the
+          top the hero is the design's, and the moment the reader scrolls the bar arrives with
+          the pills in it. `pointer-events-none` while hidden so an invisible control cannot be
+          clicked, and `h-0` so it takes no space out of the hero's composition. */}
+      <div
+        className={`sticky top-0 z-30 pt-[max(12px,env(safe-area-inset-top))] transition-opacity duration-200 ${
+          stuck ? 'opacity-100' : 'pointer-events-none h-0 overflow-hidden opacity-0'
+        }`}
+      >
         <div
           aria-hidden
           className={`pointer-events-none absolute inset-0 backdrop-blur-md transition-opacity duration-300 ${
@@ -213,143 +186,56 @@ function StickyPeriod() {
 }
 
 /**
- * THE ARTWORK'S ALPHA RAMP — eased at both ends, not linear.
+ * THE ARTWORK, WHOLE AND AT FULL COLOUR — one band behind the whole hero.
  *
- * A two-stop `#000 92% → transparent 100%` is a straight line in alpha, and a straight
- * line has a corner at each end of it. The eye finds those corners: the old mask read as
- * a soft edge with a hard edge at the top of it, which is the worst of both. These stops
- * are a smootherstep, so the artwork's opacity leaves 1 and arrives at 0 with no kink
- * anywhere in between and there is nothing for the eye to catch on.
+ * WHAT THIS REPLACES, AND WHY IT LOOKED WASHED OUT. The hero used to be three pieces: a
+ * `HeroFoliage` strip pinned to y=0 carrying the vines, a `ForestBand` showing only the
+ * artwork's bottom third, and a `MIST` gradient laid over the lower half of it. Each was a
+ * reasonable fix for the previous one, and together they left about a fifth of the picture
+ * visible under a wash — which is why the screen read as pale sage where the design reads as a
+ * colour illustration.
  *
- * TWENTY PER CENT AT THE FOOT, not eight, AND THE ANIMALS SURVIVE IT — because the ramp
- * no longer works alone. `MIST` below washes the artwork toward the ground colour over a
- * much longer distance, so by 80%, where this ramp starts to give way, the foliage under
- * it is already half ground. The elephants stand at roughly 76% of the image; the ramp is
- * still at 1 there and only the grass at their feet dissolves, which is what the eight per
- * cent was protecting and what mist actually does.
+ * The design's own hero is a single 1440×539 rounded rectangle filled with the whole scene, so
+ * that is what this is. The vines bleed off the top because the artwork draws them that way and
+ * the band's top edge is the page's top edge; the elephants and the pond sit at the foot
+ * because that is where the artwork puts them. Nothing is masked and nothing is over-painted.
  *
- * THE TOP FADE IS THE SAME CURVE MIRRORED. It dissolves the artwork's own sky into the
- * banner gradient above it, so the illustration has no top edge either — the hero reads as
- * one environment that the greeting and the total are standing inside.
+ * `49.4cqw` IS THE DESIGN'S OWN RATIO, measured against the right thing. The band is 539 tall
+ * in the design's frame, but `cqw` resolves against the CONTAINER — which here is the content
+ * column, 1092 wide in that same frame, not the 1440 window. 539/1440 gave a band 130px short
+ * and the strip cut the hero's figure in half; 539/1092 is the ratio that reproduces it. `object-cover` with the
+ * focus below centre keeps the animals in frame as the column narrows; the sky is what gets
+ * cropped, which is what it is there for.
+ *
+ * THE FADE AT THE FOOT IS FOUR PER CENT OF THE BAND and it is not a wash. The strip card
+ * overlaps the artwork by design, and without a short ramp the picture's last row meets the
+ * page's ground colour as a visible horizontal seam either side of that card.
  */
-/*
- * THE LONG TOP RAMP IS BACK, AND SHOWING THE FOLIAGE IS NOT ITS JOB.
- *
- * It was briefly cut to a 9% lip so the artwork's vines and monstera would survive. They did,
- * and it was wrong: the picture's top edge lands in the MIDDLE of the page, so an edge that is
- * opaque at 9% slices every leaf in half across the full width of the screen. The leaves are
- * drawn bleeding off the top of the artwork — that reads as foliage entering from above only
- * when the artwork's top edge IS the page's top edge, and here it is nowhere near it.
- *
- * So this band goes back to being the scene's foot — animals, pond, ground — dissolving upward
- * into the sky over half its height, with no edge anywhere for the eye to catch. The foliage is
- * a separate band pinned to the top of the page, where its leaves can bleed off the screen the
- * way the illustrator drew them. See `HeroFoliage` below.
- */
-const ARTWORK_MASK = [
-  'rgba(0,0,0,0) 0%',
-  'rgba(0,0,0,0.04) 10%',
-  'rgba(0,0,0,0.17) 20%',
-  'rgba(0,0,0,0.4) 30%',
-  'rgba(0,0,0,0.68) 39%',
-  'rgba(0,0,0,0.9) 47%',
-  '#000 56%',
-  '#000 80%',
-  'rgba(0,0,0,0.94) 85%',
-  'rgba(0,0,0,0.79) 89%',
-  'rgba(0,0,0,0.56) 93%',
-  'rgba(0,0,0,0.31) 96%',
-  'rgba(0,0,0,0.12) 98%',
-  'rgba(0,0,0,0) 100%',
-].join(',')
-
-/**
- * THE ATMOSPHERIC FADE — the ground colour rising through the foot of the illustration.
- *
- * This is the half of the handover that the mask cannot do. An alpha ramp only makes the
- * artwork thinner; whatever is left still carries the artwork's own contrast, so a short
- * ramp shows an edge and a long one deletes the elephants. A wash in the PAGE'S OWN GROUND
- * — `#e7f0ea`, the colour the illustration is standing on — takes the contrast out first,
- * which is aerial perspective rather than a fade: distance is not transparency, it is
- * everything drifting toward the colour of the air.
- *
- * The two ramps are deliberately OFFSET. The wash starts at the top of this box, about
- * 55% up the artwork, and is already past half strength by the time the mask begins to
- * give way at 80%. So the artwork loses its contrast, then loses its opacity, and the
- * geometric bottom of the image lands somewhere the eye stopped reading fifty pixels ago.
- *
- * The stops are the same smootherstep as the mask, for the same reason.
- *
- * THE RADIAL IS WHY IT IS NOT A CSS GRADIENT OVERLAY. A pure vertical wash is uniform
- * across the width, and uniform is the tell — real haze pools low and toward the middle of
- * the ground rather than arriving as a level front. The ellipse adds that pooling over the
- * pond and thins outward to the sides.
- *
- * ITS LAST STOP IS TRANSPARENT AND THAT IS NOT A DETAIL. A radial gradient holds its final
- * colour everywhere beyond the final stop, so an ellipse that still has alpha where it
- * meets the top of this box paints that alpha along the whole top edge — which is a
- * ruler-straight line across the screen, exactly the thing this component exists to remove.
- * The ellipse is sized and centred so it is fully transparent well before the box's top.
- *
- * THE VERTICAL RAMP IS BACK-LOADED, and that is what protects the animals. Distributed
- * evenly it is at half strength by the elephants, which is not mist, it is a dimmer on the
- * subject of the illustration. Two thirds of the wash happens in the last third of the box,
- * so the elephants keep their contrast and the grass at their feet is what dissolves.
- */
-/* `--env-canopy-rgb` and not a hex, because the colour this fade ends on and the colour the
-   page is painted in directly under the illustration have to be the same one. It is the
-   GREENER of the two grounds deliberately: faded onto the settled sage the artwork ends on
-   something that reads as off-white beside it, which is the hard edge back in another form.
-   See the token's note in `index.css`. */
-const G = (a: number) => `rgb(var(--env-canopy-rgb) / ${a})`
-const MIST = [
-  `radial-gradient(135% 70% at 50% 118%, ${G(0.3)} 0%, ${G(0.16)} 38%, ${G(0.05)} 62%, ${G(0)} 80%)`,
-  `linear-gradient(to bottom,
-     ${G(0)} 0%,
-     ${G(0.015)} 20%,
-     ${G(0.055)} 35%,
-     ${G(0.13)} 48%,
-     ${G(0.23)} 58%,
-     ${G(0.38)} 68%,
-     ${G(0.53)} 76%,
-     ${G(0.68)} 83%,
-     ${G(0.81)} 89%,
-     ${G(0.91)} 94%,
-     ${G(0.97)} 97.5%,
-     ${G(1)} 100%)`,
-].join(',')
-
-function ForestBand() {
+function ZooBand() {
   return (
-    <div className="relative -z-10 h-[clamp(150px,21cqw,250px)] w-full">
-      {/* THE CAP ONLY EVER TRIMS SKY, and it is back to doing exactly that. The artwork is
-          4:3, so at column width W its natural height is 0.75W; keep the box shorter than
-          that and `object-cover` crops the height — the empty sky the scene was composed
-          with — rather than the sides, where the elephants and the pond are.
-          IT WAS BRIEFLY 75cqw, to stop the top crop eating the foliage. That showed the whole
-          picture and put its top edge halfway down the screen, which sliced the leaves across
-          the full width — the crop complaint in a worse form. The foliage is now its own band
-          at the top of the page and this one is free to be what it always was: the scene's
-          foot, and nothing above it that needs protecting. */}
+    /* `inset-0`, NOT A HEIGHT. This is the fix for the artwork bleeding past the strip.
+       It used to be `h-[49.4cqw]` — the design's 539-over-1092 — which is only the right
+       height when the hero's content happens to add up to exactly that. It did not: the strip
+       is a couple of pixels taller than the frame's 112, the greeting reflows, and the type
+       scale steps at three breakpoints. So the band's foot drifted below the strip and, being
+       full-bleed, showed up as artwork in the page gutter BESIDE the row underneath — which is
+       what the mismatch was.
+       Filling the banner instead makes the geometry self-correcting: the banner's own padding
+       decides how much picture shows under the strip, and the picture can never end anywhere
+       else. `object-cover` was always going to crop, so nothing about the artwork's framing
+       depends on the box being a particular height. */
+    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-b-[26px]">
       <img
-        src={forestScene}
+        src={zooScene}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute bottom-0 left-0 max-h-[clamp(230px,34cqw,340px)] w-full object-cover object-bottom select-none"
-        style={{
-          maskImage: `linear-gradient(to bottom, ${ARTWORK_MASK})`,
-          WebkitMaskImage: `linear-gradient(to bottom, ${ARTWORK_MASK})`,
-        }}
+        className="size-full object-cover select-none"
+        style={{ objectPosition: '50% 64%' }}
       />
-      {/* Anchored to the FOOT of the band and sized off the column, so it covers the same
-          proportion of the artwork at every width — a little under half of it — and lands
-          exactly on the ground the page is already painted in. There is nothing to line up
-          below it: the wash finishes at full `#e7f0ea` on the last row of the band, and the
-          page under the band is that same colour, so the seam has no two sides to have. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(120px,14cqw,168px)]"
-        style={{ background: MIST }}
+        className="absolute inset-x-0 bottom-0 h-[16px]"
+        style={{ background: 'linear-gradient(180deg, rgba(231,240,234,0) 0%, #e7f0ea 100%)' }}
       />
     </div>
   )
@@ -357,77 +243,53 @@ function ForestBand() {
 
 /**
  * The hero is the collection total — the anchor read from across a room.
- *
- * It briefly carried a Zoo Health composite instead. That number answers "is anything
- * wrong", which is a real question, but it is not the one this screen opens on: the
- * scores now sit in their own strip above, and the hero is back to the figure the
- * product has always led with.
- *
- * The total is stated again on the first KPI card below, deliberately. The hero is the
- * anchor and carries no shape; the card is where the same number acquires twelve
- * months of curve and a detail page you can open.
  */
 function HeroBlock() {
-  const { period } = usePeriod()
   const { scope } = useScope()
   const animals = headlineKpis[0]
-  /* The hero scopes with everything else. It briefly did not, and the result was a
-     screen headed 215,432 Total Animals above a KPI row reading 178K for Aquatic
-     Halls — the single worst thing this app can do, which is state two different
-     answers to one question on one screen.
-
-     The collection total is no longer hardcoded here either. It was, as the fallback for
-     the unscoped case, which meant the largest number on the screen was the one figure on
-     it that could not respond to anything. */
+  /* The hero scopes with everything else. It briefly did not, and the result was a screen
+     headed 215,432 Total Animals above a KPI row reading 178K for Aquatic Halls — the single
+     worst thing this app can do, which is state two different answers to one question on one
+     screen. */
   const headcount = Math.round(figureOf(scope, 'animals').value)
-  const gain = useMovement('animals')
   const total = useCountUp(headcount, { format: (v) => Math.round(v).toLocaleString('en-US') })
 
   return (
-    <section className="px-[var(--gutter)] pt-4" aria-label="Total animals">
-      {/* The hero states the same KPI as the first card below it, so it goes to the same place:
-          the Animal Population page. "View breakdown" is still what it does — the breakdown is
-          now the page's own site split, and each site row there opens the drill sheet. */}
+    <section className="px-[var(--gutter)] pt-[3.2cqw]" aria-label="Animal population">
       <a href={animals.href} className="card-press block w-full">
+        {/* THE LABEL IS ABOVE THE FIGURE, which is the design's order and the better one: the
+            reader is told what the number counts before reading it, rather than being handed
+            110,020 and having to look underneath to find out. */}
+        <p className="text-center text-body text-[#1c1a16] @[900px]:text-lead">
+          {scope.site ? `Animal Population · ${scope.site.name}` : 'Animal Population'}
+        </p>
+        {/* GRADIENT GREEN, NOT HERO INK. Sampled off the design: the glyphs run from about
+            #37bd69 at the top to a deeper green at the foot, which is the brand's own primary
+            graded down rather than a new colour. `background-clip` is how a gradient fills type;
+            the solid `color` under it is what a browser without the clip still renders. */}
         <p
-          className="text-center font-display text-[length:var(--fs-hero)] leading-[var(--lh-hero)] font-bold tracking-[-1.5px]"
-          style={{ color: HERO_INK }}
+          className="mt-2 text-center font-display text-[length:var(--fs-hero)] leading-[var(--lh-hero)] font-bold tracking-[-1.5px]"
+          style={{
+            color: MD3.primary,
+            backgroundImage: `linear-gradient(180deg, ${MD3.primary} 0%, #1e7a44 100%)`,
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}
         >
           {total}
         </p>
-        <p className="mt-2 text-center text-body text-[#1c1a16] @[900px]:text-lead">
-          {scope.site ? `Animals · ${scope.site.name}` : 'Total Animals'}
-        </p>
-        {/* The total above is a standing figure; the gain is the same population read on the
-            window's first and last day, so it is genuinely the scoped movement — Aquatic Halls'
-            gain when Aquatic Halls is picked.
-
-            THE LINE ALSO HAD TO SAY IT WAS A DOOR. The whole hero has always been tappable and
-            nothing on it said so, so the drill-down behind the largest number on the screen was
-            invisible. The movement and the affordance share one row: the figure earns the tap and
-            the eye names it. */}
-        {/* ONE BACKDROP FOR BOTH, because of what is behind them. The row sits over the top of the
-            forest illustration, and a green movement figure on green foliage is the one place on
-            this screen where the ink and the ground are the same colour. A single translucent pill
-            carries the pair clear of it and reads as one control rather than a figure with a button
-            beside it. */}
-        <span className="mt-2 flex justify-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-[5px] backdrop-blur-sm">
-            {gain !== undefined && gain !== 0 && (
-              <>
-                <span
-                  className="text-caption font-semibold tabular-nums"
-                  style={{ color: gain > 0 ? '#1e7a44' : TONE.bad }}
-                >
-                  {gain > 0 ? '▲' : '▼'} {Math.abs(gain).toLocaleString('en-US')} {period.noun}
-                </span>
-                <span className="h-[11px] w-px bg-[#16150f]/15" aria-hidden />
-              </>
-            )}
-            <span className="inline-flex items-center gap-1.5 text-caption font-semibold" style={{ color: ACCENT_INK }}>
-              <Eye size={12} strokeWidth={2.25} aria-hidden />
-              View breakdown
-            </span>
+        {/* ONE PILL, AND IT SAYS ONE THING. The movement figure that used to share this row is
+            gone — the design carries only the affordance, and the window's gain is stated by the
+            Natality and Mortality cells in the strip immediately below, which is where a reader
+            goes to ask why the number moved. */}
+        <span className="mt-3 flex justify-center">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-[6px] text-caption font-semibold shadow-[0_1px_2px_rgba(15,42,30,0.06)]"
+            style={{ color: '#006d35' }}
+          >
+            <Eye size={12} strokeWidth={2.25} aria-hidden />
+            View breakdown
           </span>
         </span>
       </a>
@@ -438,19 +300,8 @@ function HeroBlock() {
 /**
  * SPECIES COUNT — the hero says how many animals, this says how many KINDS of them.
  *
- * WHY IT IS HERE AT ALL. The home had ten KPI tiles and a 110,020 hero and no way to ask what
- * the collection IS. "How many species do we hold" is the second question anybody asks after
- * the headcount, and until the species list existed there was nowhere for it to lead — so the
- * figure was absent rather than dead-ended. It leads somewhere now, so it is here.
- *
- * IT COUNTS NAMES, like every other species figure in the product now does. `population()` is
- * the same apportionment the hero above sums, so the two cannot state different collections;
- * distinct names is what `core/world.ts` documents a curator to mean by the word. It is also
- * the cheap read — no register walk — which is what makes it safe on the home screen.
- *
- * ONE FIGURE, NOT THREE. Sites and enclosures would fit the row and belong to the Animal
- * Population page, which already carries all three. A home card earns its place by being a
- * question the home cannot otherwise answer, and that is one question.
+ * Kept for `HomeSections`, which is no longer the screen but is still exported. See the note on
+ * `HomeView`.
  */
 function SpeciesCount() {
   const { scope, href } = useScope()
@@ -476,46 +327,30 @@ function SpeciesCount() {
   )
 }
 
-/**
- * THE FOLIAGE, PINNED TO THE TOP EDGE OF THE PAGE.
- *
- * WHY IT IS A SEPARATE BAND AND NOT JUST "MORE OF THE HERO". The artwork's vines, monstera and
- * wisteria are drawn BLEEDING OFF ITS TOP EDGE — the leaves are cut by the frame, deliberately,
- * so they read as a canopy you are standing under. That only works if the artwork's top edge is
- * the screen's top edge. Show the whole picture lower down and the same cut lands halfway down
- * the page as a straight line through every leaf, which is what "something's cropped" was.
- *
- * So the foliage is taken as its own strip — the top third of the same artwork, no animals, no
- * ground — and pinned to y=0. The leaves now bleed off the top of the SCREEN, exactly as drawn,
- * and the scene's foot stays where it has always been, below the total.
- *
- * IT IS MASKED TO THE TWO MARGINS, and that is what stops it being a rectangle. The middle of
- * this strip is empty sky, a few levels off the banner gradient behind it; painted full width
- * it lays a pale block across the greeting. The foliage itself only ever occupies the outer
- * sixth of the picture, so that is all that is kept, with a wide soft ramp on the inner edge so
- * there is no vertical seam. The bottom fades over the lower half — the vines hang and
- * dissolve into the gradient rather than stopping.
- *
- * `-z-10` puts it above the banner gradient and below every piece of hero content, so the
- * greeting, the filters and the total all read over it, and the white search button sits on
- * top of it rather than under.
- */
-function HeroFoliage() {
-  return <div className="hero-foliage" aria-hidden />
-}
-
 export function HomeBanner({ onSearch }: { onSearch: () => void }) {
   return (
-    <div className="relative isolate">
-      <div
-        className="pointer-events-none absolute inset-0 -z-20 bg-[linear-gradient(180deg,#cde4d8_0%,#b4d3c4_38%,#a0c8b5_62%,rgba(231,240,234,0)_100%)]"
-        aria-hidden
-      />
-      <HeroFoliage />
+    /**
+     * THE HERO IS ONE COMPOSITION: artwork, greeting, figure, strip.
+     *
+     * The frame groups them that way and the geometry only works that way. The strip used to
+     * live in the dashboard body and reach back up into the artwork with a negative margin,
+     * which meant two elements were each guessing where the other ended — and the artwork won,
+     * finishing 60px below the strip and spilling into the gutter beside the next row.
+     *
+     * Owned here, the arithmetic is one number. `pb` is HOW MUCH PICTURE SHOWS UNDER THE STRIP:
+     * the frame leaves 23px of it against a 1092 column, which is 2.1%. Everything else — where
+     * the strip sits, how tall the band is — follows from the content, and the band fills
+     * whatever this box turns out to be.
+     */
+    <div className="relative isolate pb-[2.1cqw]">
+      <ZooBand />
       <GreetingHeader onSearch={onSearch} />
       <StickyPeriod />
       <HeroBlock />
-      <ForestBand />
+      {/* 71px between the hero's pill and the strip in the frame — 6.5% of the column. */}
+      <div className="px-[var(--gutter)] pt-[6.5cqw]">
+        <HeadlineStrip />
+      </div>
     </div>
   )
 }
@@ -1343,12 +1178,25 @@ export function HomeSections() {
   )
 }
 
+/**
+ * THE BODY BELOW THE ARTWORK IS THE FIGMA DASHBOARD NOW — see `homeDash.tsx`.
+ *
+ * `HomeBanner` is untouched: the greeting, the window pill, the 110,020 hero and the forest band
+ * are exactly what the design shows above the fold, and they were already this. What changed is
+ * everything under them — four ruled analytical sections became eight self-titling cards.
+ *
+ * `HomeSections` IS KEPT AND IS STILL EXPORTED. Its four sections are the reporting view of the
+ * same collection and nothing else renders them, so deleting them would throw away
+ * `ExecutiveOverview`, `OperationalStrip`, `TrendsSection` and `CollectionWatch` on the way past
+ * — a much larger change than the one that was asked for, and not a reversible one. The screen
+ * renders the dashboard; the sections stay in the file for whatever asks for them next.
+ */
 export function HomeView() {
   const [searching, setSearching] = useState(false)
   return (
     <>
       <HomeBanner onSearch={() => setSearching(true)} />
-      <HomeSections />
+      <HomeDashboard />
       {searching && <ModuleSearch onClose={() => setSearching(false)} />}
     </>
   )

@@ -71,11 +71,12 @@ import {
 } from './speciesLayout'
 import { DashCard, FactRows, KpiStrip, RankRows, SliceKey, Slices, YearBars, foldTail } from './dashboard'
 import { speciesWideAt } from './speciesWide'
+import { useSpeciesFocus } from './speciesFocus'
 import { useDrill } from './drillNav'
 import { FindField } from './filters'
 import { useSheet } from './sheet'
 import { HousingTable, type HCol } from './speciesHousing'
-import { ageLabel, bandsOf, survivalOf } from './speciesLife'
+import { ageLabel, bandsOf, lifeEvents, survivalOf, type LifeEv } from './speciesLife'
 import { MoreRows, usePaged } from './perf'
 import { useScope } from './scope'
 
@@ -524,7 +525,12 @@ export function SpeciesOverviewTab({
     () => walkSpeciesFlow('mortality', name, siteKey, allTime, {}),
     [name, siteKey, allTime],
   )
-  const causes = foldTail(causesFlow.detail.filter((d) => d.value > 0))
+  const rawCauses = causesFlow.detail.filter((d) => d.value > 0)
+  const causes = foldTail(rawCauses)
+  /* WHICH MANNERS THE CHART DREW SEPARATELY, so the drill-down behind the "Other" slice can be
+     "everything the ring did not name" rather than a match on a word the source never records.
+     Folding happened exactly when the fold shortened the list; see `foldTail`. */
+  const namedCauses = causes.length < rawCauses.length ? causes.slice(0, -1).map((c) => c.label) : undefined
   /* THE NON-ANSWER SHARE IS NO LONGER PRINTED AS A SUB-LINE. It is still SHOWN: the grey slice
      is reserved for absence across every chart on this page (`huesFor`), and the legend beneath
      carries its count — so the reader who wonders how much of the vocabulary is "Undetermined"
@@ -544,6 +550,37 @@ export function SpeciesOverviewTab({
         { label: 'Undetermined', value: wide.undetermined },
       ].filter((s) => s.value > 0)
     : []
+
+  /**
+   * EVERY MARK ON THIS TAB IS A DOOR, and this is the one place that says where each leads.
+   *
+   * The tab used to end at the tip: a hover said 306 and there was nowhere to go with it. The
+   * four openers below hand a tapped figure to `speciesFocus.tsx`, which puts the records behind
+   * it in the product's own sheet — the centred popup on desktop, the bottom sheet on the phone.
+   *
+   * The id list is EVERY REGISTRY ROW OF THIS NAME, not `speciesId`. A species page is cross-site
+   * and the two register-backed sheets — sex and readiness — have to walk all of them, or a slice
+   * reading 2,007 would open on one site's share of it. `wide.sites` is already that list, cut to
+   * the scope, and it is the same list the ring above was counted from.
+   */
+  const focus = useSpeciesFocus({
+    name,
+    speciesIds: wide ? wide.sites.map((s) => s.species.id) : [],
+    siteKey,
+  })
+
+  /* A readiness slice is a BUCKET OF COMPOSITIONS, not one of them, so the label the ring carries
+     has to be resolved back to the `Composition` values it was summed from — the same table the
+     count came out of, read the other way. A slice with no matching bucket cannot happen; the
+     rows are built from `READINESS` and nothing else adds to them. */
+  const openReadiness = ({ label }: { label: string }) => {
+    const bucket = READINESS.find((b) => b.label === label)
+    if (bucket) focus.readiness(bucket.label, bucket.of)
+  }
+  /* `namedCauses` is passed only for the folded slice, which is what makes its filter
+     "everything the ring did not name" rather than a match on the word "Other". */
+  const openCause = ({ label, value }: { label: string; value: number }) =>
+    focus.cause(label, value, label === 'Other' && namedCauses ? namedCauses : undefined)
 
   return (
     <TabBody>
@@ -586,7 +623,11 @@ export function SpeciesOverviewTab({
             <span
               title="Dated by the record's own birth date where it has one and by the day it was added otherwise — 39,170 of 64,083 compiled births take the fallback, so this is when young were recorded rather than when they were born."
             >
-              <YearBars years={birthYears} noun="births" />
+              <YearBars
+                years={birthYears}
+                noun="births"
+                onSelect={(year, value) => focus.year('births', year, value)}
+              />
             </span>
           </DashCard>
 
@@ -597,7 +638,12 @@ export function SpeciesOverviewTab({
             onAction={() => onTab?.('life')}
           >
             <span title="Deaths carry a real event date on 38,680 of 38,684 source rows.">
-              <YearBars years={deathYears} tone="bad" noun="deaths" />
+              <YearBars
+                years={deathYears}
+                tone="bad"
+                noun="deaths"
+                onSelect={(year, value) => focus.year('mortality', year, value)}
+              />
             </span>
           </DashCard>
         </div>
@@ -609,8 +655,12 @@ export function SpeciesOverviewTab({
           {sexRows.length > 0 && wide && (
             <DashCard title="Sex Composition">
               <span title="Unsexed is an answer a keeper recorded in housing.gender, not a gap in the file, so it holds its own share rather than being folded away. On a past window the split is the register's present ratio apportioned to the reconstructed headcount — animals.bin is a snapshot and carries no sex history.">
-                <Slices items={sexRows} centre={['Sexed', `${Math.round(wide.sexedPct)}%`]} />
-                <SliceKey items={sexRows} />
+                <Slices
+                  items={sexRows}
+                  centre={['Sexed', `${Math.round(wide.sexedPct)}%`]}
+                  onSelect={(s) => focus.sex(s.label, s.value)}
+                />
+                <SliceKey items={sexRows} onSelect={(s) => focus.sex(s.label, s.value)} />
               </span>
             </DashCard>
           )}
@@ -618,8 +668,8 @@ export function SpeciesOverviewTab({
           {readyRows.length > 0 && (
             <DashCard title="Breeding Readiness" span="as held today" action="View Pairing" onAction={() => onTab?.('pairing')}>
               <span title="Counted per enclosure from the register as at the extract's last day, so it does not move with the date filter. No bucket says 'can breed' — that is a claim about maturity, and a birth date is absent on 81% of the register.">
-                <Slices items={readyRows} inner={0.58} />
-                <SliceKey items={readyRows} />
+                <Slices items={readyRows} inner={0.58} onSelect={openReadiness} />
+                <SliceKey items={readyRows} onSelect={openReadiness} />
               </span>
               {/* The enclosure total is stated once, by the KPI cell above that exists for it —
                   repeating it under the ring it is the denominator of was the same figure twice. */}
@@ -637,8 +687,8 @@ export function SpeciesOverviewTab({
               onAction={() => onTab?.('life')}
             >
               <span title="The vocabulary is the source's verbatim. Undetermined and Indeterminate are non-answers and take the grey rather than a category colour.">
-                <Slices items={causes} inner={0} />
-                <SliceKey items={causes} />
+                <Slices items={causes} inner={0} onSelect={openCause} />
+                <SliceKey items={causes} onSelect={openCause} />
               </span>
               {/* The unrecorded share is carried by the grey slice and its legend row, which
                   state the same fact inside the mark rather than as a caption under it. */}
@@ -711,61 +761,8 @@ type RecordMode = 'animal' | 'site'
 /** The lifespan/neutral-teal treatment — the NotePanel's own hue, promoted to a mark colour. */
 const TEAL = '#1f515b'
 
-/**
- * One record of one flow, with the sex and age its own row carries.
- *
- * READ STRAIGHT OFF THE COLUMNS, not through `eventAt`. An `Ev`'s id ends in `animal || i`, so
- * the row index is unrecoverable from an event once the record names an animal — which is most
- * of the mortality flow — and `facetAt`/`numberAt` keyed on a recovered index would silently
- * read the wrong row. One walk here reads day, species, animal, detail, the sex facet and the
- * age column in a single pass, so every figure and every table row on this tab is the same read.
- */
-interface LifeEv {
-  key: string
-  day: number
-  siteKey: string
-  animalId: string
-  detail: string
-  sex?: string
-  /** Age at death in days, only where the record carries a usable birth date. */
-  age?: number
-}
-
-function lifeEvents(kind: string, name: string, siteKey: string | null, win: Win): LifeEv[] {
-  const f = flowOf(kind)
-  if (!f) return []
-  const from = Math.max(0, win.from)
-  const to = Math.min(TODAY, win.to)
-  const sex = f.facets.get('sex')
-  const age = f.numbers.get('age')
-  const out: LifeEv[] = []
-  for (const key of Object.keys(f.slices)) {
-    if (siteKey && key !== siteKey) continue
-    const slice: [number, number] = f.slices[key]
-    const start = slice[0]
-    const len = slice[1]
-    for (let r = start; r < start + len; r++) {
-      const d = f.day[r]
-      if (d < from || d > to) continue
-      const spx = f.species[r]
-      if (spx === UNRESOLVED || SPECIES[spx]?.name !== name) continue
-      const animal = f.animal[r]
-      const a = age ? age.col[r] : undefined
-      out.push({
-        key: `${key}-${d}-${r}`,
-        day: d,
-        siteKey: key,
-        animalId: animal ? String(animal) : '',
-        detail: f.details[f.detail[r]] ?? 'Not recorded',
-        sex: sex ? sex.values[sex.col[r]] : undefined,
-        /* The sentinel is the column's own "no value" marker — zero is a REAL age here. */
-        age: a === undefined || a === age?.sentinel ? undefined : a,
-      })
-    }
-  }
-  /* Newest first, so the records table is a slice rather than a sort per page. */
-  return out.sort((x, y) => y.day - x.day)
-}
+/* `LifeEv` and its walker moved to `speciesLife.ts`, unchanged — the Overview's drill-down
+   sheets cut the same rows by year and by cause, and two walkers is two models. */
 
 /** Counts per month of the YEAR, pooled across the window's years — a season, not a trend. */
 const seasonCounts = (rows: LifeEv[]): number[] => {

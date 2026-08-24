@@ -9,19 +9,29 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { HERE } from './paths.mjs'
 import { useFigma, DEFAULT_FILE } from './call.mjs'
+import { manifest } from './build-dom-scripts.mjs'
 
 const OUT = resolve(HERE, 'out-dom')
 const only = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const files = readdirSync(OUT).filter((f) => f.endsWith('.js')).sort()
   .filter((f) => !only.length || only.some((p) => f.startsWith(p)))
 
-console.log(`file ${DEFAULT_FILE} · ${files.length} script(s)\n`)
+/* A FILTER THAT MATCHES NOTHING IS A FAILED RUN, not an empty success. `ok ===
+   files.length` is `0 === 0` for a mistyped prefix, so the script exited 0 having
+   pushed nothing and the caller had no way to tell that from a clean push. */
+if (!files.length) {
+  console.log(only.length ? `no script matches ${only.join(', ')}` : `nothing in ${OUT}`)
+  process.exit(1)
+}
+
+const { frame } = manifest()
+console.log(`file ${DEFAULT_FILE} · ${frame} · ${files.length} script(s)\n`)
 let ok = 0
 for (const f of files) {
   const code = readFileSync(resolve(OUT, f), 'utf8')
   const kb = (code.length / 1024).toFixed(1) + 'KB'
   try {
-    const r = await useFigma(code, { description: `ANTZ desktop Home — ${f.replace(/^\d+-|\.js$/g, '')} as native Figma layers` })
+    const r = await useFigma(code, { description: `ANTZ — ${frame}: ${f.replace(/^\d+-|\.js$/g, '')} as native Figma layers` })
     const txt = r.text.replace(/\s+/g, ' ').slice(0, 240)
     const bad = r.isError || /\berror\b|exception|failed/i.test(txt)
     console.log(`  ${bad ? 'FAIL' : 'ok  '} ${f.padEnd(30)} ${kb.padStart(8)}  ${txt}`)

@@ -7,7 +7,9 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { HERE } from './paths.mjs'
 import { figma, mockState } from './mock-figma.mjs'
-import { PAGE, FRAME } from './build-dom-scripts.mjs'
+import { manifest } from './build-dom-scripts.mjs'
+
+const { page: PAGE, frame: FRAME } = manifest()
 
 const OUT = resolve(HERE, 'out-dom')
 mockState.page.name = PAGE
@@ -19,7 +21,10 @@ seed.resize(1440, 2496)
 mockState.page.appendChild(seed)
 
 let fail = 0
-for (const f of readdirSync(OUT).sort()) {
+/* `.js` ONLY. The directory also holds `manifest.json`, and macOS drops a
+   `.DS_Store` into any folder Finder has opened — both would be read as source and
+   fail the run for a reason that has nothing to do with the scripts. */
+for (const f of readdirSync(OUT).filter((f) => f.endsWith('.js')).sort()) {
   const src = readFileSync(resolve(OUT, f), 'utf8')
   try {
     const fn = new Function('figma', `return (async () => {\n${src}\n})()`)
